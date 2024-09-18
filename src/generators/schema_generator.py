@@ -38,7 +38,8 @@ class SchemaGenerator:
             if rel['type'] == 'one_to_many':
                 setattr(from_model, rel['to'] + 's', relationship(to_model.__name__))
         
-        return models
+        return Base, models
 
     def generate_schema(self):
-        return "\n".join(f"class {name}(Base):\n    {model.__table__}" for name, model in self.generate_models().items())
+        _, models = self.generate_models()
+        return "\n".join(f"class {name}(Base):\n    {model.__table__}" for name, model in models.items())

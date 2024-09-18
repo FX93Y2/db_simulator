@@ -6,16 +6,11 @@ entities:
         primary_key: true
       - name: name
         type: string
-      - name: start_date
-        type: date
-      - name: end_date
-        type: date
       - name: status
         type: enum
         options: [planning, in_progress, completed]
     generation:
-      method: random
-      count: 50
+      count: 20
 
   task:
     attributes:
@@ -30,15 +25,11 @@ entities:
       - name: status
         type: enum
         options: [not_started, in_progress, completed]
-      - name: progress
-        type: integer
     generation:
-      method: random
-      count: 200
+      count: 100
 
 relationships:
-  project_tasks:
-    from: project
+  - from: project
     to: task
     type: one_to_many
     foreign_key: task.project_id
@@ -48,10 +39,4 @@ rules:
     type: update
     target: project
     logic: |
-      project.status = 'completed' if all(task.status == 'completed' for task in project.tasks) else 'in_progress'
-  
-  - name: calculate_project_progress
-    type: update
-    target: project
-    logic: |
-      project.progress = sum(task.progress for task in project.tasks) / len(project.tasks)
+      self.status = 'completed' if all(task.status == 'completed' for task in task) else 'in_progress'

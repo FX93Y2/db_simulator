@@ -1,33 +1,29 @@
+import os
 from src.engine.simulation_engine import SimulationEngine
-from src.generators.schema_generator import SchemaGenerator
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 def main():
-    # Initialize and run simulation
-    engine = SimulationEngine('config/simulation_config.yaml')
+    output_dir = os.path.join(os.path.dirname(__file__), 'output')
+    os.makedirs(output_dir, exist_ok=True)
+
+    engine = SimulationEngine('config/library_example.yaml')
     engine.load_config()
     engine.run_simulation()
     simulated_data = engine.get_simulated_data()
 
-    # Generate SQLAlchemy models
-    schema_gen = SchemaGenerator(engine.config)
-    models = schema_gen.generate_models()
-
     # Create database and tables
-    db_engine = create_engine('sqlite:///project_tracking.db')
-    for model in models.values():
-        model.__table__.create(db_engine)
+    db_path = os.path.join(output_dir, 'library_example.db')
+    db_engine = create_engine(f'sqlite:///{db_path}')
+    engine.Base.metadata.create_all(db_engine)
 
     # Insert simulated data
     Session = sessionmaker(bind=db_engine)
     session = Session()
 
-    for entity_name, instances in simulated_data.items():
-        model = models[entity_name]
+    for instances in simulated_data.values():
         for instance in instances:
-            db_instance = model(**instance)
-            session.add(db_instance)
+            session.add(instance)
 
     session.commit()
     session.close()
