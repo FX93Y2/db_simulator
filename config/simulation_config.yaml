@@ -1,0 +1,57 @@
+entities:
+  project:
+    attributes:
+      - name: id
+        type: integer
+        primary_key: true
+      - name: name
+        type: string
+      - name: start_date
+        type: date
+      - name: end_date
+        type: date
+      - name: status
+        type: enum
+        options: [planning, in_progress, completed]
+    generation:
+      method: random
+      count: 50
+
+  task:
+    attributes:
+      - name: id
+        type: integer
+        primary_key: true
+      - name: project_id
+        type: integer
+        foreign_key: project.id
+      - name: name
+        type: string
+      - name: status
+        type: enum
+        options: [not_started, in_progress, completed]
+      - name: progress
+        type: integer
+    generation:
+      method: random
+      count: 200
+
+relationships:
+  project_tasks:
+    from: project
+    to: task
+    type: one_to_many
+    foreign_key: task.project_id
+
+rules:
+  - name: update_project_status
+    type: update
+    target: project
+    logic: |
+      project.status = 'completed' if all(task.status == 'completed' for task in project.tasks) else 'in_progress'
+  
+  - name: calculate_project_progress
+    type: update
+    target: project
+    logic: |
+      project.progress = sum(task.progress for task in project.tasks) / len(project.tasks)
