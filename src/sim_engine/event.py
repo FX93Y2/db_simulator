@@ -7,6 +7,7 @@ class Event:
         self.name = name
         self.params = params or {}
 
+
     def __lt__(self, other):
         """
         Events are ordered in a priority queue

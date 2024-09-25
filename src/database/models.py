@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float
 from sqlalchemy.ext.declarative import declarative_base
 
 Base = declarative_base()
@@ -16,9 +16,12 @@ def create_entity_model(entity_config):
                 attributes[attr['name']] = Column(String)
             elif attr['type'] == 'float':
                 attributes[attr['name']] = Column(Float)
-            # Add more types as needed
     
     return type(entity_config['name'], (Base,), attributes)
 
 def create_models(config):
-    return {entity['name']: create_entity_model(entity) for entity in config['entities']}
+    models = {}
+    for entity in config['entities']:
+        model = create_entity_model(entity)
+        models[entity['name']] = model
+    return models
