@@ -30,6 +30,7 @@ class SimulationEngine:
             self.current_time = event.time
             self.handle_event(event)
         self.db_manager.close()
+        logger.info("Simulation completed")
 
     def initialize(self):
         self.entities = generate_initial_entities(self.config)
