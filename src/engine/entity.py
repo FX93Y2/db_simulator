@@ -1,5 +1,5 @@
-import random
 from datetime import datetime, timedelta
+import random
 
 class Entity:
     def __init__(self, name, config, model_class):
@@ -8,6 +8,7 @@ class Entity:
         self.model_class = model_class
         self.instances = []
         self.relationships = []
+        self.id_counter = 1
 
     def generate(self):
         generation_config = self.config.get('generation', {})
@@ -18,7 +19,13 @@ class Entity:
     def generate_instance(self):
         instance_data = {}
         for attr in self.config['attributes']:
-            if attr['type'] == 'integer':
+            if attr['name'] == 'id':
+                instance_data[attr['name']] = self.id_counter
+                self.id_counter += 1
+            elif attr['type'] == 'integer':
+                if 'foreign_key' in attr:
+                    # Skip foreign keys, they'll be set when applying relationships
+                    continue
                 instance_data[attr['name']] = random.randint(1, 1000)
             elif attr['type'] == 'string':
                 instance_data[attr['name']] = f"{self.name}_{random.randint(1, 1000)}"
