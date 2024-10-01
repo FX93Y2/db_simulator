@@ -1,0 +1,20 @@
+entities:
+  - name: Client
+    attributes:
+      - name: id
+        type: int
+        primary_key: true
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
+
+initial_population:
+  Client:
+    count: 10

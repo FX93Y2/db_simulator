@@ -1,0 +1,30 @@
+entities:
+  - name: Employee
+    attributes:
+      - name: id
+        type: int
+        primary_key: true
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
+      - name: salary
+        type: float
+        generator:
+          type: uniform
+          min: 70000
+          max: 120000
+
+simulation_parameters:
+  duration: 1
+  time_unit: days
+
+initial_population:
+  Employee:
+    count: 20

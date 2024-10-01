@@ -1,3 +1,4 @@
+import os
 import logging
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -6,13 +7,15 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
-    def __init__(self, config):
-        self.engine = create_engine('sqlite:///simulation.db', echo=True)
+    def __init__(self, config, config_file_name):
+        db_name = os.path.splitext(config_file_name)[0]
+        db_path = f"{db_name}.db"
+        self.engine = create_engine(f'sqlite:///output/{db_path}', echo=True)
         self.models = create_models(config)
         
         try:
             Base.metadata.create_all(self.engine)
-            logger.info("Database tables created successfully")
+            logger.info(f"Database {db_path} created successfully")
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
             raise
