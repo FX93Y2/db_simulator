@@ -15,6 +15,11 @@ entities:
           type: faker
           method: email
 
+simulation_parameters:
+  start_date: "2023-01-01 00:00:00"
+  end_date: "2023-02-01 00:00:00"
+  time_unit: day
+
 initial_population:
   Client:
     count: 10

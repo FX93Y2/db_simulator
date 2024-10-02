@@ -9,8 +9,12 @@ def create_entity_model(entity_config, relationships):
     attributes = {
         '__tablename__': entity_config['name'],
         'id': Column(Integer, primary_key=True, autoincrement=True),
-        'CreatedAt': Column(DateTime, default=datetime.datetime.utcnow)
     }
+    
+    # Only add CreatedAt if it's explicitly defined in the entity config
+    if any(attr['name'] == 'CreatedAt' for attr in entity_config['attributes']):
+        attributes['CreatedAt'] = Column(DateTime, default=datetime.datetime.utcnow)
+    
     for attr in entity_config['attributes']:
         if attr['name'] != 'id':
             if attr['type'] == 'int':
@@ -23,6 +27,8 @@ def create_entity_model(entity_config, relationships):
                 attributes[attr['name']] = Column(String)
             elif attr['type'] == 'float':
                 attributes[attr['name']] = Column(Float)
+            elif attr['type'] == 'datetime':
+                attributes[attr['name']] = Column(DateTime)
     
     for rel in relationships:
         if rel['from'] == entity_config['name']:

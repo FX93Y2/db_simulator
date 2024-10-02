@@ -15,6 +15,8 @@ def get_distribution(config):
         return lambda: np.random.exponential(1 / config['lambda'])
     elif distribution_type == 'poisson':
         return lambda: np.random.poisson(config['lambda'])
+    elif distribution_type == 'choice':
+        return lambda: random.choice(config['choices'])
     elif distribution_type == 'constant' or distribution_type is None:
         return lambda: config.get('value', 0)
     else:

@@ -34,7 +34,13 @@ class DatabaseManager:
         session = self.Session()
         model = self.models[entity_type]
         try:
-            session.bulk_insert_mappings(model, entities.values())
+            # Only include attributes that exist in the model
+            filtered_entities = []
+            for entity in entities.values():
+                filtered_entity = {k: v for k, v in entity.items() if hasattr(model, k)}
+                filtered_entities.append(filtered_entity)
+            
+            session.bulk_insert_mappings(model, filtered_entities)
             session.commit()
             logger.info(f"Bulk insert successful for {entity_type}")
         except Exception as e:

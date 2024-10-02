@@ -14,17 +14,48 @@ entities:
         generator:
           type: faker
           method: email
+      - name: title
+        type: string
+        generator:
+          type: choice
+          choices:
+            - "Junior Developer"
+            - "Senior Developer"
+            - "Project Manager"
+            - "Director"
       - name: salary
         type: float
         generator:
-          type: uniform
-          min: 70000
-          max: 120000
-
-simulation_parameters:
-  duration: 1
-  time_unit: days
+          type: dependent
+          dependency: title
+          conditions:
+            "Junior Developer":
+              type: uniform
+              min: 50000
+              max: 80000
+            "Senior Developer":
+              type: uniform
+              min: 80000
+              max: 120000
+            "Project Manager":
+              type: uniform
+              min: 100000
+              max: 150000
+            "Director":
+              type: uniform
+              min: 150000
+              max: 250000
 
 initial_population:
   Employee:
-    count: 20
+    count: 100 
+    creation_time_distribution:
+      type: "uniform"
+      params:
+        start: "2023-01-01T00:00:00"
+        end: "2023-12-31T23:59:59"
+
+simulation_parameters:
+  start_date: "2023-01-01 00:00:00"
+  end_date: "2023-02-01 00:00:00"
+  time_unit: day
