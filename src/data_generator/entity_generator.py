@@ -1,37 +1,58 @@
 from .value_generator import generate_attribute_value
+import logging
 
-from faker import Faker
-import random
-
-fake = Faker()
+logger = logging.getLogger(__name__)
 
 def generate_initial_entities(config):
     entities = {}
-    for entity in config['entities']:
-        entity_name = entity['name']
-        entities[entity_name] = {}
-        
-        if entity_name in config['initial_population']:
-            count = config['initial_population'][entity_name]['count']
-            for _ in range(count):
-                entity_data = {}
-                for attr in entity['attributes']:
-                    if attr['name'] != 'id':  # Skip ID as it's auto-generated
-                        if 'generator' in attr:
-                            if attr['generator']['type'] == 'faker':
-                                entity_data[attr['name']] = getattr(fake, attr['generator']['method'])()
-                            elif attr['generator']['type'] == 'uniform':
-                                entity_data[attr['name']] = random.uniform(attr['generator']['min'], attr['generator']['max'])
-                        elif 'choices' in attr:
-                            if 'distribution' in config['initial_population'][entity_name]['attributes'].get(attr['name'], {}):
-                                weights = config['initial_population'][entity_name]['attributes'][attr['name']]['weights']
-                                entity_data[attr['name']] = random.choices(attr['choices'], weights=weights)[0]
-                            else:
-                                entity_data[attr['name']] = random.choice(attr['choices'])
-                entities[entity_name][len(entities[entity_name])] = entity_data
+    # First, identify entities with no dependencies
+    independent_entities = [entity['name'] for entity in config['entities'] if not any('foreign_key' in attr for attr in entity['attributes'])]
+    
+    # Generate independent entities first
+    for entity_name in independent_entities:
+        entity_config = next(e for e in config['entities'] if e['name'] == entity_name)
+        count = config['initial_population'][entity_name]['count']
+        entities[entity_name] = {
+            i: create_entity(entity_config, config)
+            for i in range(1, count + 1)  # Start IDs from 1
+        }
+    
+    # Then generate dependent entities
+    dependent_entities = [entity['name'] for entity in config['entities'] if entity['name'] not in independent_entities]
+    for entity_name in dependent_entities:
+        entity_config = next(e for e in config['entities'] if e['name'] == entity_name)
+        count = config['initial_population'][entity_name]['count']
+        entities[entity_name] = {
+            i: create_entity(entity_config, config, entities)
+            for i in range(1, count + 1)  # Start IDs from 1
+        }
+    
     return entities
 
-def create_entity(config, entity_type):
-    entity_config = next(e for e in config['entities'] if e['name'] == entity_type)
-    entity = {attr['name']: generate_attribute_value(attr) for attr in entity_config['attributes']}
+def create_entity(entity_config, global_config, existing_entities=None):
+    entity = {}
+    for attr in entity_config['attributes']:
+        if attr['name'] == 'id':
+            continue  # Skip
+        if 'foreign_key' in attr:
+            if existing_entities:
+                ref_entity, _ = attr['foreign_key'].split('.')
+                valid_ids = list(existing_entities[ref_entity].keys())
+                if not valid_ids:
+                    logger.warning(f"No valid IDs found for foreign key {attr['name']} referencing {ref_entity}")
+                    entity[attr['name']] = None
+                else:
+                    entity[attr['name']] = generate_attribute_value(
+                        attr_config={
+                            'name': attr['name'],
+                            'type': 'choice',
+                            'choices': valid_ids
+                        },
+                        entity_config=entity_config,
+                        global_config=global_config
+                    )
+            else:
+                entity[attr['name']] = None  # Will be assigned later
+        else:
+            entity[attr['name']] = generate_attribute_value(attr, entity_config, global_config)
     return entity

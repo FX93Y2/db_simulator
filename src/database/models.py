@@ -1,13 +1,15 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
+import datetime
 
 Base = declarative_base()
 
 def create_entity_model(entity_config, relationships):
     attributes = {
         '__tablename__': entity_config['name'],
-        'id': Column(Integer, primary_key=True)
+        'id': Column(Integer, primary_key=True, autoincrement=True),
+        'CreatedAt': Column(DateTime, default=datetime.datetime.utcnow)
     }
     for attr in entity_config['attributes']:
         if attr['name'] != 'id':

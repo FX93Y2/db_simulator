@@ -3,79 +3,47 @@ entities:
     attributes:
       - name: id
         type: int
-        primary_key: true
       - name: name
         type: string
         generator:
           type: faker
           method: name
-      - name: email
-        type: string
-        generator:
-          type: faker
-          method: email
 
   - name: Project
     attributes:
       - name: id
         type: int
-        primary_key: true
       - name: name
         type: string
         generator:
           type: faker
-          method: catch_phrase
-      - name: description
-        type: string
-        generator:
-          type: faker
-          method: paragraph
-      - name: client_id
+          method: sentence
+          nb_words: 6
+      - name: assigned_client
         type: int
         foreign_key: Client.id
-
-events:
-  - name: CreateClient
-    type: Create
-    entity: Client
-    frequency:
-      distribution: poisson
-      lambda: 2
-
-  - name: CreateProject
-    type: Create
-    entity: Project
-    frequency:
-      distribution: poisson
-      lambda: 5
-    follow_up:
-      - event: AssignProjectToClient
-        delay:
-          distribution: uniform
-          min: 0
-          max: 2
-
-  - name: AssignProjectToClient
-    type: Assign
-    entity: Project
-    action:
-      relationship: client_id
-      assign_to: Client
-      distribution:
-        type: uniform
-
-simulation_parameters:
-  duration: 30
-  time_unit: days
-
-initial_population:
-  Client:
-    count: 5
-  Project:
-    count: 0
 
 relationships:
   - from: Project
     to: Client
-    type: many_to_one
-    field: client_id
+
+initial_population:
+  Client:
+    count: 10
+  Project:
+    count: 20
+
+events:
+  - name: AssignProjectToClient
+    type: Assign
+    entity: Project
+    params:
+      relationship: assigned_client
+      assign_to: 
+        distribution: uniform
+        min: 1
+        max: 10
+
+simulation_parameters:
+  duration: 30
+  time_unit: day
