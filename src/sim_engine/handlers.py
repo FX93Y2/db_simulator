@@ -1,73 +1,119 @@
+import logging
 import random
-from ..data_generator.entity_generator import create_entity
+from ..data_generator.entity_generator import EntityGenerator
 from ..utils.distributions import get_distribution
 
+logger = logging.getLogger(__name__)
+
 def handle_create(engine, event):
-    entity_data = create_entity(engine.config, event.entity_type, engine.entities)
-    entity_id = engine.db_manager.insert(event.entity_type, entity_data)
-    if event.entity_type not in engine.entities:
-        engine.entities[event.entity_type] = {}
-    engine.entities[event.entity_type][entity_id] = entity_data
-    print(f"Time {engine.current_time}: Created {event.entity_type} with ID {entity_id}")
-    return entity_id
+    """Handle creation of new entities"""
+    try:
+        # Create entity generator instance with current config
+        entity_generator = EntityGenerator(engine.config)
+        
+        # Get entity config
+        entity_config = next(
+            e for e in engine.config['entities'] 
+            if e['name'] == event.entity_type
+        )
+        
+        # Create single entity using the generator
+        entity_data = entity_generator._create_single_entity(
+            entity_config,
+            engine.current_time,
+            engine.entities
+        )
+        
+        entity_id = engine.db_manager.insert(event.entity_type, entity_data)
+        
+        if event.entity_type not in engine.entities:
+            engine.entities[event.entity_type] = {}
+            
+        engine.entities[event.entity_type][entity_id] = entity_data
+        logger.info(f"Created {event.entity_type} with ID {entity_id}")
+        
+        return entity_id
+    except Exception as e:
+        logger.error(f"Failed to create entity: {str(e)}")
+        raise
 
 def handle_assign(engine, event):
-    entity_type = event.entity_type
-    params = event.params or {}
-    
-    relationship = params.get('relationship')
-    if not relationship:
-        print(f"Missing relationship parameter for assign event: {event}")
-        return
+    """Handle assignment events"""
+    try:
+        entity_type = event.entity_type
+        params = event.params or {}
+        
+        relationship = params.get('relationship')
+        assign_to = params.get('assign_to')
+        
+        if not relationship or assign_to is None:
+            raise ValueError(f"Missing required parameters for assign event: {event}")
 
-    # Get all entities of the specified type that haven't been assigned yet
-    unassigned_entities = [
-        (entity_id, entity_data)
-        for entity_id, entity_data in engine.entities[entity_type].items()
-        if entity_data.get(relationship) is None
-    ]
+        # Get the entity to be assigned
+        entity_data = engine.entities[entity_type].get(event.entity_id)
+        if not entity_data:
+            raise ValueError(f"No {entity_type} found with ID {event.entity_id}")
 
-    if not unassigned_entities:
-        print(f"No unassigned {entity_type} entities left")
-        return
+        # Verify the target exists
+        assigned_to_type = next(
+            rel['to'] for rel in engine.config['relationships'] 
+            if rel['from'] == entity_type
+        )
+        
+        if assign_to not in engine.entities[assigned_to_type]:
+            raise ValueError(f"Target {assigned_to_type} with ID {assign_to} does not exist")
 
-    # Randomly select an unassigned entity, this should be made customizable later
-    entity_id, entity_data = random.choice(unassigned_entities)
+        # Update the entity
+        update_success = engine.db_manager.update(
+            entity_type,
+            event.entity_id,
+            {relationship: assign_to}
+        )
+        
+        if update_success:
+            entity_data[relationship] = assign_to
+            engine.entities[entity_type][event.entity_id] = entity_data
+            logger.info(
+                f"Time {engine.current_time}: "
+                f"Assigned {relationship} {assign_to} to {entity_type} {event.entity_id}"
+            )
+        else:
+            raise Exception(f"Failed to update {entity_type} {event.entity_id}")
 
-    assigned_to_type = next(rel['to'] for rel in engine.config['relationships'] if rel['from'] == entity_type)
-    valid_assign_to_ids = list(engine.entities[assigned_to_type].keys())
-
-    if not valid_assign_to_ids:
-        print(f"No valid {assigned_to_type} entities to assign to")
-        return
-
-    # Randomly select a valid ID to assign to
-    assign_to = random.choice(valid_assign_to_ids)
-
-    # Update the entity in memory and database
-    update_success = engine.db_manager.update(entity_type, entity_id, {relationship: assign_to})
-    if update_success:
-        entity_data[relationship] = assign_to
-        engine.entities[entity_type][entity_id] = entity_data
-        print(f"Time {engine.current_time}: Assigned {relationship} {assign_to} to {entity_type} {entity_id}")
-    else:
-        print(f"Time {engine.current_time}: Failed to assign {relationship} {assign_to} to {entity_type} {entity_id}")
-
-    return entity_id
+        return event.entity_id
+    except Exception as e:
+        logger.error(f"Assignment failed: {str(e)}")
+        raise
 
 def handle_update(engine, event):
-    entity = engine.db_manager.get(event.entity_type, event.entity_id)
-    if entity is None:
-        print(f"No {event.entity_type} found with ID {event.entity_id} for update")
-        return
-    update_data = event.params.get('set', {})
-    update_success = engine.db_manager.update(event.entity_type, event.entity_id, update_data)
-    if update_success:
-        if event.entity_type in engine.entities and event.entity_id in engine.entities[event.entity_type]:
-            engine.entities[event.entity_type][event.entity_id].update(update_data)
-        print(f"Time {engine.current_time}: Updated {event.entity_type} {event.entity_id}")
-    else:
-        print(f"Time {engine.current_time}: Failed to update {event.entity_type} {event.entity_id}")
+    """Handle update events"""
+    try:
+        entity = engine.db_manager.get(event.entity_type, event.entity_id)
+        if not entity:
+            raise ValueError(f"No {event.entity_type} found with ID {event.entity_id}")
+
+        update_data = event.params.get('set', {})
+        if not update_data:
+            logger.warning("No update data provided")
+            return
+
+        update_success = engine.db_manager.update(
+            event.entity_type,
+            event.entity_id,
+            update_data
+        )
+        
+        if update_success:
+            if event.entity_type in engine.entities and event.entity_id in engine.entities[event.entity_type]:
+                engine.entities[event.entity_type][event.entity_id].update(update_data)
+            logger.info(f"Updated {event.entity_type} {event.entity_id}")
+        else:
+            raise Exception(f"Failed to update {event.entity_type} {event.entity_id}")
+
+        return event.entity_id
+    except Exception as e:
+        logger.error(f"Update failed: {str(e)}")
+        raise
 
 event_handlers = {
     "Create": handle_create,
