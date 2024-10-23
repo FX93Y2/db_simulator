@@ -73,6 +73,20 @@ class SimulationEngine:
                     self._schedule_process_events(event_config)
                 elif event_config['type'] == 'Assign':
                     self._schedule_assign_events(event_config)
+        elif 'process_definitions' in self.config:
+            # Schedule process events for each entity based on process definitions
+            for process in self.config['process_definitions']:
+                target_entity = process['target_entity']
+                if target_entity in self.entities:
+                    for entity_id, entity_data in self.entities[target_entity].items():
+                        event_time = entity_data.get('CreatedAt', self.start_time)
+                        self.schedule_event(
+                            process['name'],
+                            target_entity,
+                            entity_id,
+                            event_time,
+                            {}
+                        )
 
     def _schedule_process_events(self, event_config: dict):
         """Schedule process events for entities"""
@@ -172,35 +186,57 @@ class SimulationEngine:
         params: dict = None
     ):
         """Schedule a new event"""
+        # Check for completion/release events first
+        if event_name.startswith("Release_") or event_name.startswith("Complete_"):
+            # Use "Complete" type for both release and complete events
+            event = Event(
+                "Complete",
+                entity_type,
+                entity_id,
+                event_time,
+                event_name,
+                params
+            )
+            self.event_queue.put(event)
+            return
+
+        # Look for event in regular events first
         event_config = next(
             (e for e in self.config.get('events', []) if e['name'] == event_name),
             None
         )
         
-        if not event_config:
+        if event_config:
+            event = Event(
+                event_config['type'],
+                entity_type,
+                entity_id,
+                event_time,
+                event_name,
+                params
+            )
+            self.event_queue.put(event)
+            return
+
+        # Check process definitions if no regular event found
+        if 'process_definitions' in self.config:
             process_config = next(
-                (p for p in self.config.get('process_definitions', []) if p['name'] == event_name),
+                (p for p in self.config['process_definitions'] if p['name'] == event_name),
                 None
             )
             if process_config:
-                event_config = {
-                    'type': 'Process',
-                    'name': event_name
-                }
-            else:
-                logger.warning(f"No configuration found for event: {event_name}")
+                event = Event(
+                    "Process",
+                    entity_type,
+                    entity_id,
+                    event_time,
+                    event_name,
+                    params
+                )
+                self.event_queue.put(event)
                 return
 
-        event = Event(
-            event_config['type'],
-            entity_type,
-            entity_id,
-            event_time,
-            event_name,
-            params
-        )
-        self.event_queue.put(event)
-        logger.debug(f"Scheduled event: {event}")
+        logger.warning(f"No configuration found for event: {event_name}")
 
     def _calculate_delay(self, delay_config: dict) -> timedelta:
         """Calculate delay based on configuration"""

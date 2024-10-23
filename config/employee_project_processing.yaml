@@ -3,6 +3,8 @@ entities:
     attributes:
       - name: id
         type: int
+      - name: CreatedAt
+        type: datetime
       - name: name
         type: string
         generator:
@@ -16,12 +18,18 @@ entities:
             - "Developer"
             - "Tester"
             - "Tech Lead"
+      - name: status
+        type: string
+        generator:
+          type: choice
+          choices: ["Available"]
 
   - name: Project
-  
     attributes:
       - name: id
         type: int
+      - name: CreatedAt
+        type: datetime
       - name: name
         type: string
         generator:
@@ -29,6 +37,9 @@ entities:
           method: sentence
       - name: start_date
         type: datetime
+        generator:
+          type: same_as
+          field: CreatedAt
       - name: end_date
         type: datetime
         nullable: true
@@ -44,33 +55,67 @@ entities:
 relationships:
   - from: Project
     to: Employee
-    type: many_to_many  # Enhanced relationship type
-    track_process: true  # Indicates this relationship needs process tracking
+    type: many_to_many
+    track_process: true
+    mapping_table: Project_Employee_Process
+
+initial_population:
+  Employee:
+    count: 100
+    creation_time_distribution:
+      type: uniform
+    attributes:
+      role:
+        distribution:
+          weights:
+            - 0.6  # Developer (60%)
+            - 0.2  # Tester (20%)
+            - 0.2  # Tech Lead (20%)
+  Project:
+    count: 10
+    creation_time_distribution:
+      type: uniform
+    attributes:
+      status:
+        distribution:
+          weights:
+            - 1.0  # Not Started (100%)
+            - 0.0  # In Progress (0%)
+            - 0.0  # Completed (0%)
 
 resource_definitions:
   - table: Employee
-    type_field: role  # Field that identifies resource type
-    availability_tracking:
-      status_field: status  # Optional
-      available_when: "Available"  # Optional
+    type_field: role
+    status_field: status
+    available_status: "Available"
+    busy_status: "Busy"
 
 process_definitions:
   - name: "Coding and Unit Test"
+    target_entity: "Project"
+    total_hours: 120  # Total process duration
+    work_schedule:
+      hours_per_day: 8
+      start_hour: 9
+      end_hour: 17
+      work_days: [1, 2, 3, 4, 5]  # Monday to Friday
+    
     required_resources:
       - type: "Developer"
         count: 2
       - type: "Tech Lead"
         count: 1
-    duration:
-      distribution: normal
-      mean: 40  # hours
-      std_dev: 8
-    target_entity: Project
+    
+    resource_constraints:
+      max_concurrent_projects: 1    # Resources can take one project at a time
+      auto_release: true           # Release resources when process completes
+    
     updates:
-      - field: status
+      - field: "status"
         value: "In Progress"
-      - field: end_date
+      - field: "end_date"
         value: "completion_time"
+
     resource_tracking:
       - relationship_with: Employee
         track:

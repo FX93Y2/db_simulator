@@ -62,12 +62,42 @@ def validate_process_config(config: Dict[str, Any]):
     for process in config['process_definitions']:
         if 'name' not in process:
             raise ValueError("Process definition missing required 'name' field")
+            
         if 'required_resources' not in process:
             raise ValueError(f"Process '{process['name']}' missing required_resources")
-        if 'duration' not in process:
-            raise ValueError(f"Process '{process['name']}' missing duration configuration")
+            
+        # Check for either duration or total_hours
+        if 'duration' not in process and 'total_hours' not in process:
+            raise ValueError(
+                f"Process '{process['name']}' missing either duration or total_hours configuration"
+            )
+            
         if 'target_entity' not in process:
             raise ValueError(f"Process '{process['name']}' missing target_entity")
+            
+        # Validate work schedule if present
+        if 'work_schedule' in process:
+            schedule = process['work_schedule']
+            required_schedule_fields = ['hours_per_day', 'start_hour', 'end_hour', 'work_days']
+            for field in required_schedule_fields:
+                if field not in schedule:
+                    raise ValueError(
+                        f"Process '{process['name']}' work_schedule missing required field: {field}"
+                    )
+                    
+            # Validate work days
+            if not all(isinstance(day, int) and 1 <= day <= 7 for day in schedule['work_days']):
+                raise ValueError(
+                    f"Process '{process['name']}' work_schedule has invalid work_days. "
+                    "Must be integers 1-7 (Monday-Sunday)"
+                )
+                
+            # Validate hours
+            if not (0 <= schedule['start_hour'] < 24 and 0 < schedule['end_hour'] <= 24):
+                raise ValueError(
+                    f"Process '{process['name']}' work_schedule has invalid hours. "
+                    "Must be between 0-24"
+                )
 
 def log_config_details(config: Dict[str, Any]):
     """Log important configuration details"""

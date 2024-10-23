@@ -28,6 +28,7 @@ entities:
 relationships:
   - from: Project
     to: Client
+    type: one_to_many
 
 initial_population:
   Client:

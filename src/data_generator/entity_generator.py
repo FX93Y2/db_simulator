@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class EntityGenerator:
     def __init__(self, config: Dict[str, Any]):
-        self.config = config  # Store original config
+        self.config = config
         self.start_time = datetime.strptime(
             config['simulation_parameters']['start_date'],
             "%Y-%m-%d %H:%M:%S"
@@ -27,18 +27,29 @@ class EntityGenerator:
             independent_entities = self._get_independent_entities()
             for entity_name in independent_entities:
                 entity_config = self._get_entity_config(entity_name)
-                entities[entity_name] = self._create_entities(entity_config)
+                if not self._is_auto_generated_table(entity_config):
+                    entities[entity_name] = self._create_entities(entity_config)
             
             # Then generate dependent entities
             dependent_entities = self._get_dependent_entities(independent_entities)
             for entity_name in dependent_entities:
                 entity_config = self._get_entity_config(entity_name)
-                entities[entity_name] = self._create_entities(entity_config, entities)
+                if not self._is_auto_generated_table(entity_config):
+                    entities[entity_name] = self._create_entities(entity_config, entities)
+            
+            # Initialize empty dictionaries for auto-generated mapping tables
+            for entity in self.config['entities']:
+                if self._is_auto_generated_table(entity):
+                    entities[entity['name']] = {}
             
             return entities
         except Exception as e:
             logger.error(f"Failed to generate initial entities: {str(e)}")
             raise
+        
+    def _is_auto_generated_table(self, entity_config: Dict[str, Any]) -> bool:
+        """Check if an entity is an auto-generated mapping table"""
+        return entity_config.get('auto_generated', False)
 
     def _get_independent_entities(self) -> list:
         """Get list of entities with no foreign key dependencies"""
@@ -64,6 +75,9 @@ class EntityGenerator:
         existing_entities: Optional[Dict[str, Dict[int, Dict[str, Any]]]] = None
     ) -> Dict[int, Dict[str, Any]]:
         """Create entities of a specific type"""
+        if self._is_auto_generated_table(entity_config):
+            return {}
+
         entities = {}
         count = self.config['initial_population'][entity_config['name']]['count']
         

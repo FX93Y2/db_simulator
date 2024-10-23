@@ -25,7 +25,14 @@ class ValueGenerator:
         """Generate a value for an attribute based on its configuration"""
         try:
             if 'generator' in attr:
-                if attr['generator']['type'] == 'dependent':
+                if attr['generator']['type'] == 'same_as':
+                    if not entity:
+                        raise ValueError("Entity is required for same_as generator")
+                    field = attr['generator']['field']
+                    if field not in entity:
+                        raise ValueError(f"Field {field} not found in entity")
+                    return entity[field]
+                elif attr['generator']['type'] == 'dependent':
                     return self._generate_dependent_value(attr, entity)
                 return self._generate_from_generator(
                     attr['generator'],
