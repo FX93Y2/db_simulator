@@ -1,0 +1,88 @@
+entities:
+  - name: Employee
+    attributes:
+      - name: id
+        type: int
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: role
+        type: string
+        generator:
+          type: choice
+          choices:
+            - "Developer"
+            - "Tester"
+            - "Tech Lead"
+
+  - name: Project
+  
+    attributes:
+      - name: id
+        type: int
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: sentence
+      - name: start_date
+        type: datetime
+      - name: end_date
+        type: datetime
+        nullable: true
+      - name: status
+        type: string
+        generator:
+          type: choice
+          choices:
+            - "Not Started"
+            - "In Progress"
+            - "Completed"
+
+relationships:
+  - from: Project
+    to: Employee
+    type: many_to_many  # Enhanced relationship type
+    track_process: true  # Indicates this relationship needs process tracking
+
+resource_definitions:
+  - table: Employee
+    type_field: role  # Field that identifies resource type
+    availability_tracking:
+      status_field: status  # Optional
+      available_when: "Available"  # Optional
+
+process_definitions:
+  - name: "Coding and Unit Test"
+    required_resources:
+      - type: "Developer"
+        count: 2
+      - type: "Tech Lead"
+        count: 1
+    duration:
+      distribution: normal
+      mean: 40  # hours
+      std_dev: 8
+    target_entity: Project
+    updates:
+      - field: status
+        value: "In Progress"
+      - field: end_date
+        value: "completion_time"
+    resource_tracking:
+      - relationship_with: Employee
+        track:
+          - start_time
+          - end_time
+          - hours_worked
+          - process_name
+
+simulation_parameters:
+  start_date: "2023-01-01 00:00:00"
+  end_date: "2023-02-01 00:00:00"
+  time_unit: day
+  work_hours:
+    hours_per_day: 8
+    start_hour: 9

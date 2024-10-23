@@ -1,11 +1,18 @@
 import argparse
 import os
+import logging
 from src.sim_engine.engine import SimulationEngine
 
 def main():
+    # Set up logging
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
+    
     parser = argparse.ArgumentParser(description="Run business process simulation.")
     parser.add_argument("-c", "--config", required=True,
-                        help="Name of the YAML configuration file under the config directory")
+                       help="Name of the YAML configuration file under the config directory")
     args = parser.parse_args()
     
     config_dir = os.path.join(os.path.dirname(__file__), 'config')

@@ -39,6 +39,35 @@ class ValueGenerator:
         except Exception as e:
             logger.error(f"Failed to generate value for attribute {attr.get('name', 'unknown')}: {str(e)}")
             raise
+        
+    def _generate_id_value(
+        self,
+        attr: Dict[str, Any],
+        entity_config: Dict[str, Any],
+        global_config: Dict[str, Any]
+    ) -> int:
+        """Generate an ID value based on configuration"""
+        # If it's a distribution-based ID generation
+        if 'generator' in attr and attr['generator'].get('distribution'):
+            config = attr['generator'].copy()
+            min_val = max(1, int(config.get('min', 1)))
+            max_val = int(config.get('max', 1000))
+            
+            # Generate a valid integer ID
+            return random.randint(min_val, max_val)
+            
+        # Handle foreign key references
+        if 'foreign_key' in attr:
+            referenced_entity = attr['foreign_key'].split('.')[0]
+            if referenced_entity in global_config.get('initial_population', {}):
+                count = global_config['initial_population'][referenced_entity]['count']
+                return random.randint(1, count)
+                
+        # Default ID generation
+        if attr.get('type') in ['int', 'integer']:
+            return random.randint(1, 1000)
+            
+        raise ValueError(f"Unable to generate ID for attribute: {attr}")
 
     def _generate_dependent_value(
         self,

@@ -2,14 +2,13 @@ from datetime import datetime, timedelta
 import logging
 import random
 from typing import Dict, Any, Optional
-from ..utils.distributions import get_distribution
 from .value_generator import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 
 class EntityGenerator:
     def __init__(self, config: Dict[str, Any]):
-        self.config = config
+        self.config = config  # Store original config
         self.start_time = datetime.strptime(
             config['simulation_parameters']['start_date'],
             "%Y-%m-%d %H:%M:%S"

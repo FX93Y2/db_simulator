@@ -1,43 +1,46 @@
 import os
 import logging
-from sqlalchemy import create_engine
+from typing import Dict, Any, Optional, List
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
-from .models import Base, create_models
+from sqlalchemy.exc import SQLAlchemyError
+from .models import Base, create_models, initialize_models
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
-    def __init__(self, config, config_file_name):
+    def __init__(self, config: Dict[str, Any], config_file_name: str):
+        """Initialize database manager"""
+        self.config = config
         db_name = os.path.splitext(config_file_name)[0]
         db_path = os.path.join('output', f"{db_name}.db")
-        self.engine = create_engine(f'sqlite:///{db_path}', echo=True)
+        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        
+        self.engine = create_engine(f'sqlite:///{db_path}', echo=False)
         self.models = create_models(config)
         
         try:
-            Base.metadata.create_all(self.engine)
+            initialize_models(self.engine)
             logger.info(f"Database {db_path} created successfully")
         except Exception as e:
             logger.error(f"Error creating database tables: {str(e)}")
             raise
         
         self.Session = sessionmaker(bind=self.engine)
-    
-    def get(self, entity_type, entity_id):
-        session = self.Session()
-        model = self.models[entity_type]
-        entity = session.query(model).filter_by(id=entity_id).first()
-        session.close()
-        return {c.name: getattr(entity, c.name) for c in entity.__table__.columns} if entity else None
 
-    def bulk_insert(self, entity_type, entities):
+    def bulk_insert(self, entity_type: str, entities: Dict[int, Dict[str, Any]]):
+        """Bulk insert entities into database"""
         session = self.Session()
         model = self.models[entity_type]
+        
         try:
-            # Only include attributes that exist in the model
+            # Filter attributes to match model
             filtered_entities = []
             for entity in entities.values():
-                filtered_entity = {k: v for k, v in entity.items() if hasattr(model, k)}
+                filtered_entity = {
+                    k: v for k, v in entity.items() 
+                    if hasattr(model, k)
+                }
                 filtered_entities.append(filtered_entity)
             
             session.bulk_insert_mappings(model, filtered_entities)
@@ -50,13 +53,22 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def insert(self, entity_type, entity_data):
+    def insert(self, entity_type: str, entity_data: Dict[str, Any]) -> int:
+        """Insert a single entity"""
         session = self.Session()
         model = self.models[entity_type]
-        new_entity = model(**entity_data)
+        
         try:
+            # Filter attributes to match model
+            filtered_data = {
+                k: v for k, v in entity_data.items() 
+                if hasattr(model, k)
+            }
+            
+            new_entity = model(**filtered_data)
             session.add(new_entity)
             session.commit()
+            
             entity_id = new_entity.id
             logger.info(f"Inserted {entity_type} with ID {entity_id}")
             return entity_id
@@ -67,16 +79,26 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def update(self, entity_type, entity_id, update_data):
+    def update(self, entity_type: str, entity_id: int, update_data: Dict[str, Any]) -> bool:
+        """Update an entity"""
         session = self.Session()
         model = self.models[entity_type]
+        
         try:
             entity = session.query(model).filter_by(id=entity_id).first()
             if entity is None:
                 logger.warning(f"No {entity_type} found with ID {entity_id} for update")
                 return False
-            for key, value in update_data.items():
+            
+            # Filter attributes to match model
+            filtered_data = {
+                k: v for k, v in update_data.items() 
+                if hasattr(model, k)
+            }
+            
+            for key, value in filtered_data.items():
                 setattr(entity, key, value)
+            
             session.commit()
             logger.info(f"Updated {entity_type} with ID {entity_id}")
             return True
@@ -87,5 +109,46 @@ class DatabaseManager:
         finally:
             session.close()
 
+    def get(self, entity_type: str, entity_id: int) -> Optional[Dict[str, Any]]:
+        """Get an entity by ID"""
+        session = self.Session()
+        model = self.models[entity_type]
+        
+        try:
+            entity = session.query(model).filter_by(id=entity_id).first()
+            if entity is None:
+                return None
+            
+            return {c.name: getattr(entity, c.name) for c in entity.__table__.columns}
+        finally:
+            session.close()
+
+    def get_process_records(self, process_name: str) -> List[Dict[str, Any]]:
+        """Get all records for a specific process"""
+        session = self.Session()
+        
+        try:
+            # Find the appropriate mapping table
+            mapping_tables = [
+                name for name, model in self.models.items()
+                if hasattr(model, '__auto_generated__') and 
+                   getattr(model, '__auto_generated__', False)
+            ]
+            
+            process_records = []
+            for table_name in mapping_tables:
+                model = self.models[table_name]
+                records = session.query(model).filter_by(process_name=process_name).all()
+                
+                for record in records:
+                    process_records.append(
+                        {c.name: getattr(record, c.name) for c in record.__table__.columns}
+                    )
+            
+            return process_records
+        finally:
+            session.close()
+
     def close(self):
+        """Close database connection"""
         self.engine.dispose()
