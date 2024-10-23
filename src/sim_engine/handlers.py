@@ -1,9 +1,15 @@
 import logging
 import datetime
-from typing import Dict, Any, Optional
+import random
+from typing import Dict, Any, List, Tuple
 from datetime import timedelta
 from ..utils.distributions import get_distribution
 from ..data_generator.entity_generator import EntityGenerator
+from ..utils.time_utils import (
+    calculate_work_end_time,
+    calculate_working_hours,
+    validate_work_schedule
+)
 
 logger = logging.getLogger(__name__)
 
@@ -179,8 +185,9 @@ def _process_updates(update_config: Dict[str, Any], event_time: datetime) -> Dic
             )
             
     return update_data
+
 def handle_process(engine, event):
-    """Handle process events with resource management"""
+    """Handle process events with distributed work hours"""
     try:
         process_config = next(
             (p for p in engine.config['process_definitions'] if p['name'] == event.name),
@@ -190,33 +197,42 @@ def handle_process(engine, event):
         if not process_config:
             raise ValueError(f"No configuration found for process: {event.name}")
 
-        entity_data = engine.entities[event.entity_type].get(event.entity_id)
-        if not entity_data:
-            raise ValueError(f"No {event.entity_type} found with ID {event.entity_id}")
+        # Generate randomized total hours if configured
+        base_hours = float(process_config.get('total_hours', 120))
+        if process_config.get('randomize_hours'):
+            # Default variation of ±20% if not specified
+            variation = process_config.get('hours_variation', 0.2)
+            min_hours = base_hours * (1 - variation)
+            max_hours = base_hours * (1 + variation)
+            total_hours = random.uniform(min_hours, max_hours)
+        else:
+            total_hours = base_hours
 
-        # Check if using work schedule
-        using_work_schedule = (
-            'work_schedule' in process_config and 
-            engine.resource_manager is not None
+        # Get work schedule
+        work_schedule = process_config.get('work_schedule', {})
+        hours_per_day = work_schedule.get('hours_per_day', 8)
+        start_hour = work_schedule.get('start_hour', 9)
+        end_hour = work_schedule.get('end_hour', 17)
+        work_days = work_schedule.get('work_days', [1, 2, 3, 4, 5])
+
+        # Calculate start and end times
+        start_time = _align_to_work_hours(
+            engine.current_time,
+            start_hour,
+            end_hour,
+            work_days
         )
 
-        # Get start time based on configuration
-        if using_work_schedule:
-            entity_arrival_time = entity_data.get('CreatedAt')
-            if not entity_arrival_time:
-                raise ValueError(
-                    f"Entity {event.entity_type} {event.entity_id} has no CreatedAt timestamp"
-                )
-            earliest_start_time = max(engine.current_time, entity_arrival_time)
-        else:
-            earliest_start_time = engine.current_time
+        end_time = calculate_work_end_time(
+            start_time,
+            total_hours,
+            hours_per_day,
+            start_hour,
+            end_hour,
+            work_days
+        )
 
-        # Initialize duration tracking
-        duration_hours = None
-        start_time = None
-        end_time = None
-
-        # Handle resource allocation if needed
+        # Handle resource allocation
         if 'required_resources' in process_config:
             resources = engine.resource_manager.find_available_resources(
                 process_config['required_resources']
@@ -228,30 +244,18 @@ def handle_process(engine, event):
                     event.name,
                     event.entity_type,
                     event.entity_id,
-                    earliest_start_time + delay,
+                    start_time + delay,
                     event.params
                 )
                 return None
 
-            # Calculate timing with work schedule
-            if using_work_schedule:
-                duration_hours = float(process_config['total_hours'])
-                start_time, end_time = engine.resource_manager.calculate_work_hours(
-                    earliest_start_time,
-                    duration_hours
-                )
-            else:
-                duration_dist = process_config['duration']
-                distribution = get_distribution(duration_dist)
-                duration_hours = float(distribution())
-                start_time = earliest_start_time
-                end_time = start_time + timedelta(hours=duration_hours)
+            # Distribute hours among team members based on role
+            distributed_hours = _distribute_hours(total_hours, resources, process_config)
 
             # Record timing and resources
             event.record_process_timing(start_time, end_time)
             event.allocate_resources(resources)
 
-            # Allocate resources
             process_id = f"{event.name}_{event.entity_id}_{start_time.isoformat()}"
             engine.resource_manager.seize_resources(process_id, resources)
 
@@ -270,15 +274,18 @@ def handle_process(engine, event):
                             'process_name': event.name,
                             'start_time': start_time,
                             'end_time': end_time,
-                            'hours_worked': (end_time - start_time).total_seconds() / 3600
+                            'hours_worked': distributed_hours[(table_name, resource_id)]
                         }
                         engine.db_manager.insert(mapping_table, mapping_data)
 
-            # Update process status if configured
+            # Update process status
             if 'updates' in process_config:
                 update_data = {}
                 for update in process_config['updates']:
-                    update_data.update(_process_updates(update, end_time))
+                    if isinstance(update, dict):
+                        if 'field' in update and 'value' in update:
+                            value = end_time if update['value'] == 'completion_time' else update['value']
+                            update_data[update['field']] = value
 
                 if update_data:
                     engine.db_manager.update(
@@ -296,21 +303,90 @@ def handle_process(engine, event):
                 {'process_id': process_id}
             )
 
-        else:
-            # Simple process without resource requirements
-            duration_hours = 1.0  # Default duration
-            start_time = earliest_start_time
-            end_time = start_time + timedelta(hours=duration_hours)
-
         logger.info(
             f"Started process {event.name} for {event.entity_type} {event.entity_id}. "
-            f"Duration: {duration_hours:.2f} hours"
+            f"Total Duration: {total_hours:.2f} hours"
         )
 
         return event.entity_id
     except Exception as e:
         logger.error(f"Process failed: {str(e)}")
         raise
+
+def _distribute_hours(
+    total_hours: float,
+    resources: Dict[str, List[Tuple[str, int]]],
+    process_config: Dict
+) -> Dict[Tuple[str, int], float]:
+    """Distribute total hours among team members based on role"""
+    distributed_hours = {}
+    
+    # Get role weights from config or use defaults
+    role_weights = {
+        'Tech Lead': 0.2,    # 20% of work
+        'Developer': 0.35,   # 35% of work per developer
+        'Tester': 0.3        # 30% of work
+    }
+    
+    if 'role_weights' in process_config:
+        role_weights.update(process_config['role_weights'])
+    
+    # Calculate base hours per role
+    hours_per_role = {}
+    for resource_type, resource_list in resources.items():
+        if resource_type not in role_weights:
+            # Divide remaining hours equally if no weight specified
+            weight = 1.0 / len(resource_list)
+        else:
+            weight = role_weights[resource_type]
+        
+        base_hours = total_hours * weight
+        if len(resource_list) > 1:
+            # Divide role hours among multiple resources of same type
+            base_hours = base_hours / len(resource_list)
+        
+        hours_per_role[resource_type] = base_hours
+
+    # Add randomization to individual contributions (±10%)
+    for resource_type, resource_list in resources.items():
+        base_hours = hours_per_role[resource_type]
+        for table_name, resource_id in resource_list:
+            # Add small random variation to individual contributions
+            variation = random.uniform(-0.1, 0.1)
+            hours = base_hours * (1 + variation)
+            distributed_hours[(table_name, resource_id)] = hours
+
+    # Normalize to ensure total equals original total_hours
+    current_total = sum(distributed_hours.values())
+    scale_factor = total_hours / current_total
+    for key in distributed_hours:
+        distributed_hours[key] *= scale_factor
+
+    return distributed_hours
+
+def _align_to_work_hours(
+    current_time: datetime,
+    start_hour: int,
+    end_hour: int,
+    work_days: List[int]
+) -> datetime:
+    """Align time to next valid work hour"""
+    time = current_time
+
+    # Skip non-working days
+    while time.weekday() + 1 not in work_days:
+        time = time.replace(hour=start_hour, minute=0, second=0) + timedelta(days=1)
+
+    # Align to work hours
+    if time.hour < start_hour:
+        time = time.replace(hour=start_hour, minute=0, second=0)
+    elif time.hour >= end_hour:
+        time = (time + timedelta(days=1)).replace(hour=start_hour, minute=0, second=0)
+        # Check next day
+        while time.weekday() + 1 not in work_days:
+            time = time + timedelta(days=1)
+
+    return time
 
 def handle_process_completion(engine, event):
     """Handle process completion events"""

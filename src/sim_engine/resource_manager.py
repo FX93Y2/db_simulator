@@ -1,6 +1,11 @@
 from datetime import datetime, time, timedelta
 from typing import Dict, List, Optional, Tuple
 import logging
+from ..utils.time_utils import (
+    calculate_work_end_time,
+    calculate_working_hours,
+    get_working_periods
+)
 
 logger = logging.getLogger(__name__)
 
