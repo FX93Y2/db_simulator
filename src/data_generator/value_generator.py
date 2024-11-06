@@ -26,23 +26,41 @@ class ValueGenerator:
     ) -> Any:
         """Generate a value for an attribute based on its configuration"""
         try:
+            sim_start = datetime.strptime(
+                global_config['simulation_parameters']['start_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
+            sim_end = datetime.strptime(
+                global_config['simulation_parameters']['end_date'],
+                "%Y-%m-%d %H:%M:%S"
+            )
             # Handle special cases first
             if attr.get('primary_key', False) or attr['name'] == 'id':
                 return self._generate_id_value(attr, entity_config, global_config)
             
             # Special handling for date fields
-            if attr['name'] in ['CreatedAt', 'start_date']:
-                if 'generator' in attr and attr['generator']['type'] == 'same_as':
-                    if not entity:
-                        raise ValueError("Entity required for same_as generator")
-                    value = entity[attr['generator']['field']]
+            if attr['name'] == 'CreatedAt':
+                if 'generator' in attr:
+                    if attr['generator']['type'] == 'distribution':
+                        # If it's a time-based distribution, ensure it's within simulation bounds
+                        value = self._generate_from_distribution(
+                            attr['generator'],
+                            sim_start=sim_start,
+                            sim_end=sim_end
+                        )
+                    elif attr['generator']['type'] == 'same_as':
+                        if not entity:
+                            raise ValueError("Entity required for same_as generator")
+                        value = entity[attr['generator']['field']]
                 else:
-                    value = self._generate_default_value('datetime')
-                
-                # Ensure dates don't have time
-                if isinstance(value, datetime):
-                    return value.replace(hour=0, minute=0, second=0, microsecond=0)
-                return value
+                    # Default to uniform distribution within simulation bounds
+                    value = sim_start + timedelta(
+                        seconds=random.uniform(
+                            0,
+                            (sim_end - sim_start).total_seconds()
+                        )
+                    )
+                return value.replace(hour=0, minute=0, second=0, microsecond=0)
                 
             if 'generator' in attr:
                 generator_type = attr['generator'].get('type')
@@ -144,18 +162,43 @@ class ValueGenerator:
         else:
             raise ValueError(f"Unknown generator type: {generator_type}")
             
-    def _generate_from_distribution(self, generator_config: Dict[str, Any]) -> Any:
+    def _generate_from_distribution(
+        self,
+        generator_config: Dict[str, Any],
+        sim_start: Optional[datetime] = None,
+        sim_end: Optional[datetime] = None
+    ) -> Any:
         """Generate a value from a distribution configuration"""
         try:
-            # Handle discrete distribution with choices
+            if 'distribution' in generator_config and isinstance(generator_config['distribution'], str):
+                dist_str = generator_config['distribution']
+                
+                if dist_str.startswith('UNIF(') and sim_start and sim_end:
+                    date_str = dist_str[5:-1] 
+                    if ',' in date_str:
+                        start_str, end_str = date_str.split(',')
+                        try:
+                            start = datetime.strptime(start_str.strip(), "%Y-%m-%d %H:%M:%S")
+                            end = datetime.strptime(end_str.strip(), "%Y-%m-%d %H:%M:%S")
+                            start = max(start, sim_start)
+                            end = min(end, sim_end)
+                        except ValueError:
+                            start, end = sim_start, sim_end
+                    else:
+                        start, end = sim_start, sim_end
+                    
+                    # Generate random datetime between bounds
+                    time_delta = (end - start).total_seconds()
+                    random_seconds = random.uniform(0, time_delta)
+                    return start + timedelta(seconds=random_seconds)
+
+            # Discrete
             if 'choices' in generator_config:
                 choices = generator_config['choices']
                 distribution_str = generator_config['distribution']
                 
-                # Parse DISC distribution
                 if distribution_str.startswith('DISC('):
-                    # Extract probabilities from DISC(p1, p2, p3)
-                    probs_str = distribution_str[5:-1]  # Remove DISC( and )
+                    probs_str = distribution_str[5:-1]
                     probabilities = [float(p.strip()) for p in probs_str.split(',')]
                     
                     if len(probabilities) != len(choices):
@@ -164,23 +207,9 @@ class ValueGenerator:
                             f"must match number of choices ({len(choices)})"
                         )
                         
-                    # Verify probabilities sum to 1 (approximately)
-                    if not 0.99 <= sum(probabilities) <= 1.01:
-                        raise ValueError(
-                            f"Probabilities must sum to 1, got {sum(probabilities)}"
-                        )
-                        
                     return random.choices(choices, weights=probabilities, k=1)[0]
-                    
-                # Handle other distributions
-                distribution = get_distribution(generator_config['distribution'])
-                if distribution:
-                    value = distribution()
-                    if isinstance(value, (list, tuple)):
-                        return choices[value.index(max(value))]
-                    return choices[int(value) % len(choices)]
-                    
-            # Handle numeric distributions
+
+            # Handle other distributions
             distribution = get_distribution(generator_config['distribution'])
             return distribution()
                 

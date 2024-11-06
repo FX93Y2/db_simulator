@@ -213,7 +213,7 @@ def _create_mapping_entries(
                 'process_name': process_name,
                 'start_time': start_time,
                 'end_time': end_time,
-                'hours_worked': distributed_hours.get((table_name, resource_id), 0.0)
+                'hours_worked': round(distributed_hours.get((table_name, resource_id), 0.0), 2)
             }
             
             engine.db_manager.insert(mapping_table, mapping_data)
@@ -232,13 +232,14 @@ def _distribute_hours(
         for table_name, resource_id in resource_list:
             variation = random.uniform(-0.1, 0.1)  # ±10% variation
             hours = base_hours * (1 + variation)
-            distributed_hours[(table_name, resource_id)] = hours
+            # Round to 2 decimal places
+            distributed_hours[(table_name, resource_id)] = round(hours, 2)
 
-    # Normalize to ensure total matches original
+    # Normalize to ensure total matches original (and round again)
     current_total = sum(distributed_hours.values())
     scale_factor = total_hours / current_total
     for key in distributed_hours:
-        distributed_hours[key] *= scale_factor
+        distributed_hours[key] = round(distributed_hours[key] * scale_factor, 2)
 
     return distributed_hours
 

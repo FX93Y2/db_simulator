@@ -47,7 +47,7 @@ class Event:
 
     def record_work_time(self, table_name: str, resource_id: int, hours: float):
         """Record work time for a specific resource"""
-        self.resource_work_times[(table_name, resource_id)] = hours
+        self.resource_work_times[(table_name, resource_id)] = round(hours, 2)
 
     def add_subprocess(self, subprocess_config: Dict[str, Any]):
         """Add a subprocess to this event"""

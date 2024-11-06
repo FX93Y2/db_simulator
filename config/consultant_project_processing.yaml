@@ -8,7 +8,7 @@ entities:
         type: datetime
         generator:
           type: distribution
-          distribution: UNIF(0,24)
+          distribution: UNIF()
       - name: name
         type: string
         generator:
@@ -39,7 +39,7 @@ entities:
         type: datetime
         generator:
           type: distribution
-          distribution: UNIF(2023-01-01 00:00:00, 2023-01-15 00:00:00)
+          distribution: UNIF()
       - name: name
         type: string
         generator:
@@ -86,7 +86,7 @@ events:
 
 simulation_parameters:
   start_date: "2023-01-01 00:00:00"
-  end_date: "2023-02-01 00:00:00"
+  end_date: "2023-03-01 00:00:00"
   time_unit: day
   work_schedule:
     hours_per_day: 8

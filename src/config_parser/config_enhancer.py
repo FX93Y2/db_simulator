@@ -143,7 +143,8 @@ def create_process_tracking_table(process_entity: str, resource_entity: str) -> 
             },
             {
                 'name': 'hours_worked',
-                'type': 'float'
+                'type': 'float',
+                'precesion': 2
             }
         ]
     }
