@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 class Event:
     def __init__(
@@ -22,6 +22,19 @@ class Event:
         self.process_start_time: Optional[datetime] = None
         self.process_end_time: Optional[datetime] = None
         self.allocated_resources: Dict[str, list] = {}  # {resource_type: [(table_name, resource_id)]}
+        
+        # Subprocess tracking
+        self.parent_process: Optional[str] = None
+        self.subprocesses: List[Dict[str, Any]] = []
+        self.current_subprocess: Optional[str] = None
+        
+        # Resource work time tracking
+        self.resource_work_times: Dict[str, float] = {}  # {(table_name, resource_id): hours_worked}
+        
+        # Dependency tracking
+        self.dependencies: List[Dict[str, Any]] = []
+        self.dependent_processes: List[str] = []
+        self.dependency_status: Dict[str, bool] = {}  # {process_name: is_satisfied}
 
     def record_process_timing(self, start_time: datetime, end_time: datetime):
         """Record the start and end times of a process"""
@@ -31,6 +44,35 @@ class Event:
     def allocate_resources(self, resources: Dict[str, list]):
         """Record allocated resources for this process"""
         self.allocated_resources = resources
+
+    def record_work_time(self, table_name: str, resource_id: int, hours: float):
+        """Record work time for a specific resource"""
+        self.resource_work_times[(table_name, resource_id)] = hours
+
+    def add_subprocess(self, subprocess_config: Dict[str, Any]):
+        """Add a subprocess to this event"""
+        self.subprocesses.append(subprocess_config)
+
+    def set_current_subprocess(self, subprocess_name: str):
+        """Set the currently executing subprocess"""
+        self.current_subprocess = subprocess_name
+
+    def add_dependency(self, process_name: str, dependency_type: str):
+        """Add a process dependency"""
+        self.dependencies.append({
+            'process': process_name,
+            'type': dependency_type,
+            'satisfied': False
+        })
+        self.dependency_status[process_name] = False
+
+    def mark_dependency_satisfied(self, process_name: str):
+        """Mark a dependency as satisfied"""
+        self.dependency_status[process_name] = True
+
+    def are_dependencies_satisfied(self) -> bool:
+        """Check if all dependencies are satisfied"""
+        return all(self.dependency_status.values())
 
     def get_process_duration(self) -> float:
         """Get the total duration of the process in hours"""
@@ -44,15 +86,15 @@ class Event:
     def __str__(self):
         base_info = (
             f"Event(type={self.type}, entity_type={self.entity_type}, "
-            f"entity_id={self.entity_id}, time={self.time}, name={self.name}, "
-            f"params={self.params}"
+            f"entity_id={self.entity_id}, time={self.time}, name={self.name}"
         )
         
         if self.type == "Process":
             process_info = (
                 f", process_start={self.process_start_time}, "
                 f"process_end={self.process_end_time}, "
-                f"allocated_resources={self.allocated_resources}"
+                f"current_subprocess={self.current_subprocess}, "
+                f"dependencies={self.dependencies}"
             )
             return base_info + process_info + ")"
         

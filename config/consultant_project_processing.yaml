@@ -1,0 +1,85 @@
+entities:
+  - name: Consultant
+    type: resource  # Designate as a resource table
+    attributes:
+      - name: id
+        type: int
+      - name: CreatedAt
+        type: datetime
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: role
+        type: string
+        generator:
+          type: choice
+          choices:
+            - "Developer"
+            - "Tester"
+            - "Tech Lead"
+
+  - name: Project
+    type: process_entity  # Designate as an entity
+    attributes:
+      - name: id
+        type: int
+      - name: CreatedAt
+        type: datetime
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: sentence
+      - name: start_date
+        type: datetime
+        generator:
+          type: same_as
+          field: CreatedAt
+      - name: end_date
+        type: datetime
+        nullable: true
+
+relationships:
+  - from: Project
+    to: Consultant
+    type: many_to_many
+    mapping_table: Project_Consultant_Process
+
+initial_population:
+  Consultant:
+    count: 100
+    creation_time_distribution: UNIF(0, 24)
+    attributes:
+      role:
+        distribution: DISC(0.6, 0.8, 1.0)
+  Project:
+    count: 10
+    creation_time_distribution: UNIF(0, 720)
+
+resource_definitions:
+  - table: Consultant
+    type_field: role
+
+events:
+  - name: "Project Development"
+    type: "Process"
+    entity: "Project"
+    process_config:
+      duration: NORM(120, 10)
+      required_resources:
+        - type: "Developer"
+          count: 2
+        - type: "Tech Lead"
+          count: 1
+
+simulation_parameters:
+  start_date: "2023-01-01 00:00:00"
+  end_date: "2023-02-01 00:00:00"
+  time_unit: day
+  work_schedule:
+    hours_per_day: 8
+    start_hour: 9
+    end_hour: 17
+    work_days: [1, 2, 3, 4, 5]

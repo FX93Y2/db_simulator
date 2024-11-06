@@ -1,10 +1,24 @@
 from datetime import datetime, timedelta
 import logging
 import random
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Tuple, Union
 from .value_generator import generate_attribute_value
 
 logger = logging.getLogger(__name__)
+
+class TableType:
+    RESOURCE = 'resource'
+    PROCESS_ENTITY = 'process_entity'
+    MAPPING = 'mapping'
+
+class EntityStatus:
+    NOT_STARTED = 'Not Started'
+    IN_PROGRESS = 'In Progress'
+    COMPLETED = 'Completed'
+
+class ResourceStatus:
+    AVAILABLE = 'Available'
+    BUSY = 'Busy'
 
 class EntityGenerator:
     def __init__(self, config: Dict[str, Any]):
@@ -23,51 +37,48 @@ class EntityGenerator:
         try:
             entities = {}
             
-            # Generate independent entities first
-            independent_entities = self._get_independent_entities()
-            for entity_name in independent_entities:
+            # Generate resources first
+            resource_entities = self._get_entities_by_type(TableType.RESOURCE)
+            for entity_name in resource_entities:
                 entity_config = self._get_entity_config(entity_name)
-                if not self._is_auto_generated_table(entity_config):
-                    entities[entity_name] = self._create_entities(entity_config)
-            
-            # Then generate dependent entities
-            dependent_entities = self._get_dependent_entities(independent_entities)
-            for entity_name in dependent_entities:
+                entities[entity_name] = self._create_entities(entity_config)
+                
+            # Generate process entities
+            process_entities = self._get_entities_by_type(TableType.PROCESS_ENTITY)
+            for entity_name in process_entities:
                 entity_config = self._get_entity_config(entity_name)
-                if not self._is_auto_generated_table(entity_config):
-                    entities[entity_name] = self._create_entities(entity_config, entities)
+                entities[entity_name] = self._create_entities(entity_config)
             
-            # Initialize empty dictionaries for auto-generated mapping tables
-            for entity in self.config['entities']:
-                if self._is_auto_generated_table(entity):
-                    entities[entity['name']] = {}
+            # Initialize mapping tables
+            mapping_entities = self._get_mapping_tables()
+            for entity_name in mapping_entities:
+                entities[entity_name] = {}
             
             return entities
         except Exception as e:
             logger.error(f"Failed to generate initial entities: {str(e)}")
             raise
-        
-    def _is_auto_generated_table(self, entity_config: Dict[str, Any]) -> bool:
-        """Check if an entity is an auto-generated mapping table"""
-        return entity_config.get('auto_generated', False)
 
-    def _get_independent_entities(self) -> list:
-        """Get list of entities with no foreign key dependencies"""
+    def _get_entities_by_type(self, table_type: str) -> List[str]:
+        """Get list of entity names of a specific type"""
         return [
-            entity['name'] for entity in self.config['entities'] 
-            if not any('foreign_key' in attr for attr in entity['attributes'])
+            entity['name'] for entity in self.config['entities']
+            if entity.get('type') == table_type
         ]
 
-    def _get_dependent_entities(self, independent_entities: list) -> list:
-        """Get list of entities with foreign key dependencies"""
+    def _get_mapping_tables(self) -> List[str]:
+        """Get list of mapping table names"""
         return [
-            entity['name'] for entity in self.config['entities'] 
-            if entity['name'] not in independent_entities
+            entity['name'] for entity in self.config['entities']
+            if entity.get('auto_generated', False)
         ]
 
     def _get_entity_config(self, entity_name: str) -> Dict[str, Any]:
         """Get configuration for a specific entity"""
-        return next(e for e in self.config['entities'] if e['name'] == entity_name)
+        return next(
+            entity for entity in self.config['entities']
+            if entity['name'] == entity_name
+        )
 
     def _create_entities(
         self,
@@ -75,20 +86,23 @@ class EntityGenerator:
         existing_entities: Optional[Dict[str, Dict[int, Dict[str, Any]]]] = None
     ) -> Dict[int, Dict[str, Any]]:
         """Create entities of a specific type"""
-        if self._is_auto_generated_table(entity_config):
+        if entity_config.get('auto_generated'):
             return {}
 
         entities = {}
         count = self.config['initial_population'][entity_config['name']]['count']
         
+        # Get creation time distribution
         distribution_config = self.config['initial_population'][entity_config['name']].get(
             'creation_time_distribution',
             {'type': 'uniform'}
         )
         
+        # Generate creation times
         time_distribution = self._get_time_distribution(distribution_config)
         creation_times = sorted([time_distribution() for _ in range(count)])
         
+        # Create entities
         for i, creation_time in enumerate(creation_times, start=1):
             try:
                 entity = self._create_single_entity(
@@ -111,19 +125,22 @@ class EntityGenerator:
     ) -> Dict[str, Any]:
         """Create a single entity with all its attributes"""
         entity = {}
-        dependent_attributes = []
+        
+        # Set default status based on table type
+        if entity_config['type'] == TableType.RESOURCE:
+            entity['status'] = ResourceStatus.AVAILABLE
+        elif entity_config['type'] == TableType.PROCESS_ENTITY:
+            entity['status'] = EntityStatus.NOT_STARTED
 
         # Handle CreatedAt if defined
         if any(attr['name'] == 'CreatedAt' for attr in entity_config['attributes']):
             entity['CreatedAt'] = creation_time
 
         # Process all attributes
+        dependent_attributes = []
         for attr in entity_config['attributes']:
-            if attr['name'] == 'id':
+            if attr['name'] == 'id' or attr['name'] == 'CreatedAt':
                 continue
-
-            if attr['name'] == 'CreatedAt':
-                continue  # Already handled above
 
             if 'foreign_key' in attr:
                 self._handle_foreign_key(entity, attr, creation_time, existing_entities)
@@ -175,24 +192,34 @@ class EntityGenerator:
         else:
             entity[attr['name']] = random.choice(valid_ids)
 
-    def _get_time_distribution(self, distribution_config: Dict[str, Any]):
+    def _get_time_distribution(self, distribution_config: Union[str, Dict[str, Any]]):
         """Get time distribution function based on configuration"""
-        distribution_type = distribution_config['type']
-        
-        if distribution_type == 'uniform':
-            return lambda: self.start_time + timedelta(
-                seconds=random.uniform(
-                    0,
-                    (self.end_time - self.start_time).total_seconds()
+        try:
+            # Handle string format (e.g., "UNIF(0, 24)")
+            if isinstance(distribution_config, str):
+                # Parse the string into a distribution config
+                from ..utils.distributions import parse_distribution_string
+                distribution_config = parse_distribution_string(distribution_config)
+            
+            distribution_type = distribution_config['distribution'].lower()
+            
+            if distribution_type == 'uniform':
+                return lambda: self.start_time + timedelta(
+                    hours=random.uniform(
+                        float(distribution_config.get('min', 0)),
+                        float(distribution_config.get('max', 24))
+                    )
                 )
-            )
-        elif distribution_type == 'poisson':
-            lambda_param = (self.end_time - self.start_time).total_seconds() / 86400
-            return lambda: self.start_time + timedelta(
-                days=random.expovariate(1/lambda_param)
-            )
-        else:
-            raise ValueError(f"Unsupported time distribution type: {distribution_type}")
+            elif distribution_type == 'poisson':
+                lambda_param = float(distribution_config.get('mean', 24))
+                return lambda: self.start_time + timedelta(
+                    hours=random.expovariate(1/lambda_param)
+                )
+            else:
+                raise ValueError(f"Unsupported time distribution type: {distribution_type}")
+        except Exception as e:
+            logger.error(f"Error creating time distribution: {str(e)}")
+            raise
 
 
 def generate_initial_entities(config: Dict[str, Any]) -> Dict[str, Dict[int, Dict[str, Any]]]:

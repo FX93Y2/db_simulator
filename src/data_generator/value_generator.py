@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional
 import random
 import logging
 import string
+import numpy as np
 from datetime import datetime, timedelta
 from ..utils.distributions import get_distribution
 
@@ -24,27 +25,32 @@ class ValueGenerator:
     ) -> Any:
         """Generate a value for an attribute based on its configuration"""
         try:
+            # Handle special cases first
+            if attr.get('primary_key', False) or attr['name'] == 'id':
+                return self._generate_id_value(attr, entity_config, global_config)
+            
             if 'generator' in attr:
-                if attr['generator']['type'] == 'same_as':
+                generator_type = attr['generator']['type']
+                
+                if generator_type == 'same_as':
                     if not entity:
-                        raise ValueError("Entity is required for same_as generator")
-                    field = attr['generator']['field']
-                    if field not in entity:
-                        raise ValueError(f"Field {field} not found in entity")
-                    return entity[field]
-                elif attr['generator']['type'] == 'dependent':
-                    return self._generate_dependent_value(attr, entity)
-                return self._generate_from_generator(
-                    attr['generator'],
-                    entity_config,
-                    global_config
-                )
-            elif 'choices' in attr or attr['type'] == 'choice':
-                return self._generate_from_choices(attr, entity_config, global_config)
-            else:
-                return self._generate_default_value(attr['type'])
+                        raise ValueError("Entity required for same_as generator")
+                    return entity[attr['generator']['field']]
+                    
+                if generator_type == 'faker':
+                    return self._generate_faker_value(attr['generator'])
+                    
+                if generator_type == 'choice':
+                    return self._generate_choice_value(attr['generator'], entity_config, global_config)
+                    
+                # Handle NumPy-based distributions
+                return self._generate_from_distribution(attr['generator'])
+                
+            # Default value generation based on type
+            return self._generate_default_value(attr['type'])
+            
         except Exception as e:
-            logger.error(f"Failed to generate value for attribute {attr.get('name', 'unknown')}: {str(e)}")
+            logger.error(f"Failed to generate value for {attr.get('name', 'unknown')}: {str(e)}")
             raise
         
     def _generate_id_value(
@@ -130,31 +136,42 @@ class ValueGenerator:
         else:
             raise ValueError(f"Unknown Faker method: {method}")
 
-    def _generate_from_choices(
+    def _generate_choice_value(
         self,
-        attr_config: Dict[str, Any],
+        generator_config: Dict[str, Any],
         entity_config: Dict[str, Any],
         global_config: Dict[str, Any]
     ) -> Any:
         """Generate a value from a list of choices"""
+        if 'choices' not in generator_config:
+            raise ValueError("Choice generator must specify 'choices' list")
+            
+        choices = generator_config['choices']
+        
+        # Check for weights in the generator config
+        if 'weights' in generator_config:
+            weights = generator_config['weights']
+            if len(weights) != len(choices):
+                raise ValueError("Number of weights must match number of choices")
+            return random.choices(choices, weights=weights, k=1)[0]
+        
+        # Check for distribution in entity's initial population config
         entity_name = entity_config['name']
-        attr_name = attr_config.get('name')
+        if entity_name in global_config.get('initial_population', {}):
+            entity_pop = global_config['initial_population'][entity_name]
+            if isinstance(entity_pop, dict) and 'attributes' in entity_pop:
+                for attr_config in entity_pop['attributes']:
+                    # Make sure attr_config is a dictionary before using get()
+                    if isinstance(attr_config, dict):
+                        attr_name = attr_config.get('name')
+                        generator_name = generator_config.get('name')
+                        if attr_name and attr_name == generator_name:
+                            if 'distribution' in attr_config and 'weights' in attr_config['distribution']:
+                                weights = attr_config['distribution']['weights']
+                                if len(weights) == len(choices):
+                                    return random.choices(choices, weights=weights, k=1)[0]
         
-        if not attr_name:
-            raise ValueError("Attribute name is required for choice generation")
-
-        choices = attr_config.get('choices', [])
-        if not choices:
-            raise ValueError(f"No choices available for attribute {attr_name}")
-
-        # Check for weighted distribution
-        entity_initial_population = global_config['initial_population'].get(entity_name, {})
-        entity_attributes = entity_initial_population.get('attributes', {})
-        attr_distribution = entity_attributes.get(attr_name, {}).get('distribution')
-
-        if attr_distribution and 'weights' in attr_distribution:
-            return random.choices(choices, weights=attr_distribution['weights'])[0]
-        
+        # Default to uniform distribution if no weights specified
         return random.choice(choices)
 
     def _generate_default_value(self, attr_type: str) -> Any:

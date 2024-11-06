@@ -1,17 +1,24 @@
-from .parser import parse_config
 from .config_enhancer import (
     enhance_config,
-    has_process_tracking,
-    enhance_with_mappings,
-    create_mapping_table_config,
-    create_mapping_relationships
+    needs_process_tracking,  # Changed from has_process_tracking
+    enhance_with_process_tracking,
+    TableType,
+    EntityStatus,
+    ResourceStatus
+)
+
+from .parser import (
+    parse_config,
+    validate_config
 )
 
 __all__ = [
-    'parse_config',
     'enhance_config',
-    'has_process_tracking',
-    'enhance_with_mappings',
-    'create_mapping_table_config',
-    'create_mapping_relationships'
+    'needs_process_tracking',  # Changed here too
+    'enhance_with_process_tracking',
+    'parse_config',
+    'validate_config',
+    'TableType',
+    'EntityStatus',
+    'ResourceStatus'
 ]
