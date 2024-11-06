@@ -30,18 +30,18 @@ class ResourceStatus:
 def enhance_config(config: Dict) -> Dict:
     """Enhance configuration with additional features and standardization"""
     enhanced_config = deepcopy(config)
-    
-    # Validate table types
     _validate_table_types(enhanced_config)
     
-    # Add process tracking if needed
     if needs_process_tracking(enhanced_config):
         enhanced_config = enhance_with_process_tracking(enhanced_config)
     
-    # Consolidate work scheduling
     enhanced_config = consolidate_work_schedule(enhanced_config)
-    
-    # Validate enhanced configuration
+
+    if 'initial_population' in enhanced_config:
+        for entity_config in enhanced_config['initial_population'].values():
+            entity_config.pop('creation_time_distribution', None)
+            entity_config.pop('attributes', None)
+
     validate_enhanced_config(enhanced_config)
     
     return enhanced_config
@@ -189,51 +189,45 @@ def consolidate_work_schedule(config: Dict) -> Dict:
     return new_config
 
 def validate_enhanced_config(config: Dict):
-    """Validate enhanced configuration"""
-    # Validate process tracking tables
-    if needs_process_tracking(config):
-        process_entities = {
-            entity['name'] for entity in config['entities']
-            if entity.get('type') == TableType.PROCESS_ENTITY
-        }
-        
-        resource_entities = {
-            entity['name'] for entity in config['entities']
-            if entity.get('type') == TableType.RESOURCE
-        }
-        
-        # Get all valid resource types from resource entities
-        valid_resource_types = set()
-        for entity in config['entities']:
-            if entity.get('type') == TableType.RESOURCE:
-                for attr in entity['attributes']:
-                    if (attr.get('generator', {}).get('type') == 'choice' and 
-                        'choices' in attr.get('generator', {})):
-                        valid_resource_types.update(attr['generator']['choices'])
-        
-        # Validate process events
-        for event in config['events']:
-            if event.get('type') == 'Process':
-                entity = event.get('entity')
-                if entity not in process_entities:
-                    raise ValueError(
-                        f"Process event references non-process entity: {entity}. "
-                        f"Entity must be of type '{TableType.PROCESS_ENTITY}'"
-                    )
-                
-                # Validate resource requirements
-                if 'process_config' in event and 'required_resources' in event['process_config']:
-                    for resource in event['process_config']['required_resources']:
-                        resource_type = resource.get('type')
-                        if resource_type not in valid_resource_types:
-                            raise ValueError(
-                                f"Invalid resource type in process config: {resource_type}. "
-                                f"Valid types are: {', '.join(sorted(valid_resource_types))}"
-                            )
-        
-        # Check for required mapping tables
-        for process_entity in process_entities:
-            for resource_entity in resource_entities:
-                expected_table = f"{process_entity}_{resource_entity}_Process"
-                if not any(e['name'] == expected_table for e in config['entities']):
-                    raise ValueError(f"Missing required process tracking table: {expected_table}")
+    """Validate the enhanced configuration"""
+    # Collect valid resource types from entity config
+    valid_resource_types = set()
+    resource_entities = []
+    process_entities = []
+    
+    for entity in config['entities']:
+        if entity.get('type') == TableType.RESOURCE:
+            resource_entities.append(entity['name'])
+            # Look for role/type attribute with distribution and choices
+            for attr in entity['attributes']:
+                if (attr.get('generator', {}).get('type') == 'distribution' and 
+                    'choices' in attr.get('generator', {})):
+                    valid_resource_types.update(attr['generator']['choices'])
+        elif entity.get('type') == TableType.PROCESS_ENTITY:
+            process_entities.append(entity['name'])
+    
+    # Check process events
+    for event in config['events']:
+        if event.get('type') == 'Process':
+            entity = event.get('entity')
+            if entity not in process_entities:
+                raise ValueError(
+                    f"Process event references non-process entity: {entity}. "
+                    f"Entity must be of type '{TableType.PROCESS_ENTITY}'"
+                )
+            
+            if 'process_config' in event and 'required_resources' in event['process_config']:
+                for resource in event['process_config']['required_resources']:
+                    resource_type = resource.get('type')
+                    if resource_type not in valid_resource_types:
+                        raise ValueError(
+                            f"Invalid resource type in process config: {resource_type}. "
+                            f"Valid types are: {', '.join(sorted(valid_resource_types))}"
+                        )
+    
+    # Check for required mapping tables
+    for process_entity in process_entities:
+        for resource_entity in resource_entities:
+            expected_table = f"{process_entity}_{resource_entity}_Process"
+            if not any(e['name'] == expected_table for e in config['entities']):
+                raise ValueError(f"Missing required process tracking table: {expected_table}")

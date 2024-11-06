@@ -6,19 +6,29 @@ entities:
         type: int
       - name: CreatedAt
         type: datetime
+        generator:
+          type: distribution
+          distribution: UNIF(0,24)
       - name: name
         type: string
         generator:
           type: faker
           method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
       - name: role
         type: string
         generator:
-          type: choice
+          type: distribution
+          distribution: DISC(0.6, 0.2, 0.2)
           choices:
             - "Developer"
             - "Tester"
             - "Tech Lead"
+
 
   - name: Project
     type: process_entity  # Designate as an entity
@@ -27,11 +37,14 @@ entities:
         type: int
       - name: CreatedAt
         type: datetime
+        generator:
+          type: distribution
+          distribution: UNIF(2023-01-01 00:00:00, 2023-01-15 00:00:00)
       - name: name
         type: string
         generator:
-          type: faker
-          method: sentence
+          type: template
+          template: "Project_{id}"
       - name: start_date
         type: datetime
         generator:
@@ -49,14 +62,9 @@ relationships:
 
 initial_population:
   Consultant:
-    count: 100
-    creation_time_distribution: UNIF(0, 24)
-    attributes:
-      role:
-        distribution: DISC(0.6, 0.8, 1.0)
+    count: 50
   Project:
     count: 10
-    creation_time_distribution: UNIF(0, 720)
 
 resource_definitions:
   - table: Consultant
@@ -67,10 +75,12 @@ events:
     type: "Process"
     entity: "Project"
     process_config:
-      duration: NORM(120, 10)
+      duration: NORM(100, 30)
       required_resources:
         - type: "Developer"
           count: 2
+        - type: "Tester"
+          count: 1
         - type: "Tech Lead"
           count: 1
 

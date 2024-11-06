@@ -6,9 +6,10 @@ import string
 import numpy as np
 from datetime import datetime, timedelta
 from ..utils.distributions import get_distribution
-
 logger = logging.getLogger(__name__)
 fake = Faker()
+
+__all__ = ['ValueGenerator']
 
 class ValueGenerator:
     """Handle generation of attribute values based on configuration"""
@@ -29,8 +30,22 @@ class ValueGenerator:
             if attr.get('primary_key', False) or attr['name'] == 'id':
                 return self._generate_id_value(attr, entity_config, global_config)
             
+            # Special handling for date fields
+            if attr['name'] in ['CreatedAt', 'start_date']:
+                if 'generator' in attr and attr['generator']['type'] == 'same_as':
+                    if not entity:
+                        raise ValueError("Entity required for same_as generator")
+                    value = entity[attr['generator']['field']]
+                else:
+                    value = self._generate_default_value('datetime')
+                
+                # Ensure dates don't have time
+                if isinstance(value, datetime):
+                    return value.replace(hour=0, minute=0, second=0, microsecond=0)
+                return value
+                
             if 'generator' in attr:
-                generator_type = attr['generator']['type']
+                generator_type = attr['generator'].get('type')
                 
                 if generator_type == 'same_as':
                     if not entity:
@@ -42,10 +57,15 @@ class ValueGenerator:
                     
                 if generator_type == 'choice':
                     return self._generate_choice_value(attr['generator'], entity_config, global_config)
-                    
-                # Handle NumPy-based distributions
-                return self._generate_from_distribution(attr['generator'])
                 
+                if generator_type == 'template':
+                    return self._generate_from_template(attr['generator'], entity.get('id') if entity else None)
+                    
+                if generator_type == 'distribution':
+                    return self._generate_from_distribution(attr['generator'])
+                    
+                raise ValueError(f"Unknown generator type: {generator_type}")
+            
             # Default value generation based on type
             return self._generate_default_value(attr['type'])
             
@@ -123,6 +143,53 @@ class ValueGenerator:
             return distribution()
         else:
             raise ValueError(f"Unknown generator type: {generator_type}")
+            
+    def _generate_from_distribution(self, generator_config: Dict[str, Any]) -> Any:
+        """Generate a value from a distribution configuration"""
+        try:
+            # Handle discrete distribution with choices
+            if 'choices' in generator_config:
+                choices = generator_config['choices']
+                distribution_str = generator_config['distribution']
+                
+                # Parse DISC distribution
+                if distribution_str.startswith('DISC('):
+                    # Extract probabilities from DISC(p1, p2, p3)
+                    probs_str = distribution_str[5:-1]  # Remove DISC( and )
+                    probabilities = [float(p.strip()) for p in probs_str.split(',')]
+                    
+                    if len(probabilities) != len(choices):
+                        raise ValueError(
+                            f"Number of probabilities ({len(probabilities)}) "
+                            f"must match number of choices ({len(choices)})"
+                        )
+                        
+                    # Verify probabilities sum to 1 (approximately)
+                    if not 0.99 <= sum(probabilities) <= 1.01:
+                        raise ValueError(
+                            f"Probabilities must sum to 1, got {sum(probabilities)}"
+                        )
+                        
+                    return random.choices(choices, weights=probabilities, k=1)[0]
+                    
+                # Handle other distributions
+                distribution = get_distribution(generator_config['distribution'])
+                if distribution:
+                    value = distribution()
+                    if isinstance(value, (list, tuple)):
+                        return choices[value.index(max(value))]
+                    return choices[int(value) % len(choices)]
+                    
+            # Handle numeric distributions
+            distribution = get_distribution(generator_config['distribution'])
+            return distribution()
+                
+        except Exception as e:
+            logger.error(
+                f"Error generating distribution value: {str(e)}. "
+                f"Config: {generator_config}"
+            )
+            raise
 
     def _generate_faker_value(self, generator_config: Dict[str, Any]) -> Any:
         """Generate a value using Faker"""
@@ -135,6 +202,24 @@ class ValueGenerator:
             return getattr(self.fake, method)()
         else:
             raise ValueError(f"Unknown Faker method: {method}")
+        
+    def _generate_from_template(self, generator_config: Dict[str, Any], entity_id: Optional[int]) -> str:
+        """Generate a value from a template string"""
+        try:
+            if entity_id is None:
+                raise ValueError("Entity ID required for template generator")
+                
+            template = generator_config.get('template')
+            if not template:
+                raise ValueError("Template string required for template generator")
+                
+            return template.format(id=entity_id)
+            
+        except KeyError as e:
+            raise ValueError(f"Missing required field in template config: {e}")
+        except Exception as e:
+            logger.error(f"Error generating template value: {str(e)}. Config: {generator_config}")
+            raise
 
     def _generate_choice_value(
         self,
@@ -188,26 +273,8 @@ class ValueGenerator:
         elif attr_type == 'boolean':
             return random.choice([True, False])
         elif attr_type == 'datetime':
-            return datetime.now() - timedelta(
-                days=random.randint(0, 365)
-            )
+            # Generate date without time component
+            base_date = datetime.now() - timedelta(days=random.randint(0, 365))
+            return base_date.replace(hour=0, minute=0, second=0, microsecond=0)
         else:
             raise ValueError(f"Unknown attribute type: {attr_type}")
-
-
-# Create a singleton instance
-value_generator = ValueGenerator()
-
-def generate_attribute_value(
-    attr: Dict[str, Any],
-    entity_config: Dict[str, Any],
-    global_config: Dict[str, Any],
-    entity: Optional[Dict[str, Any]] = None
-) -> Any:
-    """Convenience function"""
-    return value_generator.generate_attribute_value(
-        attr,
-        entity_config,
-        global_config,
-        entity
-    )

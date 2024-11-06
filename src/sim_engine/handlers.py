@@ -67,10 +67,10 @@ def handle_process(engine, event):
 
         # Calculate process timing
         start_time = _align_to_work_hours(
-            engine.current_time,
-            start_hour,
-            end_hour,
-            work_days
+            event.time,
+            engine.resource_manager.work_schedule['start_hour'],
+            engine.resource_manager.work_schedule['end_hour'],
+            engine.resource_manager.work_schedule['work_days']
         )
 
         end_time = calculate_work_end_time(
@@ -81,36 +81,42 @@ def handle_process(engine, event):
             end_hour,
             work_days
         )
-
+        
+        logger.debug(
+            f"Processing event: {event.name} for {event.entity_type} {event.entity_id} "
+            f"at time {start_time}"
+        )
         # Find required resources
+        required_resources = process_config['process_config']['required_resources']
+        logger.debug(f"Looking for resources: {required_resources}")
+        logger.debug(f"Available resources: {engine.resource_manager.get_available_resource_types()}")
+        
         resources = engine.resource_manager.find_available_resources(
-            process_config['process_config']['required_resources'],
+            required_resources,
             start_time
         )
         
         if not resources:
+            logger.info(
+                f"Resource allocation failed for {event.name}. "
+                f"Required: {required_resources}. "
+                f"Available types: {engine.resource_manager.get_available_resource_types()}"
+            )
             # Reschedule if resources not available
             delay = timedelta(hours=1)
-            engine.schedule_event(
-                event.name,
-                event.entity_type,
-                event.entity_id,
-                start_time + delay,
-                event.params
-            )
-            logger.debug(
-                f"Rescheduling process {event.name} for {event.entity_type} "
-                f"{event.entity_id} due to resource unavailability"
-            )
+            new_time = start_time + delay
+            if new_time < engine.end_time:
+                engine.schedule_event(
+                    event.name,
+                    event.entity_type,
+                    event.entity_id,
+                    new_time,
+                    event.params
+                )
             return None
 
-        # Calculate work distribution among resources
         distributed_hours = _distribute_hours(total_hours, resources)
-
-        # Generate process ID
         process_id = f"{event.name}_{event.entity_id}_{start_time.isoformat()}"
-
-        # Seize resources and update their status
         engine.resource_manager.seize_resources(process_id, resources, start_time)
 
         # Create mapping table entries
@@ -128,8 +134,6 @@ def handle_process(engine, event):
         # Update process entity status
         update_data = {'status': ProcessStatus.IN_PROGRESS}
         engine.db_manager.update(event.entity_type, event.entity_id, update_data)
-
-        # Schedule completion event
         engine.schedule_event(
             f"Complete_{event.name}",
             event.entity_type,

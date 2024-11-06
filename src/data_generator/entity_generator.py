@@ -2,8 +2,7 @@ from datetime import datetime, timedelta
 import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple, Union
-from .value_generator import generate_attribute_value
-
+from .value_generator import ValueGenerator
 logger = logging.getLogger(__name__)
 
 class TableType:
@@ -31,30 +30,41 @@ class EntityGenerator:
             config['simulation_parameters']['end_date'],
             "%Y-%m-%d %H:%M:%S"
         )
-
+        self.value_generator = ValueGenerator()
     def generate_initial_entities(self) -> Dict[str, Dict[int, Dict[str, Any]]]:
         """Generate all initial entities based on configuration"""
         try:
             entities = {}
             
-            # Generate resources first
-            resource_entities = self._get_entities_by_type(TableType.RESOURCE)
-            for entity_name in resource_entities:
-                entity_config = self._get_entity_config(entity_name)
-                entities[entity_name] = self._create_entities(entity_config)
+            # Generate entities based on initial population configuration
+            for entity_name, pop_config in self.config.get('initial_population', {}).items():
+                entity_config = next(
+                    (e for e in self.config['entities'] if e['name'] == entity_name),
+                    None
+                )
                 
-            # Generate process entities
-            process_entities = self._get_entities_by_type(TableType.PROCESS_ENTITY)
-            for entity_name in process_entities:
-                entity_config = self._get_entity_config(entity_name)
-                entities[entity_name] = self._create_entities(entity_config)
-            
-            # Initialize mapping tables
-            mapping_entities = self._get_mapping_tables()
-            for entity_name in mapping_entities:
+                if not entity_config:
+                    raise ValueError(f"No configuration found for entity: {entity_name}")
+                    
+                count = pop_config['count']
                 entities[entity_name] = {}
-            
+                
+                for i in range(count):
+                    entity_id = i + 1
+                    creation_time = self.start_time
+                    for attr in entity_config['attributes']:
+                        if attr['name'] == 'CreatedAt' and 'generator' in attr:
+                            creation_time = self.value_generator.generate_attribute_value(
+                                attr,
+                                entity_config,
+                                self.config
+                            )
+                    
+                    entity = self._create_single_entity(entity_id, entity_config, creation_time)
+                    entities[entity_name][entity_id] = entity
+                    
             return entities
+            
         except Exception as e:
             logger.error(f"Failed to generate initial entities: {str(e)}")
             raise
@@ -80,90 +90,77 @@ class EntityGenerator:
             if entity['name'] == entity_name
         )
 
-    def _create_entities(
-        self,
-        entity_config: Dict[str, Any],
-        existing_entities: Optional[Dict[str, Dict[int, Dict[str, Any]]]] = None
-    ) -> Dict[int, Dict[str, Any]]:
-        """Create entities of a specific type"""
-        if entity_config.get('auto_generated'):
-            return {}
-
+    def _create_entities(self, entity_config: Dict[str, Any]) -> Dict[int, Dict[str, Any]]:
+        """Create all entities of a given type"""
         entities = {}
-        count = self.config['initial_population'][entity_config['name']]['count']
+        entity_name = entity_config['name']
+        population_config = self.config['initial_population'].get(entity_name)
         
-        # Get creation time distribution
-        distribution_config = self.config['initial_population'][entity_config['name']].get(
-            'creation_time_distribution',
-            {'type': 'uniform'}
+        if not population_config:
+            logger.warning(f"No initial population defined for {entity_name}")
+            return entities
+        
+        count = population_config['count']
+        
+        # Get time distribution for entity creation
+        time_distribution = self._get_time_distribution(
+            population_config.get('creation_time_distribution', 'UNIF(0, 24)')
         )
         
-        # Generate creation times
-        time_distribution = self._get_time_distribution(distribution_config)
-        creation_times = sorted([time_distribution() for _ in range(count)])
-        
-        # Create entities
-        for i, creation_time in enumerate(creation_times, start=1):
-            try:
+        try:
+            for i in range(1, count + 1):
+                creation_time = time_distribution()
                 entity = self._create_single_entity(
-                    entity_config,
-                    creation_time,
-                    existing_entities
+                    entity_id=i,
+                    entity_config=next(
+                        e for e in self.config['entities'] 
+                        if e['name'] == entity_name
+                    ),
+                    creation_time=creation_time
                 )
                 entities[i] = entity
-            except Exception as e:
-                logger.error(f"Failed to create entity {i} of type {entity_config['name']}: {str(e)}")
-                raise
-        
+                
+        except Exception as e:
+            logger.error(f"Failed to create entities for {entity_name}: {str(e)}")
+            raise
+            
         return entities
 
     def _create_single_entity(
         self,
+        entity_id: int,
         entity_config: Dict[str, Any],
-        creation_time: datetime,
-        existing_entities: Optional[Dict[str, Dict[int, Dict[str, Any]]]] = None
+        creation_time: datetime
     ) -> Dict[str, Any]:
-        """Create a single entity with all its attributes"""
-        entity = {}
-        
-        # Set default status based on table type
-        if entity_config['type'] == TableType.RESOURCE:
-            entity['status'] = ResourceStatus.AVAILABLE
-        elif entity_config['type'] == TableType.PROCESS_ENTITY:
-            entity['status'] = EntityStatus.NOT_STARTED
-
-        # Handle CreatedAt if defined
-        if any(attr['name'] == 'CreatedAt' for attr in entity_config['attributes']):
+        """Create a single entity with the given configuration"""
+        try:
+            entity = {'id': entity_id}
+            
+            # Add creation time
             entity['CreatedAt'] = creation_time
-
-        # Process all attributes
-        dependent_attributes = []
-        for attr in entity_config['attributes']:
-            if attr['name'] == 'id' or attr['name'] == 'CreatedAt':
-                continue
-
-            if 'foreign_key' in attr:
-                self._handle_foreign_key(entity, attr, creation_time, existing_entities)
-            elif 'generator' in attr and attr['generator']['type'] == 'dependent':
-                dependent_attributes.append(attr)
-            else:
-                entity[attr['name']] = generate_attribute_value(
-                    attr,
-                    entity_config,
-                    self.config,
-                    entity
-                )
-
-        # Handle dependent attributes after other attributes are set
-        for attr in dependent_attributes:
-            entity[attr['name']] = generate_attribute_value(
-                attr,
-                entity_config,
-                self.config,
-                entity
-            )
-
-        return entity
+            
+            # For process entities, set initial status to NOT_STARTED
+            if entity_config.get('type') == TableType.PROCESS_ENTITY:
+                entity['status'] = EntityStatus.NOT_STARTED 
+            elif entity_config.get('type') == TableType.RESOURCE:
+                entity['status'] = ResourceStatus.AVAILABLE
+                
+            # Generate values for all other attributes
+            for attr in entity_config['attributes']:
+                if attr['name'] not in ['id', 'CreatedAt', 'status']:
+                    value = self.value_generator.generate_attribute_value(
+                        attr,
+                        entity_config,
+                        self.config,
+                        entity
+                    )
+                    entity[attr['name']] = value
+            
+            return entity
+            
+        except Exception as e:
+            logger.error(f"Failed to create entity {entity_id} of type {entity_config['name']}: {str(e)}")
+            raise
 
     def _handle_foreign_key(
         self,

@@ -121,12 +121,20 @@ def get_distribution(config: Union[str, Dict[str, Any], int, float]) -> Callable
             
         elif distribution_type == 'discrete':
             cum_probs = config['cumulative_probabilities']
+            # Validate probabilities
+            if not (0.99 <= sum(cum_probs) <= 1.01): 
+                raise ValueError(
+                    f"Probabilities must sum to 1.0, got {sum(cum_probs)} from {cum_probs}"
+                )
+            
             def discrete_sampler():
-                r = random.random()
+                r = random.random() 
+                cumulative = 0
                 for i, prob in enumerate(cum_probs):
-                    if r <= prob:
-                        return i
-                return len(cum_probs) - 1
+                    cumulative += prob
+                    if r <= cumulative:
+                        return float(i) 
+                return float(len(cum_probs) - 1)
             return discrete_sampler
             
         elif distribution_type == 'constant':

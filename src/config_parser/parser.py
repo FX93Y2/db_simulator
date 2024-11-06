@@ -52,27 +52,54 @@ def _validate_entities(entities: List[Dict[str, Any]]):
     
     entity_names = set()
     for entity in entities:
+        # Validate basic structure
         if 'name' not in entity:
             raise ValueError("Entity missing required 'name' field")
-            
-        if entity['name'] in entity_names:
-            raise ValueError(f"Duplicate entity name: {entity['name']}")
-            
-        entity_names.add(entity['name'])
-        
         if 'type' not in entity:
             raise ValueError(f"Entity {entity['name']} missing required 'type' field")
-        
-        if entity['type'] not in [TableType.RESOURCE, TableType.PROCESS_ENTITY]:
-            raise ValueError(
-                f"Invalid table type for {entity['name']}. "
-                f"Must be either '{TableType.RESOURCE}' or '{TableType.PROCESS_ENTITY}'"
-            )
-        
         if 'attributes' not in entity:
             raise ValueError(f"Entity {entity['name']} missing required 'attributes' field")
             
-        _validate_attributes(entity['attributes'], entity['name'])
+        # Validate attribute generators
+        for attr in entity['attributes']:
+            if 'generator' in attr:
+                _validate_generator_config(attr['generator'], entity['name'], attr['name'])
+                
+def _validate_generator_config(generator: Dict[str, Any], entity_name: str, attr_name: str):
+    """Validate generator configuration"""
+    if 'type' not in generator:
+        raise ValueError(f"Generator for {entity_name}.{attr_name} missing 'type' field")
+        
+    if generator['type'] == 'distribution':
+        if 'distribution' not in generator:
+            raise ValueError(
+                f"Distribution generator for {entity_name}.{attr_name} "
+                f"missing 'distribution' config"
+            )
+        
+        if 'choices' in generator:
+            dist_str = generator['distribution']
+            if not dist_str.startswith('DISC('):
+                raise ValueError(
+                    f"Choice-based distribution must use DISC() for "
+                    f"{entity_name}.{attr_name}"
+                )
+            
+            # Validate probabilities sum to 1.0 (with small tolerance for floating point)
+            probs = [float(x.strip()) for x in dist_str[5:-1].split(',')]
+            if not 0.99 <= sum(probs) <= 1.01:
+                raise ValueError(
+                    f"Probabilities in DISC distribution must sum to 1.0 for "
+                    f"{entity_name}.{attr_name}"
+                )
+            
+            # Validate probability count matches choices
+            if len(probs) != len(generator['choices']):
+                raise ValueError(
+                    f"Number of probabilities ({len(probs)}) must match "
+                    f"number of choices ({len(generator['choices'])}) for "
+                    f"{entity_name}.{attr_name}"
+                )
 
 def _validate_attributes(attributes: List[Dict[str, Any]], entity_name: str):
     """Validate entity attributes"""

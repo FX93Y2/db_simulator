@@ -40,10 +40,11 @@ class ResourceManager:
         
         for entity in self.config['entities']:
             if entity.get('type') == TableType.RESOURCE:
-                # Find the type field (attribute with choice generator)
+                # Find the type field (attribute with distribution generator and choices)
                 type_field = next(
                     (attr['name'] for attr in entity['attributes']
-                     if attr.get('generator', {}).get('type') == 'choice'),
+                    if (attr.get('generator', {}).get('type') == 'distribution' and 
+                        'choices' in attr.get('generator', {}))),
                     None
                 )
                 
@@ -52,7 +53,7 @@ class ResourceManager:
                 else:
                     logger.warning(
                         f"Resource table {entity['name']} has no type field "
-                        "(attribute with choice generator)"
+                        "(attribute with distribution generator and choices)"
                     )
         
         return resource_tables
@@ -72,15 +73,57 @@ class ResourceManager:
             if table_name not in entities:
                 logger.warning(f"Resource table {table_name} not found in entities")
                 continue
-
+                
             self.resources[table_name] = {}
-            for id, data in entities[table_name].items():
-                self.resources[table_name][id] = {
-                    'type': data[type_field],
+            
+            for entity_id, entity_data in entities[table_name].items():
+                resource_type = entity_data.get(type_field)
+                if isinstance(resource_type, (int, float)):
+                    entity_config = next(
+                        (e for e in self.config['entities'] if e['name'] == table_name),
+                        None
+                    )
+                    if entity_config:
+                        role_attr = next(
+                            (attr for attr in entity_config['attributes'] 
+                            if attr['name'] == type_field),
+                            None
+                        )
+                        if role_attr and 'generator' in role_attr:
+                            choices = role_attr['generator'].get('choices', [])
+                            if 0 <= resource_type < len(choices):
+                                resource_type = choices[int(resource_type)]
+                
+                self.resources[table_name][entity_id] = {
+                    'type': resource_type,
                     'status': ResourceStatus.AVAILABLE,
                     'current_process': None,
                     'allocation_history': []
                 }
+                
+            logger.info(
+                f"Initialized {len(self.resources[table_name])} resources "
+                f"for table {table_name}"
+            )
+                
+    def get_available_resource_types(self) -> Dict[str, List[str]]:
+        """Get currently available resource types for each resource table"""
+        available_types = {}
+        
+        for table_name, resources in self.resources.items():
+            type_counts = {}  # Track count of each available type
+            for resource_info in resources.values():
+                if resource_info['status'] == ResourceStatus.AVAILABLE:
+                    resource_type = resource_info['type']
+                    type_counts[resource_type] = type_counts.get(resource_type, 0) + 1
+            
+            # Only include types that have available resources
+            available_types[table_name] = [
+                f"{resource_type} ({count} available)"
+                for resource_type, count in type_counts.items()
+            ]
+        
+        return available_types
 
     def find_available_resources(
         self,
@@ -97,22 +140,19 @@ class ResourceManager:
             # Find available resources across all resource tables
             available = []
             for table_name, resources in self.resources.items():
-                # Get the type field for this resource table
-                type_field = self.resource_tables[table_name]
-                
-                # Find matching available resources
-                available.extend([
+                # Get resources of the required type that are available
+                matching_resources = [
                     (table_name, rid) 
                     for rid, info in resources.items()
                     if info['type'] == resource_type and 
-                       info['status'] == ResourceStatus.AVAILABLE and
-                       info['current_process'] is None
-                ])
-            
+                       info['status'] == ResourceStatus.AVAILABLE
+                ]
+                available.extend(matching_resources)
+                
             if len(available) < count:
                 logger.debug(
-                    f"Not enough resources of type {resource_type} "
-                    f"(needed: {count}, available: {len(available)})"
+                    f"Insufficient {resource_type} resources. "
+                    f"Need {count}, found {len(available)}"
                 )
                 return None
                 

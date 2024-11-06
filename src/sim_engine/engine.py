@@ -18,7 +18,7 @@ from ..data_generator.entity_generator import generate_initial_entities
 from ..database.db_manager import DatabaseManager
 from ..utils.distributions import get_distribution
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
 class TableType:
@@ -99,15 +99,17 @@ class SimulationEngine:
     def _schedule_initial_events(self):
         """Schedule initial events for process entities"""
         if 'events' not in self.config:
+            logger.warning("No events found in configuration")
             return
 
         process_entities = self._get_process_entities()
+        logger.debug(f"Found process entities: {process_entities}")
         
         for event_config in self.config['events']:
             if event_config['type'] == 'Process':
                 entity_type = event_config['entity']
                 
-                # Validate entity type
+                # Check entity type
                 if entity_type not in process_entities:
                     logger.warning(
                         f"Event {event_config['name']} references invalid process "
@@ -115,9 +117,21 @@ class SimulationEngine:
                     )
                     continue
                 
-                # Schedule events for each entity instance
+                # Schedule events for each entity
+                entity_count = 0
+                scheduled_count = 0
                 for entity_id, entity_data in self.entities[entity_type].items():
                     event_time = entity_data.get('CreatedAt', self.start_time)
+                    if event_time > self.end_time:
+                        event_time = self.start_time
+                    elif event_time < self.start_time:
+                        event_time = self.start_time
+                    
+                    logger.debug(
+                        f"Scheduling initial event {event_config['name']} for "
+                        f"{entity_type} {entity_id} at {event_time}"
+                    )
+                    
                     self.schedule_event(
                         event_config['name'],
                         entity_type,
@@ -125,6 +139,13 @@ class SimulationEngine:
                         event_time,
                         {}
                     )
+                    entity_count += 1
+                    scheduled_count += 1
+                
+                logger.info(
+                    f"Scheduled {scheduled_count} initial events (out of {entity_count} entities) "
+                    f"for {event_config['name']} ({entity_type})"
+                )
 
     def _get_process_entities(self) -> Set[str]:
         """Get set of process entity table names"""
@@ -136,12 +157,30 @@ class SimulationEngine:
     def run(self):
         """Run the simulation"""
         try:
+            logger.info("Starting simulation...")
             self.initialize()
             
-            while not self.event_queue.empty() and self.current_time < self.end_time:
-                # Process next event
+            logger.debug(f"Initial event queue size: {self.event_queue.qsize()}")
+            
+            # Process events until queue is empty or we reach end time
+            while not self.event_queue.empty() and self.current_time <= self.end_time:
+                # Get next event
                 event = self.event_queue.get()
+                
+                # Skip if event is after simulation end
+                if event.time > self.end_time:
+                    logger.debug(
+                        f"Skipping event {event.name} scheduled for {event.time} "
+                        f"(after simulation end {self.end_time})"
+                    )
+                    continue
+                    
+                # Update current time and process event
                 self.current_time = event.time
+                logger.debug(
+                    f"Processing event at {self.current_time}: "
+                    f"{event.name} for {event.entity_type} {event.entity_id}"
+                )
                 
                 # Handle event
                 self.handle_event(event)
@@ -151,26 +190,20 @@ class SimulationEngine:
                 if event.name.startswith('Complete_'):
                     self.statistics['process_completions'] += 1
                     self._update_process_statistics(event)
-            
-            # Record final resource utilization
-            if self.resource_manager:
-                self.statistics['resource_utilization'] = \
-                    self.resource_manager.get_resource_utilization(
-                        self.start_time,
-                        self.current_time
-                    )
+                
+                logger.debug(
+                    f"Events remaining in queue: {self.event_queue.qsize()}"
+                )
             
             logger.info(
-                f"Simulation completed. Processed {self.statistics['events_processed']} "
-                f"events, {self.statistics['process_completions']} process completions"
+                f"Simulation completed at {self.current_time}. "
+                f"Processed {self.statistics['events_processed']} events, "
+                f"{self.statistics['process_completions']} process completions"
             )
-            
+                
         except Exception as e:
             logger.error(f"Simulation failed: {str(e)}")
             raise
-            
-        finally:
-            self.db_manager.close()
 
     def handle_event(self, event: Event):
         """Handle a single event"""
@@ -210,6 +243,12 @@ class SimulationEngine:
     ):
         """Schedule a new event with table type validation"""
         # Validate entity type
+        if event_time > self.end_time:
+            logger.debug(
+                f"Skipping event {event_name} for {entity_type} {entity_id}: "
+                f"time {event_time} is after simulation end {self.end_time}"
+            )
+            return
         entity_config = next(
             (e for e in self.config['entities'] if e['name'] == entity_type),
             None
@@ -237,6 +276,10 @@ class SimulationEngine:
         # Create and schedule event
         event = Event(event_type, entity_type, entity_id, event_time, event_name, params or {})
         self.event_queue.put(event)
+        logger.debug(
+            f"Scheduled event {event_name} for {entity_type} {entity_id} "
+            f"at {event_time}. Queue size: {self.event_queue.qsize()}"
+        )
 
     def _process_follow_up_events(self, event: Event, entity_id: int):
         """Process any follow-up events"""

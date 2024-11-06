@@ -38,7 +38,7 @@ def create_entity_model(entity_config: Dict[str, Any], relationships: List[Dict[
     """Create SQLAlchemy model with status based on table type"""
     attributes = {
         '__tablename__': entity_config['name'],
-        'id': Column(Integer, primary_key=True, autoincrement=True),
+        'id': Column(Integer, primary_key=True),
     }
     
     # Check if this is an auto-generated mapping table
@@ -144,6 +144,9 @@ def create_relationship_attributes(entity_name: str, relationships: List[Dict[st
             )
     return rel_attrs
 
-def initialize_models(engine):
-    """Initialize all models in the database"""
-    Base.metadata.create_all(engine)
+def initialize_models(models: Dict[str, Any]) -> None:
+    """Initialize all models to ensure they're registered with SQLAlchemy"""
+    for model in models.values():
+        if hasattr(model, '__table__'):
+            if model.__table__.metadata is not Base.metadata:
+                Base.metadata.tables[model.__tablename__] = model.__table__

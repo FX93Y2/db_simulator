@@ -5,51 +5,69 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from .models import Base, create_models, initialize_models
+from ..config_parser.config_enhancer import EntityStatus, TableType
 
 logger = logging.getLogger(__name__)
 
 class DatabaseManager:
-    def __init__(self, config: Dict[str, Any], config_file_name: str):
+    def __init__(self, config: Dict[str, Any], config_name: str):
         """Initialize database manager"""
         self.config = config
-        db_name = os.path.splitext(config_file_name)[0]
-        db_path = os.path.join('output', f"{db_name}.db")
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        self.db_path = f"output/{config_name.replace('.yaml', '')}.db"
         
-        self.engine = create_engine(f'sqlite:///{db_path}', echo=False)
+        os.makedirs("output", exist_ok=True)
+        # Remove existing database
+        if os.path.exists(self.db_path):
+            os.remove(self.db_path)
+            
+        self.engine = create_engine(f"sqlite:///{self.db_path}")
+        # Create models first
         self.models = create_models(config)
+        initialize_models(self.models)
+        Base.metadata.create_all(self.engine)
+        logger.info(f"Database {self.db_path} created successfully")
         
-        try:
-            initialize_models(self.engine)
-            logger.info(f"Database {db_path} created successfully")
-        except Exception as e:
-            logger.error(f"Error creating database tables: {str(e)}")
-            raise
-        
+        # Create session factory
         self.Session = sessionmaker(bind=self.engine)
 
-    def bulk_insert(self, entity_type: str, entities: Dict[int, Dict[str, Any]]):
+    def bulk_insert(self, entity_type: str, entities: List[Dict[str, Any]]):
         """Bulk insert entities into database"""
-        session = self.Session()
-        model = self.models[entity_type]
-        
         try:
-            # Filter attributes to match model
+            model = self.models[entity_type]
+            session = self.Session()
+            
+            # Validate and filter entities
             filtered_entities = []
             for entity in entities.values():
-                filtered_entity = {
-                    k: v for k, v in entity.items() 
-                    if hasattr(model, k)
-                }
-                filtered_entities.append(filtered_entity)
+                # Remove None values
+                entity_data = {k: v for k, v in entity.items() if v is not None}
+                
+                # Ensure end_date is None for non-completed process entities
+                if (hasattr(model, '__table_type__') and 
+                    getattr(model, '__table_type__') == TableType.PROCESS_ENTITY):
+                    if entity_data.get('status') != EntityStatus.COMPLETED:
+                        entity_data['end_date'] = None
+                        
+                filtered_entities.append(entity_data)
             
+            # Perform bulk insert
             session.bulk_insert_mappings(model, filtered_entities)
             session.commit()
-            logger.info(f"Bulk insert successful for {entity_type}")
+            
         except Exception as e:
             logger.error(f"Error during bulk insert for {entity_type}: {str(e)}")
             session.rollback()
             raise
+        finally:
+            session.close()
+            
+    def get_entities(self, entity_type: str) -> List[Dict[str, Any]]:
+        """Get all entities of a given type from database"""
+        try:
+            model = self.models[entity_type]
+            session = self.Session()
+            entities = session.query(model).all()
+            return [entity.__dict__ for entity in entities]
         finally:
             session.close()
 
