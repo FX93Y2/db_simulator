@@ -89,7 +89,6 @@ def handle_process(engine, event):
         # Find required resources
         required_resources = process_config['process_config']['required_resources']
         logger.debug(f"Looking for resources: {required_resources}")
-        logger.debug(f"Available resources: {engine.resource_manager.get_available_resource_types()}")
         
         resources = engine.resource_manager.find_available_resources(
             required_resources,

@@ -136,22 +136,24 @@ class ResourceManager:
         for req in requirements:
             resource_type = req['type']
             count = req.get('count', 1)
+            resource_table = req['resource_table']  # Now using the explicit table name
             
-            # Find available resources across all resource tables
-            available = []
-            for table_name, resources in self.resources.items():
-                # Get resources of the required type that are available
-                matching_resources = [
-                    (table_name, rid) 
-                    for rid, info in resources.items()
-                    if info['type'] == resource_type and 
-                       info['status'] == ResourceStatus.AVAILABLE
-                ]
-                available.extend(matching_resources)
+            # Look for resources only in the specified table
+            if resource_table not in self.resources:
+                logger.warning(f"Resource table {resource_table} not found")
+                return None
                 
+            # Get resources of the required type that are available
+            available = [
+                (resource_table, rid) 
+                for rid, info in self.resources[resource_table].items()
+                if info['type'] == resource_type and 
+                   info['status'] == ResourceStatus.AVAILABLE
+            ]
+            
             if len(available) < count:
                 logger.debug(
-                    f"Insufficient {resource_type} resources. "
+                    f"Insufficient {resource_type} resources in {resource_table}. "
                     f"Need {count}, found {len(available)}"
                 )
                 return None

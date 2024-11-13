@@ -21,3 +21,4 @@ htmlcov/
 .cache
 coverage.xml
 *.cover
+instruction.txt

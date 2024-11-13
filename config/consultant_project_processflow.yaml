@@ -1,6 +1,6 @@
 entities:
   - name: Consultant
-    type: resource  # Designate as a resource table
+    type: resource
     attributes:
       - name: id
         type: int
@@ -29,9 +29,8 @@ entities:
             - "Tester"
             - "Tech Lead"
 
-
   - name: Project
-    type: process_entity  # Designate as an entity
+    type: process_entity
     attributes:
       - name: id
         type: int
@@ -71,21 +70,45 @@ resource_definitions:
     type_field: role
 
 events:
-  - name: "Project Development"
+  - name: "Front Page Redesign"
     type: "Process"
     entity: "Project"
     process_config:
-      duration: NORM(100, 30)
+      duration: NORM(40, 10)
+      required_resources:
+        - resource_table: "Consultant"
+          type: "Tech Lead"
+          count: 1
+        - resource_table: "Consultant"
+          type: "Developer"
+          count: 1
+      dependencies: []  # No dependencies for first event
+
+  - name: "Development"
+    type: "Process"
+    entity: "Project"
+    process_config:
+      duration: NORM(100, 20)
       required_resources:
         - resource_table: "Consultant"
           type: "Developer"
           count: 2
+      dependencies:
+        - event: "Front Page Redesign"
+          type: "finish_to_start"
+
+  - name: "Testing"
+    type: "Process"
+    entity: "Project"
+    process_config:
+      duration: NORM(50, 10)
+      required_resources:
         - resource_table: "Consultant"
           type: "Tester"
-          count: 1
-        - resource_table: "Consultant"
-          type: "Tech Lead"
-          count: 1
+          count: 2
+      dependencies:
+        - event: "Development"
+          type: "finish_to_start"
 
 simulation_parameters:
   start_date: "2023-01-01 00:00:00"
