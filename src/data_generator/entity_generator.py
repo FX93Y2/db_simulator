@@ -3,21 +3,8 @@ import logging
 import random
 from typing import Dict, Any, Optional, List, Tuple, Union
 from .value_generator import ValueGenerator
+from ..common.constants import TableType, EntityStatus, ResourceStatus
 logger = logging.getLogger(__name__)
-
-class TableType:
-    RESOURCE = 'resource'
-    PROCESS_ENTITY = 'process_entity'
-    MAPPING = 'mapping'
-
-class EntityStatus:
-    NOT_STARTED = 'Not Started'
-    IN_PROGRESS = 'In Progress'
-    COMPLETED = 'Completed'
-
-class ResourceStatus:
-    AVAILABLE = 'Available'
-    BUSY = 'Busy'
 
 class EntityGenerator:
     def __init__(self, config: Dict[str, Any]):
@@ -139,7 +126,7 @@ class EntityGenerator:
             # Add creation time
             entity['CreatedAt'] = creation_time
             
-            # For process entities, set initial status to NOT_STARTED
+            # For process entities, set initial status
             if entity_config.get('type') == TableType.PROCESS_ENTITY:
                 entity['status'] = EntityStatus.NOT_STARTED 
             elif entity_config.get('type') == TableType.RESOURCE:
@@ -148,13 +135,20 @@ class EntityGenerator:
             # Generate values for all other attributes
             for attr in entity_config['attributes']:
                 if attr['name'] not in ['id', 'CreatedAt', 'status']:
-                    value = self.value_generator.generate_attribute_value(
-                        attr,
-                        entity_config,
-                        self.config,
-                        entity
-                    )
-                    entity[attr['name']] = value
+                    if 'foreign_key' in attr:
+                        # Handle foreign key references properly
+                        ref_table, _ = attr['foreign_key'].split('.')
+                        # Get valid range for foreign key based on initial population
+                        max_id = self.config['initial_population'][ref_table]['count']
+                        entity[attr['name']] = random.randint(1, max_id)
+                    else:
+                        value = self.value_generator.generate_attribute_value(
+                            attr,
+                            entity_config,
+                            self.config,
+                            entity
+                        )
+                        entity[attr['name']] = value
             
             return entity
             

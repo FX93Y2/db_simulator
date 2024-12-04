@@ -76,8 +76,16 @@ class ResourceManager:
                 
             self.resources[table_name] = {}
             
+            # Debug log for resource initialization
+            logger.debug(f"Initializing resources for table {table_name} with type field {type_field}")
+            
             for entity_id, entity_data in entities[table_name].items():
                 resource_type = entity_data.get(type_field)
+                logger.debug(f"Resource {entity_id} has type {resource_type} from field {type_field}")
+                
+                if resource_type is None:
+                    logger.warning(f"Resource {entity_id} has no type value for field {type_field}")
+                    continue
                 if isinstance(resource_type, (int, float)):
                     entity_config = next(
                         (e for e in self.config['entities'] if e['name'] == table_name),
@@ -100,22 +108,37 @@ class ResourceManager:
                     'current_process': None,
                     'allocation_history': []
                 }
+            
+            # Log resource type distribution
+            type_counts = {}
+            for resource in self.resources[table_name].values():
+                type_counts[resource['type']] = type_counts.get(resource['type'], 0) + 1
+            logger.info(f"Resource type distribution for {table_name}: {type_counts}")
                 
-            logger.info(
-                f"Initialized {len(self.resources[table_name])} resources "
-                f"for table {table_name}"
-            )
-                
-    def get_available_resource_types(self) -> Dict[str, List[str]]:
-        """Get currently available resource types for each resource table"""
+    def get_available_resource_types(self, group_by: Optional[str] = None) -> Dict[str, List[str]]:
+        """Get currently available resource types for each resource table
+        
+        Args:
+            group_by: Optional field name to group resources by. If None, uses the default type field.
+        
+        Returns:
+            Dict mapping resource table names to lists of available resource types with counts
+        """
         available_types = {}
         
         for table_name, resources in self.resources.items():
             type_counts = {}  # Track count of each available type
+            grouping_field = group_by or self.resource_tables.get(table_name)
+            
+            if not grouping_field:
+                logger.warning(f"No grouping field found for table {table_name}")
+                continue
+                
             for resource_info in resources.values():
                 if resource_info['status'] == ResourceStatus.AVAILABLE:
-                    resource_type = resource_info['type']
-                    type_counts[resource_type] = type_counts.get(resource_type, 0) + 1
+                    resource_type = resource_info.get(grouping_field)
+                    if resource_type:
+                        type_counts[resource_type] = type_counts.get(resource_type, 0) + 1
             
             # Only include types that have available resources
             available_types[table_name] = [
@@ -133,28 +156,45 @@ class ResourceManager:
         """Find resources that can be seized for process"""
         needed_resources = {}
         
+        logger.debug(f"Looking for resources with requirements: {requirements}")
+        
         for req in requirements:
             resource_type = req['type']
             count = req.get('count', 1)
-            resource_table = req['resource_table']  # Now using the explicit table name
+            resource_table = req['resource_table']
+            group_by = req.get('group_by', self.resource_tables.get(resource_table))
             
-            # Look for resources only in the specified table
+            if not group_by:
+                logger.warning(f"No grouping field found for table {resource_table}")
+                return None
+            
             if resource_table not in self.resources:
                 logger.warning(f"Resource table {resource_table} not found")
                 return None
                 
+            # Debug log current resource availability
+            available_resources = {
+                rid: info for rid, info in self.resources[resource_table].items()
+                if info['status'] == ResourceStatus.AVAILABLE
+            }
+            logger.debug(
+                f"Available resources in {resource_table}: "
+                f"{[(rid, info['type']) for rid, info in available_resources.items()]}"
+            )
+            
             # Get resources of the required type that are available
             available = [
                 (resource_table, rid) 
                 for rid, info in self.resources[resource_table].items()
                 if info['type'] == resource_type and 
-                   info['status'] == ResourceStatus.AVAILABLE
+                info['status'] == ResourceStatus.AVAILABLE
             ]
             
             if len(available) < count:
                 logger.debug(
                     f"Insufficient {resource_type} resources in {resource_table}. "
-                    f"Need {count}, found {len(available)}"
+                    f"Need {count}, found {len(available)}. "
+                    f"Available types: {self.get_available_resource_types()}"
                 )
                 return None
                 
@@ -171,36 +211,44 @@ class ResourceManager:
         start_time: datetime
     ):
         """Seize resources for a process"""
-        # Initialize allocation tracking for this process
-        self.active_allocations[process_id] = {}
-        
-        for resource_type, resource_list in resources.items():
-            for table_name, rid in resource_list:
-                # Update resource status
-                self.resources[table_name][rid].update({
-                    'status': ResourceStatus.BUSY,
-                    'current_process': process_id
-                })
+        try:
+            # Validate resources exist
+            for resource_type, resource_list in resources.items():
+                for table_name, rid in resource_list:
+                    if (table_name not in self.resources or 
+                        rid not in self.resources[table_name]):
+                        raise ValueError(
+                            f"Resource {rid} not found in table {table_name}"
+                        )
+            
+            # Initialize allocation tracking for this process
+            self.active_allocations[process_id] = {}
+            
+            for resource_type, resource_list in resources.items():
+                for table_name, rid in resource_list:
+                    # Update resource status
+                    self.resources[table_name][rid].update({
+                        'status': ResourceStatus.BUSY,
+                        'current_process': process_id
+                    })
+                    
+                    # Track allocation
+                    if table_name not in self.active_allocations[process_id]:
+                        self.active_allocations[process_id][table_name] = {}
+                    
+                    self.active_allocations[process_id][table_name][rid] = {
+                        'start_time': start_time,
+                        'resource_type': resource_type
+                    }
+                    
+                    logger.debug(
+                        f"Seized resource {rid} of type {resource_type} "
+                        f"from table {table_name} for process {process_id}"
+                    )
                 
-                # Track allocation
-                if table_name not in self.active_allocations[process_id]:
-                    self.active_allocations[process_id][table_name] = {}
-                
-                self.active_allocations[process_id][table_name][rid] = {
-                    'start_time': start_time,
-                    'resource_type': resource_type
-                }
-                
-                # Add to resource history
-                self.resources[table_name][rid]['allocation_history'].append({
-                    'process_id': process_id,
-                    'start_time': start_time
-                })
-                
-                logger.debug(
-                    f"Seized resource {rid} of type {resource_type} "
-                    f"from table {table_name} for process {process_id}"
-                )
+        except Exception as e:
+            logger.error(f"Failed to seize resources: {str(e)}")
+            raise
 
     def release_resources(self, process_id: str, end_time: datetime):
         """Release resources from a process"""

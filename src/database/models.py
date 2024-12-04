@@ -2,25 +2,13 @@ from sqlalchemy import Column, Integer, String, Float, ForeignKey, DateTime, Boo
 from sqlalchemy.orm import relationship
 from sqlalchemy.ext.declarative import declarative_base
 from typing import Dict, Any, List
+from ..common.constants import TableType, EntityStatus, ResourceStatus
 import datetime
 import logging
 
 logger = logging.getLogger(__name__)
 
 Base = declarative_base()
-
-class TableType:
-    RESOURCE = 'resource'
-    PROCESS_ENTITY = 'process_entity'
-
-class EntityStatus:
-    NOT_STARTED = 'Not Started'
-    IN_PROGRESS = 'In Progress'
-    COMPLETED = 'Completed'
-
-class ResourceStatus:
-    AVAILABLE = 'Available'
-    BUSY = 'Busy'
     
 def create_models(config: Dict[str, Any]) -> Dict[str, Any]:
     """Create SQLAlchemy models from configuration"""

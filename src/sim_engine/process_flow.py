@@ -1,5 +1,5 @@
 from enum import Enum
-from typing import Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Set, Tuple
 from datetime import datetime, timedelta
 
 class DependencyType(Enum):
@@ -60,4 +60,35 @@ class ProcessFlow:
             if dependencies_met:
                 ready_events.append(event_name)
                 
-        return ready_events 
+        return ready_events
+
+    def _check_resource_availability(
+        self,
+        required_resources: List[Dict[str, Any]],
+        current_time: datetime
+    ) -> bool:
+        """Check if required resources are available"""
+        for resource in required_resources:
+            available = self.resource_manager.get_available_resources(
+                resource['resource_table'],
+                resource['group_by'],
+                resource['type'],
+                current_time,
+                resource.get('count', 1)
+            )
+            if not available:
+                return False
+        return True
+
+    def _is_dependency_satisfied(
+        self,
+        dependency: Dict[str, Any],
+        entity_data: Dict[str, Any]
+    ) -> bool:
+        """Check if a dependency is satisfied considering entity type conditions"""
+        if 'conditions' in dependency:
+            for condition in dependency['conditions']:
+                if condition['entity_type'] == entity_data.get('type'):
+                    return self._check_basic_dependency(dependency)
+            return True  # Skip if no matching condition
+        return self._check_basic_dependency(dependency)

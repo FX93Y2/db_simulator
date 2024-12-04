@@ -30,7 +30,7 @@ entities:
             - "Tech Lead"
 
   - name: Project
-    type: process_entity
+    type: entity
     attributes:
       - name: id
         type: int
@@ -53,66 +53,130 @@ entities:
         type: datetime
         nullable: true
 
+  - name: Deliverable
+    type: process_entity
+    attributes:
+      - name: id
+        type: int
+      - name: name
+        type: string
+        generator:
+          type: template
+          template: "Deliverable_{id}"
+      - name: status
+        type: string
+      - name: type
+        type: string
+        generator:
+          type: distribution
+          distribution: "DISC(0.4, 0.3, 0.3)"
+          choices: ["UI Component", "API Endpoint", "Database Schema"]
+      - name: project_id
+        type: int
+        foreign_key: Project.id
+
 relationships:
   - from: Project
+    to: Deliverable
+    type: one_to_many
+  - from: Deliverable
     to: Consultant
     type: many_to_many
-    mapping_table: Project_Consultant_Process
+    mapping_table: Deliverable_Consultant_Process
 
 initial_population:
   Consultant:
     count: 50
   Project:
     count: 10
+  Deliverable:
+    count: 30
 
 resource_definitions:
   - table: Consultant
     type_field: role
 
 events:
-  - name: "Front Page Redesign"
+  # UI Component Processes
+  - name: "UI Design"
     type: "Process"
-    entity: "Project"
+    entity:
+      entity_table: "Deliverable"
+      group_by: "type"
+      type: "UI Component"
     process_config:
       duration: NORM(40, 10)
       required_resources:
         - resource_table: "Consultant"
-          type: "Tech Lead"
-          count: 1
-        - resource_table: "Consultant"
+          group_by: "role"
           type: "Developer"
           count: 1
-      dependencies: []  # No dependencies for first event
 
-  - name: "Development"
+  # API Endpoint Processes
+  - name: "API Development"
     type: "Process"
-    entity: "Project"
+    entity:
+      entity_table: "Deliverable"
+      group_by: "type"
+      type: "API Endpoint"
     process_config:
-      duration: NORM(100, 20)
+      duration: NORM(60, 15)
       required_resources:
         - resource_table: "Consultant"
+          group_by: "role"
           type: "Developer"
-          count: 2
-      dependencies:
-        - event: "Front Page Redesign"
-          type: "finish_to_start"
+          count: 1
+        - resource_table: "Consultant"
+          group_by: "role"
+          type: "Tech Lead"
+          count: 1
 
-  - name: "Testing"
+  # Database Schema Processes
+  - name: "Database Design"
     type: "Process"
-    entity: "Project"
+    entity:
+      entity_table: "Deliverable"
+      group_by: "type"
+      type: "Database Schema"
     process_config:
       duration: NORM(50, 10)
       required_resources:
         - resource_table: "Consultant"
+          group_by: "role"
+          type: "Tech Lead"
+          count: 1
+
+  # Testing processes for all deliverable types
+  - name: "Testing"
+    type: "Process"
+    entity:
+      entity_table: "Deliverable"
+      group_by: "type"
+      type: "*"  # Applies to all types
+    process_config:
+      duration: NORM(30, 5)
+      required_resources:
+        - resource_table: "Consultant"
+          group_by: "role"
           type: "Tester"
-          count: 2
+          count: 1
       dependencies:
-        - event: "Development"
+        - event: "UI Design"
           type: "finish_to_start"
+          conditions:
+            - entity_type: "UI Component"
+        - event: "API Development"
+          type: "finish_to_start"
+          conditions:
+            - entity_type: "API Endpoint"
+        - event: "Database Design"
+          type: "finish_to_start"
+          conditions:
+            - entity_type: "Database Schema"
 
 simulation_parameters:
   start_date: "2023-01-01 00:00:00"
-  end_date: "2023-03-01 00:00:00"
+  end_date: "2023-05-01 00:00:00"
   time_unit: day
   work_schedule:
     hours_per_day: 8

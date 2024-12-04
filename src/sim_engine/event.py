@@ -1,18 +1,27 @@
 from datetime import datetime
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Union
 
 class Event:
     def __init__(
         self,
         event_type: str,
-        entity_type: str,
+        entity: Union[str, Dict[str, Any]],
         entity_id: int,
         time: datetime,
         name: str,
         params: Optional[Dict[str, Any]] = None
     ):
         self.type = event_type
-        self.entity_type = entity_type
+        self.entity = entity
+        self.entity_type = (
+            entity['entity_table'] if isinstance(entity, dict) else entity
+        )
+        self.entity_table = (
+            entity['entity_table'] if isinstance(entity, dict) else entity
+        )
+        self.group_by = (
+            entity.get('group_by') if isinstance(entity, dict) else None
+        )
         self.entity_id = entity_id
         self.time = time
         self.name = name

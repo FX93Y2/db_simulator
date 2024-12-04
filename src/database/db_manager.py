@@ -5,7 +5,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.exc import SQLAlchemyError
 from .models import Base, create_models, initialize_models
-from ..config_parser.config_enhancer import EntityStatus, TableType
+from ..common.constants import TableType, EntityStatus
 
 logger = logging.getLogger(__name__)
 
@@ -72,11 +72,15 @@ class DatabaseManager:
             session.close()
 
     def insert(self, entity_type: str, entity_data: Dict[str, Any]) -> int:
-        """Insert a single entity"""
+        """Insert a single entity with foreign key validation"""
         session = self.Session()
         model = self.models[entity_type]
         
         try:
+            # Validate foreign keys first
+            if not self.validate_foreign_keys(entity_type, entity_data):
+                raise ValueError("Foreign key validation failed")
+            
             # Filter attributes to match model
             filtered_data = {
                 k: v for k, v in entity_data.items() 
@@ -141,12 +145,15 @@ class DatabaseManager:
         finally:
             session.close()
 
-    def get_process_records(self, process_name: str) -> List[Dict[str, Any]]:
+    def get_process_records(
+        self,
+        process_name: str,
+        entity_type: Optional[str] = None
+    ) -> List[Dict[str, Any]]:
         """Get all records for a specific process"""
         session = self.Session()
         
         try:
-            # Find the appropriate mapping table
             mapping_tables = [
                 name for name, model in self.models.items()
                 if hasattr(model, '__auto_generated__') and 
@@ -156,7 +163,16 @@ class DatabaseManager:
             process_records = []
             for table_name in mapping_tables:
                 model = self.models[table_name]
-                records = session.query(model).filter_by(process_name=process_name).all()
+                query = session.query(model).filter_by(process_name=process_name)
+                
+                if entity_type:
+                    query = query.join(
+                        self.models['Deliverable']
+                    ).filter(
+                        self.models['Deliverable'].type == entity_type
+                    )
+                    
+                records = query.all()
                 
                 for record in records:
                     process_records.append(
@@ -170,3 +186,53 @@ class DatabaseManager:
     def close(self):
         """Close database connection"""
         self.engine.dispose()
+
+    def get_entity_ids(self, entity_type: str) -> List[int]:
+        """Get all entity IDs of a given type from database"""
+        try:
+            model = self.models[entity_type]
+            session = self.Session()
+            # Query only the ID column for efficiency
+            ids = session.query(model.id).all()
+            # Extract IDs from result tuples
+            return [id_tuple[0] for id_tuple in ids]
+        except Exception as e:
+            logger.error(f"Error getting entity IDs for {entity_type}: {str(e)}")
+            return []
+        finally:
+            session.close()
+
+    def validate_foreign_keys(self, table_name: str, data: Dict[str, Any]) -> bool:
+        """Validate foreign key references before insert/update"""
+        try:
+            model = self.models[table_name]
+            
+            # Check each foreign key constraint
+            for attr_name, value in data.items():
+                # Get column from model
+                if hasattr(model, attr_name):
+                    column = getattr(model, attr_name)
+                    if hasattr(column, 'foreign_keys'):
+                        for fk in column.foreign_keys:
+                            ref_table = fk.column.table.name
+                            # Verify referenced ID exists
+                            session = self.Session()
+                            exists = session.query(
+                                session.query(self.models[ref_table])
+                                .filter_by(id=value)
+                                .exists()
+                            ).scalar()
+                            session.close()
+                            
+                            if not exists:
+                                logger.error(
+                                    f"Foreign key violation: {ref_table}.id={value} "
+                                    f"does not exist for {table_name}.{attr_name}"
+                                )
+                                return False
+                                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Foreign key validation failed: {str(e)}")
+            return False

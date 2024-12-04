@@ -163,38 +163,57 @@ class SimulationEngine:
             raise
 
     def _schedule_initial_events(self):
-        """Schedule initial events for process entities with dependency handling"""
-        if 'events' not in self.config:
-            logger.warning("No events found in configuration")
-            return
-
-        process_entities = self._get_process_entities()
+        """Schedule initial events based on configuration"""
+        # Get process entities
+        process_entities = {
+            e['name']: e for e in self.config['entities'] 
+            if e.get('type') == TableType.PROCESS_ENTITY
+        }
         
-        # Build event dependency graph
-        for event_config in self.config['events']:
-            event_name = event_config['name']
-            self.event_dependencies[event_name] = set()
-            
-            if 'process_config' in event_config:
-                # Add explicit dependencies
-                if 'dependencies' in event_config['process_config']:
-                    for dep in event_config['process_config']['dependencies']:
-                        self.event_dependencies[event_name].add(dep['event'])
-
-        # Schedule only events with no dependencies initially
-        for event_config in self.config['events']:
-            if event_config['type'] == 'Process':
-                event_name = event_config['name']
-                entity_type = event_config['entity']
+        # Schedule events
+        for event in self.config.get('events', []):
+            if event['type'] == 'Process':
+                entity_config = event.get('entity', {})
+                entity_table = (
+                    entity_config['entity_table'] 
+                    if isinstance(entity_config, dict) 
+                    else entity_config
+                )
                 
-                # Skip if entity type is invalid
-                if entity_type not in process_entities:
-                    logger.warning(f"Event {event_name} references invalid process entity: {entity_type}")
+                if entity_table not in process_entities:
+                    logger.warning(
+                        f"Skipping event {event['name']} for non-process entity: {entity_table}"
+                    )
                     continue
+                    
+                # Get initial entities of this type
+                entity_ids = self.db_manager.get_entity_ids(entity_table)
                 
-                # Schedule only if no dependencies or backward compatibility mode
-                if not self.event_dependencies[event_name] or len(self.config['events']) == 1:
-                    self._schedule_event_for_entities(event_config, entity_type)
+                # Schedule event for each entity
+                for entity_id in entity_ids:
+                    # Calculate initial delay if specified
+                    delay = timedelta(hours=0)
+                    if 'initial_delay' in event:
+                        delay = self._calculate_delay(event['initial_delay'])
+                    
+                    event_time = self.start_time + delay
+                    
+                    # Schedule the event
+                    self.schedule_event(
+                        event['name'],
+                        entity_table,
+                        entity_id,
+                        event_time
+                    )
+                    
+                    # Track dependencies
+                    if 'dependencies' in event:
+                        entity_key = f"{entity_table}_{entity_id}"
+                        if event['name'] not in self.event_dependencies:
+                            self.event_dependencies[event['name']] = set()
+                        self.event_dependencies[event['name']].update(
+                            dep['event'] for dep in event['dependencies']
+                        )
                     
     def _schedule_event_for_entities(self, event_config: Dict, entity_type: str):
         """Schedule events for all entities of a given type"""
@@ -339,24 +358,31 @@ class SimulationEngine:
         if not entity_config:
             raise ValueError(f"Invalid entity type for event: {entity_type}")
             
-        if (entity_config['type'] == TableType.RESOURCE and 
-            not event_name.startswith(('Release_', 'Complete_'))):
-            raise ValueError(f"Cannot schedule process events for resource type: {entity_type}")
-
-        # Determine event type
-        if event_name.startswith(('Release_', 'Complete_')):
-            event_type = 'Complete'
+        # Get event configuration
+        event_config = next(
+            (e for e in self.config['events'] if e['name'] == event_name),
+            None
+        )
+        
+        # Create entity info dict for process events
+        if event_config and event_config['type'] == 'Process':
+            entity = {
+                'entity_table': entity_type,
+                'type': entity_config.get('type'),
+                'group_by': event_config.get('entity', {}).get('group_by')
+            }
         else:
-            event_config = next(
-                (e for e in self.config['events'] if e['name'] == event_name),
-                None
-            )
-            if not event_config:
-                raise ValueError(f"No configuration found for event: {event_name}")
-            event_type = event_config['type']
+            entity = entity_type
 
         # Create and schedule event
-        event = Event(event_type, entity_type, entity_id, event_time, event_name, params or {})
+        event = Event(
+            event_config['type'] if event_config else 'Complete',
+            entity,
+            entity_id,
+            event_time,
+            event_name,
+            params or {}
+        )
         self.event_queue.put(event)
         logger.debug(
             f"Scheduled event {event_name} for {entity_type} {entity_id} "

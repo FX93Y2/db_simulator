@@ -2,7 +2,7 @@ import yaml
 import logging
 from datetime import datetime
 from typing import Dict, Any, List, Union
-from .config_enhancer import enhance_config, TableType
+from ..common.constants import TableType
 from ..utils.distributions import parse_distribution_string
 
 logger = logging.getLogger(__name__)
@@ -31,6 +31,7 @@ def validate_config(config: Dict[str, Any]):
     _validate_entities(config.get('entities', []))
     _validate_relationships(config.get('relationships', []))
     _validate_initial_population(config.get('initial_population', {}), config['entities'])
+    _validate_resource_definitions(config.get('resource_definitions', []))
     _validate_events(config.get('events', []))
     _validate_simulation_parameters(config.get('simulation_parameters', {}))
     
@@ -55,15 +56,25 @@ def _validate_entities(entities: List[Dict[str, Any]]):
         # Validate basic structure
         if 'name' not in entity:
             raise ValueError("Entity missing required 'name' field")
+        if entity['name'] in entity_names:
+            raise ValueError(f"Duplicate entity name: {entity['name']}")
+        entity_names.add(entity['name'])
+        
         if 'type' not in entity:
             raise ValueError(f"Entity {entity['name']} missing required 'type' field")
         if 'attributes' not in entity:
             raise ValueError(f"Entity {entity['name']} missing required 'attributes' field")
             
-        # Validate attribute generators
-        for attr in entity['attributes']:
-            if 'generator' in attr:
-                _validate_generator_config(attr['generator'], entity['name'], attr['name'])
+        # Skip type validation for auto-generated tables
+        if entity.get('auto_generated', False):
+            continue
+            
+        valid_types = [TableType.RESOURCE, TableType.PROCESS_ENTITY, TableType.ENTITY]
+        if entity['type'] not in valid_types:
+            raise ValueError(
+                f"Invalid entity type for {entity['name']}: {entity['type']}. "
+                f"Must be one of: {', '.join(str(t) for t in valid_types)}"
+            )
                 
 def _validate_generator_config(generator: Dict[str, Any], entity_name: str, attr_name: str):
     """Validate generator configuration"""
@@ -211,37 +222,60 @@ def _validate_events(events: List[Dict[str, Any]]):
 
 def _validate_process_config(event: Dict[str, Any]):
     """Validate process event configuration"""
+    required_fields = ['name', 'type', 'entity']
+    missing_fields = [field for field in required_fields if field not in event]
+    if missing_fields:
+        raise ValueError(f"Process event missing required fields: {', '.join(missing_fields)}")
+    
+    # Validate entity specification
+    if 'entity' not in event:
+        raise ValueError(f"Process event {event['name']} missing 'entity' field")
+        
+    entity = event['entity']
+    if isinstance(entity, dict):
+        required_entity_fields = ['entity_table', 'group_by', 'type']
+        missing_entity_fields = [
+            field for field in required_entity_fields 
+            if field not in entity
+        ]
+        if missing_entity_fields:
+            raise ValueError(
+                f"Process event entity config missing fields: {', '.join(missing_entity_fields)}"
+            )
+    elif not isinstance(entity, str):
+        raise ValueError(
+            f"Process event entity must be either a string or a dictionary, got {type(entity)}"
+        )
+    
+    # Validate process configuration
     if 'process_config' not in event:
-        raise ValueError(f"Process event {event['name']} missing 'process_config'")
+        raise ValueError(f"Process event {event['name']} missing process_config")
         
     config = event['process_config']
     
-    # Validate duration/total_hours
-    if 'duration' not in config and 'total_hours' not in config:
-        raise ValueError(
-            f"Process {event['name']} missing either 'duration' or 'total_hours'"
-        )
-    
-    # Validate required resources if present
+    # Validate required resources with grouping
     if 'required_resources' in config:
         for resource in config['required_resources']:
-            if 'type' not in resource:
+            required_resource_fields = ['resource_table', 'group_by', 'type']
+            missing_resource_fields = [
+                field for field in required_resource_fields 
+                if field not in resource
+            ]
+            if missing_resource_fields:
                 raise ValueError(
-                        f"Required resource in process {event['name']} missing 'type' field"
-                    )
-            if 'count' in resource and not isinstance(resource['count'], (int, float)):
-                raise ValueError(
-                        f"Invalid count for resource type {resource['type']} in process {event['name']}"
-                    )
-
-    # Validate resource constraints if present
-    if 'resource_constraints' in config:
-        constraints = config['resource_constraints']
-        if 'max_concurrent_processes' in constraints:
-            if not isinstance(constraints['max_concurrent_processes'], int):
-                raise ValueError(
-                    f"Invalid max_concurrent_processes in process {event['name']}"
+                    f"Required resource in {event['name']} missing fields: "
+                    f"{', '.join(missing_resource_fields)}"
                 )
+            
+    # Validate dependencies with conditions
+    if 'dependencies' in config:
+        for dep in config['dependencies']:
+            if 'conditions' in dep:
+                for condition in dep['conditions']:
+                    if 'entity_type' not in condition:
+                        raise ValueError(
+                            f"Dependency condition in {event['name']} missing entity_type"
+                        )
 
 def _validate_distribution(distribution: Union[str, Dict[str, Any]], context: str):
     """Validate distribution configuration in either Arena-style or dictionary format"""

@@ -52,6 +52,33 @@ def handle_process(engine, event):
         
         if not process_config:
             raise ValueError(f"No process configuration found for: {event.name}")
+        
+        logger.debug(
+            f"Processing event: {event.name} for {event.entity_type} {event.entity_id} "
+            f"at time {event.time}"
+        )
+        
+        # Get required resources
+        required_resources = process_config['process_config']['required_resources']
+        logger.debug(f"Looking for resources: {required_resources}")
+        
+        
+        # Check entity type matches process requirements
+        entity_data = engine.db_manager.get(event.entity_type, event.entity_id)
+        if entity_data:
+            entity_type = entity_data.get('type')
+            process_entity_type = process_config['entity'].get('type')
+            
+            if process_entity_type != '*' and entity_type != process_entity_type:
+                logger.debug(
+                    f"Entity type mismatch: {entity_type} != {process_entity_type}"
+                )
+                return None
+
+        resources = engine.resource_manager.find_available_resources(
+            required_resources,
+            event.time
+        )
 
         # Get work schedule from simulation parameters
         work_schedule = engine.config['simulation_parameters']['work_schedule']
@@ -202,20 +229,41 @@ def _create_mapping_entries(
     distributed_hours: Dict[Tuple[str, int], float]
 ):
     """Create process tracking entries in mapping tables"""
-    for resource_type, resource_list in resources.items():
-        for table_name, resource_id in resource_list:
-            mapping_table = f"{entity_type}_{table_name}_Process"
-            
-            mapping_data = {
-                f"{entity_type.lower()}_id": entity_id,
-                f"{table_name.lower()}_id": resource_id,
-                'process_name': process_name,
-                'start_time': start_time,
-                'end_time': end_time,
-                'hours_worked': round(distributed_hours.get((table_name, resource_id), 0.0), 2)
-            }
-            
-            engine.db_manager.insert(mapping_table, mapping_data)
+    try:
+        for resource_type, resource_list in resources.items():
+            for table_name, resource_id in resource_list:
+                mapping_table = f"{entity_type}_{table_name}_Process"
+                
+                # Validate mapping table exists
+                if mapping_table not in engine.db_manager.models:
+                    logger.error(f"Mapping table {mapping_table} not found")
+                    continue
+                
+                mapping_data = {
+                    f"{entity_type.lower()}_id": entity_id,
+                    f"{table_name.lower()}_id": resource_id,
+                    'process_name': process_name,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'hours_worked': round(distributed_hours.get((table_name, resource_id), 0.0), 2)
+                }
+                
+                # Insert with error handling
+                try:
+                    engine.db_manager.insert(mapping_table, mapping_data)
+                    logger.debug(
+                        f"Created mapping entry in {mapping_table}: "
+                        f"Process {process_name} for {entity_type} {entity_id} "
+                        f"with {table_name} {resource_id}"
+                    )
+                except Exception as e:
+                    logger.error(
+                        f"Failed to create mapping entry in {mapping_table}: {str(e)}"
+                    )
+                    
+    except Exception as e:
+        logger.error(f"Failed to create mapping entries: {str(e)}")
+        raise
 
 def _distribute_hours(
     total_hours: float,
