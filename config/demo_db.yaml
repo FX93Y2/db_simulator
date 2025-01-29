@@ -1,0 +1,80 @@
+entities:
+  - name: Consultant  # Resource table
+    rows: 50         # Number of resources to generate
+    attributes:
+      - name: id
+        type: pk     # Primary key for resource identification
+      - name: created_at  
+        type: datetime    
+        # Simulation-specific attribute for resource arrival
+        # Times will be generated between simulation start_time and end_time
+        simulation_arrival:
+          pattern: poisson  # Resources arrive following Poisson process
+          rate: 2          # Average 2 new resources per day
+      - name: name
+        type: string
+        generator:
+          type: faker      # Uses Faker library for realistic data
+          method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
+      - name: role        # Column referenced by resource_type in sim config
+        type: string
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values: ["Developer", "Tester", "Tech Lead"]
+            weights: [0.6, 0.2, 0.2]  # Distribution of resource types
+
+  - name: Project    # Parent table for deliverables
+    rows: 10
+    attributes:
+      - name: id
+        type: pk
+      - name: created_at
+        type: datetime
+        simulation_arrival:
+          pattern: uniform  # Projects created uniformly across simulation time
+      - name: name
+        type: string
+        generator:
+          type: template    # Simple sequential naming
+          template: "Project_{id}"
+
+  - name: Deliverable  # Entity table
+    rows: 30
+    attributes:
+      - name: id
+        type: pk
+      - name: project_id
+        type: fk          # Foreign key to parent project
+        ref: Project.id
+      - name: name
+        type: string
+        generator:
+          type: template
+          template: "Deliverable_{id}"
+      - name: type      # Column referenced by entity_type in sim config
+        type: string
+        generator:
+          distribution:
+            type: choice
+            values: ["Design", "Coding", "Testing"]
+            weights: [0.4, 0.3, 0.3]  # Distribution of entity types
+      - name: created_at
+        type: datetime
+        simulation_arrival:
+          pattern: poisson    # Entities arrive following Poisson process
+          rate: 1            # Average 1 new entity per day
+
+# Key Concepts:
+# 1. created_at with simulation_arrival defines when entities/resources become
+#    available in the simulation
+# 2. type/role columns define different entity/resource types that are matched
+#    in the simulation config
+# 3. Distributions and weights help create realistic test data
+# 4. All datetime generation is controlled by simulation timing config
