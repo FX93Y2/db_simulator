@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, ForeignKey, MetaData
+from sqlalchemy import Column, Integer, String, ForeignKey, MetaData, Float, Boolean
 from sqlalchemy.orm import relationship, declarative_base
 from typing import Dict, Type, Any
 
@@ -28,15 +28,34 @@ def create_entity_model(
     # Add columns based on attributes
     for name, config in attributes.items():
         if config['type'] == 'pk':
-            attrs[name] = Column(Integer, primary_key=True)
+            attrs[name] = Column(
+                Integer,
+                primary_key=True,
+                autoincrement=True,
+                nullable=False,
+                index=True
+            )
         elif config['type'] == 'fk':
             ref_table, ref_col = config['ref'].split('.')
-            attrs[name] = Column(Integer, ForeignKey(f'{ref_table.lower()}.{ref_col}'))
+            attrs[name] = Column(
+                Integer,
+                ForeignKey(
+                    f'{ref_table.lower()}.{ref_col}',
+                    onupdate='CASCADE',
+                    ondelete='CASCADE'
+                ),
+                nullable=False,
+                index=True
+            )
         elif config['type'] == 'string':
-            attrs[name] = Column(String)
+            attrs[name] = Column(String(255), nullable=True) 
         elif config['type'] == 'integer':
-            attrs[name] = Column(Integer)
-        # Add more types as needed
+            attrs[name] = Column(Integer, nullable=True)
+        elif config['type'] == 'float':
+            attrs[name] = Column(Float, nullable=True)
+        elif config['type'] == 'boolean':
+            attrs[name] = Column(Boolean, nullable=True)
+        # Add more types here
     
     # Add relationships if specified
     if relationships:
@@ -44,7 +63,8 @@ def create_entity_model(
             attrs[name] = relationship(
                 config['target_entity'],
                 back_populates=config.get('back_populates'),
-                cascade=config.get('cascade', 'all, delete-orphan')
+                cascade=config.get('cascade', 'all, delete-orphan'),
+                lazy='joined'  # Eager loading by default
             )
     
     # Create and return the model class

@@ -19,8 +19,6 @@ class DatabaseGenerator:
         
         # Create models from configuration
         self._create_models()
-        
-        # Create database tables
         self.db.create_all()
         
     def _create_models(self):
@@ -140,6 +138,7 @@ class DatabaseGenerator:
                     
                     session.flush()  # Flush to get IDs
                     parent_ids[entity_config.name] = [inst.id for inst in instances]
+                    logger.debug(f"Generated IDs for {entity_config.name}: {parent_ids[entity_config.name]}")
                         
             session.commit()
             
@@ -163,24 +162,24 @@ class DatabaseGenerator:
                                         available_ids = parent_ids[parent_table]
                                         weights = dist_config.get('weights')
                                         if weights and len(weights) == len(available_ids):
-                                            row[attr.name] = generate_from_distribution({
+                                            row[attr.name] = int(generate_from_distribution({
                                                 'type': 'choice',
                                                 'values': available_ids,
                                                 'weights': weights
-                                            })
+                                            }))
                                         else:
                                             # Fallback to random choice if weights don't match
-                                            row[attr.name] = generate_from_distribution({
+                                            row[attr.name] = int(generate_from_distribution({
                                                 'type': 'choice',
                                                 'values': available_ids
-                                            })
+                                            }))
                                         continue
                                 
                                 # Default behavior: get first parent
-                                parent_model = self.model_registry.get_model(parent_table)
-                                parent = session.query(parent_model).first()
-                                if parent:
-                                    row[attr.name] = getattr(parent, parent_col)
+                                if parent_table in parent_ids and parent_ids[parent_table]:
+                                    row[attr.name] = parent_ids[parent_table][0]
+                                else:
+                                    raise ValueError(f"No parent records found for {parent_table}")
                                     
                         model_class = self.model_registry.get_model(entity_config.name)
                         instance = model_class(**row)

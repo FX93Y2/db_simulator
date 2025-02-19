@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker, Session
 from typing import Optional
 from pathlib import Path
@@ -11,8 +11,26 @@ class DatabaseManager:
         elif not db_path.startswith('sqlite:///'):
             db_path = f'sqlite:///{db_path}'
             
-        self.engine = create_engine(db_path)
-        self.SessionLocal = sessionmaker(bind=self.engine)
+        # Create engine with foreign key support
+        self.engine = create_engine(
+            db_path,
+            echo=False,  # Set to True for SQL debugging
+            future=True,
+            connect_args={'check_same_thread': False}
+        )
+        
+        # Enable foreign key support for SQLite
+        @event.listens_for(self.engine, 'connect')
+        def set_sqlite_pragma(dbapi_connection, connection_record):
+            cursor = dbapi_connection.cursor()
+            cursor.execute("PRAGMA foreign_keys=ON")
+            cursor.close()
+        
+        self.SessionLocal = sessionmaker(
+            bind=self.engine,
+            autocommit=False,
+            autoflush=False
+        )
         self.model_registry = model_registry
         
     def create_all(self):
