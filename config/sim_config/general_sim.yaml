@@ -1,0 +1,23 @@
+simulation:
+  duration: 30
+  time_unit: days
+  random_seed: 42
+  timing:
+    start_time: "2024-01-01"
+    end_time: "2024-01-30"
+
+
+process_sequence:
+  - name: design_development
+    config_file: design_sim.yaml
+    dependencies: []  # No dependencies for first process
+    
+  - name: coding_development
+    config_file: coding_sim.yaml
+    dependencies: 
+      - design_development  # Must wait for design to complete
+    
+  - name: testing_development
+    config_file: testing_sim.yaml
+    dependencies:
+      - coding_development  # Must wait for coding to complete

@@ -4,56 +4,84 @@ from src.config.sim_config import SimulationConfigParser
 from pprint import pprint
 
 def test_parsers():
-    # Parse database config
-    db_config = DatabaseConfigParser.parse(Path("config/demo_db.yaml"))
+    print("\n=== Testing Configuration Parsers ===")
     
-    print("\n=== Database Configuration ===")
-    print(f"\nNumber of entities: {len(db_config.entities)}")
+    # Test Database Configuration
+    print("\n--- Database Configuration ---")
+    db_config = DatabaseConfigParser.parse(Path("config/db_config/demo_db.yaml"))
     
     for entity in db_config.entities:
         print(f"\nEntity: {entity.name}")
-        print(f"Rows to generate: {entity.rows}")
+        print(f"Type: {entity.type}")
+        print(f"Rows: {entity.rows if entity.rows != 'n/a' else 'Dynamic'}")
         print("Attributes:")
         for attr in entity.attributes:
             print(f"  - {attr.name} ({attr.type})")
-            if attr.ref:
-                print(f"    Foreign key reference: {attr.ref}")
             if attr.generator:
-                print(f"    Generator: {attr.generator}")
-            if attr.simulation_arrival:
-                print(f"    Simulation arrival: {attr.simulation_arrival}")
+                print(f"    Generator: {attr.generator.type}")
+                if hasattr(attr.generator, 'simulation_override') and attr.generator.simulation_override:
+                    print(f"    Simulation override enabled")
     
-    # Parse simulation config
-    sim_config = SimulationConfigParser.parse(Path("config/demo_sim.yaml"))
+    # Test Simulation Configurations
+    print("\n--- Simulation Configurations ---")
     
-    print("\n=== Simulation Configuration ===")
-    print(f"\nDuration: {sim_config.simulation.duration} {sim_config.simulation.time_unit}")
-    print(f"Time window: {sim_config.simulation.timing.start_time} to {sim_config.simulation.timing.end_time}")
+    # Parse general simulation settings
+    general_config = SimulationConfigParser.parse(Path("config/sim_config/general_sim.yaml"))
+    print("\nGeneral Simulation Settings:")
+    print(f"Duration: {general_config.simulation.duration} {general_config.simulation.time_unit}")
+    print(f"Time window: {general_config.simulation.timing.start_time} to {general_config.simulation.timing.end_time}")
     
-    print("\nProcesses:")
-    for process in sim_config.processes:
-        print(f"\nProcess: {process.name}")
-        print(f"Description: {process.description}")
-        print(f"Entity table: {process.entity_table}")
-        print(f"Resource table: {process.resource_table}")
-        print("Entity types:", process.entity_type)
-        print("Resource types:", process.resource_type)
-        print("\nRequirements:")
-        for req in process.requirements:
-            print(f"  Entity type: {req.entity_type}")
-            for resource_need in req.needs:
-                print(f"    Needs: {resource_need.quantity} x {resource_need.resource_type}")
-        print(f"Duration config: {process.duration}")
-        print(f"Capacity config: {process.capacity}")
+    # Parse and verify process sequence
+    if general_config.process_sequence:
+        print("\nProcess Sequence:")
+        for proc in general_config.process_sequence:
+            print(f"\n  Process: {proc.name}")
+            print(f"  Config file: {proc.config_file}")
+            if proc.dependencies:
+                print(f"  Dependencies: {', '.join(proc.dependencies)}")
+            else:
+                print("  Dependencies: None")
     
-    print("\nMetrics:")
-    for metric in sim_config.metrics:
-        print(f"\n- {metric.name}")
-        print(f"  Description: {metric.description}")
-        print(f"  Type: {metric.type}")
-        print(f"  Unit: {metric.unit}")
-        if metric.aggregation:
-            print(f"  Aggregation: {metric.aggregation}")
+    # Parse and verify individual process configurations
+    process_configs = {}
+    process_files = [
+        ("design", "config/sim_config/design_sim.yaml"),
+        ("coding", "config/sim_config/coding_sim.yaml"),
+        ("testing", "config/sim_config/testing_sim.yaml")
+    ]
+    
+    print("\nProcess Configurations:")
+    for name, file_path in process_files:
+        config = SimulationConfigParser.parse(Path(file_path))
+        process_configs[name] = config.process
+        
+        print(f"\n  {name.capitalize()} Process:")
+        print(f"  Name: {config.process.name}")
+        print(f"  Description: {config.process.description}")
+        
+        # Entity tables
+        print("  Entity Tables:")
+        print(f"    Parent: {config.process.entity_table.parent_table.name}")
+        print(f"    Child: {config.process.entity_table.child_table.name}")
+        
+        # Arrival patterns
+        parent_arrival = config.process.entity_table.parent_table.arrival_pattern
+        if parent_arrival:
+            print(f"    Parent arrival: {parent_arrival.type} (rate: {parent_arrival.rate})")
+            
+        child_arrival = config.process.entity_table.child_table.arrival_pattern
+        if child_arrival:
+            print(f"    Child arrival: delay={child_arrival.delay}, count={child_arrival.count}")
+        
+        # Resource requirements
+        print("  Requirements:")
+        for req in config.process.requirements:
+            print(f"    Entity type: {req['entity_type']}")
+            for need in req['needs']:
+                print(f"      Needs: {need['quantity']} {need['resource_type']}")
+        
+        # Duration
+        print(f"  Duration: {config.process.duration['distribution']}")
 
 if __name__ == "__main__":
     test_parsers() 
