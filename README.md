@@ -86,6 +86,9 @@ For large simulations, you may encounter SQLAlchemy connection pool errors. Use 
 python scripts/fix_connection_pool.py
 ```
 
+## Detailed Explanation
+
+see [doc/simulation_workflow.md](doc/simulation_workflow.md)
 
 ## License
 
