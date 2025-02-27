@@ -1,17 +1,40 @@
-from typing import Any, Optional
-from faker import Faker
+"""
+Faker utility functions for generating synthetic data
+"""
 
-# Initialize Faker with a fixed seed for reproducibility
-fake = Faker()
-Faker.seed(42)
+from faker import Faker
+import logging
+from typing import Any, Optional
+
+logger = logging.getLogger(__name__)
+faker = Faker()
 
 def generate_fake_data(method: str, size: Optional[int] = None) -> Any:
-    """Generate fake data using Faker based on method name"""
-    faker_method = getattr(fake, method, None)
-    if faker_method is None:
-        raise ValueError(f"Unsupported Faker method: {method}")
+    """
+    Generate fake data using Faker
     
-    if size is None:
+    Args:
+        method: Faker method to use
+        size: Size of data to generate (for arrays)
+        
+    Returns:
+        Generated fake data
+    """
+    # Custom methods not directly available in Faker
+    custom_methods = {
+        'project_name': lambda: f"{faker.company()} {faker.bs().split()[0]} Project"
+    }
+    
+    if method in custom_methods:
+        if size is not None:
+            return [custom_methods[method]() for _ in range(size)]
+        return custom_methods[method]()
+    
+    if hasattr(faker, method):
+        faker_method = getattr(faker, method)
+        if size is not None:
+            return [faker_method() for _ in range(size)]
         return faker_method()
-    
-    return [faker_method() for _ in range(size)]
+    else:
+        logger.warning(f"Unsupported Faker method: {method}, using default")
+        return "default_value"

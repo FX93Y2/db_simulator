@@ -1,97 +1,92 @@
-# Database Simulator
+# DB Simulator
 
-A Python-based system for generating synthetic databases and running discrete event simulations on the generated data.
+A simulation framework for generating synthetic databases and running discrete event simulations with configurable resource allocation and work shift patterns.
 
-## Features
+## Overview
 
-- Synthetic database generation using Faker
-- Configurable entity and resource definitions via YAML
-- Discrete event simulation using SimPy
-- Resource allocation and tracking
-- Detailed simulation logs and metrics
+DB Simulator models systems where entities (like projects) arrive over time, generate events (like deliverables) that need processing, and consume resources (like consultants) that may operate on specific work schedules.
+
+The framework provides:
+- Synthetic database generation with configurable schemas
+- Event-based simulation using SimPy
+- Resource allocation with optional work shift patterns
+- Detailed tracking of simulation events and resource utilization
+
+## Key Features
+
+- **Database Generation**: Create synthetic databases with configurable entities and relationships
+- **Dynamic Entity Generation**: Entities arrive according to configurable patterns during simulation
+- **Resource Allocation**: Allocate resources to events based on requirements
+- **Work Shifts**: Optional work patterns for different resource types
+- **Simulation Tracking**: Record entity arrivals, event processing, and resource allocations
 
 ## Installation
 
-1. Clone the repository:
-```bash
-git clone <repository-url>
-cd db_simulator
-```
+### Prerequisites
+- Python 3.8+
+- SQLite
 
-2. Create a virtual environment and activate it:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
 
 ## Usage
 
-The system can be used in two modes:
-
-### Database Generation Mode
-
-To generate synthetic data based on a database configuration:
-
+### Running a Simulation
 ```bash
-python src/main.py --db-config config/demo_db.yaml
-```
-
-### Simulation Mode
-
-To run a simulation using both database and simulation configurations:
-
-```bash
-python src/main.py --db-config config/demo_db.yaml --sim-config config/demo_sim.yaml
+python -m src.cli dynamic-simulate config/db_config/demo_db.yaml config/sim_config/event_simulation.yaml
 ```
 
 ## Configuration
 
-### Database Configuration (demo_db.yaml)
+### Key Configuration Parameters
 
-The database configuration defines entities and their attributes:
-
+#### Entity Arrival
+The entity arrival configuration significantly impacts simulation performance:
 ```yaml
-entities:
-  - name: Consultant
-    type: resource
-    rows: 50
-    attributes:
-      - name: id
-        type: pk
-      - name: name
-        type: string
-        generator:
-          type: faker
-          method: name
+entity_arrival:
+  interarrival_time:
+    distribution:
+      type: exponential
+      scale: 15  # Mean time between arrivals (days)
+      min: 0.5   # Minimum interarrival time
 ```
 
-### Simulation Configuration (demo_sim.yaml)
+Setting appropriate interarrival times is crucial - too short times create too many entities that overwhelm available resources.
 
-The simulation configuration defines simulation parameters and behaviors:
-
+#### Work Shifts
+Work shifts can be enabled/disabled to control resource availability:
 ```yaml
-simulation:
-  duration: 100
-  resources:
-    capacity: 1
-  entities:
-    behavior:
-      request_interval: 5
-      usage_duration: 10
+work_shifts:
+  enabled: false  # Set to true to enable work shift restrictions
+  shift_patterns:
+    - name: "Regular Weekday"
+      days: [0, 1, 2, 3, 4]  # Monday to Friday
+      start_time: "07:00"
+      end_time: "19:00"
 ```
 
-## Output
+#### Resource Requirements
+Each event requires specific resources:
+```yaml
+resource_requirements:
+  - resource_table: Consultant
+    type_column: role
+    requirements:
+      - resource_type: Developer
+        count:
+          distribution:
+            type: normal
+            mean: 2
+            min: 1
+            max: 3
+```
 
-The simulation generates a mapping table in the database that tracks:
-- Entity-Resource relationships
-- Allocation and release timestamps
-- Event types
+## Troubleshooting
+
+For large simulations, you may encounter SQLAlchemy connection pool errors. Use the provided fix script:
+```bash
+python scripts/fix_connection_pool.py
+```
+
 
 ## License
 
-MIT License
+This project is licensed under the MIT License - see the LICENSE file for details. 

@@ -1,20 +1,20 @@
 entities:
   - name: Consultant  # Resource table
-    rows: 20 # resource table must have fixed number of rows
+    rows: 30 # resource table must have fixed number of rows
     attributes:
       - name: id
-        type: pk     # Primary key for resource identification
+        type: pk
       - name: name
         type: string
         generator:
-          type: faker      # Uses Faker library for realistic data
+          type: faker
           method: name
       - name: email
         type: string
         generator:
           type: faker
           method: email
-      - name: role        # Column referenced by resource_type in sim config
+      - name: role 
         type: string
         generator:
           type: distribution
@@ -23,31 +23,34 @@ entities:
             values: ["Developer", "Tester", "Tech Lead"]
             weights: [0.6, 0.2, 0.2]  # Distribution of resource types
 
-  - name: Project    # Parent table for deliverables
-    rows: 5  # Generate 5 projects for testing FK distribution
+  - name: Project
+    rows: 30
     attributes:
       - name: id
         type: pk
       - name: name
         type: string
         generator:
-          type: template    # Simple sequential naming
+          type: template 
           template: "Project_{id}"
 
-  - name: Deliverable  # Entity table
-    rows: 10  # Generate 10 deliverables
+  - name: Deliverable  # Event table
+    rows: n/a
     attributes:
       - name: id
         type: pk
       - name: project_id
-        type: fk          # Foreign key to parent project
+        type: fk
         ref: Project.id
-        generator:
-          type: distribution  # Define how deliverables are distributed across projects
-          distribution:
-            type: choice
-            mode: parent_id  # Special mode to indicate this is for FK distribution
-            weights: [0.4, 0.3, 0.2, 0.05, 0.05]  # Weights for each project (must match number of parent records)
+        relationship:
+          type: one_to_many
+          multiplicity:
+            distribution:
+              type: normal
+              mean: 4
+              stddev: 1
+              min: 2
+              max: 8
       - name: name
         type: string
         generator:
