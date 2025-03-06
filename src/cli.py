@@ -60,6 +60,13 @@ def main():
     dynamic_parser.add_argument('--output-dir', '-o', default='output', help='Output directory')
     dynamic_parser.add_argument('--name', '-n', help='Database name (without extension)')
     
+    # Project-based simulation command
+    project_parser = subparsers.add_parser('project-simulate', 
+                                          help='Generate a database and run a simulation using a project folder containing both configurations')
+    project_parser.add_argument('project_dir', help='Path to project directory containing db_config.yaml and sim_config.yaml')
+    project_parser.add_argument('--output-dir', '-o', default='output', help='Output directory')
+    project_parser.add_argument('--name', '-n', help='Database name (without extension)')
+    
     # Parse arguments
     args = parser.parse_args()
     
@@ -104,6 +111,34 @@ def main():
             logger.info(f"Created {bridging_count} records in the Deliverable_Consultant bridging table")
         except Exception as e:
             logger.error(f"Error in dynamic simulation: {e}")
+            sys.exit(1)
+    
+    elif args.command == 'project-simulate':
+        try:
+            # Construct paths to the configuration files
+            project_dir = Path(args.project_dir)
+            db_config_path = project_dir / "db_config.yaml"
+            sim_config_path = project_dir / "sim_config.yaml"
+            
+            if not db_config_path.exists():
+                logger.error(f"Database configuration file not found: {db_config_path}")
+                sys.exit(1)
+                
+            if not sim_config_path.exists():
+                logger.error(f"Simulation configuration file not found: {sim_config_path}")
+                sys.exit(1)
+            
+            # Generate database with only resource tables
+            db_path = generate_database_for_simulation(str(db_config_path), str(sim_config_path), args.output_dir, args.name)
+            logger.info(f"Resource database generated at: {db_path}")
+            
+            # Run simulation with dynamic entity generation
+            results = run_simulation(str(sim_config_path), db_path)
+            bridging_count = count_bridging_records(db_path)
+            logger.info(f"Simulation results: {results}")
+            logger.info(f"Created {bridging_count} records in the Deliverable_Consultant bridging table")
+        except Exception as e:
+            logger.error(f"Error in project simulation: {e}")
             sys.exit(1)
     
     else:

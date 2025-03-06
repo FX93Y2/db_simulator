@@ -35,6 +35,34 @@ The framework provides:
 python -m src.cli dynamic-simulate config/db_config/demo_db.yaml config/sim_config/event_simulation.yaml
 ```
 
+### Project-Based Approach
+You can also organize your configurations in project folders:
+
+```bash
+python -m src.cli project-simulate config/projects/consulting_firm_demo
+```
+
+Each project folder should contain:
+- `db_config.yaml`: Database configuration
+- `sim_config.yaml`: Simulation configuration
+- `README.md`: Project documentation (optional)
+
+See the `config/projects/consulting_firm_demo` folder for an example.
+
+### Creating New Projects
+A template is provided to help you create new projects:
+
+1. Copy the template folder to a new folder with your project name:
+   ```bash
+   cp -r config/projects/template config/projects/your_project_name
+   ```
+2. Modify the configuration files to match your requirements
+3. Update the README.md with your project details
+4. Run your project:
+   ```bash
+   python -m src.cli project-simulate config/projects/your_project_name
+   ```
+
 ## Configuration
 
 ### Key Configuration Parameters

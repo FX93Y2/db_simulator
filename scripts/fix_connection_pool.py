@@ -96,9 +96,13 @@ def fix_simulator_file():
         for event_id in event_ids:
             try:
                 # Get event duration
-                duration_minutes = generate_from_distribution(
-                    event_sim.event_duration.get('distribution', {})
-                ) * 24 * 60  # Convert days to minutes
+                if hasattr(event_sim, 'event_duration') and event_sim.event_duration:
+                    duration_minutes = generate_from_distribution(
+                        event_sim.event_duration.get('distribution', {})
+                    ) * 24 * 60  # Convert days to minutes
+                else:
+                    # Default duration if no configuration is available
+                    duration_minutes = 24 * 60  # 1 day in minutes
                 
                 # Record event start time
                 event_start_time = self.env.now

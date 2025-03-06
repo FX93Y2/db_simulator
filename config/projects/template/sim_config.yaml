@@ -1,0 +1,116 @@
+# Template Simulation Configuration
+# Replace with your own configuration
+
+simulation:
+  duration_days: 90           # Simulation duration in days
+  start_date: 2024-01-01      # Simulation start date
+  random_seed: 42             # Random seed for reproducibility
+
+# Event simulation configuration
+event_simulation:
+  # The parent entity table
+  entity_table: Entity         # Replace with your entity table name
+  
+  # Entity arrival pattern configuration
+  entity_arrival:
+    # Distribution for time between entity arrivals (in days)
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 15              # Mean time between arrivals (days)
+        min: 1                 # Minimum interarrival time
+    
+    # Optional: Maximum number of entities to generate (if null, determined by simulation duration)
+    max_entities: null
+    # Whether to override any row count in the database configuration
+    override_db_config: true
+  
+  event_table: Event           # Replace with your event table name
+  relationship_column: entity_id  # Column linking events to entities
+  
+  # Work shift configuration
+  work_shifts:
+    enabled: false             # Set to true to enable work shift restrictions
+    shift_patterns:
+      - name: "Regular Weekday"
+        days: [0, 1, 2, 3, 4]  # Monday to Friday (0=Monday)
+        start_time: "07:00"
+        end_time: "19:00"
+      - name: "Weekend Support"
+        days: [5, 6]           # Saturday and Sunday
+        start_time: "08:00"
+        end_time: "20:00"
+    
+    # Resource shift assignments
+    resource_shifts:
+      - resource_type: "Type1"
+        shift_patterns: ["Regular Weekday", "Weekend Support"]
+      - resource_type: "Type2"
+        shift_patterns: ["Regular Weekday"]
+      - resource_type: "Type3"
+        shift_patterns: ["Regular Weekday", "Weekend Support"]
+  
+  # Event sequence configuration
+  event_sequence:
+    enabled: true
+    
+    # Define event types
+    event_types:
+      - name: "Type1"
+        duration:
+          distribution:
+            type: normal
+            mean: 3
+            stddev: 0.5
+            min: 2
+            max: 5
+        resource_requirements:
+          - resource_type: "Type1"
+            count: 1
+          - resource_type: "Type2"
+            count: 1
+      
+      - name: "Type2"
+        duration:
+          distribution:
+            type: normal
+            mean: 5
+            stddev: 1
+            min: 3
+            max: 8
+        resource_requirements:
+          - resource_type: "Type2"
+            count: 1
+          - resource_type: "Type3"
+            count: 2
+      
+      - name: "Type3"
+        duration:
+          distribution:
+            type: normal
+            mean: 4
+            stddev: 1
+            min: 2
+            max: 6
+        resource_requirements:
+          - resource_type: "Type1"
+            count: 1
+          - resource_type: "Type3"
+            count: 1
+    
+    # Define transitions between event types
+    transitions:
+      - from: "Type1"
+        to:
+          - event_type: "Type2"
+            probability: 0.7
+          - event_type: "Type3"
+            probability: 0.3
+      
+      - from: "Type2"
+        to:
+          - event_type: "Type3"
+            probability: 1.0
+    
+    # The initial event type for each entity
+    initial_event: "Type1" 

@@ -1,0 +1,73 @@
+# Template Database Configuration
+# Replace with your own configuration
+
+entities:
+  # Resource table example
+  - name: Resource  # Replace with your resource table name
+    rows: 20        # Number of resources to generate
+    attributes:
+      - name: id
+        type: pk
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
+      - name: type  # Column for resource type
+        type: string
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values: ["Type1", "Type2", "Type3"]  # Replace with your resource types
+            weights: [0.5, 0.3, 0.2]            # Distribution of resource types
+
+  # Entity table example
+  - name: Entity    # Replace with your entity table name
+    rows: 30        # Number of entities to generate (can be overridden by simulation)
+    attributes:
+      - name: id
+        type: pk
+      - name: name
+        type: string
+        generator:
+          type: template 
+          template: "Entity_{id}"  # Replace with your naming pattern
+
+  # Event table example
+  - name: Event     # Replace with your event table name
+    rows: n/a       # Will be generated during simulation
+    attributes:
+      - name: id
+        type: pk
+      - name: entity_id
+        type: fk
+        ref: Entity.id  # Reference to parent entity
+        relationship:
+          type: one_to_many
+          multiplicity:
+            distribution:
+              type: normal
+              mean: 4
+              stddev: 1
+              min: 2
+              max: 8
+      - name: name
+        type: string
+        generator:
+          type: template
+          template: "Event_{id}"
+      - name: type  # Column referenced by event_type in sim config
+        type: string
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values: ["Type1", "Type2", "Type3"]  # Replace with your event types
+            weights: [0.4, 0.4, 0.2]
+            simulation_override: true  # Indicates this distribution can be overridden by simulation 

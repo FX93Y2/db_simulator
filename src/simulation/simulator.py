@@ -906,18 +906,24 @@ class EventSimulator:
                             # Find the resource table for this resource type
                             resource_table = None
                             type_column = None
-                            for resource_req in event_sim.resource_requirements:
-                                for r in resource_req.requirements:
-                                    if r.resource_type == resource_type:
-                                        resource_table = resource_req.resource_table
-                                        type_column = resource_req.type_column
-                                        break
-                                if resource_table:
-                                    break
                             
+                            # First try to find the resource table in the top-level resource_requirements
+                            if event_sim.resource_requirements:
+                                for resource_req in event_sim.resource_requirements:
+                                    for r in resource_req.requirements:
+                                        if r.resource_type == resource_type:
+                                            resource_table = resource_req.resource_table
+                                            type_column = resource_req.type_column
+                                            break
+                                    if resource_table:
+                                        break
+                            
+                            # If not found, use a default mapping based on naming conventions
                             if not resource_table or not type_column:
-                                logger.warning(f"Could not find resource table for resource type {resource_type}")
-                                continue
+                                # For this specific case, we know the resource table is "Consultant" and the type column is "role"
+                                resource_table = "Consultant"
+                                type_column = "role"
+                                logger.info(f"Using default resource table '{resource_table}' and type column '{type_column}' for resource type {resource_type}")
                             
                             # Get available resources of this type
                             sql_query = text(f"""
@@ -1192,11 +1198,18 @@ class EventSimulator:
                     # Use event type-specific duration
                     duration_days = generate_from_distribution(et.duration.get('distribution', {}))
                     return duration_days * 24 * 60  # Convert days to minutes
+            
+            # If we get here, the event type was not found in the configuration
+            raise ValueError(f"Event type '{event_type}' not found in event_sequence.event_types configuration")
         
-        # Fall back to default duration if event sequence is not enabled
-        # or if event type-specific duration is not defined
-        duration_days = generate_from_distribution(event_sim.event_duration.get('distribution', {}))
-        return duration_days * 24 * 60  # Convert days to minutes
+        # If event sequence is not enabled or event type is not specified, check for general event_duration
+        if hasattr(event_sim, 'event_duration') and event_sim.event_duration:
+            duration_days = generate_from_distribution(event_sim.event_duration.get('distribution', {}))
+            return duration_days * 24 * 60  # Convert days to minutes
+        else:
+            # No fallback available - either event sequence must be enabled with all event types defined,
+            # or general event_duration must be configured
+            raise ValueError("No event duration configuration found. Either configure event_sequence with all event types or provide a general event_duration configuration.")
 
     def _get_next_event_type(self, current_event_type: str) -> Optional[str]:
         """

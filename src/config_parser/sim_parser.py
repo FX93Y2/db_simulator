@@ -74,8 +74,8 @@ class EventSimulation:
     entity_table: str
     event_table: str
     relationship_column: str
-    event_duration: Dict
     resource_requirements: List[ResourceTable]
+    event_duration: Optional[Dict] = None
     entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
     event_sequence: Optional[EventSequence] = None
@@ -218,8 +218,8 @@ def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
             entity_table=event_dict['entity_table'],
             event_table=event_dict['event_table'],
             relationship_column=event_dict['relationship_column'],
-            event_duration=event_dict['event_duration'],
             resource_requirements=resource_requirements,
+            event_duration=event_dict.get('event_duration'),
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
             event_sequence=event_sequence
