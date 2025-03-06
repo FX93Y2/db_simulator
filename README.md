@@ -24,7 +24,8 @@ The framework provides:
 
 ### Prerequisites
 - Python 3.8+
-- SQLite
+- SQLAlchemy
+- SimPy
 
 
 ## Usage
