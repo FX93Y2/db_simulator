@@ -1,0 +1,191 @@
+# Event-based simulation configuration with event sequences
+simulation:
+  duration_days: 90
+  start_date: 2024-02-01
+  random_seed: 42
+
+# Event simulation configuration
+event_simulation:
+  # The parent entity table
+  entity_table: Project
+  
+  # Entity arrival pattern configuration
+  entity_arrival:
+    # Distribution for time between entity arrivals (in days)
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 15
+        min: 1
+    
+    # Optional: Maximum number of entities to generate (if null, determined by simulation duration)
+    max_entities: null
+    # Whether to override any row count in the database configuration
+    override_db_config: true
+  
+  event_table: Deliverable
+  relationship_column: project_id
+  
+  
+  # Work shift configuration
+  work_shifts:
+    enabled: false
+    shift_patterns:
+      - name: "Regular Weekday"
+        days: [0, 1, 2, 3, 4]  # Monday to Friday (0=Monday)
+        start_time: "07:00"
+        end_time: "19:00"
+      - name: "Weekend Support"
+        days: [5, 6]  # Saturday and Sunday
+        start_time: "08:00"
+        end_time: "20:00"
+    
+    # Resource shift assignments
+    resource_shifts:
+      - resource_type: "Developer"
+        shift_patterns: ["Regular Weekday", "Weekend Support"]
+      - resource_type: "Tech Lead"
+        shift_patterns: ["Regular Weekday"]
+      - resource_type: "Tester"
+        shift_patterns: ["Regular Weekday", "Weekend Support"]
+  
+  # Event sequence configuration
+  event_sequence:
+    enabled: true
+    
+    # Define event types
+    event_types:
+      - name: "Requirements"
+        duration:
+          distribution:
+            type: normal
+            mean: 3
+            stddev: 0.5
+            min: 2
+            max: 5
+        resource_requirements:
+          - resource_type: "Business Analyst"
+            count: 1
+          - resource_type: "Tech Lead"
+            count: 1
+      
+      - name: "Design"
+        duration:
+          distribution:
+            type: normal
+            mean: 5
+            stddev: 1
+            min: 3
+            max: 8
+        resource_requirements:
+          - resource_type: "Tech Lead"
+            count: 1
+          - resource_type: "Developer"
+            count: 2
+      
+      - name: "Design_Revision"
+        duration:
+          distribution:
+            type: normal
+            mean: 2
+            stddev: 0.5
+            min: 1
+            max: 4
+        resource_requirements:
+          - resource_type: "Tech Lead"
+            count: 1
+          - resource_type: "Developer"
+            count: 1
+      
+      - name: "Development"
+        duration:
+          distribution:
+            type: normal
+            mean: 8
+            stddev: 2
+            min: 4
+            max: 14
+        resource_requirements:
+          - resource_type: "Developer"
+            count: 3
+      
+      - name: "Testing"
+        duration:
+          distribution:
+            type: normal
+            mean: 4
+            stddev: 1
+            min: 2
+            max: 7
+        resource_requirements:
+          - resource_type: "Tester"
+            count: 2
+          - resource_type: "Developer"
+            count: 1
+      
+      - name: "Extended_Testing"
+        duration:
+          distribution:
+            type: normal
+            mean: 6
+            stddev: 1
+            min: 4
+            max: 10
+        resource_requirements:
+          - resource_type: "Tester"
+            count: 3
+          - resource_type: "Developer"
+            count: 1
+      
+      - name: "Deployment"
+        duration:
+          distribution:
+            type: normal
+            mean: 2
+            stddev: 0.5
+            min: 1
+            max: 3
+        resource_requirements:
+          - resource_type: "Tech Lead"
+            count: 1
+          - resource_type: "Developer"
+            count: 1
+    
+    # Define transitions between event types
+    transitions:
+      - from: "Requirements"
+        to:
+          - event_type: "Design"
+            probability: 1.0
+      
+      - from: "Design"
+        to:
+          - event_type: "Development"
+            probability: 0.7
+          - event_type: "Design_Revision"
+            probability: 0.3
+      
+      - from: "Design_Revision"
+        to:
+          - event_type: "Development"
+            probability: 1.0
+      
+      - from: "Development"
+        to:
+          - event_type: "Testing"
+            probability: 1.0
+      
+      - from: "Testing"
+        to:
+          - event_type: "Deployment"
+            probability: 0.8
+          - event_type: "Extended_Testing"
+            probability: 0.2
+      
+      - from: "Extended_Testing"
+        to:
+          - event_type: "Deployment"
+            probability: 1.0
+    
+    # The initial event type for each entity
+    initial_event: "Requirements"

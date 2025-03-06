@@ -49,9 +49,14 @@ class EventSimulator:
             poolclass=NullPool
         )
         
-        self.env = None
+        # Initialize SimPy environment
+        self.env = simpy.Environment()
+        
+        # Initialize resources
         self.resources = {}
-        self.resource_types = {}  # Maps resource_key to resource_type
+        self.resource_types = {}
+        
+        # Initialize counters
         self.entity_count = 0
         self.processed_events = 0
         
@@ -62,6 +67,9 @@ class EventSimulator:
             
         # Initialize event tracker
         self.event_tracker = EventTracker(db_path, config.start_date)
+        
+        # Dictionary to track the current event type for each entity
+        self.entity_current_event_types = {}
     
     def run(self) -> Dict[str, Any]:
         """
@@ -74,9 +82,6 @@ class EventSimulator:
         if self.config.random_seed is not None:
             random.seed(self.config.random_seed)
             np.random.seed(self.config.random_seed)
-        
-        # Create SimPy environment
-        self.env = simpy.Environment()
         
         # Setup resources
         self._setup_resources()
@@ -368,24 +373,46 @@ class EventSimulator:
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
             
-            # Determine number of events to create (using normal distribution)
-            num_events = int(round(random.normalvariate(4, 1)))
-            num_events = max(2, min(8, num_events))  # Clamp between 2 and 8
-            
             event_ids = []
-            for i in range(num_events):
-                # Choose a random event type
-                event_type = random.choice(["Design", "Coding", "Testing"])
+            
+            # Check if event sequence is enabled
+            event_sim = self.config.event_simulation
+            if event_sim and event_sim.event_sequence and event_sim.event_sequence.enabled:
+                # Create only the initial event from the event sequence
+                initial_event_type = event_sim.event_sequence.initial_event
                 
-                # Create the event
+                # Create the initial event
                 sql_query = text(f"""
                     INSERT INTO {event_table} (id, {relationship_column}, name, type) 
-                    VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{event_type}')
+                    VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{initial_event_type}')
                 """)
                 session.execute(sql_query)
                 
                 event_ids.append(next_id)
-                next_id += 1
+                
+                # Store the entity's current event type in a dictionary for later use
+                self.entity_current_event_types[entity_id] = initial_event_type
+                
+                logger.info(f"Created initial event {next_id} of type {initial_event_type} for entity {entity_id}")
+            else:
+                # Original implementation for backward compatibility
+                # Determine number of events to create (using normal distribution)
+                num_events = int(round(random.normalvariate(4, 1)))
+                num_events = max(2, min(8, num_events))  # Clamp between 2 and 8
+                
+                for i in range(num_events):
+                    # Choose a random event type
+                    event_type = random.choice(["Design", "Coding", "Testing"])
+                    
+                    # Create the event
+                    sql_query = text(f"""
+                        INSERT INTO {event_table} (id, {relationship_column}, name, type) 
+                        VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{event_type}')
+                    """)
+                    session.execute(sql_query)
+                    
+                    event_ids.append(next_id)
+                    next_id += 1
             
             return event_ids
         except Exception as e:
@@ -439,10 +466,18 @@ class EventSimulator:
                 if event_id in processed_events:
                     continue
                     
-                # Get event duration
-                duration_minutes = generate_from_distribution(
-                    event_sim.event_duration.get('distribution', {})
-                ) * 24 * 60  # Convert days to minutes
+                # Get the event type
+                with Session(process_engine) as session:
+                    sql_query = text(f"SELECT type FROM {event_table} WHERE id = {event_id}")
+                    result = session.execute(sql_query).fetchone()
+                    event_type = result[0] if result else None
+                    
+                    # Update the entity's current event type
+                    if event_type:
+                        self.entity_current_event_types[entity_id] = event_type
+                
+                # Get event duration based on event type
+                duration_minutes = self._get_event_duration(event_type)
                 
                 # Record event start time
                 event_start_time = self.env.now
@@ -569,6 +604,36 @@ class EventSimulator:
                             self.processed_events += 1
                             
                             logger.info(f"Processed event {event_id} for entity {entity_id} at time {self.env.now}")
+                            
+                            # Check if event sequence is enabled and create the next event in the sequence
+                            if (event_sim.event_sequence and 
+                                event_sim.event_sequence.enabled and 
+                                event_type in self.entity_current_event_types.get(entity_id, "")):
+                                
+                                # Determine the next event type based on transitions
+                                next_event_type = self._get_next_event_type(event_type)
+                                
+                                if next_event_type:
+                                    # Get the next ID for the new event
+                                    sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+                                    result = session.execute(sql_query).fetchone()
+                                    next_id = (result[0] or 0) + 1
+                                    
+                                    # Create the next event
+                                    sql_query = text(f"""
+                                        INSERT INTO {event_table} (id, {relationship_column}, name, type) 
+                                        VALUES ({next_id}, {db_entity_id}, 'Deliverable_{next_id}', '{next_event_type}')
+                                    """)
+                                    session.execute(sql_query)
+                                    session.commit()
+                                    
+                                    # Update the entity's current event type
+                                    self.entity_current_event_types[entity_id] = next_event_type
+                                    
+                                    logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
+                                    
+                                    # Process the new event
+                                    self.env.process(self._process_event(entity_id, next_id))
                 except Exception as e:
                     logging.error(f"Error recording event {event_id} for entity {entity_id}: {str(e)}")
             except Exception as e:
@@ -581,10 +646,18 @@ class EventSimulator:
                 if event_id in processed_events:
                     continue
                     
-                # Get event duration
-                duration_minutes = generate_from_distribution(
-                    event_sim.event_duration.get('distribution', {})
-                ) * 24 * 60  # Convert days to minutes
+                # Get the event type
+                with Session(process_engine) as session:
+                    sql_query = text(f"SELECT type FROM {event_table} WHERE id = {event_id}")
+                    result = session.execute(sql_query).fetchone()
+                    event_type = result[0] if result else None
+                    
+                    # Update the entity's current event type
+                    if event_type:
+                        self.entity_current_event_types[entity_id] = event_type
+                
+                # Get event duration based on event type
+                duration_minutes = self._get_event_duration(event_type)
                 
                 # Record event start time
                 event_start_time = self.env.now
@@ -730,6 +803,36 @@ class EventSimulator:
                             self.processed_events += 1
                             
                             logger.info(f"Processed event {event_id} for entity {entity_id} at time {self.env.now}")
+                            
+                            # Check if event sequence is enabled and create the next event in the sequence
+                            if (event_sim.event_sequence and 
+                                event_sim.event_sequence.enabled and 
+                                event_type in self.entity_current_event_types.get(entity_id, "")):
+                                
+                                # Determine the next event type based on transitions
+                                next_event_type = self._get_next_event_type(event_type)
+                                
+                                if next_event_type:
+                                    # Get the next ID for the new event
+                                    sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+                                    result = session.execute(sql_query).fetchone()
+                                    next_id = (result[0] or 0) + 1
+                                    
+                                    # Create the next event
+                                    sql_query = text(f"""
+                                        INSERT INTO {event_table} (id, {relationship_column}, name, type) 
+                                        VALUES ({next_id}, {db_entity_id}, 'Deliverable_{next_id}', '{next_event_type}')
+                                    """)
+                                    session.execute(sql_query)
+                                    session.commit()
+                                    
+                                    # Update the entity's current event type
+                                    self.entity_current_event_types[entity_id] = next_event_type
+                                    
+                                    logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
+                                    
+                                    # Process the new event
+                                    self.env.process(self._process_event(entity_id, next_id))
                 except Exception as e:
                     logging.error(f"Error recording event {event_id} for entity {entity_id}: {str(e)}")
             except Exception as e:
@@ -772,7 +875,69 @@ class EventSimulator:
                     event_type = row[0]
                     break
                     
-                # Process each resource requirement
+                # Check if event sequence is enabled and has specific resource requirements for this event type
+                if (event_sim.event_sequence and 
+                    event_sim.event_sequence.enabled and 
+                    event_type):
+                    
+                    # Find the event type definition in the event sequence configuration
+                    event_type_def = None
+                    for et in event_sim.event_sequence.event_types:
+                        if et.name == event_type:
+                            event_type_def = et
+                            break
+                    
+                    if event_type_def and event_type_def.resource_requirements:
+                        # Use event type-specific resource requirements
+                        for req in event_type_def.resource_requirements:
+                            resource_type = req.resource_type
+                            
+                            # Determine how many resources of this type are needed
+                            count = req.count
+                            if isinstance(count, dict) and 'distribution' in count:
+                                count = int(round(generate_from_distribution(count['distribution'])))
+                            else:
+                                count = int(count)
+                            
+                            # Skip if no resources needed
+                            if count <= 0:
+                                continue
+                            
+                            # Find the resource table for this resource type
+                            resource_table = None
+                            type_column = None
+                            for resource_req in event_sim.resource_requirements:
+                                for r in resource_req.requirements:
+                                    if r.resource_type == resource_type:
+                                        resource_table = resource_req.resource_table
+                                        type_column = resource_req.type_column
+                                        break
+                                if resource_table:
+                                    break
+                            
+                            if not resource_table or not type_column:
+                                logger.warning(f"Could not find resource table for resource type {resource_type}")
+                                continue
+                            
+                            # Get available resources of this type
+                            sql_query = text(f"""
+                                SELECT id FROM {resource_table} 
+                                WHERE {type_column} = '{resource_type}'
+                                ORDER BY id
+                            """)
+                            result = session.execute(sql_query)
+                            resource_ids = [row[0] for row in result]
+                            
+                            # Add required resources
+                            for i in range(min(count, len(resource_ids))):
+                                resource_key = f"{resource_table}_{resource_ids[i]}"
+                                required_resources.append(resource_key)
+                        
+                        logger.info(f"Using event type-specific resource requirements for event {event_id} of type {event_type}")
+                        return required_resources
+                
+                # Fall back to default resource requirements if event sequence is not enabled
+                # or if event type-specific requirements are not defined
                 for resource_req in event_sim.resource_requirements:
                     resource_table = resource_req.resource_table
                     type_column = resource_req.type_column
@@ -1001,3 +1166,310 @@ class EventSimulator:
                 latest_time = available_time
         
         return latest_time
+    
+    def _get_event_duration(self, event_type: str) -> float:
+        """
+        Get the duration for an event type from the event sequence configuration
+        
+        Args:
+            event_type: Event type
+            
+        Returns:
+            Duration in minutes
+        """
+        event_sim = self.config.event_simulation
+        if not event_sim:
+            return 0
+        
+        # Check if event sequence is enabled and has a specific duration for this event type
+        if (event_sim.event_sequence and 
+            event_sim.event_sequence.enabled and 
+            event_type):
+            
+            # Find the event type definition in the event sequence configuration
+            for et in event_sim.event_sequence.event_types:
+                if et.name == event_type:
+                    # Use event type-specific duration
+                    duration_days = generate_from_distribution(et.duration.get('distribution', {}))
+                    return duration_days * 24 * 60  # Convert days to minutes
+        
+        # Fall back to default duration if event sequence is not enabled
+        # or if event type-specific duration is not defined
+        duration_days = generate_from_distribution(event_sim.event_duration.get('distribution', {}))
+        return duration_days * 24 * 60  # Convert days to minutes
+
+    def _get_next_event_type(self, current_event_type: str) -> Optional[str]:
+        """
+        Determine the next event type based on the event sequence transitions
+        
+        Args:
+            current_event_type: Current event type
+            
+        Returns:
+            Next event type, or None if there are no transitions
+        """
+        event_sim = self.config.event_simulation
+        if not event_sim or not event_sim.event_sequence or not event_sim.event_sequence.enabled:
+            return None
+        
+        # Find the transition for the current event type
+        for transition in event_sim.event_sequence.transitions:
+            if transition.from_event == current_event_type:
+                # Get the possible next event types and their probabilities
+                next_events = transition.to_events
+                
+                if not next_events:
+                    return None
+                
+                # If there's only one possible next event, return it
+                if len(next_events) == 1:
+                    return next_events[0].event_type
+                
+                # Otherwise, use probabilistic selection
+                # First, normalize probabilities if they don't sum to 1
+                total_prob = sum(event.probability for event in next_events)
+                if total_prob <= 0:
+                    return None
+                
+                # Generate a random number between 0 and the total probability
+                r = random.random() * total_prob
+                
+                # Select the next event type based on the random number
+                cumulative_prob = 0
+                for event in next_events:
+                    cumulative_prob += event.probability
+                    if r <= cumulative_prob:
+                        return event.event_type
+        
+        # No transition found for the current event type
+        return None
+
+    def _process_event(self, entity_id: int, event_id: int):
+        """
+        Process a single event
+        
+        Args:
+            entity_id: Entity ID
+            event_id: Event ID
+        """
+        event_sim = self.config.event_simulation
+        if not event_sim:
+            return
+        
+        entity_table = event_sim.entity_table
+        event_table = event_sim.event_table
+        relationship_column = event_sim.relationship_column
+        
+        # Create a process-specific engine to avoid connection sharing issues
+        process_engine = create_engine(
+            f"sqlite:///{self.db_path}?journal_mode=WAL",
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False}
+        )
+        
+        try:
+            # Get the event type
+            with Session(process_engine) as session:
+                sql_query = text(f"SELECT type FROM {event_table} WHERE id = {event_id}")
+                result = session.execute(sql_query).fetchone()
+                event_type = result[0] if result else None
+                
+                # Update the entity's current event type
+                if event_type:
+                    self.entity_current_event_types[entity_id] = event_type
+            
+            # Get event duration based on event type
+            duration_minutes = self._get_event_duration(event_type)
+            
+            # Record event start time
+            event_start_time = self.env.now
+            
+            # Determine required resources for this event
+            required_resources = self._determine_required_resources(event_id)
+            
+            if not required_resources:
+                return
+            
+            # Create a dictionary to store resource requests
+            resource_requests = {}
+            
+            try:
+                # Request all required resources
+                for resource_key in required_resources:
+                    resource = self.resources.get(resource_key)
+                    if resource:
+                        # Check if resource is on shift
+                        if self._are_work_shifts_enabled():
+                            # Calculate the next time when the resource will be available
+                            next_available_time = self._wait_until_resource_available(resource_key)
+                            
+                            # If resource is not currently on shift, yield until they are
+                            if next_available_time > self.env.now:
+                                yield self.env.timeout(next_available_time - self.env.now)
+                        
+                        # Request the resource
+                        resource_requests[resource_key] = resource.request()
+                        yield resource_requests[resource_key]
+                
+                # All resources acquired, process the event
+                processing_start_time = self.env.now
+                
+                # Check if any resources went off shift during acquisition
+                if self._are_work_shifts_enabled():
+                    # Calculate the next time when all resources will be available
+                    next_available_time = self._calculate_next_available_time(required_resources)
+                    
+                    # If any resource is not on shift, yield until they are
+                    if next_available_time > self.env.now:
+                        # Release all resources
+                        for resource_key, request in resource_requests.items():
+                            resource = self.resources.get(resource_key)
+                            if resource:
+                                resource.release(request)
+                        
+                        # Wait until all resources are available
+                        yield self.env.timeout(next_available_time - self.env.now)
+                        
+                        # Re-request all resources
+                        resource_requests = {}
+                        for resource_key in required_resources:
+                            resource = self.resources.get(resource_key)
+                            if resource:
+                                resource_requests[resource_key] = resource.request()
+                                yield resource_requests[resource_key]
+                
+                # Process the event (simulate work being done)
+                remaining_duration = duration_minutes
+                
+                while remaining_duration > 0:
+                    # Check if any resources will go off shift during processing
+                    if self._are_work_shifts_enabled():
+                        next_shift_change = self._calculate_next_shift_change(required_resources)
+                        
+                        if next_shift_change is not None and next_shift_change < self.env.now + remaining_duration:
+                            # Process until shift change
+                            time_until_shift_change = next_shift_change - self.env.now
+                            yield self.env.timeout(time_until_shift_change)
+                            remaining_duration -= time_until_shift_change
+                            
+                            # Release all resources
+                            for resource_key, request in resource_requests.items():
+                                resource = self.resources.get(resource_key)
+                                if resource:
+                                    resource.release(request)
+                            
+                            # Wait until all resources are available again
+                            next_available_time = self._calculate_next_available_time(required_resources)
+                            yield self.env.timeout(next_available_time - self.env.now)
+                            
+                            # Re-request all resources
+                            resource_requests = {}
+                            for resource_key in required_resources:
+                                resource = self.resources.get(resource_key)
+                                if resource:
+                                    resource_requests[resource_key] = resource.request()
+                                    yield resource_requests[resource_key]
+                        else:
+                            # Process the remaining duration
+                            yield self.env.timeout(remaining_duration)
+                            remaining_duration = 0
+                    else:
+                        # Process the remaining duration
+                        yield self.env.timeout(remaining_duration)
+                        remaining_duration = 0
+                
+                # Record event completion
+                event_end_time = self.env.now
+                
+                # Release all resources
+                for resource_key, request in resource_requests.items():
+                    resource = self.resources.get(resource_key)
+                    if resource:
+                        resource.release(request)
+                
+                # Record event processing in the database
+                try:
+                    with Session(process_engine) as session:
+                        # Get the entity ID from the database (primary key)
+                        sql_query = text(f"""
+                            SELECT id FROM {entity_table} 
+                            WHERE id = {entity_id + 1}
+                        """)
+                        result = session.execute(sql_query).fetchone()
+                        db_entity_id = result[0] if result else None
+                        
+                        if db_entity_id:
+                            # Record event processing
+                            self.event_tracker.record_event_processing(
+                                event_table=event_table,
+                                event_id=event_id,
+                                entity_id=db_entity_id,
+                                start_time=event_start_time,
+                                end_time=event_end_time
+                            )
+                            
+                            # Record resource allocations
+                            for resource_key in required_resources:
+                                resource_parts = resource_key.split('_')
+                                resource_table = resource_parts[0]
+                                resource_id = int(resource_parts[1])
+                                
+                                self.event_tracker.record_resource_allocation(
+                                    event_id=event_id,
+                                    resource_table=resource_table,
+                                    resource_id=resource_id,
+                                    allocation_time=processing_start_time,
+                                    release_time=event_end_time
+                                )
+                            
+                            # Increment processed events counter
+                            self.processed_events += 1
+                            
+                            logger.info(f"Processed event {event_id} for entity {entity_id} at time {self.env.now}")
+                            
+                            # Check if event sequence is enabled and create the next event in the sequence
+                            if (event_sim.event_sequence and 
+                                event_sim.event_sequence.enabled and 
+                                event_type in self.entity_current_event_types.get(entity_id, "")):
+                                
+                                # Determine the next event type based on transitions
+                                next_event_type = self._get_next_event_type(event_type)
+                                
+                                if next_event_type:
+                                    # Get the next ID for the new event
+                                    sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+                                    result = session.execute(sql_query).fetchone()
+                                    next_id = (result[0] or 0) + 1
+                                    
+                                    # Create the next event
+                                    sql_query = text(f"""
+                                        INSERT INTO {event_table} (id, {relationship_column}, name, type) 
+                                        VALUES ({next_id}, {db_entity_id}, 'Deliverable_{next_id}', '{next_event_type}')
+                                    """)
+                                    session.execute(sql_query)
+                                    session.commit()
+                                    
+                                    # Update the entity's current event type
+                                    self.entity_current_event_types[entity_id] = next_event_type
+                                    
+                                    logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
+                                    
+                                    # Process the new event
+                                    self.env.process(self._process_event(entity_id, next_id))
+                except Exception as e:
+                    logging.error(f"Error recording event {event_id} for entity {entity_id}: {str(e)}")
+            except Exception as e:
+                logging.error(f"Error processing event {event_id} for entity {entity_id}: {str(e)}")
+                # Release any acquired resources
+                for resource_key, request in resource_requests.items():
+                    resource = self.resources.get(resource_key)
+                    if resource:
+                        try:
+                            resource.release(request)
+                        except:
+                            pass
+        except Exception as e:
+            logging.error(f"Error setting up event {event_id} for entity {entity_id}: {str(e)}")
+        finally:
+            # Dispose of the process-specific engine
+            process_engine.dispose()

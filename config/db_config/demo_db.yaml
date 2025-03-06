@@ -20,8 +20,8 @@ entities:
           type: distribution
           distribution:
             type: choice
-            values: ["Developer", "Tester", "Tech Lead"]
-            weights: [0.6, 0.2, 0.2]  # Distribution of resource types
+            values: ["Developer", "Tester", "Tech Lead", "Business Analyst"]
+            weights: [0.5, 0.2, 0.2, 0.1]  # Distribution of resource types
 
   - name: Project
     rows: 30
@@ -62,8 +62,8 @@ entities:
           type: distribution
           distribution:
             type: choice
-            values: ["Design", "Coding", "Testing"]
-            weights: [0.3, 0.4, 0.3]
+            values: ["Requirements", "Design", "Design_Revision", "Development", "Testing", "Extended_Testing", "Deployment"]
+            weights: [0.15, 0.15, 0.1, 0.2, 0.2, 0.1, 0.1]
             simulation_override: true  # Indicates this distribution can be overridden by simulation
 
 # Key Concepts:

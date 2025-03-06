@@ -47,6 +47,29 @@ class WorkShifts:
     resource_shifts: List[ResourceShift]
 
 @dataclass
+class EventTypeDefinition:
+    name: str
+    duration: Dict
+    resource_requirements: List[ResourceRequirement] = field(default_factory=list)
+
+@dataclass
+class EventTransition:
+    event_type: str
+    probability: float
+
+@dataclass
+class EventSequenceTransition:
+    from_event: str
+    to_events: List[EventTransition]
+
+@dataclass
+class EventSequence:
+    enabled: bool
+    event_types: List[EventTypeDefinition]
+    transitions: List[EventSequenceTransition]
+    initial_event: str
+
+@dataclass
 class EventSimulation:
     entity_table: str
     event_table: str
@@ -55,6 +78,7 @@ class EventSimulation:
     resource_requirements: List[ResourceTable]
     entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
+    event_sequence: Optional[EventSequence] = None
 
 @dataclass
 class SimulationConfig:
@@ -130,6 +154,50 @@ def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
                 resource_shifts=resource_shifts
             )
         
+        # Parse event sequence configuration
+        event_sequence = None
+        if 'event_sequence' in event_dict:
+            seq_dict = event_dict['event_sequence']
+            
+            # Parse event types
+            event_types = []
+            for event_type_dict in seq_dict.get('event_types', []):
+                # Parse resource requirements for this event type
+                resource_reqs = []
+                for req_dict in event_type_dict.get('resource_requirements', []):
+                    resource_reqs.append(ResourceRequirement(
+                        resource_type=req_dict.get('resource_type', ''),
+                        count=req_dict.get('count', 1)
+                    ))
+                
+                event_types.append(EventTypeDefinition(
+                    name=event_type_dict.get('name', ''),
+                    duration=event_type_dict.get('duration', {}),
+                    resource_requirements=resource_reqs
+                ))
+            
+            # Parse transitions
+            transitions = []
+            for transition_dict in seq_dict.get('transitions', []):
+                to_events = []
+                for to_event_dict in transition_dict.get('to', []):
+                    to_events.append(EventTransition(
+                        event_type=to_event_dict.get('event_type', ''),
+                        probability=to_event_dict.get('probability', 1.0)
+                    ))
+                
+                transitions.append(EventSequenceTransition(
+                    from_event=transition_dict.get('from', ''),
+                    to_events=to_events
+                ))
+            
+            event_sequence = EventSequence(
+                enabled=seq_dict.get('enabled', False),
+                event_types=event_types,
+                transitions=transitions,
+                initial_event=seq_dict.get('initial_event', '')
+            )
+        
         resource_requirements = []
         for req_dict in event_dict.get('resource_requirements', []):
             requirements = []
@@ -153,7 +221,8 @@ def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
             event_duration=event_dict['event_duration'],
             resource_requirements=resource_requirements,
             entity_arrival=entity_arrival,
-            work_shifts=work_shifts
+            work_shifts=work_shifts,
+            event_sequence=event_sequence
         )
     
     return SimulationConfig(
