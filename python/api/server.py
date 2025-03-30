@@ -5,8 +5,12 @@ Provides API endpoints for the Electron frontend to interact with.
 
 import os
 import logging
+import sys
 from flask import Flask
 from flask_cors import CORS
+
+# Add the project root to the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
 from python.api.routes import api
 

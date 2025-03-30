@@ -31,8 +31,19 @@ function startPythonApi() {
     ? path.join(__dirname, '..', 'python', 'api', 'server.py')
     : path.join(process.resourcesPath, 'python', 'api', 'server.py');
     
+  // Set environment variables
+  const env = Object.assign({}, process.env);
+  const projectRoot = path.join(__dirname, '..');
+  env.PYTHONPATH = projectRoot;
+    
+  // For development, we'll assume the API is already running
+  if (isDev) {
+    console.log('Development mode: Assuming Python API is already running');
+    return;
+  }
+    
   // Start the Python process
-  pyApiProcess = spawn(pythonExecutable, [pythonPath]);
+  pyApiProcess = spawn(pythonExecutable, [pythonPath], { env });
   
   pyApiProcess.stdout.on('data', (data) => {
     console.log(`Python API: ${data}`);
@@ -70,14 +81,18 @@ function createWindow() {
 
   // Load the index.html of the app
   const startUrl = isDev
-    ? 'http://localhost:3000' // Use React dev server in development
+    ? path.join(__dirname, 'index.html') // Use a local HTML file in development
     : url.format({
         pathname: path.join(__dirname, 'build', 'index.html'),
         protocol: 'file:',
         slashes: true
       });
       
-  mainWindow.loadURL(startUrl);
+  mainWindow.loadURL(url.format({
+    pathname: path.join(__dirname, 'index.html'),
+    protocol: 'file:',
+    slashes: true
+  }));
 
   // Open DevTools in development mode
   if (isDev) {
