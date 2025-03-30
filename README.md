@@ -11,6 +11,27 @@ The framework provides:
 - Event-based simulation using SimPy
 - Resource allocation with optional work shift patterns
 - Detailed tracking of simulation events and resource utilization
+- Electron-based GUI for easy interaction
+- Configuration management via SQLite database
+
+## Project Structure
+
+```
+db_simulator/
+├── electron/                # Electron application
+├── python/                  # Python backend
+│   ├── api/                 # API layer for Electron integration
+│   ├── config_storage/      # Configuration database management
+│   ├── src/                 # Source code
+│   │   ├── config_parser/   # Configuration parsers
+│   │   ├── generator/       # Database generator
+│   │   ├── simulation/      # Simulation engine
+│   │   └── utils/           # Utility functions
+│   └── main.py              # Entry point for Python code
+├── config/                  # Default configuration templates
+├── output/                  # Output directory for simulation results
+└── package.json             # Project metadata
+```
 
 ## Key Features
 
@@ -19,20 +40,59 @@ The framework provides:
 - **Resource Allocation**: Allocate resources to events based on requirements
 - **Work Shifts**: Optional work patterns for different resource types
 - **Simulation Tracking**: Record entity arrivals, event processing, and resource allocations
+- **GUI**: Electron-based graphical interface for easier management
+- **Configuration Storage**: Persistent storage of configurations in SQLite
 
 ## Installation
 
 ### Prerequisites
 - Python 3.8+
-- SQLAlchemy
-- SimPy
+- Node.js 14+ and npm
+- Electron
 
+### Setup
+
+1. Clone the repository:
+```bash
+git clone https://github.com/yourusername/db-simulator.git
+cd db-simulator
+```
+
+2. Install Python dependencies:
+```bash
+npm run python-setup
+# or directly:
+pip install -r python/requirements.txt
+```
+
+3. Install JavaScript dependencies:
+```bash
+npm install
+```
 
 ## Usage
 
-### Running a Simulation
+### Running the application
+
 ```bash
-python -m src.cli dynamic-simulate config/db_config/demo_db.yaml config/sim_config/event_simulation.yaml
+npm run dev
+```
+
+This will start both the Electron frontend and Python API server.
+
+### Running just the Python backend
+
+```bash
+python -m python.main api
+```
+
+### Command Line Usage
+
+You can still use the CLI for certain operations:
+
+```bash
+python -m python.main generate config/db_config/demo_db.yaml --output-dir output
+python -m python.main simulate config/sim_config/event_simulation.yaml output/demo_db.sqlite
 ```
 
 ## Configuration
@@ -79,6 +139,16 @@ resource_requirements:
             min: 1
             max: 3
 ```
+
+## Building for Distribution
+
+To build the application for distribution:
+
+```bash
+npm run build
+```
+
+This will create platform-specific distributables in the `electron/dist` directory.
 
 ## Troubleshooting
 

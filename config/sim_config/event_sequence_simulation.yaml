@@ -26,29 +26,6 @@ event_simulation:
   event_table: Deliverable
   relationship_column: project_id
   
-  
-  # Work shift configuration
-  work_shifts:
-    enabled: false
-    shift_patterns:
-      - name: "Regular Weekday"
-        days: [0, 1, 2, 3, 4]  # Monday to Friday (0=Monday)
-        start_time: "07:00"
-        end_time: "19:00"
-      - name: "Weekend Support"
-        days: [5, 6]  # Saturday and Sunday
-        start_time: "08:00"
-        end_time: "20:00"
-    
-    # Resource shift assignments
-    resource_shifts:
-      - resource_type: "Developer"
-        shift_patterns: ["Regular Weekday", "Weekend Support"]
-      - resource_type: "Tech Lead"
-        shift_patterns: ["Regular Weekday"]
-      - resource_type: "Tester"
-        shift_patterns: ["Regular Weekday", "Weekend Support"]
-  
   # Event sequence configuration
   event_sequence:
     enabled: true

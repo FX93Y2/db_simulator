@@ -1,24 +1,92 @@
 """
-Base configuration parser module
-
-This module provides the base classes and utilities for config parsing.
+Base configuration parser classes and utilities.
 """
 
 import yaml
+import os
+import json
 import logging
 from pathlib import Path
-from typing import Any, Dict, Optional, Type, TypeVar, Generic, List, Union
+from typing import Dict, Any, List, Union, Optional, Type, TypeVar, Generic
+from abc import ABC, abstractmethod
 from dataclasses import dataclass, field, is_dataclass, fields, MISSING
 
 logger = logging.getLogger(__name__)
 
 class ConfigValidationError(Exception):
-    """Exception raised for configuration validation errors"""
+    """Error raised when configuration validation fails"""
     pass
+
+class BaseConfigParser(ABC):
+    """Base class for configuration parsers"""
+    
+    @staticmethod
+    def load_yaml(config_path: Union[str, Path]) -> Dict[str, Any]:
+        """
+        Load a YAML configuration file.
+        
+        Args:
+            config_path: Path to the YAML configuration file
+            
+        Returns:
+            Parsed YAML data as a dictionary
+            
+        Raises:
+            FileNotFoundError: If the configuration file doesn't exist
+            yaml.YAMLError: If the YAML file is invalid
+        """
+        config_path = Path(config_path)
+        if not config_path.exists():
+            raise FileNotFoundError(f"Configuration file not found: {config_path}")
+            
+        with open(config_path, 'r') as f:
+            try:
+                return yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                logger.error(f"Error parsing YAML file: {e}")
+                raise
+    
+    @classmethod
+    @abstractmethod
+    def from_dict(cls, config_dict: Dict[str, Any]) -> Any:
+        """
+        Create a configuration object from a dictionary.
+        
+        Args:
+            config_dict: Dictionary containing configuration data
+            
+        Returns:
+            Configuration object
+        """
+        pass
+    
+    @classmethod
+    def from_yaml(cls, config_path: Union[str, Path]) -> Any:
+        """
+        Create a configuration object from a YAML file.
+        
+        Args:
+            config_path: Path to the YAML configuration file
+            
+        Returns:
+            Configuration object
+        """
+        config_dict = cls.load_yaml(config_path)
+        return cls.from_dict(config_dict)
+        
+    @abstractmethod
+    def validate(self) -> None:
+        """
+        Validate the configuration.
+        
+        Raises:
+            ConfigValidationError: If validation fails
+        """
+        pass
 
 T = TypeVar('T')
 
-class BaseConfigParser(Generic[T]):
+class BaseConfigParserGeneric(Generic[T]):
     """
     Base class for configuration parsers
     
@@ -144,7 +212,7 @@ class BaseConfigParser(Generic[T]):
                     # If field type is another dataclass and value is a dict,
                     # recursively create an instance of the field type
                     if is_dataclass(field_def.type) and isinstance(value, dict):
-                        kwargs[name] = BaseConfigParser.create_dataclass_instance(
+                        kwargs[name] = BaseConfigParserGeneric.create_dataclass_instance(
                             field_def.type, value, f"{context}.{name}" if context else name
                         )
                     else:

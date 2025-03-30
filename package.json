@@ -1,0 +1,24 @@
+{
+  "name": "db-simulator",
+  "version": "1.0.0",
+  "description": "Database Simulator with Electron + Python integration",
+  "scripts": {
+    "install": "cd electron && npm install",
+    "start": "cd electron && npm start",
+    "dev": "cd electron && npm run dev",
+    "build": "cd electron && npm run build",
+    "python-setup": "pip install -r python/requirements.txt"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/db-simulator.git"
+  },
+  "keywords": [
+    "database",
+    "simulation",
+    "electron",
+    "python"
+  ],
+  "author": "",
+  "license": "MIT"
+} 

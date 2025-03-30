@@ -1,15 +1,16 @@
 """
-Simulation runner
+Simulation runner module.
 
-This module provides functions to run simulations on generated databases.
+This module provides functions to run simulations from configuration files.
 """
 
-import logging
 import os
+import json
+import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
-from src.config_parser import parse_sim_config
+from python.src.config_parser import parse_sim_config
 from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)

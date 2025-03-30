@@ -18,7 +18,7 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, MetaD
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-from src.config_parser import DatabaseConfig, Entity, Attribute
+from python.src.config_parser import DatabaseConfig, Entity, Attribute
 
 logger = logging.getLogger(__name__)
 

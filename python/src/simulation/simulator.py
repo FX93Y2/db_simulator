@@ -1,22 +1,27 @@
 """
-Event-based simulator using SimPy
+Simulation engine for DB Simulator.
 
-This module implements a discrete event simulator that processes events
-in the order of their primary key values.
+This module implements the event-based simulation functionality 
+using SimPy to model resource allocation and scheduling.
 """
 
 import logging
 import simpy
+import sqlite3
 import random
+from datetime import datetime, timedelta
+from typing import Dict, List, Tuple, Any, Optional, Union
+import uuid
+import math
+import random
+from collections import defaultdict
 import numpy as np
-from datetime import datetime, timedelta, time
-from typing import Dict, List, Any, Optional, Tuple, Set, Union
 from sqlalchemy import create_engine, inspect, select, func, text, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from src.config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift
-from src.utils.distribution_utils import generate_from_distribution
+from python.src.config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift
+from python.src.utils.distribution_utils import generate_from_distribution
 from .event_tracker import EventTracker
 
 logger = logging.getLogger(__name__)
