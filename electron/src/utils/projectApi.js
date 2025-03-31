@@ -111,6 +111,18 @@ export const saveProjectSimConfig = async (projectId, configData) => {
   }
 };
 
+// Function to clear all configurations
+export const clearAllConfigurations = async (includeProjectConfigs = true) => {
+  try {
+    console.log(`Clearing all configurations (including project configs: ${includeProjectConfigs})`);
+    const result = await window.api.clearConfigs(includeProjectConfigs);
+    return result;
+  } catch (error) {
+    console.error('Error clearing configurations:', error);
+    return { success: false, error: 'Failed to clear configurations' };
+  }
+};
+
 // Helper function to format dates for display
 export const formatDate = (dateString) => {
   if (!dateString) return 'N/A';

@@ -98,8 +98,14 @@ const YamlEditor = ({
             className="me-2"
             onClick={handleSave}
             disabled={readOnly}
+            style={{ 
+              padding: '8px 16px', 
+              fontSize: '14px',
+              backgroundColor: '#28a745',
+              borderColor: '#28a745'
+            }}
           >
-            <FiSave /> Save
+            <FiSave style={{ marginRight: '5px' }} /> Save Configuration
           </Button>
           <Button 
             variant="outline-secondary" 

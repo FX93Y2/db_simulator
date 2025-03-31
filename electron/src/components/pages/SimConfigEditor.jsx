@@ -217,6 +217,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
   
   // Toggle save modal
   const handleSave = () => {
+    console.log("SimConfigEditor: handleSave button clicked");
     if (projectId && isProjectTab) {
       // For project tabs, save directly without the modal
       handleSaveConfig();
@@ -243,6 +244,15 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
   
   // Save the configuration
   const handleSaveConfig = async () => {
+    console.log("SimConfigEditor: handleSaveConfig called with:", { 
+      name, 
+      hasContent: !!yamlContent && yamlContent.length > 0,
+      yamlContentLength: yamlContent ? yamlContent.length : 0,
+      projectId,
+      configId,
+      saveAsNew 
+    });
+    
     try {
       setLoading(true);
       
@@ -259,43 +269,57 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
         description
       };
       
+      console.log("SimConfigEditor: About to save with configData:", configData);
       let result;
       
       if (projectId && isProjectTab) {
         // Save as project simulation config
+        console.log("SimConfigEditor: Saving as project sim config, projectId:", projectId);
         result = await window.api.saveProjectSimConfig(projectId, configData);
         
         if (result.success) {
           // Just update locally in project tab mode
+          console.log("SimConfigEditor: Save successful, updating local config");
           setConfig(result.config);
+          
+          // Add success message
+          alert('Simulation configuration saved successfully');
         } else {
+          console.error("SimConfigEditor: Error saving configuration:", result);
           alert('Error saving configuration');
         }
       } else if (configId && !saveAsNew) {
         // Update existing standalone configuration
+        console.log("SimConfigEditor: Updating existing config, configId:", configId);
         result = await window.api.updateConfig(configId, configData);
         
         if (result.success) {
           // Close modal and navigate back to dashboard
+          console.log("SimConfigEditor: Update successful, closing modal and navigating");
           handleCloseModal();
           navigate('/');
         }
       } else {
         // Save as new standalone configuration
+        console.log("SimConfigEditor: Saving as new standalone config");
         result = await window.api.saveConfig(configData);
         
         if (result.success) {
           // Close modal and navigate to the new config
+          console.log("SimConfigEditor: Save successful, closing modal and navigating to new config");
           handleCloseModal();
           navigate(`/sim-config/${result.config_id}`);
         }
       }
       
+      console.log("SimConfigEditor: Save result:", result);
+      
       if (!result.success) {
+        console.error("SimConfigEditor: Error: result.success is false", result);
         alert('Error saving configuration');
       }
     } catch (error) {
-      console.error('Error saving configuration:', error);
+      console.error('SimConfigEditor: Error saving configuration:', error);
       alert('Error saving configuration');
     } finally {
       setLoading(false);
@@ -417,7 +441,20 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
           ) : (
             <YamlEditor 
               initialValue={yamlContent} 
-              onSave={handleYamlChange}
+              onSave={(content) => {
+                console.log("SimConfigEditor: YamlEditor onSave callback triggered");
+                // First update the local content
+                handleYamlChange(content);
+                
+                // Then save to backend
+                console.log("SimConfigEditor: Saving to backend from YamlEditor");
+                if (projectId && isProjectTab) {
+                  handleSaveConfig();
+                } else {
+                  // For standalone mode, show the save modal
+                  setShowSaveModal(true);
+                }
+              }}
               height="calc(100vh - 160px)"
             />
           )}
@@ -476,13 +513,6 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
               disabled={loading}
             >
               <FiPlay /> Run Simulation
-            </Button>
-            <Button 
-              variant="primary" 
-              onClick={handleSave}
-              disabled={loading}
-            >
-              <FiSave /> Save
             </Button>
           </div>
         </div>

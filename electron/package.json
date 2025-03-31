@@ -47,7 +47,8 @@
     "react-split-pane": "^0.1.92",
     "reactflow": "^11.10.1",
     "sass": "^1.69.0",
-    "sql.js": "^1.8.0"
+    "sql.js": "^1.8.0",
+    "sqlite3": "^5.1.7"
   },
   "build": {
     "appId": "com.fx93v2.db-simulator",

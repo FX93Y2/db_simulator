@@ -5,7 +5,6 @@ This module defines the Flask routes for the Electron integration.
 
 from flask import Blueprint, request, jsonify
 import logging
-
 import sys
 import os
 
@@ -147,7 +146,8 @@ def save_project_db_config(project_id):
     try:
         logger.info(f"Received request to save DB config for project {project_id}")
         data = request.json
-        logger.debug(f"Request data: {data}")
+        logger.info(f"Request data keys: {list(data.keys() if data else [])}")
+        logger.info(f"Content length: {len(data.get('content', '')) if data and 'content' in data else 'No content'}")
         
         if not data or not data.get('content'):
             logger.warning("Missing required fields in request")
@@ -158,6 +158,23 @@ def save_project_db_config(project_id):
         if not project:
             logger.warning(f"Project not found: {project_id}")
             return jsonify({"success": False, "error": "Project not found"}), 404
+        
+        # Validate the YAML content
+        try:
+            import yaml
+            yaml_content = data.get('content', '')
+            logger.info(f"Attempting to parse YAML content (first 100 chars): {yaml_content[:100]}...")
+            parsed_yaml = yaml.safe_load(yaml_content)
+            if parsed_yaml is None:
+                logger.warning("YAML content parsed to None - may be empty or invalid")
+            else:
+                logger.info(f"YAML validation successful, parsed to object type: {type(parsed_yaml)}")
+        except Exception as yaml_error:
+            logger.error(f"YAML validation failed: {yaml_error}")
+            return jsonify({
+                "success": False, 
+                "error": f"Invalid YAML content: {str(yaml_error)}"
+            }), 400
             
         logger.info(f"Saving DB config for project {project_id} ({project['name']})")
         config_id = config_manager.save_project_config(
@@ -178,11 +195,12 @@ def save_project_db_config(project_id):
             "message": "Database configuration saved successfully"
         }
         logger.info(f"DB config saved successfully with ID {config_id}")
-        logger.debug(f"Response: {response}")
         
         return jsonify(response)
     except Exception as e:
         logger.error(f"Error saving project DB config: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 @api.route('/projects/<project_id>/sim-config', methods=['GET'])
@@ -218,7 +236,8 @@ def save_project_sim_config(project_id):
     try:
         logger.info(f"Received request to save simulation config for project {project_id}")
         data = request.json
-        logger.debug(f"Request data: {data}")
+        logger.info(f"Request data keys: {list(data.keys() if data else [])}")
+        logger.info(f"Content length: {len(data.get('content', '')) if data and 'content' in data else 'No content'}")
         
         if not data or not data.get('content'):
             logger.warning("Missing required fields in request")
@@ -249,20 +268,25 @@ def save_project_sim_config(project_id):
             "message": "Simulation configuration saved successfully"
         }
         logger.info(f"Simulation config saved successfully with ID {config_id}")
-        logger.debug(f"Response: {response}")
         
         return jsonify(response)
     except Exception as e:
         logger.error(f"Error saving project simulation config: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
-# Standard configuration routes
+# Config management routes
 @api.route('/configs', methods=['GET'])
 def get_configs():
-    """Get all saved configurations"""
+    """Get all configurations or configurations of a specific type"""
     try:
         config_type = request.args.get('type')
-        configs = config_manager.get_all_configs(config_type)
+        if config_type:
+            configs = config_manager.get_configs_by_type(config_type)
+        else:
+            configs = config_manager.get_all_configs()
+            
         return jsonify({"success": True, "configs": configs})
     except Exception as e:
         logger.error(f"Error retrieving configurations: {e}")
@@ -294,7 +318,16 @@ def save_config():
             data['content'],
             data.get('description', '')
         )
-        return jsonify({"success": True, "config_id": config_id})
+        
+        # Get the newly created config
+        config = config_manager.get_config(config_id)
+        
+        return jsonify({
+            "success": True, 
+            "config": config,
+            "config_id": config_id,
+            "message": "Configuration saved successfully"
+        })
     except Exception as e:
         logger.error(f"Error saving configuration: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -314,8 +347,16 @@ def update_config(config_id):
             data.get('content'),
             data.get('description')
         )
+        
         if success:
-            return jsonify({"success": True})
+            # Get the updated config
+            config = config_manager.get_config(config_id)
+            return jsonify({
+                "success": True,
+                "config": config,
+                "message": "Configuration updated successfully"
+            })
+            
         return jsonify({"success": False, "error": "Configuration not found"}), 404
     except Exception as e:
         logger.error(f"Error updating configuration: {e}")
@@ -327,12 +368,35 @@ def delete_config(config_id):
     try:
         success = config_manager.delete_config(config_id)
         if success:
-            return jsonify({"success": True})
+            return jsonify({"success": True, "message": "Configuration deleted successfully"})
         return jsonify({"success": False, "error": "Configuration not found"}), 404
     except Exception as e:
         logger.error(f"Error deleting configuration: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@api.route('/configs/clear', methods=['POST'])
+def clear_configs():
+    """Clear all configurations"""
+    try:
+        # Get parameters from request
+        data = request.json or {}
+        include_project_configs = data.get('include_project_configs', True)
+        
+        # Delete all configurations
+        deleted_count = config_manager.clear_all_configs(include_project_configs)
+        
+        return jsonify({
+            "success": True, 
+            "deleted_count": deleted_count,
+            "message": f"Successfully cleared {deleted_count} configurations"
+        })
+    except Exception as e:
+        logger.error(f"Error clearing configurations: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+# Database generation routes
 @api.route('/generate-database', methods=['POST'])
 def generate_db():
     """Generate a synthetic database"""
@@ -359,9 +423,10 @@ def generate_db():
         logger.error(f"Error generating database: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+# Simulation routes
 @api.route('/run-simulation', methods=['POST'])
-def simulate():
-    """Run a simulation"""
+def run_sim():
+    """Run a simulation on an existing database"""
     try:
         data = request.json
         if not data or not data.get('config_id') or not data.get('database_path'):
@@ -384,7 +449,7 @@ def simulate():
 
 @api.route('/generate-and-simulate', methods=['POST'])
 def generate_and_simulate():
-    """Generate a database and run simulation"""
+    """Generate a database and run a simulation"""
     try:
         data = request.json
         if not data or not data.get('db_config_id') or not data.get('sim_config_id'):
@@ -399,10 +464,9 @@ def generate_and_simulate():
         output_dir = data.get('output_dir', 'output')
         db_name = data.get('name')
         
-        # Generate database with only resource tables then run simulation
-        db_path = generate_database_for_simulation(
+        # Generate complete database with all tables
+        db_path = generate_database(
             db_config['content'], 
-            sim_config['content'],
             output_dir,
             db_name
         )
@@ -412,10 +476,10 @@ def generate_and_simulate():
             "success": True,
             "database_path": str(db_path),
             "results": results,
-            "message": "Dynamic simulation completed successfully"
+            "message": "Generate-and-simulate completed successfully"
         })
     except Exception as e:
-        logger.error(f"Error in dynamic simulation: {e}")
+        logger.error(f"Error in generate-and-simulate: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 # Add additional routes for simulation results here

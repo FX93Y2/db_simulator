@@ -27,7 +27,7 @@ import {
 } from '../../utils/resultsApi';
 
 const ResultsViewer = ({ projectId, isProjectTab }) => {
-  const { databasePath } = useParams();
+  const { resultId } = useParams();
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
@@ -43,6 +43,19 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     yAxis: '',
     groupBy: ''
   });
+  const [databasePath, setDatabasePath] = useState('');
+  
+  // Construct database path from resultId and projectId
+  useEffect(() => {
+    if (resultId && projectId) {
+      // Construct the path to the database
+      const dbPath = `output/${projectId}/${resultId}.db`;
+      console.log("Setting database path:", dbPath);
+      setDatabasePath(dbPath);
+    } else if (resultId) {
+      setDatabasePath(`output/${resultId}.db`);
+    }
+  }, [resultId, projectId]);
   
   // Load database info and tables
   useEffect(() => {
@@ -51,18 +64,25 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       
       try {
         setLoading(true);
+        console.log("Loading database info from path:", databasePath);
         
         // Get basic info about the simulation results
-        const resultInfo = await getSimulationSummary(decodeURIComponent(databasePath));
+        const resultInfo = await getSimulationSummary(databasePath);
         if (resultInfo.success) {
           setResults(resultInfo.data);
+          console.log("Loaded simulation results:", resultInfo.data);
+        } else {
+          console.error("Failed to load simulation results:", resultInfo.error);
         }
         
         // Get list of tables in the database
-        const tablesResult = await getDatabaseTables(decodeURIComponent(databasePath));
-        if (tablesResult.success && tablesResult.tables.length > 0) {
+        const tablesResult = await getDatabaseTables(databasePath);
+        if (tablesResult.success && tablesResult.tables && tablesResult.tables.length > 0) {
           setTables(tablesResult.tables);
           setSelectedTable(tablesResult.tables[0]);
+          console.log("Loaded tables:", tablesResult.tables);
+        } else {
+          console.error("Failed to load database tables:", tablesResult.error);
         }
       } catch (error) {
         console.error('Error loading database info:', error);
@@ -71,7 +91,9 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       }
     };
     
-    loadDatabaseInfo();
+    if (databasePath) {
+      loadDatabaseInfo();
+    }
   }, [databasePath]);
   
   // Load table data when selected table changes
@@ -81,15 +103,14 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       
       try {
         setLoading(true);
+        console.log("Loading data for table:", selectedTable, "from path:", databasePath);
         
         // Get data for the selected table
-        const dataResult = await getTableData(
-          decodeURIComponent(databasePath),
-          selectedTable
-        );
+        const dataResult = await getTableData(databasePath, selectedTable);
         
         if (dataResult.success) {
           setTableData(dataResult.data || []);
+          console.log("Loaded table data:", dataResult.data ? dataResult.data.length : 0, "rows");
           
           // Extract column names from the first row
           if (dataResult.data && dataResult.data.length > 0) {
@@ -106,6 +127,8 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           } else {
             setTableColumns([]);
           }
+        } else {
+          console.error("Failed to load table data:", dataResult.error);
         }
       } catch (error) {
         console.error('Error loading table data:', error);
@@ -114,7 +137,9 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       }
     };
     
-    loadTableData();
+    if (selectedTable && databasePath) {
+      loadTableData();
+    }
   }, [selectedTable, databasePath]);
   
   // Handle table selection
@@ -134,7 +159,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   const handleExportData = async () => {
     try {
       setLoading(true);
-      const result = await exportDatabaseToCSV(decodeURIComponent(databasePath));
+      const result = await exportDatabaseToCSV(databasePath);
       setLoading(false);
       
       if (result.success) {
@@ -211,7 +236,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                     <Col md={6}>
                       <p><strong>Entities Generated:</strong> {results.entitiesCount || 0}</p>
                       <p><strong>Events Processed:</strong> {results.eventsCount || 0}</p>
-                      <p><strong>Database:</strong> {databasePath ? decodeURIComponent(databasePath).split('/').pop() : 'N/A'}</p>
+                      <p><strong>Database:</strong> {databasePath ? databasePath.split('/').pop() : 'N/A'}</p>
                     </Col>
                   </Row>
                 </div>

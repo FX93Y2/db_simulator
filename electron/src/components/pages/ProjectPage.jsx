@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Tab, Nav, Button, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiDatabase, FiActivity, FiBarChart2, FiArrowLeft, FiEdit } from 'react-icons/fi';
+import { FiDatabase, FiActivity, FiBarChart2, FiArrowLeft, FiEdit, FiPlay } from 'react-icons/fi';
 
 import DbConfigEditor from './DbConfigEditor';
 import SimConfigEditor from './SimConfigEditor';
 import ResultsViewer from './ResultsViewer';
-import { getProject, updateProject, formatDate } from '../../utils/projectApi';
+import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSimConfig } from '../../utils/projectApi';
 
 // Cache for project data to reduce loading flicker
 const projectCache = {};
@@ -21,6 +21,8 @@ const ProjectPage = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProjectName, setEditingProjectName] = useState("");
   const [isUpdating, setIsUpdating] = useState(false);
+  const [runningSimulation, setRunningSimulation] = useState(false);
+  const [simulationResult, setSimulationResult] = useState(null);
   
   // Set default active tab based on URL or parameter
   const determineActiveTab = () => {
@@ -158,6 +160,59 @@ const ProjectPage = () => {
     }
   };
 
+  // Add a function to run the simulation
+  const handleRunSimulation = async () => {
+    if (!projectId) return;
+    
+    try {
+      setRunningSimulation(true);
+      
+      // First, ensure we have both database and simulation configurations
+      const dbConfigResult = await getProjectDbConfig(projectId);
+      const simConfigResult = await getProjectSimConfig(projectId);
+      
+      if (!dbConfigResult.success || !dbConfigResult.config) {
+        alert('Database configuration not found. Please create and save a database configuration first.');
+        setRunningSimulation(false);
+        return;
+      }
+      
+      if (!simConfigResult.success || !simConfigResult.config) {
+        alert('Simulation configuration not found. Please create and save a simulation configuration first.');
+        setRunningSimulation(false);
+        return;
+      }
+      
+      // Call the generate-simulate API endpoint
+      const result = await window.api.generateAndSimulate({
+        db_config_id: dbConfigResult.config.id,
+        sim_config_id: simConfigResult.config.id,
+        output_dir: `output/${projectId}`,
+        name: `${project.name.replace(/\s+/g, '_')}_${Date.now()}`
+      });
+      
+      if (result.success) {
+        setSimulationResult(result);
+        alert('Simulation completed successfully!');
+        
+        // Navigate to the results tab
+        if (result.database_path) {
+          // Extract the database file name for the result ID
+          const dbPath = result.database_path;
+          const resultId = dbPath.split(/[\/\\]/).pop().replace('.db', '');
+          navigate(`/project/${projectId}/results/${resultId}`);
+        }
+      } else {
+        alert(`Error running simulation: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Error running simulation:', error);
+      alert('Error running simulation. Check console for details.');
+    } finally {
+      setRunningSimulation(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="text-center py-5">
@@ -189,10 +244,29 @@ const ProjectPage = () => {
             <FiEdit />
           </Button>
         </div>
-        <div>
-          <small className="text-muted">
-            Last updated: {formatDate(project?.updated_at).split(' ')[0]}
-          </small>
+        <div className="d-flex align-items-center">
+          <Button
+            variant="success"
+            className="me-3"
+            onClick={handleRunSimulation}
+            disabled={runningSimulation}
+          >
+            {runningSimulation ? (
+              <>
+                <Spinner size="sm" className="me-2" animation="border" />
+                Running Simulation...
+              </>
+            ) : (
+              <>
+                <FiPlay className="me-2" /> Run Simulation
+              </>
+            )}
+          </Button>
+          <div>
+            <small className="text-muted">
+              Last updated: {formatDate(project?.updated_at).split(' ')[0]}
+            </small>
+          </div>
         </div>
       </div>
 

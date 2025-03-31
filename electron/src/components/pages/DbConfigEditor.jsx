@@ -179,6 +179,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   
   // Save configuration
   const handleSave = () => {
+    console.log("DbConfigEditor: handleSave called");
     // If we're in project context, auto-save
     if (projectId && isProjectTab) {
       handleSaveConfig();
@@ -196,11 +197,30 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   
   // Save the configuration
   const handleSaveConfig = async () => {
+    console.log("DbConfigEditor: handleSaveConfig called with:", { 
+      name, 
+      hasContent: !!yamlContent && yamlContent.length > 0,
+      yamlContentLength: yamlContent ? yamlContent.length : 0,
+      projectId 
+    });
+    
     try {
       setLoading(true);
       
       if (!name) {
         alert('Please enter a name for the configuration');
+        setLoading(false);
+        return;
+      }
+      
+      // Validate YAML content before sending
+      try {
+        const yaml = require('js-yaml');
+        const parsedYaml = yaml.load(yamlContent);
+        console.log("DbConfigEditor: YAML validation passed", { parsed: !!parsedYaml });
+      } catch (yamlError) {
+        console.error("DbConfigEditor: YAML validation failed:", yamlError);
+        alert('The YAML content appears to be invalid. Please check your configuration.');
         setLoading(false);
         return;
       }
@@ -213,18 +233,24 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
         project_id: projectId
       };
       
+      console.log("DbConfigEditor: About to save with configData:", configData);
       let result;
       
       if (projectId && isProjectTab) {
         // Save within project context
+        console.log("DbConfigEditor: Saving with saveProjectDbConfig, projectId:", projectId);
         result = await window.api.saveProjectDbConfig(projectId, configData);
       } else if (config && !saveAsNew) {
         // Update existing configuration
+        console.log("DbConfigEditor: Updating config with updateConfig, config.id:", config.id);
         result = await window.api.updateConfig(config.id, configData);
       } else {
         // Save as new configuration
+        console.log("DbConfigEditor: Saving as new with saveConfig");
         result = await window.api.saveConfig(configData);
       }
+      
+      console.log("DbConfigEditor: Save result:", result);
       
       if (result.success) {
         // Close modal if showing
@@ -251,7 +277,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   
   // In project tab mode, we don't show the header and back button
   const renderEditor = () => (
-    <div className="editor-container-split">
+    <div className="editor-container-split" onClick={() => console.log("Editor container clicked")}>
       <SplitPane
         split="vertical"
         minSize={200}
@@ -260,7 +286,9 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
         paneStyle={{ overflow: 'auto' }}
       >
         <div className="editor-yaml-panel">
-          <div className="panel-header">YAML Editor</div>
+          <div className="panel-header">
+            YAML Editor
+          </div>
           {loading && !yamlContent ? (
             <div className="text-center py-5">
               <Spinner animation="border" />
@@ -269,7 +297,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
           ) : (
             <YamlEditor 
               initialValue={yamlContent} 
-              onSave={handleYamlChange}
+              onSave={(content) => {
+                console.log("YamlEditor onSave callback triggered");
+                // First update the local content
+                handleYamlChange(content);
+                
+                // Then save to backend
+                console.log("Saving to backend from YamlEditor");
+                if (projectId && isProjectTab) {
+                  handleSaveConfig();
+                } else {
+                  // For standalone mode, show the save modal
+                  setShowSaveModal(true);
+                }
+              }}
               height="calc(100vh - 160px)"
             />
           )}
@@ -322,13 +363,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
             {config ? `Edit Database Configuration: ${name}` : 'New Database Configuration'}
           </h2>
         </div>
-        <Button 
-          variant="primary" 
-          onClick={handleSave}
-          disabled={loading}
-        >
-          {loading ? <Spinner size="sm" /> : <FiSave />} Save
-        </Button>
+        {/* Remove the redundant Save button - we'll use the one in YamlEditor */}
       </div>
       
       {renderEditor()}

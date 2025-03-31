@@ -230,7 +230,15 @@ class ConfigManager:
             return False
         
         conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row  # This allows column access by name
         cursor = conn.cursor()
+        
+        # Log the configurations that will be deleted
+        cursor.execute("SELECT * FROM configs WHERE project_id = ?", (project_id,))
+        configs_to_delete = cursor.fetchall()
+        logger.info(f"Deleting {len(configs_to_delete)} configurations associated with project {project_id}")
+        for config in configs_to_delete:
+            logger.info(f"  - Deleting config: {config['name']} (ID: {config['id']}, Type: {config['type']})")
         
         # Delete associated configurations first
         cursor.execute(
@@ -240,6 +248,8 @@ class ConfigManager:
             ''',
             (project_id,)
         )
+        deleted_configs = cursor.rowcount
+        logger.info(f"Deleted {deleted_configs} configurations for project {project_id}")
         
         # Delete project
         cursor.execute(
@@ -688,4 +698,32 @@ class ConfigManager:
             f.write(config['content'])
         
         logger.info(f"Exported config: {config['name']} to {file_path}")
-        return file_path 
+        return file_path
+        
+    def clear_all_configs(self, include_project_configs=True):
+        """
+        Delete all standalone configurations.
+        
+        Args:
+            include_project_configs (bool): Whether to also delete configurations associated with projects
+            
+        Returns:
+            int: Number of configurations deleted
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if include_project_configs:
+            # Delete all configurations
+            cursor.execute('DELETE FROM configs')
+            deleted_count = cursor.rowcount
+        else:
+            # Delete only standalone configurations (not associated with a project)
+            cursor.execute('DELETE FROM configs WHERE project_id IS NULL')
+            deleted_count = cursor.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Cleared {deleted_count} configurations")
+        return deleted_count 
