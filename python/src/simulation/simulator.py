@@ -160,23 +160,23 @@ class EventSimulator:
                 logger.error(f"Could not find resource type column in table {resource_table}")
                 return
                 
-                # Get all resources from the database
+            # Get all resources from the database
             sql_query = text(f"SELECT id, {resource_type_column} FROM {resource_table}")
-                result = session.execute(sql_query)
-                resources_by_type = {}
-                
-                for row in result:
-                    resource_type = row[1]
-                    if resource_type not in resources_by_type:
-                        resources_by_type[resource_type] = []
-                    resources_by_type[resource_type].append(row[0])
-                
+            result = session.execute(sql_query)
+            resources_by_type = {}
+            
+            for row in result:
+                resource_type = row[1]
+                if resource_type not in resources_by_type:
+                    resources_by_type[resource_type] = []
+                resources_by_type[resource_type].append(row[0])
+            
             # Create SimPy resources for each resource ID
             for resource_type, resource_ids in resources_by_type.items():
-                        for resource_id in resource_ids:
+                for resource_id in resource_ids:
                     resource_key = f"{resource_table}_{resource_id}"
-                            self.resources[resource_key] = simpy.Resource(self.env, capacity=1)
-                            self.resource_types[resource_key] = resource_type
+                    self.resources[resource_key] = simpy.Resource(self.env, capacity=1)
+                    self.resource_types[resource_key] = resource_type
             
             logger.info(f"Set up {len(self.resources)} resources of {len(resources_by_type)} types")
     
@@ -199,25 +199,25 @@ class EventSimulator:
             # If max_entities is not specified or set to 'n/a', estimate based on simulation duration and average interarrival time
             try:
                 logger.debug(f"Interarrival time config: {arrival_config.interarrival_time}")
-            distribution = arrival_config.interarrival_time.get('distribution', {})
+                distribution = arrival_config.interarrival_time.get('distribution', {})
                 logger.debug(f"Distribution: {distribution}, type: {type(distribution)}")
                 
                 if isinstance(distribution, dict):
-            if distribution.get('type') == 'exponential':
-                # For exponential distribution, mean = scale
-                avg_interarrival_days = distribution.get('scale', 1)
-            elif distribution.get('type') == 'normal':
-                avg_interarrival_days = distribution.get('mean', 1)
-            elif distribution.get('type') == 'uniform':
-                avg_interarrival_days = (distribution.get('min', 0) + distribution.get('max', 2)) / 2
-            else:
+                    if distribution.get('type') == 'exponential':
+                        # For exponential distribution, mean = scale
+                        avg_interarrival_days = distribution.get('scale', 1)
+                    elif distribution.get('type') == 'normal':
+                        avg_interarrival_days = distribution.get('mean', 1)
+                    elif distribution.get('type') == 'uniform':
+                        avg_interarrival_days = (distribution.get('min', 0) + distribution.get('max', 2)) / 2
+                    else:
                         avg_interarrival_days = 1  # Default
                 else:
                     logger.warning(f"Distribution is not a dictionary: {distribution}")
-                avg_interarrival_days = 1  # Default
+                    avg_interarrival_days = 1  # Default
                 
-            # Estimate max entities based on simulation duration and average interarrival time
-            max_entities = int(self.config.duration_days / avg_interarrival_days * 1.5)  # Add 50% buffer
+                # Estimate max entities based on simulation duration and average interarrival time
+                max_entities = int(self.config.duration_days / avg_interarrival_days * 1.5)  # Add 50% buffer
                 logger.debug(f"Estimated max_entities: {max_entities}")
             except Exception as e:
                 logger.error(f"Error estimating max_entities: {e}", exc_info=True)
@@ -228,23 +228,23 @@ class EventSimulator:
         current_time = 0
         
         try:
-        for _ in range(max_entities):
-            # Generate interarrival time
+            for _ in range(max_entities):
+                # Generate interarrival time
                 try:
                     interarrival_config = arrival_config.interarrival_time
                     logger.debug(f"Interarrival config: {interarrival_config}")
                     interarrival_days = generate_from_distribution(interarrival_config)
-            interarrival_minutes = interarrival_days * 24 * 60  # Convert days to minutes
-            
-            # Add to current time
-            current_time += interarrival_minutes
-            
-            # Stop if we exceed simulation duration
-            if current_time > self.config.duration_days * 24 * 60:
-                break
-                
-            # Add to arrival times
-            arrival_times.append(current_time)
+                    interarrival_minutes = interarrival_days * 24 * 60  # Convert days to minutes
+                    
+                    # Add to current time
+                    current_time += interarrival_minutes
+                    
+                    # Stop if we exceed simulation duration
+                    if current_time > self.config.duration_days * 24 * 60:
+                        break
+                        
+                    # Add to arrival times
+                    arrival_times.append(current_time)
                 except Exception as e:
                     logger.error(f"Error generating interarrival time: {e}", exc_info=True)
                     break
@@ -296,31 +296,31 @@ class EventSimulator:
                             relationship_column = relationship_columns[0]
                             logger.debug(f"Using relationship column: {relationship_column}")
                             
-                        # Create events for this entity
-                        event_ids = self._create_events(session, entity_id, event_table, relationship_column)
-                        
-                        # Commit the changes
-                        session.commit()
-                        
-                        # Record entity arrival using a direct connection
-                        arrival_datetime = self.config.start_date + timedelta(minutes=self.env.now)
-                        
-                        with process_engine.connect() as conn:
-                            stmt = insert(self.event_tracker.entity_arrivals).values(
-                                entity_table=entity_table,
-                                entity_id=entity_id,
-                                arrival_time=self.env.now,
-                                arrival_datetime=arrival_datetime
-                            )
-                            conn.execute(stmt)
-                            conn.commit()
-                        
-                        # Process the entity's events
-                        self.env.process(self._process_entity_events(entity_id - 1))  # Adjust for 0-based indexing
-                        
-                        self.entity_count += 1
-                        logger.info(f"Created entity {entity_id} with {len(event_ids)} events at time {self.env.now}")
-            except Exception as e:
+                            # Create events for this entity
+                            event_ids = self._create_events(session, entity_id, event_table, relationship_column)
+                            
+                            # Commit the changes
+                            session.commit()
+                            
+                            # Record entity arrival using a direct connection
+                            arrival_datetime = self.config.start_date + timedelta(minutes=self.env.now)
+                            
+                            with process_engine.connect() as conn:
+                                stmt = insert(self.event_tracker.entity_arrivals).values(
+                                    entity_table=entity_table,
+                                    entity_id=entity_id,
+                                    arrival_time=self.env.now,
+                                    arrival_datetime=arrival_datetime
+                                )
+                                conn.execute(stmt)
+                                conn.commit()
+                            
+                            # Process the entity's events
+                            self.env.process(self._process_entity_events(entity_id - 1))  # Adjust for 0-based indexing
+                            
+                            self.entity_count += 1
+                            logger.info(f"Created entity {entity_id} with {len(event_ids)} events at time {self.env.now}")
+                        except Exception as e:
                             import traceback
                             logger.error(f"Error processing entity: {str(e)}")
                             logger.error(traceback.format_exc())
@@ -570,19 +570,17 @@ class EventSimulator:
                     
                     logger.debug(f"Using event type column: {event_type_column}")
                 
-                # Create the initial event
+                    # Create the initial event
                     sql_query = text(
                         f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}, name) "
                         f"VALUES ({next_id}, {entity_id}, '{initial_event_type}', 'Deliverable_{next_id}')"
                     )
                     logger.debug(f"SQL Query: {sql_query}")
-                session.execute(sql_query)
-                event_ids.append(next_id)
-                
+                    session.execute(sql_query)
+                    event_ids.append(next_id)
+                    
                     # Record the current event type for this entity
-                self.entity_current_event_types[entity_id] = initial_event_type
-            else:
-                    logger.debug("No event sequence configured")
+                    self.entity_current_event_types[entity_id] = initial_event_type
             else:
                 logger.debug("No event sequence configured")
             
@@ -641,23 +639,23 @@ class EventSimulator:
             # Use event types from the configuration
             event_types = [et.name for et in event_sim.event_sequence.event_types]
         
-                # Determine number of events to create (using normal distribution)
-                num_events = int(round(random.normalvariate(4, 1)))
-                num_events = max(2, min(8, num_events))  # Clamp between 2 and 8
-                
-                for i in range(num_events):
-                    # Choose a random event type
+        # Determine number of events to create (using normal distribution)
+        num_events = int(round(random.normalvariate(4, 1)))
+        num_events = max(2, min(8, num_events))  # Clamp between 2 and 8
+        
+        for i in range(num_events):
+            # Choose a random event type
             event_type = random.choice(event_types)
-                    
-                    # Create the event
-                    sql_query = text(f"""
-                        INSERT INTO {event_table} (id, {relationship_column}, name, type) 
-                        VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{event_type}')
-                    """)
-                    session.execute(sql_query)
-                    
-                    event_ids.append(next_id)
-                    next_id += 1
+            
+            # Create the event
+            sql_query = text(f"""
+                INSERT INTO {event_table} (id, {relationship_column}, name, type) 
+                VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{event_type}')
+            """)
+            session.execute(sql_query)
+            
+            event_ids.append(next_id)
+            next_id += 1
     
     def _process_entity_events(self, entity_id: int):
         """
@@ -688,8 +686,8 @@ class EventSimulator:
                 if not relationship_columns:
                     logger.error(f"No relationship column found between {entity_table} and {event_table}")
                     yield self.env.timeout(0)  # Make it a generator by yielding
-            return
-        
+                    return
+                
                 relationship_column = relationship_columns[0]
                 
                 # Get the adjusted entity ID (1-based indexing in the database)
@@ -697,7 +695,7 @@ class EventSimulator:
                 
                 # Find initial events for this entity (those with the initial event type)
                 # Query for events with the entity ID in the relationship column
-                        sql_query = text(f"""
+                sql_query = text(f"""
                     SELECT id FROM {event_table} 
                     WHERE {relationship_column} = {db_entity_id}
                 """)
@@ -708,20 +706,20 @@ class EventSimulator:
                     logger.debug(f"Found {len(event_ids)} events for entity {db_entity_id}: {event_ids}")
                     
                     # Process each event
-        for event_id in event_ids:
+                    for event_id in event_ids:
                         self.env.process(self._process_event(db_entity_id, event_id, event_table, entity_table))
                         
                     # Yield to make this a generator
                     yield self.env.timeout(0)
-                        else:
+                else:
                     logger.warning(f"No events found for entity {db_entity_id}")
                     yield self.env.timeout(0)  # Make it a generator by yielding
-                except Exception as e:
+        except Exception as e:
             logger.error(f"Error processing events for entity {entity_id}: {str(e)}", exc_info=True)
             yield self.env.timeout(0)  # Make it a generator by yielding
         finally:
             # Always dispose of the process-specific engine
-        process_engine.dispose()
+            process_engine.dispose()
     
     def _determine_required_resources(self, event_id: int) -> List[str]:
         """
@@ -826,7 +824,7 @@ class EventSimulator:
                             added = 0
                             for resource_key in matching_resources:
                                 if resource_key in self.resources and added < count:
-                                required_resources.append(resource_key)
+                                    required_resources.append(resource_key)
                                     added += 1
                                     
                             if added < count:
@@ -1075,17 +1073,17 @@ class EventSimulator:
             The next event type or None if no transition is defined
         """
         try:
-        event_sim = self.config.event_simulation
+            event_sim = self.config.event_simulation
             if not event_sim or not event_sim.event_sequence or not event_sim.event_sequence.transitions:
-            return None
-        
+                return None
+            
             # Find the transition for this event type
-        for transition in event_sim.event_sequence.transitions:
-            if transition.from_event == current_event_type:
+            for transition in event_sim.event_sequence.transitions:
+                if transition.from_event == current_event_type:
                     # Found the transition, determine the next event type based on probabilities
                     if not transition.to_events:
-                    return None
-                
+                        return None
+                    
                     # If there's only one destination, return it
                     if len(transition.to_events) == 1:
                         return transition.to_events[0].event_type
@@ -1097,9 +1095,9 @@ class EventSimulator:
                     
                     for event_transition in transition.to_events:
                         cumulative_prob += event_transition.probability
-                    if r <= cumulative_prob:
+                        if r <= cumulative_prob:
                             return event_transition.event_type
-        
+            
             # No transition found for this event type
             return None
         except Exception as e:
@@ -1118,11 +1116,11 @@ class EventSimulator:
         """
         try:
             # Create a process-specific engine for isolation
-        process_engine = create_engine(
-            f"sqlite:///{self.db_path}?journal_mode=WAL",
-            poolclass=NullPool,
-            connect_args={"check_same_thread": False}
-        )
+            process_engine = create_engine(
+                f"sqlite:///{self.db_path}?journal_mode=WAL",
+                poolclass=NullPool,
+                connect_args={"check_same_thread": False}
+            )
         
             with Session(process_engine) as session:
                 # Get event details
@@ -1146,7 +1144,7 @@ class EventSimulator:
                 
                 if not result:
                     logger.error(f"Event {event_id} not found in {event_table}")
-                return
+                    return
             
                 event_type = result[0]
                 logger.debug(f"Event {event_id} has type {event_type}")
@@ -1206,7 +1204,7 @@ class EventSimulator:
                         resource_id, resource_table = resource
                         # Record in the event tracker
                         self.event_tracker.record_resource_allocation(
-                                event_id=event_id,
+                            event_id=event_id,
                             resource_table=resource_table,
                             resource_id=resource_id,
                             allocation_time=start_time,
@@ -1222,7 +1220,7 @@ class EventSimulator:
                     with process_engine.connect() as conn:
                         stmt = insert(self.event_tracker.event_processing).values(
                             event_table=event_table,
-                                    event_id=event_id,
+                            event_id=event_id,
                             entity_id=entity_id,
                             start_time=start_time,
                             end_time=end_time,
@@ -1234,37 +1232,37 @@ class EventSimulator:
                         conn.commit()
                     
                     # Increment the processed events counter
-                            self.processed_events += 1
+                    self.processed_events += 1
                             
                     logger.info(f"Processed event {event_id} of type {event_type} for entity {entity_id} in {duration_minutes/60:.2f} hours")
                     
                     # Create the next event if needed
-                                # Determine the next event type based on transitions
-                                next_event_type = self._get_next_event_type(event_type)
-                                
-                                if next_event_type:
-                                    # Get the next ID for the new event
-                                    sql_query = text(f"SELECT MAX(id) FROM {event_table}")
-                                    result = session.execute(sql_query).fetchone()
-                                    next_id = (result[0] or 0) + 1
-                                    
-                                    # Create the next event
+                    # Determine the next event type based on transitions
+                    next_event_type = self._get_next_event_type(event_type)
+                    
+                    if next_event_type:
+                        # Get the next ID for the new event
+                        sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+                        result = session.execute(sql_query).fetchone()
+                        next_id = (result[0] or 0) + 1
+                        
+                        # Create the next event
                         sql_query = text(
                             f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}, name) "
                             f"VALUES ({next_id}, {entity_id}, '{next_event_type}', 'Deliverable_{next_id}')"
                         )
-                                    session.execute(sql_query)
+                        session.execute(sql_query)
                         
                         # Commit the changes
-                                    session.commit()
-                                    
+                        session.commit()
+                        
                         # Process the new event
-                                    logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
+                        logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
                         self.env.process(self._process_event(entity_id, next_id, event_table, entity_table))
                     else:
                         logger.info(f"Entity {entity_id} has completed all events in the sequence")
                 else:
-                    logger.error("Event sequence not configured, cannot process event")
+                    logger.debug("No event sequence configured")
         except Exception as e:
             logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
         finally:
@@ -1330,7 +1328,7 @@ class EventSimulator:
             logger.debug(f"Allocated {count} resources of type {resource_type} from {resource_table}")
             return resources
             
-                except Exception as e:
+        except Exception as e:
             logger.error(f"Error finding resources: {str(e)}", exc_info=True)
             return []
             
@@ -1349,7 +1347,7 @@ class EventSimulator:
                 logger.debug(f"Released resource {resource_key}")
             else:
                 logger.warning(f"Attempted to release resource {resource_key} that wasn't allocated")
-            except Exception as e:
+        except Exception as e:
             logger.error(f"Error releasing resource: {str(e)}", exc_info=True)
             
     def _find_resource_type_column(self, session, resource_table: str) -> str:
