@@ -412,8 +412,22 @@ def generate_db():
         output_dir = data.get('output_dir', 'output')
         db_name = data.get('name')
         
-        # Generate database using the configuration content
-        db_path = generate_database(config['content'], output_dir, db_name)
+        # Create a temp directory for configuration files if it doesn't exist
+        import os
+        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
+        os.makedirs(temp_config_dir, exist_ok=True)
+        
+        # Write database config to temporary file
+        db_config_path = os.path.join(temp_config_dir, f"db_config_{config['id']}.yaml")
+        with open(db_config_path, 'w') as f:
+            f.write(config['content'])
+        
+        # Generate database using the configuration file path
+        db_path = generate_database(db_config_path, output_dir, db_name)
+        
+        # Clean up temporary file (optional - can keep it for debugging)
+        # os.remove(db_config_path)
+        
         return jsonify({
             "success": True, 
             "database_path": str(db_path),
@@ -421,6 +435,8 @@ def generate_db():
         })
     except Exception as e:
         logger.error(f"Error generating database: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 # Simulation routes
@@ -436,8 +452,22 @@ def run_sim():
         if not config:
             return jsonify({"success": False, "error": "Configuration not found"}), 404
             
-        # Run simulation using the configuration content
-        results = run_simulation(config['content'], data['database_path'])
+        # Create a temp directory for configuration files if it doesn't exist
+        import os
+        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
+        os.makedirs(temp_config_dir, exist_ok=True)
+        
+        # Write simulation config to temporary file
+        sim_config_path = os.path.join(temp_config_dir, f"sim_config_{config['id']}.yaml")
+        with open(sim_config_path, 'w') as f:
+            f.write(config['content'])
+            
+        # Run simulation using the configuration file path
+        results = run_simulation(sim_config_path, data['database_path'])
+        
+        # Clean up temporary file (optional - can keep it for debugging)
+        # os.remove(sim_config_path)
+        
         return jsonify({
             "success": True,
             "results": results,
@@ -445,6 +475,8 @@ def run_sim():
         })
     except Exception as e:
         logger.error(f"Error running simulation: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 @api.route('/generate-and-simulate', methods=['POST'])
@@ -464,14 +496,36 @@ def generate_and_simulate():
         output_dir = data.get('output_dir', 'output')
         db_name = data.get('name')
         
-        # Generate complete database with all tables
+        # Create a temp directory for configuration files if it doesn't exist
+        import tempfile
+        import os
+        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
+        os.makedirs(temp_config_dir, exist_ok=True)
+        
+        # Write database config to temporary file
+        db_config_path = os.path.join(temp_config_dir, f"db_config_{db_config['id']}.yaml")
+        with open(db_config_path, 'w') as f:
+            f.write(db_config['content'])
+        
+        # Write simulation config to temporary file
+        sim_config_path = os.path.join(temp_config_dir, f"sim_config_{sim_config['id']}.yaml")
+        with open(sim_config_path, 'w') as f:
+            f.write(sim_config['content'])
+        
+        # Generate complete database with all tables using the temporary file
         db_path = generate_database(
-            db_config['content'], 
+            db_config_path, 
             output_dir,
             db_name
         )
         
-        results = run_simulation(sim_config['content'], db_path)
+        # Run simulation using the temporary file
+        results = run_simulation(sim_config_path, db_path)
+        
+        # Clean up temporary files (optional - can keep them for debugging)
+        # os.remove(db_config_path)
+        # os.remove(sim_config_path)
+        
         return jsonify({
             "success": True,
             "database_path": str(db_path),
@@ -480,6 +534,8 @@ def generate_and_simulate():
         })
     except Exception as e:
         logger.error(f"Error in generate-and-simulate: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
         return jsonify({"success": False, "error": str(e)}), 500
 
 # Add additional routes for simulation results here
