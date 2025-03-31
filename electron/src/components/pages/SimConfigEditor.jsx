@@ -9,6 +9,7 @@ import {
   Spinner,
   InputGroup
 } from 'react-bootstrap';
+import SplitPane from 'react-split-pane';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
@@ -397,6 +398,60 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
     }
   };
   
+  const renderEditor = () => (
+    <div className="editor-container-split">
+      <SplitPane
+        split="vertical"
+        minSize={200}
+        defaultSize="40%"
+        style={{ position: 'relative' }}
+        paneStyle={{ overflow: 'auto' }}
+      >
+        <div className="editor-yaml-panel">
+          <div className="panel-header">YAML Editor</div>
+          {loading && !yamlContent ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2">Loading configuration...</div>
+            </div>
+          ) : (
+            <YamlEditor 
+              initialValue={yamlContent} 
+              onSave={handleYamlChange}
+              height="calc(100vh - 160px)"
+            />
+          )}
+        </div>
+        
+        <div className="editor-canvas-panel">
+          <div className="canvas-header d-flex justify-content-between align-items-center">
+            <div>Event Flow</div>
+            <Button 
+              variant="primary" 
+              size="sm"
+              onClick={handleAddEvent}
+              disabled={loading}
+            >
+              <FiPlus /> Add Event
+            </Button>
+          </div>
+          
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2">Loading event flow...</div>
+            </div>
+          ) : (
+            <EventFlow 
+              yamlContent={yamlContent} 
+              onDiagramChange={handleDiagramChange} 
+            />
+          )}
+        </div>
+      </SplitPane>
+    </div>
+  );
+  
   return (
     <div className="sim-config-editor">
       {!isProjectTab && (
@@ -433,48 +488,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
         </div>
       )}
       
-      <Row className="editor-container-split">
-        <Col md={4} className="editor-yaml-panel">
-          <div className="panel-header">YAML Editor</div>
-          {loading && !yamlContent ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading configuration...</div>
-            </div>
-          ) : (
-            <YamlEditor 
-              initialValue={yamlContent} 
-              onSave={handleYamlChange} 
-            />
-          )}
-        </Col>
-        
-        <Col md={8} className="editor-canvas-panel">
-          <div className="canvas-header d-flex justify-content-between align-items-center">
-            <div>Event Flow</div>
-            <Button 
-              variant="primary" 
-              size="sm"
-              onClick={handleAddEvent}
-              disabled={loading}
-            >
-              <FiPlus /> Add Event
-            </Button>
-          </div>
-          
-          {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading event flow...</div>
-            </div>
-          ) : (
-            <EventFlow 
-              yamlContent={yamlContent} 
-              onDiagramChange={handleDiagramChange} 
-            />
-          )}
-        </Col>
-      </Row>
+      {renderEditor()}
       
       {/* Save Configuration Modal - only used for standalone configurations */}
       <Modal show={showSaveModal} onHide={handleCloseModal}>

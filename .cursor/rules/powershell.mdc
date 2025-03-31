@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+We are on windows so use powershell for commend line.
+- You can @ files here
+- You can use markdown but dont have to

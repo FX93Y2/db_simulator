@@ -157,7 +157,7 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
   );
   
   return (
-    <div className="event-flow-container">
+    <div className="event-flow-container" style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

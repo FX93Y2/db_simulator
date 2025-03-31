@@ -8,6 +8,7 @@ import {
   Modal,
   Spinner 
 } from 'react-bootstrap';
+import SplitPane from 'react-split-pane';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus } from 'react-icons/fi';
@@ -250,48 +251,57 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   
   // In project tab mode, we don't show the header and back button
   const renderEditor = () => (
-    <Row className="editor-container-split">
-      <Col md={4} className="editor-yaml-panel">
-        <div className="panel-header">YAML Editor</div>
-        {loading && !yamlContent ? (
-          <div className="text-center py-5">
-            <Spinner animation="border" />
-            <div className="mt-2">Loading configuration...</div>
-          </div>
-        ) : (
-          <YamlEditor 
-            initialValue={yamlContent} 
-            onSave={handleYamlChange} 
-          />
-        )}
-      </Col>
-      
-      <Col md={8} className="editor-canvas-panel">
-        <div className="canvas-header d-flex justify-content-between align-items-center">
-          <div>ER Diagram</div>
-          <Button 
-            variant="primary" 
-            size="sm"
-            onClick={handleAddTable}
-            disabled={loading}
-          >
-            <FiPlus /> Add Table
-          </Button>
+    <div className="editor-container-split">
+      <SplitPane
+        split="vertical"
+        minSize={200}
+        defaultSize="40%"
+        style={{ position: 'relative' }}
+        paneStyle={{ overflow: 'auto' }}
+      >
+        <div className="editor-yaml-panel">
+          <div className="panel-header">YAML Editor</div>
+          {loading && !yamlContent ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2">Loading configuration...</div>
+            </div>
+          ) : (
+            <YamlEditor 
+              initialValue={yamlContent} 
+              onSave={handleYamlChange}
+              height="calc(100vh - 160px)"
+            />
+          )}
         </div>
         
-        {loading ? (
-          <div className="text-center py-5">
-            <Spinner animation="border" />
-            <div className="mt-2">Loading diagram...</div>
+        <div className="editor-canvas-panel">
+          <div className="canvas-header d-flex justify-content-between align-items-center">
+            <div>ER Diagram</div>
+            <Button 
+              variant="primary" 
+              size="sm"
+              onClick={handleAddTable}
+              disabled={loading}
+            >
+              <FiPlus /> Add Table
+            </Button>
           </div>
-        ) : (
-          <ERDiagram 
-            yamlContent={yamlContent} 
-            onDiagramChange={handleDiagramChange} 
-          />
-        )}
-      </Col>
-    </Row>
+          
+          {loading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2">Loading diagram...</div>
+            </div>
+          ) : (
+            <ERDiagram 
+              yamlContent={yamlContent} 
+              onDiagramChange={handleDiagramChange}
+            />
+          )}
+        </div>
+      </SplitPane>
+    </div>
   );
   
   // If part of a project tab, return just the editor

@@ -1,5 +1,30 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
+// Node.js globals shim for Monaco editor
+contextBridge.exposeInMainWorld('global', {
+  // Add any global properties Monaco editor needs
+  ArrayBuffer: ArrayBuffer,
+  Uint8Array: Uint8Array,
+  TextDecoder: TextDecoder,
+  TextEncoder: TextEncoder,
+  URL: URL,
+  console: console,
+  setTimeout: setTimeout,
+  clearTimeout: clearTimeout,
+  setInterval: setInterval,
+  clearInterval: clearInterval
+});
+
+contextBridge.exposeInMainWorld('process', {
+  platform: process.platform,
+  env: {
+    NODE_ENV: process.env.NODE_ENV,
+    MONACO_EDITOR_PATH: 'node_modules/monaco-editor/min/vs'
+  },
+  nextTick: process.nextTick,
+  versions: process.versions
+});
+
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(

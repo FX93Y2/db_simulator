@@ -44,6 +44,7 @@
     "react-flow-renderer": "^10.3.17",
     "react-icons": "^4.11.0",
     "react-router-dom": "^6.16.0",
+    "react-split-pane": "^0.1.92",
     "reactflow": "^11.10.1",
     "sass": "^1.69.0",
     "sql.js": "^1.8.0"

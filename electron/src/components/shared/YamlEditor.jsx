@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import MonacoEditor from '@monaco-editor/react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
 import { FiSave, FiRefreshCw } from 'react-icons/fi';
+import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 const YamlEditor = ({ 
   initialValue, 
@@ -12,29 +12,82 @@ const YamlEditor = ({
 }) => {
   const [value, setValue] = useState(initialValue || '');
   const [isEditorReady, setIsEditorReady] = useState(false);
-  
-  // Handle editor mount
-  const handleEditorDidMount = () => {
-    setIsEditorReady(true);
-  };
-  
-  // Handle changes in the editor
-  const handleEditorChange = (newValue) => {
-    setValue(newValue);
-  };
-  
-  // Handle save button click
+  const monacoRef = useRef(null);
+  const containerRef = useRef(null);
+
+  // Initialize editor
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    try {
+      // Register the YAML language if it hasn't been registered
+      if (!monaco.languages.getLanguages().some(lang => lang.id === 'yaml')) {
+        monaco.languages.register({ id: 'yaml' });
+        monaco.languages.setMonarchTokensProvider('yaml', {
+          tokenizer: {
+            root: [
+              [/^\s*[\w-]+\s*:/, 'attribute'],
+              [/^---/, 'delimiter'],
+              [/^\.\.\./, 'delimiter'],
+              [/#.*$/, 'comment'],
+              [/".*"/, 'string'],
+              [/'.*'/, 'string']
+            ]
+          }
+        });
+      }
+
+      // Create editor
+      const editor = monaco.editor.create(containerRef.current, {
+        value: initialValue || '',
+        language: 'yaml',
+        theme: 'vs-dark',
+        automaticLayout: true,
+        minimap: { enabled: true },
+        scrollBeyondLastLine: false,
+        readOnly,
+        wordWrap: 'on'
+      });
+
+      // Update state when content changes
+      editor.onDidChangeModelContent(() => {
+        setValue(editor.getValue());
+      });
+
+      monacoRef.current = editor;
+      setIsEditorReady(true);
+
+      // Cleanup
+      return () => {
+        editor.dispose();
+      };
+    } catch (error) {
+      console.error('Failed to initialize Monaco editor:', error);
+    }
+  }, [containerRef.current]);
+
+  // Update content when initialValue changes
+  useEffect(() => {
+    if (monacoRef.current && initialValue !== undefined && value !== initialValue) {
+      monacoRef.current.setValue(initialValue);
+    }
+  }, [initialValue]);
+
+  // Handle save
   const handleSave = () => {
-    if (onSave) {
+    if (onSave && value) {
       onSave(value);
     }
   };
-  
-  // Handle refresh/reset to original value
+
+  // Handle reset
   const handleReset = () => {
-    setValue(initialValue);
+    if (monacoRef.current && initialValue) {
+      monacoRef.current.setValue(initialValue);
+      setValue(initialValue);
+    }
   };
-  
+
   return (
     <div className="yaml-editor">
       {showToolbar && (
@@ -44,7 +97,7 @@ const YamlEditor = ({
             size="sm" 
             className="me-2"
             onClick={handleSave}
-            disabled={!isEditorReady || readOnly}
+            disabled={readOnly}
           >
             <FiSave /> Save
           </Button>
@@ -52,37 +105,29 @@ const YamlEditor = ({
             variant="outline-secondary" 
             size="sm"
             onClick={handleReset}
-            disabled={!isEditorReady || readOnly}
+            disabled={readOnly}
           >
             <FiRefreshCw /> Reset
           </Button>
         </div>
       )}
       
-      <div className="editor-container">
+      <div 
+        ref={containerRef}
+        className="monaco-editor-container" 
+        style={{ 
+          height, 
+          width: '100%', 
+          border: '1px solid #ccc', 
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }}
+      >
         {!isEditorReady && (
           <div className="text-center p-4">
             <Spinner animation="border" />
           </div>
         )}
-        <MonacoEditor
-          height={height}
-          language="yaml"
-          theme="vs-dark"
-          value={value}
-          onChange={handleEditorChange}
-          onMount={handleEditorDidMount}
-          options={{
-            readOnly,
-            minimap: { enabled: true },
-            wordWrap: 'on',
-            automaticLayout: true,
-            formatOnPaste: true,
-            formatOnType: true,
-            folding: true,
-            foldingStrategy: 'indentation'
-          }}
-        />
       </div>
     </div>
   );

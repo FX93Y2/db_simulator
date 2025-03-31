@@ -145,15 +145,21 @@ def get_project_db_config(project_id):
 def save_project_db_config(project_id):
     """Save database configuration for a project"""
     try:
+        logger.info(f"Received request to save DB config for project {project_id}")
         data = request.json
+        logger.debug(f"Request data: {data}")
+        
         if not data or not data.get('content'):
+            logger.warning("Missing required fields in request")
             return jsonify({"success": False, "error": "Missing required fields"}), 400
             
         # Check if project exists
         project = config_manager.get_project(project_id)
         if not project:
+            logger.warning(f"Project not found: {project_id}")
             return jsonify({"success": False, "error": "Project not found"}), 404
             
+        logger.info(f"Saving DB config for project {project_id} ({project['name']})")
         config_id = config_manager.save_project_config(
             project_id,
             'database',
@@ -165,12 +171,16 @@ def save_project_db_config(project_id):
         # Get the newly created/updated config
         config = config_manager.get_config(config_id)
         
-        return jsonify({
+        response = {
             "success": True, 
             "config": config,
             "config_id": config_id,
             "message": "Database configuration saved successfully"
-        })
+        }
+        logger.info(f"DB config saved successfully with ID {config_id}")
+        logger.debug(f"Response: {response}")
+        
+        return jsonify(response)
     except Exception as e:
         logger.error(f"Error saving project DB config: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
@@ -206,15 +216,21 @@ def get_project_sim_config(project_id):
 def save_project_sim_config(project_id):
     """Save simulation configuration for a project"""
     try:
+        logger.info(f"Received request to save simulation config for project {project_id}")
         data = request.json
+        logger.debug(f"Request data: {data}")
+        
         if not data or not data.get('content'):
+            logger.warning("Missing required fields in request")
             return jsonify({"success": False, "error": "Missing required fields"}), 400
             
         # Check if project exists
         project = config_manager.get_project(project_id)
         if not project:
+            logger.warning(f"Project not found: {project_id}")
             return jsonify({"success": False, "error": "Project not found"}), 404
             
+        logger.info(f"Saving simulation config for project {project_id} ({project['name']})")
         config_id = config_manager.save_project_config(
             project_id,
             'simulation',
@@ -226,12 +242,16 @@ def save_project_sim_config(project_id):
         # Get the newly created/updated config
         config = config_manager.get_config(config_id)
         
-        return jsonify({
+        response = {
             "success": True, 
             "config": config,
             "config_id": config_id,
             "message": "Simulation configuration saved successfully"
-        })
+        }
+        logger.info(f"Simulation config saved successfully with ID {config_id}")
+        logger.debug(f"Response: {response}")
+        
+        return jsonify(response)
     except Exception as e:
         logger.error(f"Error saving project simulation config: {e}")
         return jsonify({"success": False, "error": str(e)}), 500

@@ -1,5 +1,1 @@
-"""
-API package for DB Simulator.
-"""
-
-__all__ = [] 
+ÿþ

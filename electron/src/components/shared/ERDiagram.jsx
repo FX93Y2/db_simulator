@@ -145,7 +145,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
   );
   
   return (
-    <div className="er-diagram-container" style={{ width: '100%', height: '600px' }}>
+    <div className="er-diagram-container" style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
