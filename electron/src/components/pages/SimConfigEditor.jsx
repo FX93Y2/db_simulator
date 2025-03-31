@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
+  Row,
+  Col,
   Form, 
   Button, 
-  Tab, 
-  Tabs, 
   Modal,
   Spinner,
   InputGroup
 } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
-import { FiSave, FiArrowLeft, FiPlay } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
 
 // Default template for a new simulation configuration
 const DEFAULT_SIM_CONFIG = `# Simulation Configuration Template
@@ -64,7 +64,7 @@ event_simulation:
             probability: 1.0
 `;
 
-const SimConfigEditor = () => {
+const SimConfigEditor = ({ projectId, isProjectTab }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
@@ -81,9 +81,24 @@ const SimConfigEditor = () => {
   // Load existing configuration if editing
   useEffect(() => {
     const loadConfig = async () => {
-      if (configId) {
-        try {
-          setLoading(true);
+      setLoading(true);
+      
+      try {
+        if (projectId) {
+          // If we have a projectId, try to load the project's simulation config
+          const result = await window.api.getProjectSimConfig(projectId);
+          if (result.success && result.config) {
+            setConfig(result.config);
+            setName(result.config.name || `${result.projectName} Simulation`);
+            setDescription(result.config.description || '');
+            setYamlContent(result.config.content);
+          } else {
+            // New simulation config for this project
+            setName(`${result.projectName || 'Project'} Simulation`);
+            setYamlContent(DEFAULT_SIM_CONFIG);
+          }
+        } else if (configId) {
+          // Load standalone config
           const result = await window.api.getConfig(configId);
           if (result.success) {
             setConfig(result.config);
@@ -91,23 +106,33 @@ const SimConfigEditor = () => {
             setDescription(result.config.description || '');
             setYamlContent(result.config.content);
           }
-        } catch (error) {
-          console.error('Error loading configuration:', error);
-        } finally {
-          setLoading(false);
+        } else {
+          // New standalone configuration
+          setYamlContent(DEFAULT_SIM_CONFIG);
         }
-      } else {
-        // New configuration
-        setYamlContent(DEFAULT_SIM_CONFIG);
+      } catch (error) {
+        console.error('Error loading configuration:', error);
+      } finally {
+        setLoading(false);
       }
     };
     
     // Load database configurations for run simulation modal
     const loadDbConfigs = async () => {
       try {
-        const result = await window.api.getConfigs('database');
-        if (result.success) {
-          setDbConfigs(result.configs || []);
+        if (projectId) {
+          // Get project's database config
+          const result = await window.api.getProjectDbConfig(projectId);
+          if (result.success && result.config) {
+            setDbConfigs([result.config]);
+            setSelectedDbConfig(result.config.id);
+          }
+        } else {
+          // Get all database configs
+          const result = await window.api.getConfigs('database');
+          if (result.success) {
+            setDbConfigs(result.configs || []);
+          }
         }
       } catch (error) {
         console.error('Error loading database configurations:', error);
@@ -116,11 +141,71 @@ const SimConfigEditor = () => {
     
     loadConfig();
     loadDbConfigs();
-  }, [configId]);
+  }, [configId, projectId]);
   
   // Handle YAML content changes
   const handleYamlChange = (content) => {
     setYamlContent(content);
+  };
+  
+  // Handle adding a new event
+  const handleAddEvent = () => {
+    try {
+      // Parse existing YAML
+      const yaml = require('js-yaml');
+      const parsedYaml = yaml.load(yamlContent) || {};
+      
+      // Ensure event_simulation structure exists
+      if (!parsedYaml.event_simulation) {
+        parsedYaml.event_simulation = {};
+      }
+      
+      if (!parsedYaml.event_simulation.event_sequence) {
+        parsedYaml.event_simulation.event_sequence = {};
+      }
+      
+      if (!parsedYaml.event_simulation.event_sequence.event_types) {
+        parsedYaml.event_simulation.event_sequence.event_types = [];
+      }
+      
+      // Generate a unique event name
+      const baseEventName = "NewEvent";
+      let eventName = baseEventName;
+      let counter = 1;
+      
+      while (parsedYaml.event_simulation.event_sequence.event_types.some(
+        event => event.name === eventName)) {
+        eventName = `${baseEventName}${counter}`;
+        counter++;
+      }
+      
+      // Add new event template
+      parsedYaml.event_simulation.event_sequence.event_types.push({
+        name: eventName,
+        duration: {
+          distribution: {
+            type: "normal",
+            mean: 5,
+            stddev: 1
+          }
+        },
+        resource_requirements: [
+          {
+            resource_table: "Resource",
+            value: "Type1",
+            count: 1
+          }
+        ]
+      });
+      
+      // Convert back to YAML
+      const updatedYaml = yaml.dump(parsedYaml, { lineWidth: 120 });
+      setYamlContent(updatedYaml);
+      
+    } catch (error) {
+      console.error('Error adding event:', error);
+      alert('Failed to add event. Please check that your YAML is valid.');
+    }
   };
   
   // Handle event flow diagram changes (not fully implemented)
@@ -131,7 +216,12 @@ const SimConfigEditor = () => {
   
   // Toggle save modal
   const handleSave = () => {
-    setShowSaveModal(true);
+    if (projectId && isProjectTab) {
+      // For project tabs, save directly without the modal
+      handleSaveConfig();
+    } else {
+      setShowSaveModal(true);
+    }
   };
   
   // Toggle run simulation modal
@@ -155,14 +245,14 @@ const SimConfigEditor = () => {
     try {
       setLoading(true);
       
-      if (!name) {
+      if (!name && !projectId) {
         alert('Please enter a name for the configuration');
         setLoading(false);
         return;
       }
       
       const configData = {
-        name,
+        name: name || 'Project Simulation',
         config_type: 'simulation',
         content: yamlContent,
         description
@@ -170,19 +260,37 @@ const SimConfigEditor = () => {
       
       let result;
       
-      if (configId && !saveAsNew) {
-        // Update existing configuration
+      if (projectId && isProjectTab) {
+        // Save as project simulation config
+        result = await window.api.saveProjectSimConfig(projectId, configData);
+        
+        if (result.success) {
+          // Just update locally in project tab mode
+          setConfig(result.config);
+        } else {
+          alert('Error saving configuration');
+        }
+      } else if (configId && !saveAsNew) {
+        // Update existing standalone configuration
         result = await window.api.updateConfig(configId, configData);
+        
+        if (result.success) {
+          // Close modal and navigate back to dashboard
+          handleCloseModal();
+          navigate('/');
+        }
       } else {
-        // Save as new configuration
+        // Save as new standalone configuration
         result = await window.api.saveConfig(configData);
+        
+        if (result.success) {
+          // Close modal and navigate to the new config
+          handleCloseModal();
+          navigate(`/sim-config/${result.config_id}`);
+        }
       }
       
-      if (result.success) {
-        // Close modal and navigate back to dashboard
-        handleCloseModal();
-        navigate('/dashboard');
-      } else {
+      if (!result.success) {
         alert('Error saving configuration');
       }
     } catch (error) {
@@ -206,7 +314,24 @@ const SimConfigEditor = () => {
       
       // First, save the current simulation configuration if needed
       let simConfigId = configId;
-      if (!simConfigId || saveAsNew) {
+      
+      if (projectId) {
+        // Save as project simulation config first
+        const saveResult = await window.api.saveProjectSimConfig(projectId, {
+          name: name || 'Project Simulation',
+          config_type: 'simulation',
+          content: yamlContent,
+          description
+        });
+        
+        if (!saveResult.success) {
+          alert('Error saving simulation configuration');
+          setLoading(false);
+          return;
+        }
+        
+        simConfigId = saveResult.config_id;
+      } else if (!simConfigId || saveAsNew) {
         if (!name) {
           alert('Please enter a name for the configuration');
           setLoading(false);
@@ -238,7 +363,14 @@ const SimConfigEditor = () => {
       if (result.success) {
         // Close modal and navigate to results
         handleCloseRunModal();
-        navigate(`/results/${encodeURIComponent(result.database_path)}`);
+        
+        if (projectId && isProjectTab) {
+          // In project context, navigate to project results tab
+          navigate(`/project/${projectId}/results/${encodeURIComponent(result.database_path)}`);
+        } else {
+          // Standalone navigation
+          navigate(`/results/${encodeURIComponent(result.database_path)}`);
+        }
       } else {
         alert('Error running simulation');
       }
@@ -250,45 +382,60 @@ const SimConfigEditor = () => {
     }
   };
   
+  // Navigate back based on context
+  const handleBack = () => {
+    if (projectId && isProjectTab) {
+      // In project tab context, stay in the current page
+      // The tab navigation will be handled by the parent component
+      return;
+    } else if (projectId) {
+      // Navigate back to project page
+      navigate(`/project/${projectId}`);
+    } else {
+      // Navigate back to dashboard
+      navigate('/');
+    }
+  };
+  
   return (
     <div className="sim-config-editor">
-      <div className="mb-4 d-flex justify-content-between align-items-center">
-        <div className="d-flex align-items-center">
-          <Button 
-            variant="outline-secondary" 
-            className="me-3"
-            onClick={() => navigate('/dashboard')}
-          >
-            <FiArrowLeft /> Back
-          </Button>
-          <h2 className="mb-0">
-            {configId ? `Edit Simulation Configuration: ${name}` : 'New Simulation Configuration'}
-          </h2>
+      {!isProjectTab && (
+        <div className="mb-4 d-flex justify-content-between align-items-center">
+          <div className="d-flex align-items-center">
+            <Button 
+              variant="outline-secondary" 
+              className="me-3"
+              onClick={handleBack}
+            >
+              <FiArrowLeft /> Back
+            </Button>
+            <h2 className="mb-0">
+              {configId ? `Edit Simulation Configuration: ${name}` : 'New Simulation Configuration'}
+            </h2>
+          </div>
+          <div>
+            <Button 
+              variant="success" 
+              className="me-2"
+              onClick={handleRun}
+              disabled={loading}
+            >
+              <FiPlay /> Run Simulation
+            </Button>
+            <Button 
+              variant="primary" 
+              onClick={handleSave}
+              disabled={loading}
+            >
+              <FiSave /> Save
+            </Button>
+          </div>
         </div>
-        <div>
-          <Button 
-            variant="success" 
-            className="me-2"
-            onClick={handleRun}
-            disabled={loading}
-          >
-            <FiPlay /> Run Simulation
-          </Button>
-          <Button 
-            variant="primary" 
-            onClick={handleSave}
-            disabled={loading}
-          >
-            <FiSave /> Save
-          </Button>
-        </div>
-      </div>
+      )}
       
-      <Tabs 
-        defaultActiveKey="editor" 
-        className="mb-4"
-      >
-        <Tab eventKey="editor" title="YAML Editor">
+      <Row className="editor-container-split">
+        <Col md={4} className="editor-yaml-panel">
+          <div className="panel-header">YAML Editor</div>
           {loading && !yamlContent ? (
             <div className="text-center py-5">
               <Spinner animation="border" />
@@ -300,8 +447,21 @@ const SimConfigEditor = () => {
               onSave={handleYamlChange} 
             />
           )}
-        </Tab>
-        <Tab eventKey="flow" title="Event Flow">
+        </Col>
+        
+        <Col md={8} className="editor-canvas-panel">
+          <div className="canvas-header d-flex justify-content-between align-items-center">
+            <div>Event Flow</div>
+            <Button 
+              variant="primary" 
+              size="sm"
+              onClick={handleAddEvent}
+              disabled={loading}
+            >
+              <FiPlus /> Add Event
+            </Button>
+          </div>
+          
           {loading ? (
             <div className="text-center py-5">
               <Spinner animation="border" />
@@ -313,10 +473,10 @@ const SimConfigEditor = () => {
               onDiagramChange={handleDiagramChange} 
             />
           )}
-        </Tab>
-      </Tabs>
+        </Col>
+      </Row>
       
-      {/* Save Configuration Modal */}
+      {/* Save Configuration Modal - only used for standalone configurations */}
       <Modal show={showSaveModal} onHide={handleCloseModal}>
         <Modal.Header closeButton>
           <Modal.Title>Save Simulation Configuration</Modal.Title>
@@ -382,6 +542,7 @@ const SimConfigEditor = () => {
                 value={selectedDbConfig} 
                 onChange={(e) => setSelectedDbConfig(e.target.value)}
                 required
+                disabled={projectId && dbConfigs.length === 1}
               >
                 <option value="">Select a database configuration</option>
                 {dbConfigs.map(config => (
@@ -391,10 +552,12 @@ const SimConfigEditor = () => {
                 ))}
               </Form.Select>
               <Form.Text className="text-muted">
-                Select the database configuration to use for this simulation
+                {projectId ? 
+                  "Using the project's database configuration" : 
+                  "Select the database configuration to use for this simulation"}
               </Form.Text>
             </Form.Group>
-            {!configId && (
+            {!projectId && !configId && (
               <>
                 <hr />
                 <p>The simulation configuration will be saved before running.</p>
@@ -420,7 +583,7 @@ const SimConfigEditor = () => {
                 </Form.Group>
               </>
             )}
-            {configId && (
+            {configId && !projectId && (
               <Form.Group className="mb-3">
                 <Form.Check 
                   type="checkbox" 

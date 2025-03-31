@@ -1,18 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { 
   Row, 
   Col, 
   Form, 
   Button, 
-  Tab, 
-  Tabs, 
   Modal,
   Spinner 
 } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
-import { FiSave, FiArrowLeft } from 'react-icons/fi';
+import { FiSave, FiPlus } from 'react-icons/fi';
 
 // Default template for a new database configuration
 const DEFAULT_DB_CONFIG = `# Database Configuration Template
@@ -29,9 +27,8 @@ entities:
           method: name
 `;
 
-const DbConfigEditor = () => {
+const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   const { configId } = useParams();
-  const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
   const [name, setName] = useState('');
@@ -40,32 +37,81 @@ const DbConfigEditor = () => {
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
   
-  // Load existing configuration if editing
+  // Load existing configuration or create new one for the project
   useEffect(() => {
     const loadConfig = async () => {
-      if (configId) {
-        try {
-          setLoading(true);
-          const result = await window.api.getConfig(configId);
-          if (result.success) {
-            setConfig(result.config);
-            setName(result.config.name);
-            setDescription(result.config.description || '');
-            setYamlContent(result.config.content);
-          }
-        } catch (error) {
-          console.error('Error loading configuration:', error);
-        } finally {
-          setLoading(false);
+      try {
+        setLoading(true);
+        
+        if (projectId === 'new') {
+          // For a new project, set default config
+          setYamlContent(DEFAULT_DB_CONFIG);
+          setName('New Project - Database');
+          return;
         }
-      } else {
-        // New configuration
+        
+        // Try to load the database config for this project
+        const result = await window.api.getProjectDbConfig(projectId);
+        
+        if (result && result.success && result.config) {
+          setConfig(result.config);
+          // Add a fallback for name in case it's null
+          setName(result.config.name || `Project Database Configuration`);
+          setDescription(result.config.description || '');
+          setYamlContent(result.config.content || DEFAULT_DB_CONFIG);
+        } else {
+          // No existing config found, set default
+          setYamlContent(DEFAULT_DB_CONFIG);
+          setName(`Project Database Configuration`);
+        }
+      } catch (error) {
+        console.error('Error loading configuration:', error);
+        // Set defaults in case of error
         setYamlContent(DEFAULT_DB_CONFIG);
+        setName(`Project Database Configuration`);
+      } finally {
+        setLoading(false);
       }
     };
     
-    loadConfig();
-  }, [configId]);
+    if (projectId) {
+      loadConfig();
+    } else if (configId) {
+      // Legacy support for direct config loading by ID
+      loadConfigById();
+    } else {
+      // Completely new configuration outside project context
+      setYamlContent(DEFAULT_DB_CONFIG);
+      setName('New Database Configuration');
+    }
+  }, [projectId, configId]);
+  
+  // Legacy method to load config directly by ID
+  const loadConfigById = async () => {
+    if (!configId) return;
+    
+    try {
+      setLoading(true);
+      const result = await window.api.getConfig(configId);
+      if (result && result.success && result.config) {
+        setConfig(result.config);
+        setName(result.config.name || 'Database Configuration');
+        setDescription(result.config.description || '');
+        setYamlContent(result.config.content || DEFAULT_DB_CONFIG);
+      } else {
+        // Handle error case
+        setYamlContent(DEFAULT_DB_CONFIG);
+        setName('Database Configuration');
+      }
+    } catch (error) {
+      console.error('Error loading configuration by ID:', error);
+      // Set defaults in error case
+      setYamlContent(DEFAULT_DB_CONFIG);
+      setName('Database Configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   // Handle YAML content changes
   const handleYamlChange = (content) => {
@@ -78,9 +124,67 @@ const DbConfigEditor = () => {
     console.log('Diagram changed:', schema);
   };
   
-  // Toggle save modal
+  // Handle adding a new table
+  const handleAddTable = () => {
+    try {
+      // Parse existing YAML
+      const yaml = require('js-yaml');
+      const parsedYaml = yaml.load(yamlContent) || {};
+      
+      // Ensure entities array exists
+      if (!parsedYaml.entities) {
+        parsedYaml.entities = [];
+      }
+      
+      // Generate a unique table name
+      const baseTableName = "NewTable";
+      let tableName = baseTableName;
+      let counter = 1;
+      
+      while (parsedYaml.entities.some(entity => entity.name === tableName)) {
+        tableName = `${baseTableName}${counter}`;
+        counter++;
+      }
+      
+      // Add new table template
+      parsedYaml.entities.push({
+        name: tableName,
+        rows: 100,
+        attributes: [
+          {
+            name: "id",
+            type: "pk"
+          },
+          {
+            name: "name",
+            type: "string",
+            generator: {
+              type: "faker",
+              method: "name"
+            }
+          }
+        ]
+      });
+      
+      // Convert back to YAML
+      const updatedYaml = yaml.dump(parsedYaml, { lineWidth: 120 });
+      setYamlContent(updatedYaml);
+      
+    } catch (error) {
+      console.error('Error adding table:', error);
+      alert('Failed to add table. Please check that your YAML is valid.');
+    }
+  };
+  
+  // Save configuration
   const handleSave = () => {
-    setShowSaveModal(true);
+    // If we're in project context, auto-save
+    if (projectId && isProjectTab) {
+      handleSaveConfig();
+    } else {
+      // Otherwise show modal
+      setShowSaveModal(true);
+    }
   };
   
   // Close save modal
@@ -104,23 +208,35 @@ const DbConfigEditor = () => {
         name,
         config_type: 'database',
         content: yamlContent,
-        description
+        description,
+        project_id: projectId
       };
       
       let result;
       
-      if (configId && !saveAsNew) {
+      if (projectId && isProjectTab) {
+        // Save within project context
+        result = await window.api.saveProjectDbConfig(projectId, configData);
+      } else if (config && !saveAsNew) {
         // Update existing configuration
-        result = await window.api.updateConfig(configId, configData);
+        result = await window.api.updateConfig(config.id, configData);
       } else {
         // Save as new configuration
         result = await window.api.saveConfig(configData);
       }
       
       if (result.success) {
-        // Close modal and navigate back to dashboard
-        handleCloseModal();
-        navigate('/dashboard');
+        // Close modal if showing
+        if (showSaveModal) {
+          handleCloseModal();
+        }
+        
+        if (result.config) {
+          setConfig(result.config);
+        }
+        
+        // Show save confirmation
+        alert('Configuration saved successfully');
       } else {
         alert('Error saving configuration');
       }
@@ -132,19 +248,68 @@ const DbConfigEditor = () => {
     }
   };
   
+  // In project tab mode, we don't show the header and back button
+  const renderEditor = () => (
+    <Row className="editor-container-split">
+      <Col md={4} className="editor-yaml-panel">
+        <div className="panel-header">YAML Editor</div>
+        {loading && !yamlContent ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+            <div className="mt-2">Loading configuration...</div>
+          </div>
+        ) : (
+          <YamlEditor 
+            initialValue={yamlContent} 
+            onSave={handleYamlChange} 
+          />
+        )}
+      </Col>
+      
+      <Col md={8} className="editor-canvas-panel">
+        <div className="canvas-header d-flex justify-content-between align-items-center">
+          <div>ER Diagram</div>
+          <Button 
+            variant="primary" 
+            size="sm"
+            onClick={handleAddTable}
+            disabled={loading}
+          >
+            <FiPlus /> Add Table
+          </Button>
+        </div>
+        
+        {loading ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+            <div className="mt-2">Loading diagram...</div>
+          </div>
+        ) : (
+          <ERDiagram 
+            yamlContent={yamlContent} 
+            onDiagramChange={handleDiagramChange} 
+          />
+        )}
+      </Col>
+    </Row>
+  );
+  
+  // If part of a project tab, return just the editor
+  if (isProjectTab) {
+    return (
+      <div className="db-config-editor">
+        {renderEditor()}
+      </div>
+    );
+  }
+  
+  // Otherwise return the full standalone page
   return (
     <div className="db-config-editor">
       <div className="mb-4 d-flex justify-content-between align-items-center">
         <div className="d-flex align-items-center">
-          <Button 
-            variant="outline-secondary" 
-            className="me-3"
-            onClick={() => navigate('/dashboard')}
-          >
-            <FiArrowLeft /> Back
-          </Button>
           <h2 className="mb-0">
-            {configId ? `Edit Database Configuration: ${name}` : 'New Database Configuration'}
+            {config ? `Edit Database Configuration: ${name}` : 'New Database Configuration'}
           </h2>
         </div>
         <Button 
@@ -156,37 +321,7 @@ const DbConfigEditor = () => {
         </Button>
       </div>
       
-      <Tabs 
-        defaultActiveKey="editor" 
-        className="mb-4"
-      >
-        <Tab eventKey="editor" title="YAML Editor">
-          {loading && !yamlContent ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading configuration...</div>
-            </div>
-          ) : (
-            <YamlEditor 
-              initialValue={yamlContent} 
-              onSave={handleYamlChange} 
-            />
-          )}
-        </Tab>
-        <Tab eventKey="diagram" title="ER Diagram">
-          {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading diagram...</div>
-            </div>
-          ) : (
-            <ERDiagram 
-              yamlContent={yamlContent} 
-              onDiagramChange={handleDiagramChange} 
-            />
-          )}
-        </Tab>
-      </Tabs>
+      {renderEditor()}
       
       {/* Save Configuration Modal */}
       <Modal show={showSaveModal} onHide={handleCloseModal}>
@@ -215,7 +350,7 @@ const DbConfigEditor = () => {
                 placeholder="Optional description"
               />
             </Form.Group>
-            {configId && (
+            {config && (
               <Form.Group className="mb-3">
                 <Form.Check 
                   type="checkbox" 

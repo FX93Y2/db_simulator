@@ -72,9 +72,11 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
               if (attr.type === 'fk' && attr.ref) {
                 const [targetEntity] = attr.ref.split('.');
                 relationEdges.push({
-                  id: `${entity.name}-${attr.name}-${targetEntity}`,
+                  id: `${entity.name}-${targetEntity}`,
                   source: entity.name,
+                  sourceHandle: `${entity.name}-output`,
                   target: targetEntity,
+                  targetHandle: `${targetEntity}-input`,
                   animated: true,
                   style: { stroke: '#3498db' },
                   label: attr.name,
@@ -95,14 +97,27 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
   // Handle connecting nodes
   const onConnect = useCallback(
     (params) => {
+      // Validate connection params
+      if (!params.source || !params.target) {
+        console.error('Invalid connection params:', params);
+        return;
+      }
+      
       // When a connection is made, we need to update the YAML
       const newEdge = { 
         ...params, 
+        id: `${params.source}-${params.target}`,
         animated: true,
         style: { stroke: '#3498db' }, 
       };
       
       setEdges((eds) => addEdge(newEdge, eds));
+      
+      // Only proceed if dbSchema exists
+      if (!dbSchema || !dbSchema.entities) {
+        console.error('No schema available for edge creation');
+        return;
+      }
       
       // Find the source and target entities
       const sourceEntity = dbSchema.entities.find(e => e.name === params.source);
@@ -130,7 +145,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
   );
   
   return (
-    <div className="er-diagram-container">
+    <div className="er-diagram-container" style={{ width: '100%', height: '600px' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

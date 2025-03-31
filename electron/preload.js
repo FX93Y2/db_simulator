@@ -4,7 +4,20 @@ const { contextBridge, ipcRenderer } = require('electron');
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
   'api', {
-    // Configuration Management
+    // Project Management
+    getProjects: () => ipcRenderer.invoke('api:getProjects'),
+    getProject: (projectId) => ipcRenderer.invoke('api:getProject', projectId),
+    createProject: (projectData) => ipcRenderer.invoke('api:createProject', projectData),
+    updateProject: (projectId, projectData) => ipcRenderer.invoke('api:updateProject', projectId, projectData),
+    deleteProject: (projectId) => ipcRenderer.invoke('api:deleteProject', projectId),
+    
+    // Project Configuration Management
+    getProjectDbConfig: (projectId) => ipcRenderer.invoke('api:getProjectDbConfig', projectId),
+    saveProjectDbConfig: (projectId, configData) => ipcRenderer.invoke('api:saveProjectDbConfig', projectId, configData),
+    getProjectSimConfig: (projectId) => ipcRenderer.invoke('api:getProjectSimConfig', projectId),
+    saveProjectSimConfig: (projectId, configData) => ipcRenderer.invoke('api:saveProjectSimConfig', projectId, configData),
+    
+    // Standalone Configuration Management
     getConfigs: (configType) => ipcRenderer.invoke('api:getConfigs', configType),
     getConfig: (configId) => ipcRenderer.invoke('api:getConfig', configId),
     saveConfig: (configData) => ipcRenderer.invoke('api:saveConfig', configData),
@@ -17,5 +30,15 @@ contextBridge.exposeInMainWorld(
     // Simulation
     runSimulation: (data) => ipcRenderer.invoke('api:runSimulation', data),
     generateAndSimulate: (data) => ipcRenderer.invoke('api:generateAndSimulate', data),
+    
+    // Results Management
+    getSimulationResults: (databasePath) => ipcRenderer.invoke('api:getSimulationResults', databasePath),
+    getDatabaseTables: (databasePath) => ipcRenderer.invoke('api:getDatabaseTables', databasePath),
+    getTableData: (params) => ipcRenderer.invoke('api:getTableData', params),
+    exportDatabaseToCSV: (databasePath) => ipcRenderer.invoke('api:exportDatabaseToCSV', databasePath),
+    
+    // File Management
+    openFile: (filePath) => ipcRenderer.invoke('api:openFile', filePath),
+    saveFile: (filePath, content) => ipcRenderer.invoke('api:saveFile', filePath, content)
   }
 ); 

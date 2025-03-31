@@ -1,57 +1,68 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
+  Row, 
+  Col, 
+  Card, 
   Button, 
-  Table, 
+  Spinner, 
   Form, 
   Tabs, 
   Tab, 
-  Spinner,
-  Modal,
-  InputGroup
+  Table
 } from 'react-bootstrap';
-import { FiArrowLeft, FiDownload, FiPlus, FiEdit2, FiSave } from 'react-icons/fi';
+import { 
+  FiArrowLeft, 
+  FiDatabase, 
+  FiList, 
+  FiBarChart2, 
+  FiDownload
+} from 'react-icons/fi';
+import ChartView from '../shared/ChartView';
+import {
+  getSimulationSummary,
+  getDatabaseTables,
+  getTableData,
+  exportDatabaseToCSV
+} from '../../utils/resultsApi';
 
-// In a real implementation, this would use SQL.js to interact with the SQLite database
-// This is a simplified version for demo purposes
-
-const ResultsViewer = () => {
-  const { dbPath } = useParams();
+const ResultsViewer = ({ projectId, isProjectTab }) => {
+  const { databasePath } = useParams();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [tables, setTables] = useState([]);
-  const [currentTable, setCurrentTable] = useState('');
-  const [tableData, setTableData] = useState({ columns: [], rows: [] });
-  const [showAddColumnModal, setShowAddColumnModal] = useState(false);
-  const [newColumnName, setNewColumnName] = useState('');
-  const [newColumnType, setNewColumnType] = useState('TEXT');
-  const [newColumnFormula, setNewColumnFormula] = useState('');
   
-  // Load database tables on component mount
+  const [loading, setLoading] = useState(true);
+  const [results, setResults] = useState(null);
+  const [tables, setTables] = useState([]);
+  const [selectedTable, setSelectedTable] = useState('');
+  const [tableData, setTableData] = useState([]);
+  const [tableColumns, setTableColumns] = useState([]);
+  const [selectedView, setSelectedView] = useState('table'); // 'table' or 'chart'
+  const [chartConfiguration, setChartConfiguration] = useState({
+    chartType: 'line',
+    xAxis: '',
+    yAxis: '',
+    groupBy: ''
+  });
+  
+  // Load database info and tables
   useEffect(() => {
     const loadDatabaseInfo = async () => {
+      if (!databasePath) return;
+      
       try {
         setLoading(true);
         
-        if (!dbPath) {
-          return;
+        // Get basic info about the simulation results
+        const resultInfo = await getSimulationSummary(decodeURIComponent(databasePath));
+        if (resultInfo.success) {
+          setResults(resultInfo.data);
         }
         
-        // In a real implementation, this would fetch the actual database schema
-        // For now, we'll simulate loading tables from a database
-        
-        // Simulated tables based on our knowledge of the schema
-        const simulatedTables = [
-          'Project',
-          'Deliverable',
-          'Consultant',
-          'SimulationEvent',
-          'ResourceAllocation'
-        ];
-        
-        setTables(simulatedTables);
-        if (simulatedTables.length > 0) {
-          setCurrentTable(simulatedTables[0]);
+        // Get list of tables in the database
+        const tablesResult = await getDatabaseTables(decodeURIComponent(databasePath));
+        if (tablesResult.success && tablesResult.tables.length > 0) {
+          setTables(tablesResult.tables);
+          setSelectedTable(tablesResult.tables[0]);
         }
       } catch (error) {
         console.error('Error loading database info:', error);
@@ -61,83 +72,41 @@ const ResultsViewer = () => {
     };
     
     loadDatabaseInfo();
-  }, [dbPath]);
+  }, [databasePath]);
   
-  // Load table data when the current table changes
+  // Load table data when selected table changes
   useEffect(() => {
     const loadTableData = async () => {
-      if (!currentTable) return;
+      if (!selectedTable || !databasePath) return;
       
       try {
         setLoading(true);
         
-        // In a real implementation, this would execute an SQL query
-        // For now, we'll generate mock data based on the table name
+        // Get data for the selected table
+        const dataResult = await getTableData(
+          decodeURIComponent(databasePath),
+          selectedTable
+        );
         
-        let columns = [];
-        let rows = [];
-        
-        // Generate mock columns and data based on the selected table
-        switch (currentTable) {
-          case 'Project':
-            columns = ['id', 'name', 'created_at'];
-            rows = Array.from({ length: 10 }, (_, i) => ({
-              id: i + 1,
-              name: `Project ${i + 1}`,
-              created_at: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString()
-            }));
-            break;
+        if (dataResult.success) {
+          setTableData(dataResult.data || []);
+          
+          // Extract column names from the first row
+          if (dataResult.data && dataResult.data.length > 0) {
+            setTableColumns(Object.keys(dataResult.data[0]));
             
-          case 'Deliverable':
-            columns = ['id', 'project_id', 'name', 'type', 'status'];
-            rows = Array.from({ length: 30 }, (_, i) => ({
-              id: i + 1,
-              project_id: Math.floor(i / 3) + 1,
-              name: `Deliverable ${i + 1}`,
-              type: ['Requirements', 'Design', 'Implementation', 'Testing', 'Deployment'][i % 5],
-              status: ['Pending', 'In Progress', 'Completed'][Math.floor(Math.random() * 3)]
-            }));
-            break;
-            
-          case 'Consultant':
-            columns = ['id', 'name', 'email', 'role'];
-            rows = Array.from({ length: 15 }, (_, i) => ({
-              id: i + 1,
-              name: `Consultant ${i + 1}`,
-              email: `consultant${i + 1}@example.com`,
-              role: ['Developer', 'Tester', 'Tech Lead', 'Business Analyst'][i % 4]
-            }));
-            break;
-            
-          case 'SimulationEvent':
-            columns = ['id', 'entity_id', 'event_type', 'start_time', 'end_time', 'duration'];
-            rows = Array.from({ length: 50 }, (_, i) => ({
-              id: i + 1,
-              entity_id: Math.floor(i / 5) + 1,
-              event_type: ['Requirements', 'Design', 'Implementation', 'Testing', 'Deployment'][i % 5],
-              start_time: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-              end_time: new Date(Date.now() - Math.random() * 20 * 24 * 60 * 60 * 1000).toISOString(),
-              duration: Math.floor(Math.random() * 10) + 1
-            }));
-            break;
-            
-          case 'ResourceAllocation':
-            columns = ['id', 'event_id', 'resource_id', 'allocation_start', 'allocation_end'];
-            rows = Array.from({ length: 80 }, (_, i) => ({
-              id: i + 1,
-              event_id: Math.floor(i / 2) + 1,
-              resource_id: (i % 15) + 1,
-              allocation_start: new Date(Date.now() - Math.random() * 30 * 24 * 60 * 60 * 1000).toISOString(),
-              allocation_end: new Date(Date.now() - Math.random() * 20 * 24 * 60 * 60 * 1000).toISOString()
-            }));
-            break;
-            
-          default:
-            columns = ['id', 'name'];
-            rows = [];
+            // Set default chart configuration
+            if (Object.keys(dataResult.data[0]).length >= 2) {
+              setChartConfiguration({
+                ...chartConfiguration,
+                xAxis: Object.keys(dataResult.data[0])[0],
+                yAxis: Object.keys(dataResult.data[0])[1]
+              });
+            }
+          } else {
+            setTableColumns([]);
+          }
         }
-        
-        setTableData({ columns, rows });
       } catch (error) {
         console.error('Error loading table data:', error);
       } finally {
@@ -146,236 +115,270 @@ const ResultsViewer = () => {
     };
     
     loadTableData();
-  }, [currentTable]);
+  }, [selectedTable, databasePath]);
   
-  // Handle table selection change
+  // Handle table selection
   const handleTableChange = (e) => {
-    setCurrentTable(e.target.value);
+    setSelectedTable(e.target.value);
   };
   
-  // Handle export to CSV
-  const handleExport = () => {
-    if (!tableData.rows.length) return;
-    
-    try {
-      // Create CSV content
-      const headers = tableData.columns.join(',');
-      const rows = tableData.rows.map(row => {
-        return tableData.columns.map(col => {
-          // Ensure values with commas are quoted
-          const value = row[col]?.toString() || '';
-          return value.includes(',') ? `"${value}"` : value;
-        }).join(',');
-      }).join('\n');
-      
-      const csvContent = `${headers}\n${rows}`;
-      
-      // Create a blob and download link
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      
-      // Create a download link and trigger click
-      const link = document.createElement('a');
-      link.setAttribute('href', url);
-      link.setAttribute('download', `${currentTable}.csv`);
-      link.style.visibility = 'hidden';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-    } catch (error) {
-      console.error('Error exporting to CSV:', error);
-      alert('Error exporting to CSV');
-    }
-  };
-  
-  // Show add column modal
-  const handleAddColumn = () => {
-    setNewColumnName('');
-    setNewColumnType('TEXT');
-    setNewColumnFormula('');
-    setShowAddColumnModal(true);
-  };
-  
-  // Close add column modal
-  const handleCloseAddColumnModal = () => {
-    setShowAddColumnModal(false);
-  };
-  
-  // Add a new column
-  const handleSaveNewColumn = () => {
-    if (!newColumnName) {
-      alert('Please enter a column name');
-      return;
-    }
-    
-    // In a real implementation, this would execute an ALTER TABLE SQL command
-    // or generate a calculated column using SQL.js
-    
-    // For our mock implementation, add the column to our state
-    const columns = [...tableData.columns, newColumnName];
-    
-    // Generate values for the new column using the formula
-    // In a real implementation, this would evaluate the formula for each row
-    const rows = tableData.rows.map(row => {
-      // Simple mock implementation to simulate a formula calculation
-      let value;
-      
-      if (newColumnType === 'TEXT') {
-        value = `${newColumnName}_${row.id}`;
-      } else if (newColumnType === 'INTEGER') {
-        value = row.id * 10;
-      } else if (newColumnType === 'REAL') {
-        value = row.id * 1.5;
-      } else if (newColumnType === 'FORMULA') {
-        // In a real implementation, this would evaluate the formula
-        // For demo, just multiply id by 100 to simulate a calculation
-        value = row.id * 100;
-      }
-      
-      return { ...row, [newColumnName]: value };
+  // Handle chart configuration changes
+  const handleChartConfigChange = (field, value) => {
+    setChartConfiguration({
+      ...chartConfiguration,
+      [field]: value
     });
-    
-    setTableData({ columns, rows });
-    handleCloseAddColumnModal();
+  };
+  
+  // Handle exporting data
+  const handleExportData = async () => {
+    try {
+      setLoading(true);
+      const result = await exportDatabaseToCSV(decodeURIComponent(databasePath));
+      setLoading(false);
+      
+      if (result.success) {
+        alert(`Data exported successfully to ${result.exportPath}`);
+      } else {
+        alert('Failed to export data: ' + (result.error || 'Unknown error'));
+      }
+    } catch (error) {
+      setLoading(false);
+      console.error('Error exporting data:', error);
+      alert('Error exporting data');
+    }
+  };
+  
+  // Navigate back based on context
+  const handleBack = () => {
+    if (projectId && isProjectTab) {
+      // In project tab context, stay in the current page
+      // The tab navigation will be handled by the parent component
+      return;
+    } else if (projectId) {
+      // Navigate back to project page
+      navigate(`/project/${projectId}`);
+    } else {
+      // Navigate back to dashboard
+      navigate('/');
+    }
   };
   
   return (
     <div className="results-viewer">
-      <div className="mb-4 d-flex justify-content-between align-items-center">
-        <div className="d-flex align-items-center">
+      {!isProjectTab && (
+        <div className="mb-4 d-flex justify-content-between align-items-center">
+          <div className="d-flex align-items-center">
+            <Button 
+              variant="outline-secondary" 
+              className="me-3"
+              onClick={handleBack}
+            >
+              <FiArrowLeft /> Back
+            </Button>
+            <h2 className="mb-0">Simulation Results</h2>
+          </div>
           <Button 
-            variant="outline-secondary" 
-            className="me-3"
-            onClick={() => navigate('/dashboard')}
+            variant="success" 
+            onClick={handleExportData}
+            disabled={loading}
           >
-            <FiArrowLeft /> Back
+            <FiDownload /> Export Data
           </Button>
-          <h2 className="mb-0">Simulation Results</h2>
-        </div>
-        <div>
-          <Button 
-            variant="outline-primary" 
-            className="me-2"
-            onClick={handleExport}
-            disabled={!tableData.rows.length}
-          >
-            <FiDownload /> Export CSV
-          </Button>
-          <Button 
-            variant="outline-success" 
-            onClick={handleAddColumn}
-            disabled={!currentTable}
-          >
-            <FiPlus /> Add Column
-          </Button>
-        </div>
-      </div>
-      
-      <Form.Group className="mb-4">
-        <Form.Label>Select Table</Form.Label>
-        <Form.Select 
-          value={currentTable} 
-          onChange={handleTableChange}
-          disabled={loading || !tables.length}
-        >
-          {tables.map(table => (
-            <option key={table} value={table}>
-              {table}
-            </option>
-          ))}
-        </Form.Select>
-      </Form.Group>
-      
-      {loading ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" />
-          <div className="mt-2">Loading table data...</div>
-        </div>
-      ) : tableData.rows.length === 0 ? (
-        <div className="text-center py-5">
-          <p>No data available for this table.</p>
-        </div>
-      ) : (
-        <div className="table-responsive">
-          <Table className="results-table">
-            <thead>
-              <tr>
-                {tableData.columns.map(column => (
-                  <th key={column}>{column}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {tableData.rows.map((row, index) => (
-                <tr key={index}>
-                  {tableData.columns.map(column => (
-                    <td key={`${index}-${column}`}>
-                      {row[column] !== undefined ? String(row[column]) : ''}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </Table>
         </div>
       )}
       
-      {/* Add Column Modal */}
-      <Modal show={showAddColumnModal} onHide={handleCloseAddColumnModal}>
-        <Modal.Header closeButton>
-          <Modal.Title>Add New Column</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Column Name</Form.Label>
-              <Form.Control 
-                type="text" 
-                value={newColumnName} 
-                onChange={(e) => setNewColumnName(e.target.value)}
-                placeholder="Enter column name"
+      {loading && !results ? (
+        <div className="text-center py-5">
+          <Spinner animation="border" />
+          <div className="mt-2">Loading results...</div>
+        </div>
+      ) : (
+        <>
+          {results && (
+            <Card className="mb-4 dashboard-card">
+              <Card.Body>
+                <div className="dashboard-card__header">
+                  <h3>Simulation Summary</h3>
+                </div>
+                <div className="dashboard-card__content">
+                  <Row>
+                    <Col md={6}>
+                      <p><strong>Simulation ID:</strong> {results.simulationId || 'N/A'}</p>
+                      <p><strong>Run Date:</strong> {results.runDate || 'N/A'}</p>
+                      <p><strong>Duration:</strong> {results.duration || 'N/A'} days</p>
+                    </Col>
+                    <Col md={6}>
+                      <p><strong>Entities Generated:</strong> {results.entitiesCount || 0}</p>
+                      <p><strong>Events Processed:</strong> {results.eventsCount || 0}</p>
+                      <p><strong>Database:</strong> {databasePath ? decodeURIComponent(databasePath).split('/').pop() : 'N/A'}</p>
+                    </Col>
+                  </Row>
+                </div>
+              </Card.Body>
+            </Card>
+          )}
+          
+          <Form.Group className="mb-3">
+            <Form.Label><strong>Select Table</strong></Form.Label>
+            <Form.Select 
+              value={selectedTable} 
+              onChange={handleTableChange}
+              disabled={loading || tables.length === 0}
+            >
+              {tables.map(table => (
+                <option key={table} value={table}>{table}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+          
+          <div className="mb-3">
+            <Tabs
+              activeKey={selectedView}
+              onSelect={(key) => setSelectedView(key)}
+              className="mb-3"
+            >
+              <Tab 
+                eventKey="table" 
+                title={
+                  <span>
+                    <FiList className="me-2" />
+                    Table View
+                  </span>
+                }
               />
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Column Type</Form.Label>
-              <Form.Select 
-                value={newColumnType} 
-                onChange={(e) => setNewColumnType(e.target.value)}
-              >
-                <option value="TEXT">Text</option>
-                <option value="INTEGER">Integer</option>
-                <option value="REAL">Real (Decimal)</option>
-                <option value="FORMULA">Formula</option>
-              </Form.Select>
-            </Form.Group>
-            
-            {newColumnType === 'FORMULA' && (
-              <Form.Group className="mb-3">
-                <Form.Label>Formula</Form.Label>
-                <Form.Control 
-                  as="textarea" 
-                  rows={3}
-                  value={newColumnFormula}
-                  onChange={(e) => setNewColumnFormula(e.target.value)}
-                  placeholder="Enter formula (e.g. [column1] * 2 + [column2])"
-                />
-                <Form.Text className="text-muted">
-                  Use [columnName] to reference other columns.
-                </Form.Text>
-              </Form.Group>
-            )}
-          </Form>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseAddColumnModal}>
-            Cancel
-          </Button>
-          <Button variant="primary" onClick={handleSaveNewColumn}>
-            <FiSave /> Add Column
-          </Button>
-        </Modal.Footer>
-      </Modal>
+              <Tab 
+                eventKey="chart" 
+                title={
+                  <span>
+                    <FiBarChart2 className="me-2" />
+                    Chart View
+                  </span>
+                }
+              />
+            </Tabs>
+          </div>
+          
+          {selectedView === 'table' ? (
+            <div className="table-responsive">
+              {loading ? (
+                <div className="text-center py-4">
+                  <Spinner animation="border" size="sm" />
+                  <span className="ms-2">Loading table data...</span>
+                </div>
+              ) : tableData.length === 0 ? (
+                <div className="text-center py-4">
+                  <p>No data available in this table</p>
+                </div>
+              ) : (
+                <Table striped bordered hover className="results-table">
+                  <thead>
+                    <tr>
+                      {tableColumns.map(column => (
+                        <th key={column}>{column}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tableData.map((row, index) => (
+                      <tr key={index}>
+                        {tableColumns.map(column => (
+                          <td key={`${index}-${column}`}>
+                            {row[column] !== null && row[column] !== undefined ? String(row[column]) : 'null'}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </Table>
+              )}
+            </div>
+          ) : (
+            <div>
+              <Row className="mb-3">
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Chart Type</Form.Label>
+                    <Form.Select
+                      value={chartConfiguration.chartType}
+                      onChange={(e) => handleChartConfigChange('chartType', e.target.value)}
+                    >
+                      <option value="line">Line Chart</option>
+                      <option value="bar">Bar Chart</option>
+                      <option value="pie">Pie Chart</option>
+                      <option value="scatter">Scatter Plot</option>
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>X Axis</Form.Label>
+                    <Form.Select
+                      value={chartConfiguration.xAxis}
+                      onChange={(e) => handleChartConfigChange('xAxis', e.target.value)}
+                    >
+                      <option value="">Select X Axis</option>
+                      {tableColumns.map(column => (
+                        <option key={column} value={column}>{column}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Y Axis</Form.Label>
+                    <Form.Select
+                      value={chartConfiguration.yAxis}
+                      onChange={(e) => handleChartConfigChange('yAxis', e.target.value)}
+                    >
+                      <option value="">Select Y Axis</option>
+                      {tableColumns.map(column => (
+                        <option key={column} value={column}>{column}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group>
+                    <Form.Label>Group By</Form.Label>
+                    <Form.Select
+                      value={chartConfiguration.groupBy}
+                      onChange={(e) => handleChartConfigChange('groupBy', e.target.value)}
+                    >
+                      <option value="">No Grouping</option>
+                      {tableColumns.map(column => (
+                        <option key={column} value={column}>{column}</option>
+                      ))}
+                    </Form.Select>
+                  </Form.Group>
+                </Col>
+              </Row>
+              
+              <div className="chart-container" style={{ height: '400px' }}>
+                {loading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" />
+                    <div className="mt-2">Loading chart data...</div>
+                  </div>
+                ) : tableData.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p>No data available for chart</p>
+                  </div>
+                ) : !chartConfiguration.xAxis || !chartConfiguration.yAxis ? (
+                  <div className="text-center py-4">
+                    <p>Please select X and Y axis for the chart</p>
+                  </div>
+                ) : (
+                  <ChartView 
+                    data={tableData}
+                    config={chartConfiguration}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 };

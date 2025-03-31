@@ -33,23 +33,38 @@ body {
 
 // Header
 .app-header {
-  background-color: $primary-color;
-  color: white;
-  height: $header-height;
-  padding: 0 20px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  padding: 0;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   
   .app-title {
     font-size: 18px;
     font-weight: bold;
+    padding-left: 15px;
+    min-width: $sidebar-width;
   }
   
-  .app-actions {
-    display: flex;
-    gap: 10px;
+  .app-navigation {
+    .nav-link {
+      color: white;
+      padding: 0 15px;
+      height: $header-height;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      &.active {
+        background-color: rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+      }
+      
+      svg {
+        font-size: 16px;
+      }
+    }
   }
 }
 
@@ -59,27 +74,83 @@ body {
   background-color: white;
   border-right: 1px solid $border-color;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
   
-  .nav-link {
-    padding: 12px 20px;
-    color: $text-color;
+  .sidebar-header {
+    height: 60px;
+    padding: 0 15px;
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
+    border-bottom: 1px solid $border-color;
+  }
+  
+  .sidebar-loading {
+    padding: 20px;
+    color: #666;
+    text-align: center;
+  }
+  
+  .sidebar-projects {
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .no-projects {
+    padding: 20px 15px;
+    color: #999;
+    font-size: 13px;
+    font-style: italic;
+    text-align: center;
+  }
+  
+  .project-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid $border-color;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     
     &:hover {
-      background-color: rgba($primary-color, 0.1);
+      background-color: rgba($primary-color, 0.05);
     }
     
     &.active {
-      background-color: rgba($primary-color, 0.2);
-      color: $primary-color;
-      font-weight: bold;
+      background-color: rgba($primary-color, 0.1);
       border-left: 3px solid $primary-color;
     }
     
-    svg {
-      font-size: 18px;
+    .project-item-content {
+      flex: 1;
+      cursor: pointer;
+    }
+    
+    .project-item-name {
+      font-weight: 500;
+      margin-bottom: 3px;
+    }
+    
+    .project-item-date {
+      font-size: 12px;
+      color: #666;
+    }
+    
+    .project-delete-btn {
+      visibility: hidden;
+      padding: 2px 6px;
+      margin-left: 8px;
+      opacity: 0.7;
+      
+      &:hover {
+        opacity: 1;
+      }
+    }
+    
+    &:hover .project-delete-btn {
+      visibility: visible;
     }
   }
 }
@@ -89,6 +160,132 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+}
+
+// Welcome Page
+.welcome-page {
+  height: calc(100vh - 120px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  .welcome-card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 40px;
+    text-align: center;
+    max-width: 600px;
+  }
+  
+  .welcome-icon {
+    color: $primary-color;
+    margin-bottom: 20px;
+  }
+}
+
+// Project Page
+.project-page {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+  
+  .project-header {
+    padding: 0 0 10px 0;
+  }
+  
+  .project-tabs-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    
+    .project-tabs {
+      border-bottom: 1px solid $border-color;
+      
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        
+        svg {
+          font-size: 16px;
+        }
+      }
+    }
+    
+    .project-tab-content {
+      flex: 1;
+      overflow: hidden;
+      
+      .tab-pane {
+        height: 100%;
+      }
+    }
+  }
+}
+
+// Editor Split Layout
+.editor-container-split {
+  height: calc(100vh - 160px);
+  margin: 0;
+  
+  .editor-yaml-panel {
+    height: 100%;
+    padding: 0;
+    border-right: 1px solid $border-color;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    
+    .panel-header {
+      padding: 10px 15px;
+      font-weight: 600;
+      border-bottom: 1px solid $border-color;
+      background-color: #f5f5f5;
+    }
+    
+    .editor-container {
+      flex: 1;
+      height: calc(100% - 41px);
+      border: none;
+      border-radius: 0;
+    }
+  }
+  
+  .editor-canvas-panel {
+    height: 100%;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    
+    .canvas-header {
+      padding: 10px 15px;
+      font-weight: 600;
+      border-bottom: 1px solid $border-color;
+      background-color: #f5f5f5;
+    }
+    
+    .er-diagram-container,
+    .event-flow-container {
+      flex: 1;
+      height: calc(100% - 41px);
+      border: none;
+      border-radius: 0;
+    }
+  }
+}
+
+// Project-specific editor adjustments
+.project-tab-content {
+  .db-config-editor,
+  .sim-config-editor {
+    height: 100%;
+    
+    .editor-container-split {
+      height: 100%;
+    }
+  }
 }
 
 // Cards
@@ -151,14 +348,6 @@ body {
     color: #666;
     font-size: 14px;
   }
-}
-
-// Monaco Editor
-.editor-container {
-  height: 500px;
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  overflow: hidden;
 }
 
 // ER Diagram

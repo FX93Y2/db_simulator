@@ -14,6 +14,9 @@ from src.generator import generate_database, generate_database_for_simulation
 from src.simulation.runner import run_simulation, run_simulation_from_config_dir
 from config_storage.config_db import ConfigManager
 
+# Import the API Blueprint
+from api.routes import api
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -23,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 # Initialize the Flask app
 app = Flask(__name__)
+
+# Register the API Blueprint
+app.register_blueprint(api, url_prefix='/api')
 
 # Initialize configuration manager
 config_manager = ConfigManager()

@@ -1,364 +1,691 @@
 """
-Configuration storage manager using SQLite database.
+Configuration Storage Manager using SQLite.
+This module provides an interface for saving and retrieving configurations.
 """
 
-import sqlite3
 import os
+import sqlite3
 import json
-import uuid
 import logging
-from pathlib import Path
+import uuid
+from datetime import datetime
+import yaml
 
+# Set up logging
 logger = logging.getLogger(__name__)
 
 class ConfigManager:
-    """SQLite-based configuration storage manager"""
+    """
+    Configuration storage manager using SQLite.
+    Handles database configurations, simulation configurations, and projects.
+    """
     
     def __init__(self, db_path=None):
         """
-        Initialize the configuration database.
+        Initialize the configuration manager with the specified database path.
         
         Args:
             db_path (str, optional): Path to the SQLite database file.
-                If None, defaults to 'configs.db' in the config_storage directory.
+                                    If None, uses the default path.
         """
         if db_path is None:
-            # Use default location in the config_storage directory
+            # Get the directory of this file
             current_dir = os.path.dirname(os.path.abspath(__file__))
-            self.db_path = os.path.join(current_dir, 'configs.db')
-        else:
-            self.db_path = db_path
-            
-        # Create the database directory if it doesn't exist
-        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
+            db_path = os.path.join(current_dir, 'configs.db')
         
-        # Initialize the database
+        self.db_path = db_path
         self._init_db()
     
     def _init_db(self):
-        """Initialize the database schema if it doesn't exist"""
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Create configurations table
-            cursor.execute('''
-            CREATE TABLE IF NOT EXISTS configurations (
-                id TEXT PRIMARY KEY,
-                name TEXT NOT NULL,
-                config_type TEXT NOT NULL,
-                content TEXT NOT NULL,
-                description TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            ''')
-            
-            # Create trigger to update the updated_at timestamp
-            cursor.execute('''
-            CREATE TRIGGER IF NOT EXISTS update_timestamp 
-            AFTER UPDATE ON configurations
-            FOR EACH ROW
-            BEGIN
-                UPDATE configurations SET updated_at = CURRENT_TIMESTAMP 
-                WHERE id = OLD.id;
-            END
-            ''')
-            
-            conn.commit()
-            conn.close()
-            logger.info(f"Initialized configuration database at {self.db_path}")
-        except Exception as e:
-            logger.error(f"Error initializing configuration database: {e}")
-            raise
+        """Initialize the database schema if it doesn't exist."""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Check if the old configurations table exists and drop it
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='configurations'")
+        if cursor.fetchone():
+            logger.info("Dropping legacy 'configurations' table")
+            cursor.execute("DROP TABLE configurations")
+        
+        # Create tables if they don't exist
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS projects (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            description TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL
+        )
+        ''')
+        
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS configs (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            type TEXT NOT NULL,
+            content TEXT NOT NULL,
+            description TEXT,
+            project_id TEXT,
+            created_at TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+        )
+        ''')
+        
+        conn.commit()
+        conn.close()
     
-    def save_config(self, name, config_type, content, description=""):
+    # Project management methods
+    def create_project(self, name, description=""):
+        """
+        Create a new project.
+        
+        Args:
+            name (str): Project name
+            description (str, optional): Project description
+            
+        Returns:
+            str: The ID of the created project
+        """
+        project_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            INSERT INTO projects (id, name, description, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?)
+            ''',
+            (project_id, name, description, now, now)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Created project: {name} (ID: {project_id})")
+        return project_id
+    
+    def get_project(self, project_id):
+        """
+        Get a project by ID.
+        
+        Args:
+            project_id (str): Project ID
+            
+        Returns:
+            dict: Project data or None if not found
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id, name, description, created_at, updated_at
+            FROM projects
+            WHERE id = ?
+            ''',
+            (project_id,)
+        )
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'description': row[2],
+                'created_at': row[3],
+                'updated_at': row[4]
+            }
+        return None
+    
+    def get_all_projects(self):
+        """
+        Get all projects.
+        
+        Returns:
+            list: List of project dictionaries
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id, name, description, created_at, updated_at
+            FROM projects
+            ORDER BY updated_at DESC
+            '''
+        )
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        projects = []
+        for row in rows:
+            projects.append({
+                'id': row[0],
+                'name': row[1],
+                'description': row[2],
+                'created_at': row[3],
+                'updated_at': row[4]
+            })
+        
+        return projects
+    
+    def update_project(self, project_id, name=None, description=None):
+        """
+        Update a project.
+        
+        Args:
+            project_id (str): Project ID
+            name (str, optional): New project name
+            description (str, optional): New project description
+            
+        Returns:
+            bool: True if successful, False if project not found
+        """
+        project = self.get_project(project_id)
+        if not project:
+            return False
+        
+        now = datetime.now().isoformat()
+        
+        # Only update provided fields
+        updated_name = name if name is not None else project['name']
+        updated_description = description if description is not None else project['description']
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            UPDATE projects
+            SET name = ?, description = ?, updated_at = ?
+            WHERE id = ?
+            ''',
+            (updated_name, updated_description, now, project_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Updated project: {updated_name} (ID: {project_id})")
+        return True
+    
+    def delete_project(self, project_id):
+        """
+        Delete a project and all its associated configurations.
+        
+        Args:
+            project_id (str): Project ID
+            
+        Returns:
+            bool: True if successful, False if project not found
+        """
+        project = self.get_project(project_id)
+        if not project:
+            return False
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        # Delete associated configurations first
+        cursor.execute(
+            '''
+            DELETE FROM configs
+            WHERE project_id = ?
+            ''',
+            (project_id,)
+        )
+        
+        # Delete project
+        cursor.execute(
+            '''
+            DELETE FROM projects
+            WHERE id = ?
+            ''',
+            (project_id,)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Deleted project: {project['name']} (ID: {project_id})")
+        return True
+    
+    # Project configuration methods
+    def save_project_config(self, project_id, config_type, name, content, description=""):
+        """
+        Save a configuration for a project. If a config of the same type already exists for the project,
+        it will be updated instead of creating a new one.
+        
+        Args:
+            project_id (str): Project ID
+            config_type (str): Configuration type (database, simulation)
+            name (str): Configuration name
+            content (str): Configuration content
+            description (str, optional): Configuration description
+            
+        Returns:
+            str: The ID of the created or updated configuration
+        """
+        # Check if project exists
+        project = self.get_project(project_id)
+        if not project:
+            logger.error(f"Project not found: {project_id}")
+            raise ValueError(f"Project not found: {project_id}")
+        
+        # Find all configs of this type for the project
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id FROM configs
+            WHERE project_id = ? AND type = ?
+            ''',
+            (project_id, config_type)
+        )
+        
+        existing_configs = cursor.fetchall()
+        
+        if existing_configs:
+            # If there are multiple configs, keep only the most recently updated one
+            if len(existing_configs) > 1:
+                logger.warning(f"Found {len(existing_configs)} {config_type} configs for project {project_id}. Cleaning up duplicates.")
+                
+                # Get the most recently updated config
+                cursor.execute(
+                    '''
+                    SELECT id FROM configs
+                    WHERE project_id = ? AND type = ?
+                    ORDER BY updated_at DESC
+                    LIMIT 1
+                    ''',
+                    (project_id, config_type)
+                )
+                
+                latest_config_id = cursor.fetchone()[0]
+                
+                # Delete all but the most recent config
+                cursor.execute(
+                    '''
+                    DELETE FROM configs
+                    WHERE project_id = ? AND type = ? AND id != ?
+                    ''',
+                    (project_id, config_type, latest_config_id)
+                )
+                
+                conn.commit()
+                
+                # Use the remaining config as our existing config
+                config_id = latest_config_id
+            else:
+                # Just one config exists, use it
+                config_id = existing_configs[0][0]
+                
+            # Update the existing config
+            self.update_config(
+                config_id,
+                name,
+                config_type,
+                content,
+                description
+            )
+            
+            conn.close()
+            return config_id
+        else:
+            # No config exists, create a new one
+            conn.close()
+            return self.save_config(name, config_type, content, description, project_id)
+    
+    def get_project_config(self, project_id, config_type):
+        """
+        Get a configuration for a project by type.
+        
+        Args:
+            project_id (str): Project ID
+            config_type (str): Configuration type (database, simulation)
+            
+        Returns:
+            dict: Configuration data or None if not found
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id, name, type, content, description, project_id, created_at, updated_at
+            FROM configs
+            WHERE project_id = ? AND type = ?
+            ''',
+            (project_id, config_type)
+        )
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'type': row[2],
+                'content': row[3],
+                'description': row[4],
+                'project_id': row[5],
+                'created_at': row[6],
+                'updated_at': row[7]
+            }
+        return None
+    
+    def get_project_configs(self, project_id):
+        """
+        Get all configurations for a project.
+        
+        Args:
+            project_id (str): Project ID
+            
+        Returns:
+            list: List of configuration dictionaries
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id, name, type, content, description, project_id, created_at, updated_at
+            FROM configs
+            WHERE project_id = ?
+            ORDER BY updated_at DESC
+            ''',
+            (project_id,)
+        )
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        configs = []
+        for row in rows:
+            configs.append({
+                'id': row[0],
+                'name': row[1],
+                'type': row[2],
+                'content': row[3],
+                'description': row[4],
+                'project_id': row[5],
+                'created_at': row[6],
+                'updated_at': row[7]
+            })
+        
+        return configs
+    
+    # Standard configuration methods
+    def save_config(self, name, config_type, content, description="", project_id=None):
         """
         Save a new configuration.
         
         Args:
-            name (str): Name of the configuration
-            config_type (str): Type of configuration (e.g., 'database', 'simulation')
-            content (str): Configuration content (YAML or JSON string)
-            description (str, optional): Description of the configuration
+            name (str): Configuration name
+            config_type (str): Configuration type (database, simulation)
+            content (str): Configuration content
+            description (str, optional): Configuration description
+            project_id (str, optional): Associated project ID
             
         Returns:
-            str: The ID of the saved configuration
+            str: The ID of the created configuration
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            # Generate a unique ID
-            config_id = str(uuid.uuid4())
-            
-            # Convert content to string if it's not already
-            if not isinstance(content, str):
-                content = json.dumps(content)
-                
-            cursor.execute(
-                '''
-                INSERT INTO configurations (id, name, config_type, content, description)
-                VALUES (?, ?, ?, ?, ?)
-                ''',
-                (config_id, name, config_type, content, description)
-            )
-            
-            conn.commit()
-            conn.close()
-            logger.info(f"Saved configuration '{name}' with ID {config_id}")
-            return config_id
-        except Exception as e:
-            logger.error(f"Error saving configuration: {e}")
-            raise
+        config_id = str(uuid.uuid4())
+        now = datetime.now().isoformat()
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            INSERT INTO configs (id, name, type, content, description, project_id, created_at, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''',
+            (config_id, name, config_type, content, description, project_id, now, now)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Saved config: {name} (ID: {config_id}, Type: {config_type})")
+        return config_id
     
     def get_config(self, config_id):
         """
         Get a configuration by ID.
         
         Args:
-            config_id (str): The ID of the configuration to retrieve
+            config_id (str): Configuration ID
             
         Returns:
-            dict: The configuration as a dictionary, or None if not found
+            dict: Configuration data or None if not found
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row  # This enables column access by name
-            cursor = conn.cursor()
-            
-            cursor.execute(
-                '''
-                SELECT id, name, config_type, content, description, 
-                       created_at, updated_at
-                FROM configurations
-                WHERE id = ?
-                ''',
-                (config_id,)
-            )
-            
-            row = cursor.fetchone()
-            conn.close()
-            
-            if row:
-                return dict(row)
-            return None
-        except Exception as e:
-            logger.error(f"Error retrieving configuration: {e}")
-            raise
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            SELECT id, name, type, content, description, project_id, created_at, updated_at
+            FROM configs
+            WHERE id = ?
+            ''',
+            (config_id,)
+        )
+        
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            return {
+                'id': row[0],
+                'name': row[1],
+                'type': row[2],
+                'content': row[3],
+                'description': row[4],
+                'project_id': row[5],
+                'created_at': row[6],
+                'updated_at': row[7]
+            }
+        return None
     
     def get_all_configs(self, config_type=None):
         """
         Get all configurations, optionally filtered by type.
         
         Args:
-            config_type (str, optional): Filter by configuration type
+            config_type (str, optional): Configuration type (database, simulation)
             
         Returns:
             list: List of configuration dictionaries
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            
-            if config_type:
-                cursor.execute(
-                    '''
-                    SELECT id, name, config_type, description, created_at, updated_at
-                    FROM configurations
-                    WHERE config_type = ?
-                    ORDER BY updated_at DESC
-                    ''',
-                    (config_type,)
-                )
-            else:
-                cursor.execute(
-                    '''
-                    SELECT id, name, config_type, description, created_at, updated_at
-                    FROM configurations
-                    ORDER BY updated_at DESC
-                    '''
-                )
-            
-            rows = cursor.fetchall()
-            conn.close()
-            
-            # Convert rows to dictionaries (exclude content to reduce payload size)
-            return [dict(row) for row in rows]
-        except Exception as e:
-            logger.error(f"Error retrieving configurations: {e}")
-            raise
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        if config_type:
+            cursor.execute(
+                '''
+                SELECT id, name, type, content, description, project_id, created_at, updated_at
+                FROM configs
+                WHERE type = ?
+                ORDER BY updated_at DESC
+                ''',
+                (config_type,)
+            )
+        else:
+            cursor.execute(
+                '''
+                SELECT id, name, type, content, description, project_id, created_at, updated_at
+                FROM configs
+                ORDER BY updated_at DESC
+                '''
+            )
+        
+        rows = cursor.fetchall()
+        conn.close()
+        
+        configs = []
+        for row in rows:
+            configs.append({
+                'id': row[0],
+                'name': row[1],
+                'type': row[2],
+                'content': row[3],
+                'description': row[4],
+                'project_id': row[5],
+                'created_at': row[6],
+                'updated_at': row[7]
+            })
+        
+        return configs
     
     def update_config(self, config_id, name=None, config_type=None, content=None, description=None):
         """
         Update an existing configuration.
         
         Args:
-            config_id (str): The ID of the configuration to update
-            name (str, optional): New name
-            config_type (str, optional): New type
-            content (str, optional): New content
-            description (str, optional): New description
+            config_id (str): Configuration ID
+            name (str, optional): New configuration name
+            config_type (str, optional): New configuration type
+            content (str, optional): New configuration content
+            description (str, optional): New configuration description
             
         Returns:
-            bool: True if updated successfully, False if not found
+            bool: True if successful, False if configuration not found
         """
-        try:
-            # First check if the configuration exists
-            existing = self.get_config(config_id)
-            if not existing:
-                return False
-                
-            # Build the update query
-            update_fields = []
-            params = []
-            
-            if name is not None:
-                update_fields.append("name = ?")
-                params.append(name)
-                
-            if config_type is not None:
-                update_fields.append("config_type = ?")
-                params.append(config_type)
-                
-            if content is not None:
-                # Convert content to string if it's not already
-                if not isinstance(content, str):
-                    content = json.dumps(content)
-                update_fields.append("content = ?")
-                params.append(content)
-                
-            if description is not None:
-                update_fields.append("description = ?")
-                params.append(description)
-                
-            if not update_fields:
-                # No fields to update
-                return True
-                
-            # Add the config_id to params
-            params.append(config_id)
-            
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            
-            cursor.execute(
-                f'''
-                UPDATE configurations
-                SET {", ".join(update_fields)}
-                WHERE id = ?
-                ''',
-                params
-            )
-            
-            conn.commit()
-            conn.close()
-            
-            logger.info(f"Updated configuration with ID {config_id}")
-            return True
-        except Exception as e:
-            logger.error(f"Error updating configuration: {e}")
-            raise
+        config = self.get_config(config_id)
+        if not config:
+            return False
+        
+        now = datetime.now().isoformat()
+        
+        # Only update provided fields
+        updated_name = name if name is not None else config['name']
+        updated_type = config_type if config_type is not None else config['type']
+        updated_content = content if content is not None else config['content']
+        updated_description = description if description is not None else config['description']
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            UPDATE configs
+            SET name = ?, type = ?, content = ?, description = ?, updated_at = ?
+            WHERE id = ?
+            ''',
+            (updated_name, updated_type, updated_content, updated_description, now, config_id)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Updated config: {updated_name} (ID: {config_id}, Type: {updated_type})")
+        return True
     
     def delete_config(self, config_id):
         """
         Delete a configuration.
         
         Args:
-            config_id (str): The ID of the configuration to delete
+            config_id (str): Configuration ID
             
         Returns:
-            bool: True if deleted successfully, False if not found
+            bool: True if successful, False if configuration not found
         """
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
+        config = self.get_config(config_id)
+        if not config:
+            return False
+        
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(
+            '''
+            DELETE FROM configs
+            WHERE id = ?
+            ''',
+            (config_id,)
+        )
+        
+        conn.commit()
+        conn.close()
+        
+        logger.info(f"Deleted config: {config['name']} (ID: {config_id}, Type: {config['type']})")
+        return True
+    
+    def get_configs_by_type(self, config_type):
+        """
+        Get all configurations of a specific type.
+        
+        Args:
+            config_type (str): Configuration type
             
-            cursor.execute(
-                '''
-                DELETE FROM configurations
-                WHERE id = ?
-                ''',
-                (config_id,)
-            )
-            
-            deleted = cursor.rowcount > 0
-            conn.commit()
-            conn.close()
-            
-            if deleted:
-                logger.info(f"Deleted configuration with ID {config_id}")
-            else:
-                logger.warning(f"Attempted to delete non-existent configuration with ID {config_id}")
-                
-            return deleted
-        except Exception as e:
-            logger.error(f"Error deleting configuration: {e}")
-            raise
-            
+        Returns:
+            list: List of configuration dictionaries
+        """
+        return self.get_all_configs(config_type)
+    
     def import_from_file(self, file_path, config_type):
         """
         Import a configuration from a file.
         
         Args:
             file_path (str): Path to the configuration file
-            config_type (str): Type of configuration (e.g., 'database', 'simulation')
+            config_type (str): Configuration type
             
         Returns:
             str: The ID of the imported configuration
         """
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"File not found: {file_path}")
+        
+        # Extract file name without extension for config name
+        file_name = os.path.basename(file_path)
+        name, extension = os.path.splitext(file_name)
+        
+        with open(file_path, 'r') as f:
+            content = f.read()
+        
+        # Try to validate the YAML content
         try:
-            file_path = Path(file_path)
-            if not file_path.exists():
-                raise FileNotFoundError(f"Configuration file not found: {file_path}")
-                
-            # Read the file content
-            with open(file_path, 'r') as f:
-                content = f.read()
-                
-            # Use the filename (without extension) as the configuration name
-            name = file_path.stem
-            
-            # Save the configuration
-            return self.save_config(name, config_type, content)
+            yaml.safe_load(content)
         except Exception as e:
-            logger.error(f"Error importing configuration from file: {e}")
-            raise
-            
+            raise ValueError(f"Invalid YAML in file {file_path}: {e}")
+        
+        return self.save_config(name, config_type, content)
+    
     def export_to_file(self, config_id, output_dir):
         """
         Export a configuration to a file.
         
         Args:
-            config_id (str): The ID of the configuration to export
+            config_id (str): Configuration ID
             output_dir (str): Directory to save the file
             
         Returns:
             str: Path to the exported file
         """
-        try:
-            config = self.get_config(config_id)
-            if not config:
-                raise ValueError(f"Configuration not found with ID: {config_id}")
-                
-            # Create the output directory if it doesn't exist
-            output_path = Path(output_dir)
-            output_path.mkdir(parents=True, exist_ok=True)
-            
-            # Determine the file extension based on content
-            extension = '.yaml'
-            
-            # Generate the output filename
-            filename = f"{config['name']}{extension}"
-            file_path = output_path / filename
-            
-            # Write the configuration to file
-            with open(file_path, 'w') as f:
-                f.write(config['content'])
-                
-            logger.info(f"Exported configuration to {file_path}")
-            return str(file_path)
-        except Exception as e:
-            logger.error(f"Error exporting configuration to file: {e}")
-            raise 
+        config = self.get_config(config_id)
+        if not config:
+            raise ValueError(f"Configuration not found: {config_id}")
+        
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+        
+        # Create a safe filename from the config name
+        safe_name = ''.join(c if c.isalnum() else '_' for c in config['name'])
+        file_path = os.path.join(output_dir, f"{safe_name}.yaml")
+        
+        with open(file_path, 'w') as f:
+            f.write(config['content'])
+        
+        logger.info(f"Exported config: {config['name']} to {file_path}")
+        return file_path 
