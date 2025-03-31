@@ -15,7 +15,7 @@ entities:
           type: faker
           method: email
       - name: role 
-        type: string
+        type: resource_type # Column referenced by resource_type in sim config
         generator:
           type: distribution
           distribution:
@@ -24,7 +24,7 @@ entities:
             weights: [0.5, 0.2, 0.2, 0.1]  # Distribution of resource types
 
   - name: Project
-    rows: 30
+    rows: n/a
     attributes:
       - name: id
         type: pk
@@ -56,15 +56,11 @@ entities:
         generator:
           type: template
           template: "Deliverable_{id}"
-      - name: type      # Column referenced by entity_type in sim config
-        type: string
+      - name: type
+        type: event_type # Column referenced by event_type in sim config
         generator:
-          type: distribution
-          distribution:
-            type: choice
-            values: ["Requirements", "Design", "Design_Revision", "Development", "Testing", "Extended_Testing", "Deployment"]
-            weights: [0.15, 0.15, 0.1, 0.2, 0.2, 0.1, 0.1]
-            simulation_override: true  # Indicates this distribution can be overridden by simulation
+          type: simulation_event
+          values: ["Requirements", "Design", "Implementation", "Testing", "Deployment"]
 
 # Key Concepts:
 # 1. type/role columns define different entity/resource types that are matched

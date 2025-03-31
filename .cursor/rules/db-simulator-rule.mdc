@@ -1,0 +1,10 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# Your rule content
+if encountered any error, do not change yaml configuration
+- You can @ files here
+- You can use markdown but dont have to

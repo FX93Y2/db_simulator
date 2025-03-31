@@ -1,26 +1,21 @@
-/**
- * Preload script for Electron application.
- * Exposes specific functionality from main process to renderer.
- */
-
 const { contextBridge, ipcRenderer } = require('electron');
 
 // Expose protected methods that allow the renderer process to use
 // the ipcRenderer without exposing the entire object
 contextBridge.exposeInMainWorld(
   'api', {
-    // Configuration management
-    getConfigurations: () => ipcRenderer.invoke('get-configs'),
-    getConfiguration: (configId) => ipcRenderer.invoke('get-config', configId),
-    saveConfiguration: (config) => ipcRenderer.invoke('save-config', config),
-    updateConfiguration: (configId, config) => ipcRenderer.invoke('update-config', configId, config),
-    deleteConfiguration: (configId) => ipcRenderer.invoke('delete-config', configId),
+    // Configuration Management
+    getConfigs: (configType) => ipcRenderer.invoke('api:getConfigs', configType),
+    getConfig: (configId) => ipcRenderer.invoke('api:getConfig', configId),
+    saveConfig: (configData) => ipcRenderer.invoke('api:saveConfig', configData),
+    updateConfig: (configId, configData) => ipcRenderer.invoke('api:updateConfig', configId, configData),
+    deleteConfig: (configId) => ipcRenderer.invoke('api:deleteConfig', configId),
     
-    // Database operations
-    generateDatabase: (data) => ipcRenderer.invoke('generate-database', data),
+    // Database Generation
+    generateDatabase: (data) => ipcRenderer.invoke('api:generateDatabase', data),
     
-    // Simulation operations
-    runSimulation: (data) => ipcRenderer.invoke('run-simulation', data),
-    runDynamicSimulation: (data) => ipcRenderer.invoke('run-dynamic-simulation', data)
+    // Simulation
+    runSimulation: (data) => ipcRenderer.invoke('api:runSimulation', data),
+    generateAndSimulate: (data) => ipcRenderer.invoke('api:generateAndSimulate', data),
   }
 ); 

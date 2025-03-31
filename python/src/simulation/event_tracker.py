@@ -147,43 +147,36 @@ class EventTracker:
             conn.execute(stmt)
             conn.commit()
     
-    def record_resource_allocation(self, event_id: int, resource_table: str, resource_id: int,
-                                  allocation_time: float, release_time: float):
-        """
-        Record resource allocation
-        
-        Args:
-            event_id: Event ID
-            resource_table: Name of the resource table
-            resource_id: Resource ID
-            allocation_time: Allocation time in minutes
-            release_time: Release time in minutes
-        """
-        allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
-        release_datetime = self.start_date + timedelta(minutes=release_time)
-        
-        with self.engine.connect() as conn:
-            # Record in the resource allocations table
-            stmt = insert(self.resource_allocations).values(
-                event_id=event_id,
-                resource_table=resource_table,
-                resource_id=resource_id,
-                allocation_time=allocation_time,
-                release_time=release_time,
-                allocation_datetime=allocation_datetime,
-                release_datetime=release_datetime
-            )
-            conn.execute(stmt)
-            
-            # Only record in the bridging table if it's a Consultant resource
-            if resource_table == 'Consultant':
-                # Record in the Deliverable_Consultant bridging table
-                stmt = insert(self.deliverable_consultant).values(
-                    deliverable_id=event_id,
-                    consultant_id=resource_id,
-                    start_date=allocation_datetime,
-                    end_date=release_datetime
+    def record_resource_allocation(self, event_id, resource_table, resource_id, allocation_time, release_time=None):
+        """Record the allocation of a resource to an event."""
+        try:
+            allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
+            release_datetime = self.start_date + timedelta(minutes=release_time) if release_time else None
+
+            with self.engine.connect() as conn:
+                stmt = insert(self.resource_allocations).values(
+                    event_id=event_id,
+                    resource_table=resource_table,
+                    resource_id=resource_id,
+                    allocation_time=allocation_time,
+                    release_time=release_time,
+                    allocation_datetime=allocation_datetime,
+                    release_datetime=release_datetime
                 )
                 conn.execute(stmt)
-            
-            conn.commit() 
+                
+                # Also populate the Deliverable_Consultant table if the resource is a Consultant
+                if resource_table == 'Consultant':
+                    # Record in the Deliverable_Consultant bridging table
+                    stmt = insert(self.deliverable_consultant).values(
+                        deliverable_id=event_id,
+                        consultant_id=resource_id,
+                        start_date=allocation_datetime,
+                        end_date=release_datetime
+                    )
+                    conn.execute(stmt)
+                
+                # Move the commit inside the with block to ensure the transaction is committed before the connection is closed
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Error recording resource allocation: {e}") 

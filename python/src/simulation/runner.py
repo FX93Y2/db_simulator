@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 
-from python.src.config_parser import parse_sim_config
+from ..config_parser import parse_sim_config
 from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)
@@ -50,9 +50,9 @@ def ensure_simulation_tables(sim_config, db_path: Union[str, Path]):
     if not sim_config.event_simulation:
         return
         
-    entity_table = sim_config.event_simulation.entity_table
-    event_table = sim_config.event_simulation.event_table
-    relationship_column = sim_config.event_simulation.relationship_column
+    table_spec = sim_config.event_simulation.table_specification
+    entity_table = table_spec.entity_table
+    event_table = table_spec.event_table
     
     # Connect to the database
     from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, ForeignKey, inspect
@@ -81,7 +81,42 @@ def ensure_simulation_tables(sim_config, db_path: Union[str, Path]):
     
     # Create event table if it doesn't exist
     if event_table not in tables:
-        logger.info(f"Creating event table: {event_table}")
+        # Find the relationship column name (defaults to entity_table_id)
+        # Try to determine the relationship column from inspector
+        relationship_column = f"{entity_table.lower()}_id"  # Default fallback
+        
+        # Look for existing foreign keys
+        try:
+            fk_constraints = inspector.get_foreign_keys(event_table)
+            for fk in fk_constraints:
+                # Check if this FK references the entity table
+                if fk['referred_table'] == entity_table:
+                    # Assume there's only one column per FK
+                    if len(fk['constrained_columns']) > 0:
+                        relationship_column = fk['constrained_columns'][0]
+                        break
+        except Exception as e:
+            logger.warning(f"Could not determine relationship column from schema: {e}")
+        
+        # If no FK found, try common naming patterns
+        if relationship_column == f"{entity_table.lower()}_id":
+            # Try common naming patterns
+            table_name_singular = entity_table.rstrip('s')  # Remove trailing 's' if any
+            common_patterns = [
+                f"{entity_table}_id",
+                f"{entity_table}Id",
+                f"{table_name_singular}_id",
+                f"{table_name_singular}Id"
+            ]
+            
+            event_columns = [col['name'] for col in inspector.get_columns(event_table)]
+            
+            for pattern in common_patterns:
+                if pattern in event_columns:
+                    relationship_column = pattern
+                    break
+        
+        logger.info(f"Creating event table: {event_table} with relationship column: {relationship_column}")
         event_table_obj = Table(
             event_table, metadata,
             Column('id', Integer, primary_key=True),

@@ -6,9 +6,15 @@ This module defines the Flask routes for the Electron integration.
 from flask import Blueprint, request, jsonify
 import logging
 
-from python.src.generator import generate_database, generate_database_for_simulation
-from python.src.simulation.runner import run_simulation, run_simulation_from_config_dir
-from python.config_storage.config_db import ConfigManager
+import sys
+import os
+
+# Add parent directory to sys.path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.generator import generate_database, generate_database_for_simulation
+from src.simulation.runner import run_simulation, run_simulation_from_config_dir
+from config_storage.config_db import ConfigManager
 
 # Create logger
 logger = logging.getLogger(__name__)

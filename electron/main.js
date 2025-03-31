@@ -1,74 +1,18 @@
-/**
- * Main entry point for the Electron application.
- * Handles window creation, Python API communication,
- * and lifecycle events.
- */
-
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const url = require('url');
-const { spawn } = require('child_process');
 const axios = require('axios');
-const isDev = require('electron-is-dev');
+const fs = require('fs');
+const { spawn } = require('child_process');
 
-// Keep a global reference of the window object to avoid garbage collection
+// API Base URL for the Python backend
+const API_BASE_URL = 'http://127.0.0.1:5000/api';
+
+// Keep a global reference of the window object to prevent garbage collection
 let mainWindow;
-// Keep a reference to the Python API process
-let pyApiProcess = null;
-// API URL
-const API_URL = 'http://localhost:5000/api';
+let backendProcess = null;
 
-/**
- * Start the Python API server
- */
-function startPythonApi() {
-  // Determine the path to the Python executable and script
-  const pythonExecutable = process.platform === 'win32' ? 'python' : 'python3';
-  
-  // In development, run the Python file directly from the source
-  // In production, use the bundled Python files
-  const pythonPath = isDev 
-    ? path.join(__dirname, '..', 'python', 'api', 'server.py')
-    : path.join(process.resourcesPath, 'python', 'api', 'server.py');
-    
-  // Set environment variables
-  const env = Object.assign({}, process.env);
-  const projectRoot = path.join(__dirname, '..');
-  env.PYTHONPATH = projectRoot;
-    
-  // For development, we'll assume the API is already running
-  if (isDev) {
-    console.log('Development mode: Assuming Python API is already running');
-    return;
-  }
-    
-  // Start the Python process
-  pyApiProcess = spawn(pythonExecutable, [pythonPath], { env });
-  
-  pyApiProcess.stdout.on('data', (data) => {
-    console.log(`Python API: ${data}`);
-  });
-  
-  pyApiProcess.stderr.on('data', (data) => {
-    console.error(`Python API error: ${data}`);
-  });
-  
-  pyApiProcess.on('close', (code) => {
-    console.log(`Python API process exited with code ${code}`);
-    // Only restart if the app is not quitting
-    if (!app.isQuitting) {
-      dialog.showErrorBox(
-        'API Server Error',
-        `The Python API server has stopped unexpectedly. The application might not function correctly.`
-      );
-    }
-  });
-}
-
-/**
- * Create the main application window
- */
 function createWindow() {
+  // Create the browser window
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
@@ -79,149 +23,157 @@ function createWindow() {
     }
   });
 
-  // Load the index.html of the app
-  const startUrl = isDev
-    ? path.join(__dirname, 'index.html') // Use a local HTML file in development
-    : url.format({
-        pathname: path.join(__dirname, 'build', 'index.html'),
-        protocol: 'file:',
-        slashes: true
-      });
-      
-  mainWindow.loadURL(url.format({
-    pathname: path.join(__dirname, 'index.html'),
-    protocol: 'file:',
-    slashes: true
-  }));
+  // Load the index.html file
+  mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-  // Open DevTools in development mode
-  if (isDev) {
+  // Open DevTools in development
+  if (process.env.NODE_ENV === 'development') {
     mainWindow.webContents.openDevTools();
   }
 
-  // Emitted when the window is closed
-  mainWindow.on('closed', function () {
+  // Handle window closed event
+  mainWindow.on('closed', () => {
     mainWindow = null;
   });
 }
 
-// This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
-  // Start the Python API before creating the window
-  startPythonApi();
+// Start Python backend
+function startBackend() {
+  console.log('Starting Python backend...');
+  // Path to Python executable - use the virtual environment if possible
+  const pythonPath = process.platform === 'win32' ? 
+    path.join(__dirname, '..', 'venv', 'Scripts', 'python.exe') : 
+    path.join(__dirname, '..', 'venv', 'bin', 'python');
   
-  // Wait for the API to start before creating the window
-  setTimeout(() => {
-    createWindow();
-  }, 1000); // Give the API server time to start
+  // Check if venv exists, otherwise use system Python
+  const pythonExe = fs.existsSync(pythonPath) ? pythonPath : 'python';
   
-  app.on('activate', function () {
-    // On macOS it's common to re-create a window when the dock icon is clicked
-    if (mainWindow === null) createWindow();
+  // Path to the main.py file
+  const scriptPath = path.join(__dirname, '..', 'python', 'main.py');
+  
+  // Start the process
+  backendProcess = spawn(pythonExe, [scriptPath, 'api']);
+  
+  // Handle output
+  backendProcess.stdout.on('data', (data) => {
+    console.log(`Backend stdout: ${data}`);
   });
-});
+  
+  backendProcess.stderr.on('data', (data) => {
+    console.error(`Backend stderr: ${data}`);
+  });
+  
+  backendProcess.on('close', (code) => {
+    console.log(`Backend process exited with code ${code}`);
+    backendProcess = null;
+  });
+}
 
-// Quit when all windows are closed
-app.on('window-all-closed', function () {
-  // On macOS it is common for applications to stay active until the user quits
-  if (process.platform !== 'darwin') app.quit();
-});
-
-// Handle app being ready to quit
-app.on('before-quit', () => {
-  app.isQuitting = true;
-  // Kill the Python API process
-  if (pyApiProcess) {
-    process.platform === 'win32' ? spawn('taskkill', ['/pid', pyApiProcess.pid, '/f', '/t']) : pyApiProcess.kill();
-  }
-});
-
-// IPC handlers for communicating with the Python API
-
-// Get all configurations
-ipcMain.handle('get-configs', async () => {
+// API handlers
+ipcMain.handle('api:getConfigs', async (event, configType) => {
   try {
-    const response = await axios.get(`${API_URL}/config`);
+    const url = configType ? `${API_BASE_URL}/config?type=${configType}` : `${API_BASE_URL}/config`;
+    const response = await axios.get(url);
     return response.data;
   } catch (error) {
     console.error('Error getting configurations:', error);
-    throw new Error(`Failed to get configurations: ${error.message}`);
+    throw error;
   }
 });
 
-// Get a specific configuration
-ipcMain.handle('get-config', async (event, configId) => {
+ipcMain.handle('api:getConfig', async (event, configId) => {
   try {
-    const response = await axios.get(`${API_URL}/config/${configId}`);
+    const response = await axios.get(`${API_BASE_URL}/config/${configId}`);
     return response.data;
   } catch (error) {
     console.error(`Error getting configuration ${configId}:`, error);
-    throw new Error(`Failed to get configuration: ${error.message}`);
+    throw error;
   }
 });
 
-// Save a new configuration
-ipcMain.handle('save-config', async (event, config) => {
+ipcMain.handle('api:saveConfig', async (event, configData) => {
   try {
-    const response = await axios.post(`${API_URL}/config`, config);
+    const response = await axios.post(`${API_BASE_URL}/config`, configData);
     return response.data;
   } catch (error) {
     console.error('Error saving configuration:', error);
-    throw new Error(`Failed to save configuration: ${error.message}`);
+    throw error;
   }
 });
 
-// Update an existing configuration
-ipcMain.handle('update-config', async (event, configId, config) => {
+ipcMain.handle('api:updateConfig', async (event, configId, configData) => {
   try {
-    const response = await axios.put(`${API_URL}/config/${configId}`, config);
+    const response = await axios.put(`${API_BASE_URL}/config/${configId}`, configData);
     return response.data;
   } catch (error) {
     console.error(`Error updating configuration ${configId}:`, error);
-    throw new Error(`Failed to update configuration: ${error.message}`);
+    throw error;
   }
 });
 
-// Delete a configuration
-ipcMain.handle('delete-config', async (event, configId) => {
+ipcMain.handle('api:deleteConfig', async (event, configId) => {
   try {
-    const response = await axios.delete(`${API_URL}/config/${configId}`);
+    const response = await axios.delete(`${API_BASE_URL}/config/${configId}`);
     return response.data;
   } catch (error) {
     console.error(`Error deleting configuration ${configId}:`, error);
-    throw new Error(`Failed to delete configuration: ${error.message}`);
+    throw error;
   }
 });
 
-// Generate a database
-ipcMain.handle('generate-database', async (event, data) => {
+ipcMain.handle('api:generateDatabase', async (event, data) => {
   try {
-    const response = await axios.post(`${API_URL}/generate`, data);
+    const response = await axios.post(`${API_BASE_URL}/generate`, data);
     return response.data;
   } catch (error) {
     console.error('Error generating database:', error);
-    throw new Error(`Failed to generate database: ${error.message}`);
+    throw error;
   }
 });
 
-// Run a simulation
-ipcMain.handle('run-simulation', async (event, data) => {
+ipcMain.handle('api:runSimulation', async (event, data) => {
   try {
-    const response = await axios.post(`${API_URL}/simulate`, data);
+    const response = await axios.post(`${API_BASE_URL}/simulate`, data);
     return response.data;
   } catch (error) {
     console.error('Error running simulation:', error);
-    throw new Error(`Failed to run simulation: ${error.message}`);
+    throw error;
   }
 });
 
-// Run a dynamic simulation
-ipcMain.handle('run-dynamic-simulation', async (event, data) => {
+ipcMain.handle('api:generateAndSimulate', async (event, data) => {
   try {
-    const response = await axios.post(`${API_URL}/dynamic-simulate`, data);
+    const response = await axios.post(`${API_BASE_URL}/generate-simulate`, data);
     return response.data;
   } catch (error) {
-    console.error('Error running dynamic simulation:', error);
-    throw new Error(`Failed to run dynamic simulation: ${error.message}`);
+    console.error('Error in generate and simulate:', error);
+    throw error;
+  }
+});
+
+// App lifecycle events
+app.on('ready', () => {
+  startBackend();
+  createWindow();
+});
+
+app.on('window-all-closed', () => {
+  if (process.platform !== 'darwin') {
+    app.quit();
+  }
+});
+
+app.on('activate', () => {
+  if (mainWindow === null) {
+    createWindow();
+  }
+});
+
+app.on('will-quit', () => {
+  // Kill the backend process when the app is closing
+  if (backendProcess) {
+    console.log('Terminating backend process...');
+    backendProcess.kill();
+    backendProcess = null;
   }
 }); 

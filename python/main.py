@@ -10,9 +10,9 @@ import os
 from flask import Flask, request, jsonify
 
 # Import components from refactored structure
-from python.src.generator import generate_database, generate_database_for_simulation
-from python.src.simulation.runner import run_simulation, run_simulation_from_config_dir
-from python.config_storage.config_db import ConfigManager
+from src.generator import generate_database, generate_database_for_simulation
+from src.simulation.runner import run_simulation, run_simulation_from_config_dir
+from config_storage.config_db import ConfigManager
 
 # Configure logging
 logging.basicConfig(
@@ -154,6 +154,7 @@ def simulate():
 @app.route('/api/dynamic-simulate', methods=['POST'])
 def dynamic_simulate():
     """Generate a database and run simulation"""
+    logger.warning("The /api/dynamic-simulate endpoint is deprecated. Please use /api/generate-simulate instead.")
     try:
         data = request.json
         if not data or not data.get('db_config_id') or not data.get('sim_config_id'):
@@ -168,10 +169,9 @@ def dynamic_simulate():
         output_dir = data.get('output_dir', 'output')
         db_name = data.get('name')
         
-        # Generate database with only resource tables then run simulation
-        db_path = generate_database_for_simulation(
+        # Use generate_database instead of generate_database_for_simulation for better reliability
+        db_path = generate_database(
             db_config['content'], 
-            sim_config['content'],
             output_dir,
             db_name
         )
@@ -185,6 +185,41 @@ def dynamic_simulate():
         })
     except Exception as e:
         logger.error(f"Error in dynamic simulation: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/generate-simulate', methods=['POST'])
+def generate_simulate():
+    """Generate a complete database and run simulation with proper table relationships"""
+    try:
+        data = request.json
+        if not data or not data.get('db_config_id') or not data.get('sim_config_id'):
+            return jsonify({"success": False, "error": "Missing required fields"}), 400
+            
+        db_config = config_manager.get_config(data['db_config_id'])
+        sim_config = config_manager.get_config(data['sim_config_id'])
+        
+        if not db_config or not sim_config:
+            return jsonify({"success": False, "error": "Configuration not found"}), 404
+            
+        output_dir = data.get('output_dir', 'output')
+        db_name = data.get('name')
+        
+        # Generate complete database with all tables
+        db_path = generate_database(
+            db_config['content'], 
+            output_dir,
+            db_name
+        )
+        
+        results = run_simulation(sim_config['content'], db_path)
+        return jsonify({
+            "success": True,
+            "database_path": str(db_path),
+            "results": results,
+            "message": "Generate-simulate completed successfully with proper table relationships"
+        })
+    except Exception as e:
+        logger.error(f"Error in generate-simulate: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 def run_api(host='127.0.0.1', port=5000):
@@ -214,11 +249,19 @@ def main():
     
     # Generate resources and run simulation command
     dynamic_parser = subparsers.add_parser('dynamic-simulate', 
-                                          help='Generate a database with only resource tables and run a simulation with dynamic entity generation')
+                                          help='[DEPRECATED] Generate a database with only resource tables and run a simulation (use generate-simulate instead)')
     dynamic_parser.add_argument('db_config', help='Path to database configuration file')
     dynamic_parser.add_argument('sim_config', help='Path to simulation configuration file')
     dynamic_parser.add_argument('--output-dir', '-o', default='output', help='Output directory')
     dynamic_parser.add_argument('--name', '-n', help='Database name (without extension)')
+    
+    # New command that properly handles relationship columns
+    gen_sim_parser = subparsers.add_parser('generate-simulate',
+                                         help='Generate a complete database and run a simulation with proper table relationships')
+    gen_sim_parser.add_argument('db_config', help='Path to database configuration file')
+    gen_sim_parser.add_argument('sim_config', help='Path to simulation configuration file')
+    gen_sim_parser.add_argument('--output-dir', '-o', default='output', help='Output directory')
+    gen_sim_parser.add_argument('--name', '-n', help='Database name (without extension)')
     
     # Parse arguments
     args = parser.parse_args()
@@ -240,16 +283,33 @@ def main():
             logger.error(f"Error running simulation: {e}")
             sys.exit(1)
     elif args.command == 'dynamic-simulate':
+        logger.warning("The 'dynamic-simulate' command is deprecated and may be removed in future versions. Please use 'generate-simulate' instead.")
         try:
-            # Generate database with only resource tables
-            db_path = generate_database_for_simulation(args.db_config, args.sim_config, args.output_dir, args.name)
-            logger.info(f"Resource database generated at: {db_path}")
+            # Use generate_database instead of generate_database_for_simulation for better reliability
+            db_path = generate_database(args.db_config, args.output_dir, args.name)
+            logger.info(f"Database generated at: {db_path}")
             
             # Run simulation with dynamic entity generation
             results = run_simulation(args.sim_config, db_path)
             logger.info(f"Simulation results: {results}")
         except Exception as e:
             logger.error(f"Error in dynamic simulation: {e}")
+            sys.exit(1)
+    elif args.command == 'generate-simulate':
+        try:
+            # This command fixes the relationship column issue by:
+            # 1. Creating a full database with all tables (not just resources)
+            # 2. Running the simulation on this complete database
+            
+            # Generate complete database with all tables including Project and Deliverable
+            db_path = generate_database(args.db_config, args.output_dir, args.name)
+            logger.info(f"Complete database generated at: {db_path}")
+            
+            # Run simulation on the complete database
+            results = run_simulation(args.sim_config, db_path)
+            logger.info(f"Simulation results: {results}")
+        except Exception as e:
+            logger.error(f"Error in generate-simulate: {e}")
             sys.exit(1)
     else:
         parser.print_help()
