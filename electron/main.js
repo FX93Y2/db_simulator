@@ -37,9 +37,9 @@ function createWindow() {
         ...details.responseHeaders,
         'Content-Security-Policy': [
           "default-src 'self'; " +
-          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net; " +
-          "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; " +
-          "font-src 'self' https://cdn.jsdelivr.net; " +
+          "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://cdn.jsdelivr.net/npm/* https://unpkg.com/*; " +
+          "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdn.jsdelivr.net/npm/* https://unpkg.com/*; " +
+          "font-src 'self' https://cdn.jsdelivr.net https://cdn.jsdelivr.net/npm/* https://unpkg.com/*; " +
           "img-src 'self' data: blob:; " +
           "connect-src 'self' http://localhost:* http://127.0.0.1:*; " +
           "worker-src 'self' blob:;"
