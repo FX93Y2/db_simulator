@@ -105,9 +105,12 @@ body {
     text-align: center;
   }
   
+  .project-container {
+    border-bottom: 1px solid $border-color;
+  }
+  
   .project-item {
     padding: 12px 15px;
-    border-bottom: 1px solid $border-color;
     cursor: pointer;
     transition: background-color 0.2s;
     display: flex;
@@ -121,6 +124,18 @@ body {
     &.active {
       background-color: rgba($primary-color, 0.1);
       border-left: 3px solid $primary-color;
+    }
+    
+    .project-item-expand-icon {
+      display: flex;
+      align-items: center;
+      margin-right: 8px;
+      cursor: pointer;
+      color: #666;
+      
+      &:hover {
+        color: $primary-color;
+      }
     }
     
     .project-item-content {
@@ -151,6 +166,59 @@ body {
     
     &:hover .project-delete-btn {
       visibility: visible;
+    }
+  }
+  
+  .project-results-list {
+    background-color: rgba($primary-color, 0.03);
+    
+    .no-results {
+      padding: 10px 15px;
+      color: #999;
+      font-size: 12px;
+      font-style: italic;
+      text-align: center;
+    }
+    
+    .project-result-item {
+      padding: 8px 10px 8px 40px;
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      border-top: 1px solid rgba(0,0,0,0.05);
+      
+      &:hover {
+        background-color: rgba($primary-color, 0.08);
+      }
+      
+      .result-item-icon {
+        color: #666;
+        margin-right: 10px;
+      }
+      
+      .result-item-content {
+        flex: 1;
+        
+        .result-item-name {
+          font-size: 12px;
+        }
+      }
+      
+      .result-delete-btn {
+        visibility: hidden;
+        padding: 1px 4px;
+        margin-left: 8px;
+        opacity: 0.7;
+        font-size: 0.7rem;
+        
+        &:hover {
+          opacity: 1;
+        }
+      }
+      
+      &:hover .result-delete-btn {
+        visibility: visible;
+      }
     }
   }
 }

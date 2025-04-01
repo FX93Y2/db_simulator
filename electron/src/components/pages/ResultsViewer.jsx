@@ -195,15 +195,11 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   
   // Navigate back based on context
   const handleBack = () => {
-    if (projectId && isProjectTab) {
-      // In project tab context, stay in the current page
-      // The tab navigation will be handled by the parent component
-      return;
-    } else if (projectId) {
-      // Navigate back to project page
+    if (projectId) {
+      // Always navigate back to the project page when in a project context
       navigate(`/project/${projectId}`);
     } else {
-      // Navigate back to dashboard
+      // Navigate back to dashboard if not in a project context
       navigate('/');
     }
   };

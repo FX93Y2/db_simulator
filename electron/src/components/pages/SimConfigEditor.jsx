@@ -270,6 +270,23 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
       };
       
       console.log("SimConfigEditor: About to save with configData:", configData);
+      
+      // Call the shared save function with this config data
+      await saveConfigWithContent(configData);
+      
+    } catch (error) {
+      console.error('SimConfigEditor: Error saving configuration:', error);
+      alert('Error saving configuration');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Function to save configuration with provided content
+  // This separates the saving logic from building the config object
+  const saveConfigWithContent = async (configData) => {
+    try {
+      setLoading(true);
       let result;
       
       if (projectId && isProjectTab) {
@@ -318,9 +335,12 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
         console.error("SimConfigEditor: Error: result.success is false", result);
         alert('Error saving configuration');
       }
+      
+      return result;
     } catch (error) {
-      console.error('SimConfigEditor: Error saving configuration:', error);
+      console.error('SimConfigEditor: Error in saveConfigWithContent:', error);
       alert('Error saving configuration');
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -342,14 +362,16 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
       
       if (projectId) {
         // Save as project simulation config first
-        const saveResult = await window.api.saveProjectSimConfig(projectId, {
+        const configData = {
           name: name || 'Project Simulation',
           config_type: 'simulation',
           content: yamlContent,
           description
-        });
+        };
         
-        if (!saveResult.success) {
+        const saveResult = await saveConfigWithContent(configData);
+        
+        if (!saveResult || !saveResult.success) {
           alert('Error saving simulation configuration');
           setLoading(false);
           return;
@@ -363,14 +385,16 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
           return;
         }
         
-        const saveResult = await window.api.saveConfig({
+        const configData = {
           name,
           config_type: 'simulation',
           content: yamlContent,
           description
-        });
+        };
         
-        if (!saveResult.success) {
+        const saveResult = await saveConfigWithContent(configData);
+        
+        if (!saveResult || !saveResult.success) {
           alert('Error saving simulation configuration');
           setLoading(false);
           return;
@@ -446,10 +470,20 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
                 // First update the local content
                 handleYamlChange(content);
                 
-                // Then save to backend
+                // Then save to backend with the new content directly 
+                // (don't rely on yamlContent which might not be updated yet)
                 console.log("SimConfigEditor: Saving to backend from YamlEditor");
                 if (projectId && isProjectTab) {
-                  handleSaveConfig();
+                  // Create a copy of the config data with the updated content
+                  const configData = {
+                    name: name || 'Project Simulation',
+                    config_type: 'simulation',
+                    content: content, // Use the content parameter directly
+                    description
+                  };
+                  
+                  // Save with the updated content
+                  saveConfigWithContent(configData);
                 } else {
                   // For standalone mode, show the save modal
                   setShowSaveModal(true);

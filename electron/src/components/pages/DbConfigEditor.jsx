@@ -119,6 +119,62 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
     setYamlContent(content);
   };
   
+  // Function to save configuration with provided content
+  // This separates the saving logic from building the config object
+  const saveConfigWithContent = async (configData) => {
+    try {
+      setLoading(true);
+      let result;
+      
+      if (projectId && isProjectTab) {
+        // Save within project context
+        console.log("DbConfigEditor: Saving with saveProjectDbConfig, projectId:", projectId);
+        result = await window.api.saveProjectDbConfig(projectId, configData);
+        
+        if (result.success) {
+          setConfig(result.config);
+          alert('Database configuration saved successfully');
+        } else {
+          console.error("DbConfigEditor: Error saving configuration:", result);
+          alert('Error saving configuration');
+        }
+      } else if (config && !saveAsNew) {
+        // Update existing configuration
+        console.log("DbConfigEditor: Updating config with updateConfig, config.id:", config.id);
+        result = await window.api.updateConfig(config.id, configData);
+        
+        if (result.success) {
+          handleCloseModal();
+          navigate('/');
+        }
+      } else {
+        // Save as new configuration
+        console.log("DbConfigEditor: Saving as new with saveConfig");
+        result = await window.api.saveConfig(configData);
+        
+        if (result.success) {
+          handleCloseModal();
+          navigate(`/db-config/${result.config_id}`);
+        }
+      }
+      
+      console.log("DbConfigEditor: Save result:", result);
+      
+      if (!result.success) {
+        console.error("DbConfigEditor: Error: result.success is false", result);
+        alert('Error saving configuration');
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('DbConfigEditor: Error in saveConfigWithContent:', error);
+      alert('Error saving configuration');
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Handle ER diagram changes (not fully implemented)
   const handleDiagramChange = (schema) => {
     // This would need to convert the schema back to YAML
@@ -234,41 +290,11 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
       };
       
       console.log("DbConfigEditor: About to save with configData:", configData);
-      let result;
       
-      if (projectId && isProjectTab) {
-        // Save within project context
-        console.log("DbConfigEditor: Saving with saveProjectDbConfig, projectId:", projectId);
-        result = await window.api.saveProjectDbConfig(projectId, configData);
-      } else if (config && !saveAsNew) {
-        // Update existing configuration
-        console.log("DbConfigEditor: Updating config with updateConfig, config.id:", config.id);
-        result = await window.api.updateConfig(config.id, configData);
-      } else {
-        // Save as new configuration
-        console.log("DbConfigEditor: Saving as new with saveConfig");
-        result = await window.api.saveConfig(configData);
-      }
-      
-      console.log("DbConfigEditor: Save result:", result);
-      
-      if (result.success) {
-        // Close modal if showing
-        if (showSaveModal) {
-          handleCloseModal();
-        }
-        
-        if (result.config) {
-          setConfig(result.config);
-        }
-        
-        // Show save confirmation
-        alert('Configuration saved successfully');
-      } else {
-        alert('Error saving configuration');
-      }
+      // Use the shared save function
+      await saveConfigWithContent(configData);
     } catch (error) {
-      console.error('Error saving configuration:', error);
+      console.error('DbConfigEditor: Error saving configuration:', error);
       alert('Error saving configuration');
     } finally {
       setLoading(false);
@@ -298,16 +324,38 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
             <YamlEditor 
               initialValue={yamlContent} 
               onSave={(content) => {
-                console.log("YamlEditor onSave callback triggered");
-                // First update the local content
+                console.log("DbConfigEditor: YamlEditor onSave callback triggered");
+                // First update the content
                 handleYamlChange(content);
                 
-                // Then save to backend
-                console.log("Saving to backend from YamlEditor");
+                // Then save using the direct content 
+                // (don't rely on yamlContent which might not be updated yet)
+                console.log("DbConfigEditor: Saving from YamlEditor");
+                
                 if (projectId && isProjectTab) {
-                  handleSaveConfig();
+                  // Create a copy of the config data with the updated content
+                  const configData = {
+                    name,
+                    config_type: 'database',
+                    content: content, // Use the content parameter directly
+                    description,
+                    project_id: projectId
+                  };
+                  
+                  // Validate YAML content before sending
+                  try {
+                    const yaml = require('js-yaml');
+                    const parsedYaml = yaml.load(content);
+                    console.log("DbConfigEditor: YAML validation passed", { parsed: !!parsedYaml });
+                    
+                    // Use the shared save function with validated content
+                    saveConfigWithContent(configData);
+                  } catch (yamlError) {
+                    console.error("DbConfigEditor: YAML validation failed:", yamlError);
+                    alert('The YAML content appears to be invalid. Please check your configuration.');
+                  }
                 } else {
-                  // For standalone mode, show the save modal
+                  // Otherwise show the save modal
                   setShowSaveModal(true);
                 }
               }}

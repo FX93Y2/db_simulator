@@ -217,7 +217,45 @@ ipcMain.handle('api:updateProject', async (_, projectId, projectData) => {
 });
 
 ipcMain.handle('api:deleteProject', async (_, projectId) => {
-  return await makeApiRequest('DELETE', `projects/${projectId}`);
+  try {
+    // First delete the project database entry
+    const result = await makeApiRequest('DELETE', `projects/${projectId}`);
+    
+    // If successful, also clean up the project's output directory
+    if (result.success) {
+      // Build the path to the project's output directory
+      const projectOutputDir = path.resolve(path.dirname(app.getAppPath()), 'output', projectId);
+      
+      // Check if the directory exists
+      if (fs.existsSync(projectOutputDir)) {
+        console.log(`Cleaning up project output directory: ${projectOutputDir}`);
+        
+        try {
+          // Get all files in the directory
+          const files = fs.readdirSync(projectOutputDir);
+          
+          // Delete each file
+          for (const file of files) {
+            const filePath = path.join(projectOutputDir, file);
+            fs.unlinkSync(filePath);
+            console.log(`Deleted file: ${filePath}`);
+          }
+          
+          // Delete the directory itself
+          fs.rmdirSync(projectOutputDir);
+          console.log(`Deleted project output directory: ${projectOutputDir}`);
+        } catch (cleanupError) {
+          console.error(`Error cleaning up project files: ${cleanupError.message}`);
+          // Don't fail the operation if cleanup fails
+        }
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error(`Error deleting project: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 });
 
 // Project Configuration Management
@@ -332,6 +370,51 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
     };
   } catch (error) {
     console.error(`Error getting simulation results: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+});
+
+// Add new API endpoint to scan for simulation results in a project folder
+ipcMain.handle('api:scanProjectResults', async (_, projectId) => {
+  try {
+    console.log(`Scanning for simulation results in project: ${projectId}`);
+    
+    // Determine the output directory for this project
+    const outputDir = path.resolve(path.dirname(app.getAppPath()), 'output', projectId);
+    
+    console.log(`Checking output directory: ${outputDir}`);
+    
+    // Check if the directory exists
+    if (!fs.existsSync(outputDir)) {
+      console.log(`Output directory does not exist: ${outputDir}`);
+      return { success: true, results: [] };
+    }
+    
+    // Get all .db files in the directory
+    const files = fs.readdirSync(outputDir)
+      .filter(file => file.endsWith('.db'))
+      .map(file => {
+        const filePath = path.join(outputDir, file);
+        const stats = fs.statSync(filePath);
+        
+        return {
+          id: file.replace('.db', ''),
+          name: file.replace('.db', ''),
+          path: `output/${projectId}/${file}`,
+          size: stats.size,
+          created: stats.birthtime
+        };
+      })
+      .sort((a, b) => b.created - a.created); // Sort by creation date, newest first
+    
+    console.log(`Found ${files.length} database files`);
+    
+    return { 
+      success: true, 
+      results: files 
+    };
+  } catch (error) {
+    console.error(`Error scanning for simulation results: ${error.message}`);
     return { success: false, error: error.message };
   }
 });
@@ -604,6 +687,48 @@ ipcMain.handle('api:saveFile', async (_, filePath, content) => {
     fs.writeFileSync(filePath, content, 'utf-8');
     return { success: true };
   } catch (error) {
+    return { success: false, error: error.message };
+  }
+});
+
+// Add new API endpoint to delete a simulation result
+ipcMain.handle('api:deleteResult', async (_, resultPath) => {
+  try {
+    console.log(`Deleting simulation result: ${resultPath}`);
+    
+    // Resolve the full path to the result file
+    let resolvedPath = resultPath;
+    
+    // Try multiple locations to find the database file
+    const possiblePaths = [
+      resultPath,                                   // Original path
+      path.resolve(process.cwd(), resultPath),      // Relative to CWD
+      path.resolve(app.getAppPath(), resultPath),   // Relative to app path
+      path.resolve(path.dirname(app.getAppPath()), resultPath) // Relative to project root
+    ];
+    
+    // Find the correct path
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        resolvedPath = p;
+        console.log(`Found result file at: ${resolvedPath}`);
+        break;
+      }
+    }
+    
+    // Ensure file exists
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`Result file not found at any resolved path`);
+      return { success: false, error: 'Result file not found' };
+    }
+    
+    // Delete the file
+    fs.unlinkSync(resolvedPath);
+    console.log(`Successfully deleted result file: ${resolvedPath}`);
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`Error deleting result file: ${error.message}`);
     return { success: false, error: error.message };
   }
 });

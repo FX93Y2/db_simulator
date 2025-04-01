@@ -23,20 +23,23 @@ const ProjectPage = () => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [runningSimulation, setRunningSimulation] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
+  const [existingResults, setExistingResults] = useState([]);
   
   // Set default active tab based on URL or parameter
-  const determineActiveTab = () => {
+  const determineActiveTab = useCallback(() => {
     if (location.pathname.includes('/results/')) {
-      return 'results';
+      // If viewing results, don't select any tab
+      return 'none';
     } else if (activeTab) {
       return activeTab;
     } else {
       return 'database';
     }
-  };
+  }, [location.pathname, activeTab]);
   
   const [currentTab, setCurrentTab] = useState(determineActiveTab());
 
+  // Memoize the loadProject function
   const loadProject = useCallback(async () => {
     if (!projectId) {
       navigate('/');
@@ -91,6 +94,39 @@ const ProjectPage = () => {
     }
   }, [projectId, navigate, initialLoad]);
 
+  // Load existing simulation results for this project
+  const loadExistingResults = useCallback(async () => {
+    if (!projectId) return;
+    
+    try {
+      console.log(`Scanning for existing simulation results for project: ${projectId}`);
+      
+      const results = await window.api.scanProjectResults(projectId);
+      
+      if (results.success && results.results) {
+        console.log(`Found ${results.results.length} existing results:`, results.results);
+        setExistingResults(results.results);
+        
+        // If we have a resultId in the URL, set it as the current result
+        if (resultId && !simulationResult) {
+          const matchingResult = results.results.find(r => r.id === resultId);
+          if (matchingResult) {
+            setSimulationResult({
+              database_path: matchingResult.path
+            });
+          }
+        }
+      } else {
+        console.log("No existing results found or error scanning:", results.error);
+        setExistingResults([]);
+      }
+    } catch (error) {
+      console.error("Error scanning for existing results:", error);
+      setExistingResults([]);
+    }
+  }, [projectId, resultId]);
+
+  // Effect to load project data
   useEffect(() => {
     setInitialLoad(true);
     loadProject();
@@ -98,16 +134,19 @@ const ProjectPage = () => {
     // Update active tab based on URL changes
     setCurrentTab(determineActiveTab());
   }, [projectId, loadProject, determineActiveTab]);
+  
+  // Separate effect for loading existing results that only runs when project changes
+  useEffect(() => {
+    if (projectId) {
+      loadExistingResults();
+    }
+  }, [projectId, loadExistingResults]);
 
   const handleTabChange = (tabKey) => {
     setCurrentTab(tabKey);
     
     // Update URL to reflect the active tab
-    if (tabKey === 'results' && resultId) {
-      navigate(`/project/${projectId}/results/${resultId}`);
-    } else {
-      navigate(`/project/${projectId}/${tabKey}`);
-    }
+    navigate(`/project/${projectId}/${tabKey}`);
   };
 
   const handleBack = () => {
@@ -203,13 +242,24 @@ const ProjectPage = () => {
         console.log("Simulation completed with result:", result);
         alert('Simulation completed successfully!');
         
-        // Navigate to the results tab
+        // Refresh the existing results list
+        await loadExistingResults();
+        
+        // Navigate to the results page
         if (result.database_path) {
           // Extract the database file name for the result ID
           const dbPath = result.database_path;
           const resultId = dbPath.split(/[\/\\]/).pop().replace('.db', '');
           console.log("Navigating to results with ID:", resultId);
-          navigate(`/project/${projectId}/results/${resultId}`);
+          
+          // Add navigation state to signal that we should refresh results and expand the project
+          navigate(`/project/${projectId}/results/${resultId}`, { 
+            state: { 
+              refreshProjects: true, 
+              expandProject: projectId,
+              newResult: resultId
+            }
+          });
         }
       } else {
         console.error("Simulation failed:", result.error);
@@ -280,48 +330,39 @@ const ProjectPage = () => {
         </div>
       </div>
 
-      <Tab.Container 
-        activeKey={currentTab}
-        onSelect={handleTabChange}
-      >
-        <div className="project-tabs-wrapper">
-          <Nav variant="tabs" className="project-tabs">
-            <Nav.Item>
-              <Nav.Link eventKey="database">
-                <FiDatabase className="me-2" /> Database Configuration
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="simulation">
-                <FiActivity className="me-2" /> Simulation Configuration
-              </Nav.Link>
-            </Nav.Item>
-            <Nav.Item>
-              <Nav.Link eventKey="results" disabled={!resultId}>
-                <FiBarChart2 className="me-2" /> Results Visualization
-              </Nav.Link>
-            </Nav.Item>
-          </Nav>
+      {/* Show ResultsViewer if we're on a results page */}
+      {resultId ? (
+        <ResultsViewer projectId={projectId} isProjectTab={false} />
+      ) : (
+        <Tab.Container 
+          activeKey={currentTab}
+          onSelect={handleTabChange}
+        >
+          <div className="project-tabs-wrapper">
+            <Nav variant="tabs" className="project-tabs">
+              <Nav.Item>
+                <Nav.Link eventKey="database">
+                  <FiDatabase className="me-2" /> Database Configuration
+                </Nav.Link>
+              </Nav.Item>
+              <Nav.Item>
+                <Nav.Link eventKey="simulation">
+                  <FiActivity className="me-2" /> Simulation Configuration
+                </Nav.Link>
+              </Nav.Item>
+            </Nav>
 
-          <Tab.Content className="project-tab-content">
-            <Tab.Pane eventKey="database">
-              <DbConfigEditor projectId={projectId} isProjectTab={true} />
-            </Tab.Pane>
-            <Tab.Pane eventKey="simulation">
-              <SimConfigEditor projectId={projectId} isProjectTab={true} />
-            </Tab.Pane>
-            <Tab.Pane eventKey="results">
-              {resultId ? (
-                <ResultsViewer projectId={projectId} isProjectTab={true} />
-              ) : (
-                <div className="text-center py-5">
-                  <p>No simulation results available. Run a simulation first to see results.</p>
-                </div>
-              )}
-            </Tab.Pane>
-          </Tab.Content>
-        </div>
-      </Tab.Container>
+            <Tab.Content className="project-tab-content">
+              <Tab.Pane eventKey="database">
+                <DbConfigEditor projectId={projectId} isProjectTab={true} />
+              </Tab.Pane>
+              <Tab.Pane eventKey="simulation">
+                <SimConfigEditor projectId={projectId} isProjectTab={true} />
+              </Tab.Pane>
+            </Tab.Content>
+          </div>
+        </Tab.Container>
+      )}
 
       {/* Edit Project Modal */}
       <Modal show={showEditModal} onHide={handleCloseEditModal}>

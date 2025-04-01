@@ -61,6 +61,8 @@ contextBridge.exposeInMainWorld(
     getDatabaseTables: (databasePath) => ipcRenderer.invoke('api:getDatabaseTables', databasePath),
     getTableData: (params) => ipcRenderer.invoke('api:getTableData', params),
     exportDatabaseToCSV: (databasePath) => ipcRenderer.invoke('api:exportDatabaseToCSV', databasePath),
+    scanProjectResults: (projectId) => ipcRenderer.invoke('api:scanProjectResults', projectId),
+    deleteResult: (resultPath) => ipcRenderer.invoke('api:deleteResult', resultPath),
     
     // File Management
     openFile: (filePath) => ipcRenderer.invoke('api:openFile', filePath),
