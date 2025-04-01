@@ -37,11 +37,25 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None)
     
     # Make sure output_dir is an absolute path
     if not os.path.isabs(output_dir):
-        output_dir = os.path.abspath(output_dir)
+        # Check if we're in a project environment
+        # Try to find the project root (look for directories like 'python' and 'electron' as siblings)
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+        
+        # Look for project structure indicators
+        if os.path.isdir(os.path.join(project_dir, 'python')) and \
+           os.path.isdir(os.path.join(project_dir, 'electron')):
+            # Found project root, use it as base for output
+            output_dir = os.path.join(project_dir, output_dir)
+            logger.info(f"Using project root-based output directory: {output_dir}")
+        else:
+            # Can't find project root, use absolute path of current directory
+            output_dir = os.path.abspath(output_dir)
+            logger.info(f"Using absolute output directory: {output_dir}")
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
-    logger.info(f"Output directory (absolute path): {output_dir}")
+    logger.info(f"Output directory: {output_dir}")
     
     generator = DatabaseGenerator(config, output_dir, db_name)
     db_path = generator.generate()
@@ -50,7 +64,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None)
     if not os.path.isabs(db_path):
         db_path = os.path.abspath(db_path)
     
-    logger.info(f"Generated database at absolute path: {db_path}")
+    logger.info(f"Generated database at path: {db_path}")
     return db_path
 
 def generate_database_for_simulation(db_config_path, sim_config_path, output_dir='output', db_name=None):

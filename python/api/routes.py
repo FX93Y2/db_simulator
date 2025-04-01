@@ -469,19 +469,20 @@ def generate_and_simulate():
         if not db_config or not sim_config:
             return jsonify({"success": False, "error": "Configuration not found"}), 404
             
-        # Get and prepare output directory
-        output_dir = data.get('output_dir', 'output')
+        # Get project root directory (parent of python directory)
+        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        
+        # Use a single shared output directory at the project root
+        shared_output_dir = os.path.join(project_root, "output")
+        logger.info(f"Using shared output directory at project root: {shared_output_dir}")
         
         # Create project-specific output directory if project_id is provided
         if 'project_id' in data:
             project_id = data['project_id']
-            output_dir = os.path.join(output_dir, project_id)
+            output_dir = os.path.join(shared_output_dir, project_id)
             logger.info(f"Using project-specific output directory: {output_dir}")
-        
-        # Ensure output directory is absolute
-        if not os.path.isabs(output_dir):
-            output_dir = os.path.abspath(output_dir)
-            logger.info(f"Using absolute output directory path: {output_dir}")
+        else:
+            output_dir = shared_output_dir
         
         # Create output directory
         os.makedirs(output_dir, exist_ok=True)
@@ -489,11 +490,8 @@ def generate_and_simulate():
         
         db_name = data.get('name')
         
-        # Pass configuration content directly to generate_database and run_simulation
-        logger.info("Passing configuration content directly to functions")
-        
         # Generate complete database with all tables
-        logger.info(f"Generating database directly from config content in directory: {output_dir}")
+        logger.info(f"Generating database in shared directory: {output_dir}")
         db_path = generate_database(
             db_config['content'], 
             output_dir,
@@ -507,46 +505,24 @@ def generate_and_simulate():
             logger.error(f"Database file was not created at expected path: {db_path}")
         
         # Run simulation
-        logger.info(f"Running simulation directly from config content using database at: {db_path}")
+        logger.info(f"Running simulation using database at: {db_path}")
         results = run_simulation(sim_config['content'], db_path)
         
         # Verify database file after simulation
         if os.path.exists(db_path):
             logger.info(f"Database file exists after simulation: {db_path}, size: {os.path.getsize(db_path)} bytes")
             
-            # Create a copy of the database in the electron/output directory
-            # so that the frontend can access it
-            electron_output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
-                                            "electron", "output")
-            
-            # Create project-specific directory in electron output if needed
-            if 'project_id' in data:
-                electron_output_dir = os.path.join(electron_output_dir, data['project_id'])
-            
-            os.makedirs(electron_output_dir, exist_ok=True)
-            logger.info(f"Created electron output directory: {electron_output_dir}")
-            
-            # Copy the database file
+            # Create a relative path for the frontend to use
+            # We need to extract just the part relative to the project root
             db_filename = os.path.basename(db_path)
-            electron_db_path = os.path.join(electron_output_dir, db_filename)
             
-            import shutil
-            try:
-                shutil.copy2(db_path, electron_db_path)
-                logger.info(f"Copied database to electron output: {electron_db_path}")
+            if 'project_id' in data:
+                relative_path = os.path.join("output", data['project_id'], db_filename)
+            else:
+                relative_path = os.path.join("output", db_filename)
                 
-                # Use the electron path in the response
-                relative_electron_path = os.path.join("output", 
-                                                   data.get('project_id', ''), 
-                                                   db_filename)
-                logger.info(f"Using relative path for frontend: {relative_electron_path}")
-                
-                # Return the relative path that electron will look for
-                db_path_for_response = relative_electron_path.replace('\\', '/')
-            except Exception as copy_err:
-                logger.error(f"Error copying database to electron output: {copy_err}")
-                # Fall back to the original path if copying fails
-                db_path_for_response = db_path
+            logger.info(f"Using relative path for frontend: {relative_path}")
+            db_path_for_response = relative_path.replace('\\', '/')
         else:
             logger.error(f"Database file not found after simulation: {db_path}")
             db_path_for_response = db_path

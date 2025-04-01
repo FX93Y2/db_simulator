@@ -284,29 +284,33 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
     // Try to resolve the database path
     let resolvedPath = databasePath;
     
-    // If path is not absolute, try to resolve it relative to the application directory
-    if (!path.isAbsolute(databasePath)) {
-      const relativeToCwd = path.resolve(process.cwd(), databasePath);
-      console.log(`Checking relative to CWD: ${relativeToCwd}`);
-      
-      if (fs.existsSync(relativeToCwd)) {
-        resolvedPath = relativeToCwd;
+    // Try multiple locations to find the database file
+    const possiblePaths = [
+      databasePath,                                    // Original path
+      path.resolve(process.cwd(), databasePath),       // Relative to CWD
+      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
+      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
+    ];
+    
+    // Add one more path for project root/output case
+    const projectRoot = path.dirname(app.getAppPath());
+    if (databasePath.startsWith('output/')) {
+      possiblePaths.push(path.resolve(projectRoot, databasePath));
+    }
+    
+    console.log('Checking these possible database paths:');
+    for (const p of possiblePaths) {
+      console.log(` - ${p}`);
+      if (fs.existsSync(p)) {
+        resolvedPath = p;
         console.log(`Found database at: ${resolvedPath}`);
-      } else {
-        // Try resolving relative to the app directory
-        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
-        console.log(`Checking relative to app: ${relativeToApp}`);
-        
-        if (fs.existsSync(relativeToApp)) {
-          resolvedPath = relativeToApp;
-          console.log(`Found database at: ${resolvedPath}`);
-        }
+        break;
       }
     }
     
     // Ensure database exists
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`Database not found at any resolved path: ${resolvedPath}`);
+      console.error(`Database not found at any resolved path`);
       return { success: false, error: 'Database file not found' };
     }
     
@@ -336,32 +340,36 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
   try {
     console.log(`Getting tables from database at path: ${databasePath}`);
     
-    // Try to resolve the database path
+    // Try to resolve the database path using the same logic
     let resolvedPath = databasePath;
     
-    // If path is not absolute, try to resolve it relative to the application directory
-    if (!path.isAbsolute(databasePath)) {
-      const relativeToCwd = path.resolve(process.cwd(), databasePath);
-      console.log(`Checking relative to CWD: ${relativeToCwd}`);
-      
-      if (fs.existsSync(relativeToCwd)) {
-        resolvedPath = relativeToCwd;
+    // Try multiple locations to find the database file
+    const possiblePaths = [
+      databasePath,                                    // Original path
+      path.resolve(process.cwd(), databasePath),       // Relative to CWD
+      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
+      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
+    ];
+    
+    // Add one more path for project root/output case
+    const projectRoot = path.dirname(app.getAppPath());
+    if (databasePath.startsWith('output/')) {
+      possiblePaths.push(path.resolve(projectRoot, databasePath));
+    }
+    
+    console.log('Checking these possible database paths:');
+    for (const p of possiblePaths) {
+      console.log(` - ${p}`);
+      if (fs.existsSync(p)) {
+        resolvedPath = p;
         console.log(`Found database at: ${resolvedPath}`);
-      } else {
-        // Try resolving relative to the app directory
-        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
-        console.log(`Checking relative to app: ${relativeToApp}`);
-        
-        if (fs.existsSync(relativeToApp)) {
-          resolvedPath = relativeToApp;
-          console.log(`Found database at: ${resolvedPath}`);
-        }
+        break;
       }
     }
     
     // Check if database exists
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`Database not found at any resolved path: ${resolvedPath}`);
+      console.error(`Database not found at any resolved path`);
       return { success: false, error: 'Database file not found' };
     }
     
@@ -397,32 +405,36 @@ ipcMain.handle('api:getTableData', async (_, params) => {
     const { databasePath, tableName, limit = 1000 } = params;
     console.log(`Getting data from table ${tableName} in database at path: ${databasePath}`);
     
-    // Try to resolve the database path
+    // Try to resolve the database path using the same logic
     let resolvedPath = databasePath;
     
-    // If path is not absolute, try to resolve it relative to the application directory
-    if (!path.isAbsolute(databasePath)) {
-      const relativeToCwd = path.resolve(process.cwd(), databasePath);
-      console.log(`Checking relative to CWD: ${relativeToCwd}`);
-      
-      if (fs.existsSync(relativeToCwd)) {
-        resolvedPath = relativeToCwd;
+    // Try multiple locations to find the database file
+    const possiblePaths = [
+      databasePath,                                    // Original path
+      path.resolve(process.cwd(), databasePath),       // Relative to CWD
+      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
+      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
+    ];
+    
+    // Add one more path for project root/output case
+    const projectRoot = path.dirname(app.getAppPath());
+    if (databasePath.startsWith('output/')) {
+      possiblePaths.push(path.resolve(projectRoot, databasePath));
+    }
+    
+    console.log('Checking these possible database paths:');
+    for (const p of possiblePaths) {
+      console.log(` - ${p}`);
+      if (fs.existsSync(p)) {
+        resolvedPath = p;
         console.log(`Found database at: ${resolvedPath}`);
-      } else {
-        // Try resolving relative to the app directory
-        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
-        console.log(`Checking relative to app: ${relativeToApp}`);
-        
-        if (fs.existsSync(relativeToApp)) {
-          resolvedPath = relativeToApp;
-          console.log(`Found database at: ${resolvedPath}`);
-        }
+        break;
       }
     }
     
     // Check if database exists
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`Database not found at any resolved path: ${resolvedPath}`);
+      console.error(`Database not found at any resolved path`);
       return { success: false, error: 'Database file not found' };
     }
     
@@ -456,32 +468,36 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
   try {
     console.log(`Exporting database at path: ${databasePath} to CSV`);
     
-    // Try to resolve the database path
+    // Try to resolve the database path using the same logic
     let resolvedPath = databasePath;
     
-    // If path is not absolute, try to resolve it relative to the application directory
-    if (!path.isAbsolute(databasePath)) {
-      const relativeToCwd = path.resolve(process.cwd(), databasePath);
-      console.log(`Checking relative to CWD: ${relativeToCwd}`);
-      
-      if (fs.existsSync(relativeToCwd)) {
-        resolvedPath = relativeToCwd;
+    // Try multiple locations to find the database file
+    const possiblePaths = [
+      databasePath,                                    // Original path
+      path.resolve(process.cwd(), databasePath),       // Relative to CWD
+      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
+      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
+    ];
+    
+    // Add one more path for project root/output case
+    const projectRoot = path.dirname(app.getAppPath());
+    if (databasePath.startsWith('output/')) {
+      possiblePaths.push(path.resolve(projectRoot, databasePath));
+    }
+    
+    console.log('Checking these possible database paths:');
+    for (const p of possiblePaths) {
+      console.log(` - ${p}`);
+      if (fs.existsSync(p)) {
+        resolvedPath = p;
         console.log(`Found database at: ${resolvedPath}`);
-      } else {
-        // Try resolving relative to the app directory
-        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
-        console.log(`Checking relative to app: ${relativeToApp}`);
-        
-        if (fs.existsSync(relativeToApp)) {
-          resolvedPath = relativeToApp;
-          console.log(`Found database at: ${resolvedPath}`);
-        }
+        break;
       }
     }
     
     // Check if database exists
     if (!fs.existsSync(resolvedPath)) {
-      console.error(`Database not found at any resolved path: ${resolvedPath}`);
+      console.error(`Database not found at any resolved path`);
       return { success: false, error: 'Database file not found' };
     }
     
