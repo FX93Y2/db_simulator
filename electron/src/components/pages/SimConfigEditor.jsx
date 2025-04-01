@@ -210,9 +210,11 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
   };
   
   // Handle event flow diagram changes (not fully implemented)
-  const handleDiagramChange = (schema) => {
-    // This would need to convert the schema back to YAML
-    console.log('Event flow changed:', schema);
+  const handleDiagramChange = (updatedYaml) => {
+    // Update the editor content with the changes from the diagram
+    if (updatedYaml) {
+      setYamlContent(updatedYaml);
+    }
   };
   
   // Toggle save modal

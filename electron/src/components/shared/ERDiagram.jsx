@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import ReactFlow, {
   addEdge,
   MiniMap,
@@ -6,6 +6,7 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
+  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import jsYaml from 'js-yaml';
@@ -38,7 +39,16 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [dbSchema, setDbSchema] = useState(null);
-  
+  const containerRef = useRef(null);
+  const [initialized, setInitialized] = useState(false);
+
+  // Use layout effect to ensure container is measured before rendering
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setInitialized(true);
+    }
+  }, []);
+
   // Parse YAML to extract entities
   useEffect(() => {
     try {
@@ -63,7 +73,10 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
             data: { 
               label: entity.name,
               attributes: entity.attributes || []
-            }
+            },
+            // Add connection points without specific handles
+            sourcePosition: 'right',
+            targetPosition: 'left',
           });
           
           // Create edges for relationships
@@ -74,12 +87,17 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
                 relationEdges.push({
                   id: `${entity.name}-${targetEntity}`,
                   source: entity.name,
-                  sourceHandle: `${entity.name}-output`,
+                  // Remove sourceHandle and targetHandle that don't exist
                   target: targetEntity,
-                  targetHandle: `${targetEntity}-input`,
                   animated: true,
                   style: { stroke: '#3498db' },
                   label: attr.name,
+                  markerEnd: {
+                    type: MarkerType.ArrowClosed,
+                    width: 20,
+                    height: 20,
+                    color: '#3498db',
+                  },
                 });
               }
             });
@@ -108,7 +126,13 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
         ...params, 
         id: `${params.source}-${params.target}`,
         animated: true,
-        style: { stroke: '#3498db' }, 
+        style: { stroke: '#3498db' },
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: '#3498db',
+        },
       };
       
       setEdges((eds) => addEdge(newEdge, eds));
@@ -124,11 +148,30 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
       const targetEntity = dbSchema.entities.find(e => e.name === params.target);
       
       if (sourceEntity && targetEntity) {
-        // Generate YAML changes for the new relationship
-        // This is where you would update the YAML to add a foreign key
-        if (onDiagramChange) {
-          // In a real implementation, this would involve more complex YAML manipulation
-          onDiagramChange(dbSchema);
+        // Add a foreign key to the source entity
+        if (!sourceEntity.attributes) {
+          sourceEntity.attributes = [];
+        }
+        
+        // Generate a foreign key name
+        const fkName = `${targetEntity.name.toLowerCase()}_id`;
+        
+        // Check if this foreign key already exists
+        if (!sourceEntity.attributes.some(attr => attr.name === fkName)) {
+          // Add the foreign key attribute
+          sourceEntity.attributes.push({
+            name: fkName,
+            type: 'fk',
+            ref: `${targetEntity.name}.id`
+          });
+          
+          // Convert the updated schema back to YAML
+          const updatedYaml = jsYaml.dump(dbSchema, { lineWidth: 120 });
+          
+          // Call the parent's callback with the updated YAML content
+          if (onDiagramChange) {
+            onDiagramChange(updatedYaml);
+          }
         }
       }
     },
@@ -138,14 +181,28 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
   // Handle node movement
   const onNodeDragStop = useCallback(
     (event, node) => {
-      // Update node positions (this doesn't affect the YAML, just the diagram)
+      // Update the position in our node state
+      setNodes(nds => 
+        nds.map(n => {
+          if (n.id === node.id) {
+            n.position = node.position;
+          }
+          return n;
+        })
+      );
+      
       console.log('Node moved:', node);
     },
-    []
+    [setNodes]
   );
   
+  // If not initialized, just show the container to get dimensions
+  if (!initialized) {
+    return <div ref={containerRef} className="er-diagram-container" style={{ width: '100%', height: '100%' }} />;
+  }
+  
   return (
-    <div className="er-diagram-container" style={{ width: '100%', height: '100%' }}>
+    <div className="er-diagram-container" style={{ width: '100%', height: '100%' }} ref={containerRef}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -155,6 +212,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
         onNodeDragStop={onNodeDragStop}
         nodeTypes={nodeTypes}
         fitView
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
         <Controls />
         <MiniMap />

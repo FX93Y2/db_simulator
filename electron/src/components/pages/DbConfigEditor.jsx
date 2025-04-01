@@ -176,9 +176,11 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   };
   
   // Handle ER diagram changes (not fully implemented)
-  const handleDiagramChange = (schema) => {
-    // This would need to convert the schema back to YAML
-    console.log('Diagram changed:', schema);
+  const handleDiagramChange = (updatedYaml) => {
+    // Update the editor content with the changes from the diagram
+    if (updatedYaml) {
+      setYamlContent(updatedYaml);
+    }
   };
   
   // Handle adding a new table

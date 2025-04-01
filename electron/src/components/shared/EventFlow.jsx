@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import ReactFlow, {
   addEdge,
   MiniMap,
@@ -39,6 +39,15 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [simSchema, setSimSchema] = useState(null);
+  const containerRef = useRef(null);
+  const [initialized, setInitialized] = useState(false);
+  
+  // Use layout effect to ensure container is measured before rendering
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      setInitialized(true);
+    }
+  }, []);
   
   // Parse YAML to extract events and transitions
   useEffect(() => {
@@ -79,7 +88,10 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
               label: event.name,
               duration: event.duration,
               resources: resourcesText
-            }
+            },
+            // Add specific connection points
+            sourcePosition: 'right',
+            targetPosition: 'left',
           };
         });
         
@@ -120,9 +132,16 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
   // Handle connecting nodes
   const onConnect = useCallback(
     (params) => {
+      // Validate connection
+      if (!params.source || !params.target) {
+        console.error('Invalid connection params:', params);
+        return;
+      }
+    
       // Create a new edge with styling
       const newEdge = { 
         ...params, 
+        id: `${params.source}-${params.target}`,
         label: '100%',
         labelStyle: { fill: '#333', fontWeight: 'bold' },
         style: { stroke: '#2ecc71', strokeWidth: 2 },
@@ -138,10 +157,60 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
       
       // If the schema exists, update it
       if (simSchema) {
-        // This would update the YAML to add a new transition
-        // In a real implementation, this requires complex YAML manipulation
+        // Create a copy of the schema to modify
+        const updatedSchema = { ...simSchema };
+        
+        // Ensure the transitions array exists
+        if (!updatedSchema.event_simulation) {
+          updatedSchema.event_simulation = {};
+        }
+        if (!updatedSchema.event_simulation.event_sequence) {
+          updatedSchema.event_simulation.event_sequence = {};
+        }
+        if (!updatedSchema.event_simulation.event_sequence.transitions) {
+          updatedSchema.event_simulation.event_sequence.transitions = [];
+        }
+        
+        const transitions = updatedSchema.event_simulation.event_sequence.transitions;
+        
+        // Check if we already have a transition from this source
+        let sourceTransition = transitions.find(t => t.from === params.source);
+        
+        if (!sourceTransition) {
+          // Create a new transition entry
+          sourceTransition = {
+            from: params.source,
+            to: []
+          };
+          transitions.push(sourceTransition);
+        }
+        
+        // Check if the target is already in the "to" array
+        const existingTarget = sourceTransition.to.find(t => t.event_type === params.target);
+        
+        if (!existingTarget) {
+          // Add the new target with 100% probability
+          sourceTransition.to.push({
+            event_type: params.target,
+            probability: 1.0
+          });
+          
+          // If there were already other targets, adjust probabilities
+          if (sourceTransition.to.length > 1) {
+            const newProb = 1.0 / sourceTransition.to.length;
+            sourceTransition.to.forEach(target => {
+              target.probability = newProb;
+            });
+          }
+        }
+        
+        // Update the schema state
+        setSimSchema(updatedSchema);
+        
+        // Convert to YAML and notify parent
+        const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
         if (onDiagramChange) {
-          onDiagramChange(simSchema);
+          onDiagramChange(updatedYaml);
         }
       }
     },
@@ -151,13 +220,138 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
   // Handle node drag end
   const onNodeDragStop = useCallback(
     (event, node) => {
+      // Update the position in our node state
+      setNodes(nds => 
+        nds.map(n => {
+          if (n.id === node.id) {
+            n.position = node.position;
+          }
+          return n;
+        })
+      );
+      
       console.log('Event node moved:', node);
     },
-    []
+    [setNodes]
+  );
+
+  // Handle node deletion
+  const onNodesDelete = useCallback(
+    (deleted) => {
+      if (!simSchema || !simSchema.event_simulation || 
+          !simSchema.event_simulation.event_sequence) return;
+      
+      // Create a copy of the schema to modify
+      const updatedSchema = { ...simSchema };
+      const eventSequence = updatedSchema.event_simulation.event_sequence;
+      
+      // Remove the deleted event types
+      if (eventSequence.event_types) {
+        eventSequence.event_types = eventSequence.event_types.filter(
+          event => !deleted.some(node => node.id === event.name)
+        );
+      }
+      
+      // Remove transitions that reference the deleted events
+      if (eventSequence.transitions) {
+        // Remove transitions from deleted events
+        eventSequence.transitions = eventSequence.transitions.filter(
+          transition => !deleted.some(node => node.id === transition.from)
+        );
+        
+        // Remove transitions to deleted events
+        eventSequence.transitions.forEach(transition => {
+          if (transition.to) {
+            transition.to = transition.to.filter(
+              to => !deleted.some(node => node.id === to.event_type)
+            );
+            
+            // Recalculate probabilities if needed
+            if (transition.to.length > 0) {
+              const newProb = 1.0 / transition.to.length;
+              transition.to.forEach(target => {
+                target.probability = newProb;
+              });
+            }
+          }
+        });
+        
+        // Remove transitions with no destinations
+        eventSequence.transitions = eventSequence.transitions.filter(
+          transition => transition.to && transition.to.length > 0
+        );
+      }
+      
+      // Update the schema state
+      setSimSchema(updatedSchema);
+      
+      // Convert to YAML and notify parent
+      const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+      if (onDiagramChange) {
+        onDiagramChange(updatedYaml);
+      }
+    },
+    [simSchema, onDiagramChange]
   );
   
+  // Handle edge deletion
+  const onEdgesDelete = useCallback(
+    (deleted) => {
+      if (!simSchema || !simSchema.event_simulation || 
+          !simSchema.event_simulation.event_sequence ||
+          !simSchema.event_simulation.event_sequence.transitions) return;
+      
+      // Create a copy of the schema to modify
+      const updatedSchema = { ...simSchema };
+      const transitions = updatedSchema.event_simulation.event_sequence.transitions;
+      
+      // Process each deleted edge
+      deleted.forEach(edge => {
+        const [sourceEvent, targetEvent] = edge.id.split('-');
+        
+        // Find the transition for this source event
+        const transitionIndex = transitions.findIndex(t => t.from === sourceEvent);
+        
+        if (transitionIndex !== -1) {
+          const transition = transitions[transitionIndex];
+          
+          // Find and remove the target from the "to" array
+          if (transition.to) {
+            transition.to = transition.to.filter(to => to.event_type !== targetEvent);
+            
+            // Recalculate probabilities
+            if (transition.to.length > 0) {
+              const newProb = 1.0 / transition.to.length;
+              transition.to.forEach(target => {
+                target.probability = newProb;
+              });
+            } else {
+              // If no targets left, remove the entire transition
+              transitions.splice(transitionIndex, 1);
+            }
+          }
+        }
+      });
+      
+      // Update the schema state
+      setSimSchema(updatedSchema);
+      
+      // Convert to YAML and notify parent
+      const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+      if (onDiagramChange) {
+        onDiagramChange(updatedYaml);
+      }
+    },
+    [simSchema, onDiagramChange]
+  );
+  
+  // If not initialized, just show the container to get dimensions
+  if (!initialized) {
+    return <div ref={containerRef} className="event-flow-container" style={{ width: '100%', height: '100%' }} />;
+  }
+  
   return (
-    <div className="event-flow-container" style={{ width: '100%', height: '100%' }}>
+    <div className="event-flow-container" style={{ width: '100%', height: '100%' }} ref={containerRef}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -165,8 +359,11 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        onNodesDelete={onNodesDelete}
+        onEdgesDelete={onEdgesDelete}
         nodeTypes={nodeTypes}
         fitView
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
       >
         <Controls />
         <MiniMap />
