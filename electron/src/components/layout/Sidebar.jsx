@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiBarChart2 } from 'react-icons/fi';
+import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
 import { Button, Spinner, Modal, Form } from 'react-bootstrap';
 import { getProjects, formatDate, createDefaultProject, deleteProject } from '../../utils/projectApi';
 
@@ -17,7 +17,12 @@ const ProjectSidebar = () => {
   const [newProjectName, setNewProjectName] = useState('');
   const [creatingProject, setCreatingProject] = useState(false);
   const [expandedProjects, setExpandedProjects] = useState({});
+  const [expandedResults, setExpandedResults] = useState({});
   const [projectResults, setProjectResults] = useState({});
+  const [resultTables, setResultTables] = useState({});
+  // Track if sidebar is in compact mode
+  const [isCompact, setIsCompact] = useState(false);
+  
   const navigate = useNavigate();
   const location = useLocation();
   
@@ -25,10 +30,43 @@ const ProjectSidebar = () => {
   const currentProjectId = location.pathname.startsWith('/project/') 
     ? location.pathname.split('/project/')[1].split('/')[0]
     : null;
+    
+  // Get currently selected result ID from the URL
+  const currentResultId = location.pathname.includes('/results/') 
+    ? location.pathname.split('/results/')[1].split('/')[0]
+    : null;
   
   // Add this to keep track of when to reload
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [resultsRefreshTrigger, setResultsRefreshTrigger] = useState(0);
+
+  // Check sidebar width and set compact mode if below threshold
+  useEffect(() => {
+    const handleResize = () => {
+      // Get sidebar element
+      const sidebar = document.querySelector('.app-sidebar');
+      if (sidebar) {
+        setIsCompact(sidebar.offsetWidth < 200);
+      }
+    };
+
+    // Set initial value
+    handleResize();
+
+    // Add resize observer to detect width changes in the sidebar
+    const resizeObserver = new ResizeObserver(handleResize);
+    const sidebar = document.querySelector('.app-sidebar');
+    if (sidebar) {
+      resizeObserver.observe(sidebar);
+    }
+
+    return () => {
+      if (sidebar) {
+        resizeObserver.unobserve(sidebar);
+      }
+      resizeObserver.disconnect();
+    };
+  }, []);
   
   // Refresh projects when location changes or refresh trigger changes
   useEffect(() => {
@@ -265,49 +303,83 @@ const ProjectSidebar = () => {
     setExpandedProjects(newExpandedState);
   };
   
+  // Toggle result expansion
+  const toggleResultExpansion = async (projectId, resultId) => {
+    const resultKey = `${projectId}-${resultId}`;
+    const newExpandedState = { ...expandedResults };
+    
+    // If toggling to expanded and we don't have tables yet, load them
+    if (!expandedResults[resultKey]) {
+      try {
+        console.log(`Loading tables for result ${resultId}`);
+        // Construct the database path
+        const dbPath = `output/${projectId}/${resultId}.db`;
+        
+        // Get list of tables in the database
+        const tablesResult = await window.api.getDatabaseTables(dbPath);
+        if (tablesResult.success && tablesResult.tables) {
+          setResultTables({
+            ...resultTables,
+            [resultKey]: tablesResult.tables || []
+          });
+        }
+      } catch (error) {
+        console.error("Error loading result tables:", error);
+      }
+    }
+    
+    newExpandedState[resultKey] = !expandedResults[resultKey];
+    setExpandedResults(newExpandedState);
+  };
+  
   // Handle result click
   const handleResultClick = (projectId, resultId) => {
     navigate(`/project/${projectId}/results/${resultId}`);
   };
   
+  // Handle table click
+  const handleTableClick = (projectId, resultId, table) => {
+    // Navigate to the result page but with a specific table selected
+    navigate(`/project/${projectId}/results/${resultId}?table=${table}`);
+  };
+  
   // Handle delete result click
   const handleDeleteResultClick = (e, projectId, result) => {
-    e.stopPropagation();
+    e.stopPropagation(); // Prevent opening the result when clicking delete
     setResultToDelete({ projectId, result });
     setShowDeleteResultModal(true);
   };
   
-  // Handle close delete result modal
   const handleCloseDeleteResultModal = () => {
     setShowDeleteResultModal(false);
     setResultToDelete(null);
   };
   
-  // Handle confirm delete result
   const handleConfirmDeleteResult = async () => {
     if (!resultToDelete) return;
     
     try {
       setDeletingResult(true);
-      const result = await window.api.deleteResult(resultToDelete.result.path);
+      const { projectId, result } = resultToDelete;
       
-      if (result.success) {
+      const deleteResult = await window.api.deleteProjectResult(projectId, result.id);
+      
+      if (deleteResult.success) {
         // Remove the deleted result from the list
-        const updatedResults = { ...projectResults };
-        updatedResults[resultToDelete.projectId] = updatedResults[resultToDelete.projectId].filter(
-          r => r.id !== resultToDelete.result.id
-        );
-        setProjectResults(updatedResults);
+        const updatedResults = projectResults[projectId].filter(r => r.id !== result.id);
+        setProjectResults({
+          ...projectResults,
+          [projectId]: updatedResults
+        });
         
-        // If we're currently viewing this result, navigate to project page
-        const currentPath = location.pathname;
-        if (currentPath.includes(`/results/${resultToDelete.result.id}`)) {
-          navigate(`/project/${resultToDelete.projectId}`);
+        // If we're currently viewing this result, navigate back to project
+        if (currentResultId === result.id) {
+          navigate(`/project/${projectId}`);
         }
         
         handleCloseDeleteResultModal();
       } else {
-        alert('Failed to delete result: ' + (result.error || 'Unknown error'));
+        alert('Failed to delete result: ' + (deleteResult.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting result:', error);
@@ -320,12 +392,15 @@ const ProjectSidebar = () => {
   return (
     <div className="app-sidebar">
       <div className="sidebar-header">
-        <h5 className="m-0">Projects</h5>
+        <h5 className={`m-0 ${isCompact ? 'text-truncate' : ''}`}>
+          {isCompact ? 'Explorer' : 'Database Explorer'}
+        </h5>
         <div className="d-flex">
           <Button 
             variant="outline-primary" 
             size="sm" 
             onClick={handleOpenCreateModal}
+            title="Create New Project"
           >
             <FiPlus />
           </Button>
@@ -335,12 +410,14 @@ const ProjectSidebar = () => {
       {loading ? (
         <div className="sidebar-loading">
           <Spinner animation="border" size="sm" className="me-2" />
-          Loading projects...
+          {!isCompact && 'Loading projects...'}
         </div>
       ) : (
         <div className="sidebar-projects">
           {projects.length === 0 ? (
-            <div className="no-projects">No projects found. Create your first project!</div>
+            <div className="no-projects">
+              {isCompact ? 'No projects' : 'No projects found. Create your first project!'}
+            </div>
           ) : (
             projects.map((project) => (
               <div 
@@ -357,10 +434,14 @@ const ProjectSidebar = () => {
                     className="project-item-content"
                     onClick={() => handleOpenProject(project.id)}
                   >
-                    <div className="project-item-name">{project.name}</div>
-                    <div className="project-item-date">
-                      {formatDate(project.lastUpdated || project.updated_at).split(' ')[0]}
+                    <div className={`project-item-name ${isCompact ? 'text-truncate' : ''}`}>
+                      {project.name}
                     </div>
+                    {!isCompact && (
+                      <div className="project-item-date">
+                        {formatDate(project.lastUpdated || project.updated_at).split(' ')[0]}
+                      </div>
+                    )}
                   </div>
                   <Button 
                     variant="outline-danger"
@@ -376,32 +457,74 @@ const ProjectSidebar = () => {
                 {expandedProjects[project.id] && (
                   <div className="project-results-list">
                     {projectResults[project.id] && projectResults[project.id].length > 0 ? (
-                      projectResults[project.id].map((result) => (
-                        <div 
-                          key={result.id}
-                          className="project-result-item"
-                          onClick={() => handleResultClick(project.id, result.id)}
-                        >
-                          <div className="result-item-icon">
-                            <FiBarChart2 />
-                          </div>
-                          <div className="result-item-content">
-                            <div className="result-item-name">
-                              {new Date(result.created).toLocaleString()}
+                      projectResults[project.id].map((result) => {
+                        const resultKey = `${project.id}-${result.id}`;
+                        const isActive = currentResultId === result.id;
+                        
+                        return (
+                          <div key={result.id} className="database-explorer-container">
+                            <div 
+                              className={`project-result-item ${isActive ? 'active' : ''}`}
+                            >
+                              <div className="project-item-expand-icon" onClick={(e) => {
+                                e.stopPropagation();
+                                toggleResultExpansion(project.id, result.id);
+                              }}>
+                                {expandedResults[resultKey] ? <FiChevronDown /> : <FiChevronRight />}
+                              </div>
+                              <div className="result-item-icon">
+                                <FiDatabase />
+                              </div>
+                              <div 
+                                className="result-item-content"
+                                onClick={() => handleResultClick(project.id, result.id)}
+                              >
+                                <div className={`result-item-name ${isCompact ? 'text-truncate' : ''}`}>
+                                  {new Date(result.created).toLocaleString()}
+                                </div>
+                              </div>
+                              <Button 
+                                variant="outline-danger"
+                                size="sm"
+                                className="result-delete-btn"
+                                onClick={(e) => handleDeleteResultClick(e, project.id, result)}
+                              >
+                                <FiTrash2 />
+                              </Button>
                             </div>
+                            
+                            {/* Tables list */}
+                            {expandedResults[resultKey] && (
+                              <div className="database-tables-list">
+                                {resultTables[resultKey] && resultTables[resultKey].length > 0 ? (
+                                  resultTables[resultKey].map((table) => (
+                                    <div 
+                                      key={table} 
+                                      className="database-table-item"
+                                      onClick={() => handleTableClick(project.id, result.id, table)}
+                                    >
+                                      <div className="table-item-icon">
+                                        <FiTable />
+                                      </div>
+                                      <div className={`table-item-name ${isCompact ? 'text-truncate' : ''}`}>
+                                        {table}
+                                      </div>
+                                    </div>
+                                  ))
+                                ) : (
+                                  <div className="no-tables">
+                                    {isCompact ? 'No tables' : 'No tables found'}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
-                          <Button 
-                            variant="outline-danger"
-                            size="sm"
-                            className="result-delete-btn"
-                            onClick={(e) => handleDeleteResultClick(e, project.id, result)}
-                          >
-                            <FiTrash2 />
-                          </Button>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
-                      <div className="no-results">No simulation results found</div>
+                      <div className="no-results">
+                        {isCompact ? 'No results' : 'No simulation results found'}
+                      </div>
                     )}
                   </div>
                 )}
@@ -473,8 +596,8 @@ const ProjectSidebar = () => {
           <Modal.Title>Delete Simulation Result</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>Are you sure you want to delete this simulation result?</p>
-          <p>This action cannot be undone.</p>
+          Are you sure you want to delete this simulation result? 
+          This action cannot be undone and all generated data will be lost.
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseDeleteResultModal}>

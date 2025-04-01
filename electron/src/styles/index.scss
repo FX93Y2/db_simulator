@@ -29,6 +29,53 @@ body {
   display: flex;
   flex: 1;
   overflow: hidden;
+  
+  // Styles for main SplitPane
+  .Resizer {
+    background: #ddd;
+    z-index: 10;
+    box-sizing: border-box;
+    background-clip: padding-box;
+    
+    &.vertical {
+      width: 8px;
+      margin: 0 -4px;
+      border-left: 4px solid rgba(255, 255, 255, 0);
+      border-right: 4px solid rgba(255, 255, 255, 0);
+      cursor: col-resize;
+      
+      &:hover {
+        border-left: 4px solid rgba($primary-color, 0.3);
+        border-right: 4px solid rgba($primary-color, 0.3);
+      }
+      
+      &.dragging {
+        border-left: 4px solid rgba($primary-color, 0.5);
+        border-right: 4px solid rgba($primary-color, 0.5);
+      }
+    }
+  }
+  
+  // Override the default SplitPane styles to fix layout issues
+  .SplitPane {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    
+    .Pane {
+      overflow: auto;
+    }
+    
+    .Pane1 {
+      // Sidebar pane
+      min-width: 150px;
+    }
+    
+    .Pane2 {
+      // Content pane
+      overflow: auto;
+    }
+  }
 }
 
 // Header
@@ -70,10 +117,9 @@ body {
 
 // Sidebar
 .app-sidebar {
-  width: $sidebar-width;
   background-color: white;
   border-right: 1px solid $border-color;
-  overflow-y: auto;
+  height: 100%;
   display: flex;
   flex-direction: column;
   
@@ -84,6 +130,18 @@ body {
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid $border-color;
+    
+    h5 {
+      max-width: calc(100% - 40px); // Leave space for the button
+    }
+  }
+  
+  // Add text truncation utility
+  .text-truncate {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 100%;
   }
   
   .sidebar-loading {
@@ -141,11 +199,13 @@ body {
     .project-item-content {
       flex: 1;
       cursor: pointer;
+      min-width: 0; // Important for text truncation to work
     }
     
     .project-item-name {
       font-weight: 500;
       margin-bottom: 3px;
+      min-width: 0; // Important for text truncation to work
     }
     
     .project-item-date {
@@ -191,6 +251,11 @@ body {
         background-color: rgba($primary-color, 0.08);
       }
       
+      &.active {
+        background-color: rgba($primary-color, 0.12);
+        font-weight: 500;
+      }
+      
       .result-item-icon {
         color: #666;
         margin-right: 10px;
@@ -198,9 +263,11 @@ body {
       
       .result-item-content {
         flex: 1;
+        min-width: 0; // Important for text truncation to work
         
         .result-item-name {
           font-size: 12px;
+          min-width: 0; // Important for text truncation to work
         }
       }
       
@@ -218,6 +285,44 @@ body {
       
       &:hover .result-delete-btn {
         visibility: visible;
+      }
+    }
+    
+    .database-explorer-container {
+      .database-tables-list {
+        background-color: rgba($primary-color, 0.03);
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        
+        .no-tables {
+          padding: 10px 15px 10px 70px;
+          color: #999;
+          font-size: 12px;
+          font-style: italic;
+        }
+        
+        .database-table-item {
+          padding: 6px 10px 6px 70px;
+          display: flex;
+          align-items: center;
+          cursor: pointer;
+          font-size: 12px;
+          color: #333;
+          
+          &:hover {
+            background-color: rgba($primary-color, 0.1);
+          }
+          
+          .table-item-icon {
+            color: #666;
+            margin-right: 10px;
+          }
+          
+          .table-item-name {
+            font-family: monospace;
+            min-width: 0; // Important for text truncation to work
+            flex: 1;
+          }
+        }
       }
     }
   }

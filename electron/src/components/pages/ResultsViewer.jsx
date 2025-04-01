@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   Row, 
   Col, 
@@ -29,6 +29,7 @@ import {
 const ResultsViewer = ({ projectId, isProjectTab }) => {
   const { resultId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState(null);
@@ -44,6 +45,16 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     groupBy: ''
   });
   const [databasePath, setDatabasePath] = useState('');
+  
+  // Get the selected table from the URL query parameter
+  useEffect(() => {
+    const queryParams = new URLSearchParams(location.search);
+    const tableParam = queryParams.get('table');
+    
+    if (tableParam && tables.includes(tableParam)) {
+      setSelectedTable(tableParam);
+    }
+  }, [location.search, tables]);
   
   // Construct database path from resultId and projectId
   useEffect(() => {
@@ -94,7 +105,18 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
         const tablesResult = await getDatabaseTables(databasePath);
         if (tablesResult.success && tablesResult.tables && tablesResult.tables.length > 0) {
           setTables(tablesResult.tables);
-          setSelectedTable(tablesResult.tables[0]);
+          
+          // Check if there's a table in the URL query
+          const queryParams = new URLSearchParams(location.search);
+          const tableParam = queryParams.get('table');
+          
+          // Set selected table from query parameter or default to first table
+          if (tableParam && tablesResult.tables.includes(tableParam)) {
+            setSelectedTable(tableParam);
+          } else {
+            setSelectedTable(tablesResult.tables[0]);
+          }
+          
           console.log("Loaded tables:", tablesResult.tables);
         } else {
           console.error("Failed to load database tables:", tablesResult.error || "No tables found");
@@ -113,7 +135,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     if (databasePath) {
       loadDatabaseInfo();
     }
-  }, [databasePath]);
+  }, [databasePath, location.search]);
   
   // Load table data when selected table changes
   useEffect(() => {
@@ -161,9 +183,18 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     }
   }, [selectedTable, databasePath]);
   
-  // Handle table selection
-  const handleTableChange = (e) => {
-    setSelectedTable(e.target.value);
+  // Change the table selection by updating the URL query parameter
+  const changeSelectedTable = (tableName) => {
+    // Create URL with the new table parameter
+    const searchParams = new URLSearchParams(location.search);
+    searchParams.set('table', tableName);
+    
+    // Navigate to the same path but with updated query parameter
+    if (projectId) {
+      navigate(`/project/${projectId}/results/${resultId}?${searchParams.toString()}`);
+    } else {
+      navigate(`/results/${resultId}?${searchParams.toString()}`);
+    }
   };
   
   // Handle chart configuration changes
@@ -174,34 +205,73 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     });
   };
   
+  // Handle the back button
+  const handleBack = () => {
+    if (projectId) {
+      navigate(`/project/${projectId}`);
+    } else {
+      navigate('/');
+    }
+  };
+  
   // Handle exporting data
   const handleExportData = async () => {
     try {
       setLoading(true);
+      console.log("Exporting database:", databasePath);
+      
       const result = await exportDatabaseToCSV(databasePath);
-      setLoading(false);
       
       if (result.success) {
-        alert(`Data exported successfully to ${result.exportPath}`);
+        alert(`Database exported successfully to: ${result.path}`);
       } else {
-        alert('Failed to export data: ' + (result.error || 'Unknown error'));
+        alert(`Error exporting database: ${result.error}`);
       }
     } catch (error) {
+      console.error('Error exporting database:', error);
+      alert(`Error exporting database: ${error.message}`);
+    } finally {
       setLoading(false);
-      console.error('Error exporting data:', error);
-      alert('Error exporting data');
     }
   };
   
-  // Navigate back based on context
-  const handleBack = () => {
-    if (projectId) {
-      // Always navigate back to the project page when in a project context
-      navigate(`/project/${projectId}`);
-    } else {
-      // Navigate back to dashboard if not in a project context
-      navigate('/');
-    }
+  // Display the current table name
+  const renderTableHeader = () => {
+    if (!selectedTable) return "No table selected";
+    return (
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <h5 className="m-0">Table: {selectedTable}</h5>
+        {tables.length > 0 && (
+          <div className="table-pagination">
+            <Button 
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => {
+                const currentIndex = tables.indexOf(selectedTable);
+                const prevIndex = currentIndex > 0 ? currentIndex - 1 : tables.length - 1;
+                changeSelectedTable(tables[prevIndex]);
+              }}
+            >
+              Previous
+            </Button>
+            <span className="mx-2">
+              {tables.indexOf(selectedTable) + 1} of {tables.length}
+            </span>
+            <Button 
+              size="sm"
+              variant="outline-secondary"
+              onClick={() => {
+                const currentIndex = tables.indexOf(selectedTable);
+                const nextIndex = currentIndex < tables.length - 1 ? currentIndex + 1 : 0;
+                changeSelectedTable(tables[nextIndex]);
+              }}
+            >
+              Next
+            </Button>
+          </div>
+        )}
+      </div>
+    );
   };
   
   return (
@@ -259,18 +329,8 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
             </Card>
           )}
           
-          <Form.Group className="mb-3">
-            <Form.Label><strong>Select Table</strong></Form.Label>
-            <Form.Select 
-              value={selectedTable} 
-              onChange={handleTableChange}
-              disabled={loading || tables.length === 0}
-            >
-              {tables.map(table => (
-                <option key={table} value={table}>{table}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+          {/* Table header with current table name and navigation */}
+          {renderTableHeader()}
           
           <div className="mb-3">
             <Tabs
