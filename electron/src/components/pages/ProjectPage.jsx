@@ -183,16 +183,24 @@ const ProjectPage = () => {
         return;
       }
       
+      // Create a timestamp for the database name
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const dbName = `${project.name.replace(/\s+/g, '_')}_${timestamp}`;
+      
+      console.log("Running simulation with project ID:", projectId);
+      
       // Call the generate-simulate API endpoint
       const result = await window.api.generateAndSimulate({
         db_config_id: dbConfigResult.config.id,
         sim_config_id: simConfigResult.config.id,
-        output_dir: `output/${projectId}`,
-        name: `${project.name.replace(/\s+/g, '_')}_${Date.now()}`
+        project_id: projectId, // Pass the project_id to ensure proper directory structure
+        output_dir: 'output',
+        name: dbName
       });
       
       if (result.success) {
         setSimulationResult(result);
+        console.log("Simulation completed with result:", result);
         alert('Simulation completed successfully!');
         
         // Navigate to the results tab
@@ -200,9 +208,11 @@ const ProjectPage = () => {
           // Extract the database file name for the result ID
           const dbPath = result.database_path;
           const resultId = dbPath.split(/[\/\\]/).pop().replace('.db', '');
+          console.log("Navigating to results with ID:", resultId);
           navigate(`/project/${projectId}/results/${resultId}`);
         }
       } else {
+        console.error("Simulation failed:", result.error);
         alert(`Error running simulation: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {

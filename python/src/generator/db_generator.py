@@ -46,15 +46,23 @@ class DatabaseGenerator:
             db_name: Name of the database file (without path or extension)
             
         Returns:
-            Path to the generated database file
+            Path to the generated database file (absolute path)
         """
         # Generate database name if not provided
         if not db_name:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             db_name = f"generated_db_{timestamp}"
         
-        # Create database file path
-        db_path = os.path.join(self.output_dir, f"{db_name}.db")
+        # Ensure output directory exists
+        os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Create database file path (ensure it's absolute)
+        if os.path.isabs(self.output_dir):
+            db_path = os.path.join(self.output_dir, f"{db_name}.db")
+        else:
+            db_path = os.path.abspath(os.path.join(self.output_dir, f"{db_name}.db"))
+        
+        logger.info(f"Generating database at absolute path: {db_path}")
         
         # Create SQLAlchemy engine
         connection_string = f"sqlite:///{db_path}"
@@ -74,7 +82,12 @@ class DatabaseGenerator:
         self.session.commit()
         self.session.close()
         
-        logger.info(f"Database generated at {db_path}")
+        # Verify the database file exists
+        if not os.path.exists(db_path):
+            logger.error(f"Database file was not created at expected path: {db_path}")
+        else:
+            logger.info(f"Database generated successfully at {db_path}, size: {os.path.getsize(db_path)} bytes")
+        
         return db_path
     
     def _create_tables(self):

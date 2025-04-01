@@ -279,20 +279,47 @@ ipcMain.handle('api:generateAndSimulate', async (_, data) => {
 // Results Management
 ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
   try {
+    console.log(`Checking database at path: ${databasePath}`);
+    
+    // Try to resolve the database path
+    let resolvedPath = databasePath;
+    
+    // If path is not absolute, try to resolve it relative to the application directory
+    if (!path.isAbsolute(databasePath)) {
+      const relativeToCwd = path.resolve(process.cwd(), databasePath);
+      console.log(`Checking relative to CWD: ${relativeToCwd}`);
+      
+      if (fs.existsSync(relativeToCwd)) {
+        resolvedPath = relativeToCwd;
+        console.log(`Found database at: ${resolvedPath}`);
+      } else {
+        // Try resolving relative to the app directory
+        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
+        console.log(`Checking relative to app: ${relativeToApp}`);
+        
+        if (fs.existsSync(relativeToApp)) {
+          resolvedPath = relativeToApp;
+          console.log(`Found database at: ${resolvedPath}`);
+        }
+      }
+    }
+    
     // Ensure database exists
-    if (!fs.existsSync(databasePath)) {
-      console.error(`Database not found: ${databasePath}`);
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`Database not found at any resolved path: ${resolvedPath}`);
       return { success: false, error: 'Database file not found' };
     }
     
+    console.log(`Using database at: ${resolvedPath}`);
+    
     // We'll just return basic info for now - you can enhance this later
-    const stats = fs.statSync(databasePath);
+    const stats = fs.statSync(resolvedPath);
     const creationDate = new Date(stats.birthtime).toISOString();
     
     return {
       success: true,
       data: {
-        simulationId: path.basename(databasePath, '.db'),
+        simulationId: path.basename(resolvedPath, '.db'),
         runDate: creationDate,
         duration: 30, // Default value, could be extracted from DB in a real implementation
         entitiesCount: 100, // Default value, could be extracted from DB
@@ -307,15 +334,42 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
 
 ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
   try {
+    console.log(`Getting tables from database at path: ${databasePath}`);
+    
+    // Try to resolve the database path
+    let resolvedPath = databasePath;
+    
+    // If path is not absolute, try to resolve it relative to the application directory
+    if (!path.isAbsolute(databasePath)) {
+      const relativeToCwd = path.resolve(process.cwd(), databasePath);
+      console.log(`Checking relative to CWD: ${relativeToCwd}`);
+      
+      if (fs.existsSync(relativeToCwd)) {
+        resolvedPath = relativeToCwd;
+        console.log(`Found database at: ${resolvedPath}`);
+      } else {
+        // Try resolving relative to the app directory
+        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
+        console.log(`Checking relative to app: ${relativeToApp}`);
+        
+        if (fs.existsSync(relativeToApp)) {
+          resolvedPath = relativeToApp;
+          console.log(`Found database at: ${resolvedPath}`);
+        }
+      }
+    }
+    
     // Check if database exists
-    if (!fs.existsSync(databasePath)) {
-      console.error(`Database not found: ${databasePath}`);
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`Database not found at any resolved path: ${resolvedPath}`);
       return { success: false, error: 'Database file not found' };
     }
     
+    console.log(`Using database at: ${resolvedPath}`);
+    
     // Query for all table names
     const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(databasePath);
+    const db = new sqlite3.Database(resolvedPath);
     
     return new Promise((resolve) => {
       db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", [], (err, rows) => {
@@ -327,6 +381,7 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
         }
         
         const tables = rows.map(row => row.name);
+        console.log(`Found ${tables.length} tables: ${tables.join(', ')}`);
         db.close();
         resolve({ success: true, tables });
       });
@@ -340,16 +395,42 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
 ipcMain.handle('api:getTableData', async (_, params) => {
   try {
     const { databasePath, tableName, limit = 1000 } = params;
+    console.log(`Getting data from table ${tableName} in database at path: ${databasePath}`);
+    
+    // Try to resolve the database path
+    let resolvedPath = databasePath;
+    
+    // If path is not absolute, try to resolve it relative to the application directory
+    if (!path.isAbsolute(databasePath)) {
+      const relativeToCwd = path.resolve(process.cwd(), databasePath);
+      console.log(`Checking relative to CWD: ${relativeToCwd}`);
+      
+      if (fs.existsSync(relativeToCwd)) {
+        resolvedPath = relativeToCwd;
+        console.log(`Found database at: ${resolvedPath}`);
+      } else {
+        // Try resolving relative to the app directory
+        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
+        console.log(`Checking relative to app: ${relativeToApp}`);
+        
+        if (fs.existsSync(relativeToApp)) {
+          resolvedPath = relativeToApp;
+          console.log(`Found database at: ${resolvedPath}`);
+        }
+      }
+    }
     
     // Check if database exists
-    if (!fs.existsSync(databasePath)) {
-      console.error(`Database not found: ${databasePath}`);
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`Database not found at any resolved path: ${resolvedPath}`);
       return { success: false, error: 'Database file not found' };
     }
     
+    console.log(`Using database at: ${resolvedPath} to query table: ${tableName}`);
+    
     // Query for table data
     const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(databasePath);
+    const db = new sqlite3.Database(resolvedPath);
     
     return new Promise((resolve) => {
       db.all(`SELECT * FROM "${tableName}" LIMIT ${limit}`, [], (err, rows) => {
@@ -360,6 +441,7 @@ ipcMain.handle('api:getTableData', async (_, params) => {
           return;
         }
         
+        console.log(`Retrieved ${rows.length} rows from table ${tableName}`);
         db.close();
         resolve({ success: true, data: rows });
       });
@@ -372,26 +454,55 @@ ipcMain.handle('api:getTableData', async (_, params) => {
 
 ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
   try {
+    console.log(`Exporting database at path: ${databasePath} to CSV`);
+    
+    // Try to resolve the database path
+    let resolvedPath = databasePath;
+    
+    // If path is not absolute, try to resolve it relative to the application directory
+    if (!path.isAbsolute(databasePath)) {
+      const relativeToCwd = path.resolve(process.cwd(), databasePath);
+      console.log(`Checking relative to CWD: ${relativeToCwd}`);
+      
+      if (fs.existsSync(relativeToCwd)) {
+        resolvedPath = relativeToCwd;
+        console.log(`Found database at: ${resolvedPath}`);
+      } else {
+        // Try resolving relative to the app directory
+        const relativeToApp = path.resolve(app.getAppPath(), databasePath);
+        console.log(`Checking relative to app: ${relativeToApp}`);
+        
+        if (fs.existsSync(relativeToApp)) {
+          resolvedPath = relativeToApp;
+          console.log(`Found database at: ${resolvedPath}`);
+        }
+      }
+    }
+    
     // Check if database exists
-    if (!fs.existsSync(databasePath)) {
-      console.error(`Database not found: ${databasePath}`);
+    if (!fs.existsSync(resolvedPath)) {
+      console.error(`Database not found at any resolved path: ${resolvedPath}`);
       return { success: false, error: 'Database file not found' };
     }
     
+    console.log(`Using database at: ${resolvedPath} for CSV export`);
+    
     // Create output directory
-    const exportDir = path.join(path.dirname(databasePath), 'exports');
+    const exportDir = path.join(path.dirname(resolvedPath), 'exports');
+    console.log(`Creating export directory at: ${exportDir}`);
     if (!fs.existsSync(exportDir)) {
       fs.mkdirSync(exportDir, { recursive: true });
     }
     
     // Export file path
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const dbName = path.basename(databasePath, '.db');
+    const dbName = path.basename(resolvedPath, '.db');
     const exportPath = path.join(exportDir, `${dbName}_export_${timestamp}.csv`);
+    console.log(`Will export to: ${exportPath}`);
     
     // Get all tables
     const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(databasePath);
+    const db = new sqlite3.Database(resolvedPath);
     
     // For this implementation, we'll just export the first table
     // You could enhance this to export all tables or specific ones
@@ -405,6 +516,7 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
         }
         
         if (tables.length === 0) {
+          console.error('No tables found in database');
           db.close();
           resolve({ success: false, error: 'No tables found in database' });
           return;
@@ -412,6 +524,7 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
         
         // Get data from the first table
         const tableName = tables[0].name;
+        console.log(`Exporting data from table: ${tableName}`);
         db.all(`SELECT * FROM "${tableName}"`, [], (dataErr, rows) => {
           db.close();
           
@@ -424,6 +537,7 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
           // Convert to CSV
           try {
             if (rows.length === 0) {
+              console.error('No data found in table');
               resolve({ success: false, error: 'No data found in table' });
               return;
             }
@@ -444,6 +558,7 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
             ].join('\n');
             
             fs.writeFileSync(exportPath, csvContent);
+            console.log(`Successfully exported to: ${exportPath}`);
             resolve({ success: true, exportPath });
           } catch (csvErr) {
             console.error(`Error creating CSV: ${csvErr.message}`);

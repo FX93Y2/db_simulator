@@ -47,13 +47,27 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   
   // Construct database path from resultId and projectId
   useEffect(() => {
-    if (resultId && projectId) {
-      // Construct the path to the database
-      const dbPath = `output/${projectId}/${resultId}.db`;
-      console.log("Setting database path:", dbPath);
+    if (resultId) {
+      let dbPath;
+      
+      if (projectId) {
+        // Construct a project-specific path
+        dbPath = `output/${projectId}/${resultId}.db`;
+        console.log("Setting project-specific database path:", dbPath);
+      } else {
+        // For standalone results (not in a project context)
+        dbPath = `output/${resultId}.db`;
+        console.log("Setting standalone database path:", dbPath);
+      }
+      
+      // Check if this is an absolute path or just a filename
+      if (resultId.includes('/') || resultId.includes('\\')) {
+        // This might be a full path already
+        dbPath = resultId;
+        console.log("Using full path as database path:", dbPath);
+      }
+      
       setDatabasePath(dbPath);
-    } else if (resultId) {
-      setDatabasePath(`output/${resultId}.db`);
     }
   }, [resultId, projectId]);
   
@@ -73,6 +87,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           console.log("Loaded simulation results:", resultInfo.data);
         } else {
           console.error("Failed to load simulation results:", resultInfo.error);
+          alert(`Error loading simulation results: ${resultInfo.error}`);
         }
         
         // Get list of tables in the database
@@ -82,10 +97,14 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           setSelectedTable(tablesResult.tables[0]);
           console.log("Loaded tables:", tablesResult.tables);
         } else {
-          console.error("Failed to load database tables:", tablesResult.error);
+          console.error("Failed to load database tables:", tablesResult.error || "No tables found");
+          if (tablesResult.error) {
+            alert(`Error loading database tables: ${tablesResult.error}`);
+          }
         }
       } catch (error) {
         console.error('Error loading database info:', error);
+        alert(`Error loading database info: ${error.message}`);
       } finally {
         setLoading(false);
       }

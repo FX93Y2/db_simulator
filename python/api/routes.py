@@ -412,21 +412,9 @@ def generate_db():
         output_dir = data.get('output_dir', 'output')
         db_name = data.get('name')
         
-        # Create a temp directory for configuration files if it doesn't exist
-        import os
-        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
-        os.makedirs(temp_config_dir, exist_ok=True)
-        
-        # Write database config to temporary file
-        db_config_path = os.path.join(temp_config_dir, f"db_config_{config['id']}.yaml")
-        with open(db_config_path, 'w') as f:
-            f.write(config['content'])
-        
-        # Generate database using the configuration file path
-        db_path = generate_database(db_config_path, output_dir, db_name)
-        
-        # Clean up temporary file (optional - can keep it for debugging)
-        # os.remove(db_config_path)
+        # Pass configuration content directly to generate_database
+        logger.info(f"Generating database directly from config content")
+        db_path = generate_database(config['content'], output_dir, db_name)
         
         return jsonify({
             "success": True, 
@@ -452,21 +440,9 @@ def run_sim():
         if not config:
             return jsonify({"success": False, "error": "Configuration not found"}), 404
             
-        # Create a temp directory for configuration files if it doesn't exist
-        import os
-        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
-        os.makedirs(temp_config_dir, exist_ok=True)
-        
-        # Write simulation config to temporary file
-        sim_config_path = os.path.join(temp_config_dir, f"sim_config_{config['id']}.yaml")
-        with open(sim_config_path, 'w') as f:
-            f.write(config['content'])
-            
-        # Run simulation using the configuration file path
-        results = run_simulation(sim_config_path, data['database_path'])
-        
-        # Clean up temporary file (optional - can keep it for debugging)
-        # os.remove(sim_config_path)
+        # Pass configuration content directly to run_simulation
+        logger.info(f"Running simulation directly from config content")
+        results = run_simulation(config['content'], data['database_path'])
         
         return jsonify({
             "success": True,
@@ -493,42 +469,91 @@ def generate_and_simulate():
         if not db_config or not sim_config:
             return jsonify({"success": False, "error": "Configuration not found"}), 404
             
+        # Get and prepare output directory
         output_dir = data.get('output_dir', 'output')
+        
+        # Create project-specific output directory if project_id is provided
+        if 'project_id' in data:
+            project_id = data['project_id']
+            output_dir = os.path.join(output_dir, project_id)
+            logger.info(f"Using project-specific output directory: {output_dir}")
+        
+        # Ensure output directory is absolute
+        if not os.path.isabs(output_dir):
+            output_dir = os.path.abspath(output_dir)
+            logger.info(f"Using absolute output directory path: {output_dir}")
+        
+        # Create output directory
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Created or verified output directory: {output_dir}")
+        
         db_name = data.get('name')
         
-        # Create a temp directory for configuration files if it doesn't exist
-        import tempfile
-        import os
-        temp_config_dir = os.path.join(os.path.dirname(__file__), '..', 'temp_configs')
-        os.makedirs(temp_config_dir, exist_ok=True)
+        # Pass configuration content directly to generate_database and run_simulation
+        logger.info("Passing configuration content directly to functions")
         
-        # Write database config to temporary file
-        db_config_path = os.path.join(temp_config_dir, f"db_config_{db_config['id']}.yaml")
-        with open(db_config_path, 'w') as f:
-            f.write(db_config['content'])
-        
-        # Write simulation config to temporary file
-        sim_config_path = os.path.join(temp_config_dir, f"sim_config_{sim_config['id']}.yaml")
-        with open(sim_config_path, 'w') as f:
-            f.write(sim_config['content'])
-        
-        # Generate complete database with all tables using the temporary file
+        # Generate complete database with all tables
+        logger.info(f"Generating database directly from config content in directory: {output_dir}")
         db_path = generate_database(
-            db_config_path, 
+            db_config['content'], 
             output_dir,
             db_name
         )
         
-        # Run simulation using the temporary file
-        results = run_simulation(sim_config_path, db_path)
+        # Log database creation
+        if os.path.exists(db_path):
+            logger.info(f"Database file created successfully: {db_path}, size: {os.path.getsize(db_path)} bytes")
+        else:
+            logger.error(f"Database file was not created at expected path: {db_path}")
         
-        # Clean up temporary files (optional - can keep them for debugging)
-        # os.remove(db_config_path)
-        # os.remove(sim_config_path)
+        # Run simulation
+        logger.info(f"Running simulation directly from config content using database at: {db_path}")
+        results = run_simulation(sim_config['content'], db_path)
+        
+        # Verify database file after simulation
+        if os.path.exists(db_path):
+            logger.info(f"Database file exists after simulation: {db_path}, size: {os.path.getsize(db_path)} bytes")
+            
+            # Create a copy of the database in the electron/output directory
+            # so that the frontend can access it
+            electron_output_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 
+                                            "electron", "output")
+            
+            # Create project-specific directory in electron output if needed
+            if 'project_id' in data:
+                electron_output_dir = os.path.join(electron_output_dir, data['project_id'])
+            
+            os.makedirs(electron_output_dir, exist_ok=True)
+            logger.info(f"Created electron output directory: {electron_output_dir}")
+            
+            # Copy the database file
+            db_filename = os.path.basename(db_path)
+            electron_db_path = os.path.join(electron_output_dir, db_filename)
+            
+            import shutil
+            try:
+                shutil.copy2(db_path, electron_db_path)
+                logger.info(f"Copied database to electron output: {electron_db_path}")
+                
+                # Use the electron path in the response
+                relative_electron_path = os.path.join("output", 
+                                                   data.get('project_id', ''), 
+                                                   db_filename)
+                logger.info(f"Using relative path for frontend: {relative_electron_path}")
+                
+                # Return the relative path that electron will look for
+                db_path_for_response = relative_electron_path.replace('\\', '/')
+            except Exception as copy_err:
+                logger.error(f"Error copying database to electron output: {copy_err}")
+                # Fall back to the original path if copying fails
+                db_path_for_response = db_path
+        else:
+            logger.error(f"Database file not found after simulation: {db_path}")
+            db_path_for_response = db_path
         
         return jsonify({
             "success": True,
-            "database_path": str(db_path),
+            "database_path": str(db_path_for_response),
             "results": results,
             "message": "Generate-and-simulate completed successfully"
         })

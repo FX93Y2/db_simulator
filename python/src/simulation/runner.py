@@ -10,24 +10,29 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 
-from ..config_parser import parse_sim_config
+from ..config_parser import parse_sim_config, parse_sim_config_from_string
 from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)
 
-def run_simulation(sim_config_path: Union[str, Path], db_path: Union[str, Path]) -> Dict[str, Any]:
+def run_simulation(sim_config_path_or_content: Union[str, Path], db_path: Union[str, Path]) -> Dict[str, Any]:
     """
     Run a simulation based on configuration
     
     Args:
-        sim_config_path: Path to the simulation configuration file
+        sim_config_path_or_content: Path to the simulation configuration file or YAML content string
         db_path: Path to the SQLite database
         
     Returns:
         Dictionary with simulation results
     """
     # Parse simulation configuration
-    sim_config = parse_sim_config(sim_config_path)
+    if isinstance(sim_config_path_or_content, (str, Path)) and os.path.exists(sim_config_path_or_content) and os.path.isfile(sim_config_path_or_content):
+        logger.info(f"Running simulation from config file: {sim_config_path_or_content}")
+        sim_config = parse_sim_config(sim_config_path_or_content)
+    else:
+        logger.info("Running simulation from config content string")
+        sim_config = parse_sim_config_from_string(sim_config_path_or_content)
     
     # Ensure entity and event tables exist
     ensure_simulation_tables(sim_config, db_path)
