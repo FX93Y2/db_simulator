@@ -7,24 +7,99 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
+  Handle,
+  Position,
+  useReactFlow,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import '../../styles/diagrams.css';
 import jsYaml from 'js-yaml';
 
 // Custom Event Node component
 const EventNode = ({ data }) => {
   return (
-    <div className="event-node">
-      <div className="event-node__title">{data.label}</div>
+    <div className="event-node" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px', background: 'white' }}>
+      <Handle type="target" position={Position.Top} id="target-top" />
+      <Handle type="source" position={Position.Right} id="source-right" />
+      <Handle type="target" position={Position.Left} id="target-left" />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" />
+      
+      <div className="event-node__title" style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label}</div>
       {data.duration && (
-        <div className="event-node__info">
+        <div className="event-node__info" style={{ fontSize: '0.9em', color: '#666' }}>
           Duration: {data.duration.distribution?.mean || 0} days
         </div>
       )}
       {data.resources && (
-        <div className="event-node__info">
+        <div className="event-node__info" style={{ fontSize: '0.9em', color: '#666' }}>
           Resources: {data.resources}
         </div>
+      )}
+    </div>
+  );
+};
+
+// Custom Decision Node component (rhombus shape)
+const DecisionNode = ({ data }) => {
+  const style = {
+    width: '80px',
+    height: '80px',
+    background: '#f0ad4e',
+    border: '2px solid #eea236',
+    transform: 'rotate(45deg)',
+    position: 'relative',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+  };
+
+  // We need to counter-rotate the text inside the rotated div
+  const textStyle = {
+    transform: 'rotate(-45deg)',
+    fontSize: '14px',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    whiteSpace: 'nowrap',
+    position: 'absolute',
+    color: '#333',
+  };
+
+  return (
+    <div className="decision-node" style={{ position: 'relative' }}>
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="target-left" 
+        style={{ left: '-10px', top: '40px' }} 
+      />
+      <div style={style}>
+        <div style={textStyle}>{data.label}</div>
+      </div>
+      
+      {/* Right handle for "next" event (first/main path) */}
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="source-right"
+        style={{ right: '-10px', top: '40px' }}
+      />
+      
+      {/* Top handle for "other" event (secondary path) */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="source-top"
+        style={{ top: '-10px', left: '40px' }}
+      />
+      
+      {/* Only add bottom handle if we have more than 2 outputs */}
+      {data.outputs && data.outputs.length > 2 && (
+        <Handle
+          type="source"
+          position={Position.Bottom}
+          id="source-bottom"
+          style={{ bottom: '-10px', left: '40px' }}
+        />
       )}
     </div>
   );
@@ -33,6 +108,7 @@ const EventNode = ({ data }) => {
 // Node types definition
 const nodeTypes = {
   event: EventNode,
+  decision: DecisionNode,
 };
 
 const EventFlow = ({ yamlContent, onDiagramChange }) => {
@@ -66,11 +142,11 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         
         // Create nodes for each event type
         const eventNodes = eventTypes.map((event, index) => {
-          // Position events in a circle
-          const angle = (2 * Math.PI * index) / eventTypes.length;
-          const radius = 200;
-          const x = 400 + radius * Math.cos(angle);
-          const y = 250 + radius * Math.sin(angle);
+          // Position events in a more linear/grid pattern
+          const row = Math.floor(index / 3);
+          const col = index % 3;
+          const x = 100 + col * 300;
+          const y = 100 + row * 200;
           
           // Format resource requirements for display
           let resourcesText = '';
@@ -89,45 +165,156 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
               duration: event.duration,
               resources: resourcesText
             },
-            // Add specific connection points
-            sourcePosition: 'right',
-            targetPosition: 'left',
+            width: 200,
+            height: 120,
           };
         });
         
-        // Create edges for transitions
+        // Create decision nodes and edges
+        const decisionNodes = [];
         const transitionEdges = [];
-        transitions.forEach(transition => {
+        
+        transitions.forEach((transition, idx) => {
           const source = transition.from;
           
-          // Each 'to' entry can have multiple destinations with probabilities
-          if (transition.to && Array.isArray(transition.to)) {
-            transition.to.forEach(dest => {
+          // If there are multiple destinations, create a decision node
+          if (transition.to && Array.isArray(transition.to) && transition.to.length > 1) {
+            // Find the source node position
+            const sourceNode = eventNodes.find(node => node.id === source);
+            if (!sourceNode) return;
+            
+            // Create decision node with a unique ID
+            const decisionId = `decision-${source}-${idx}`;
+            
+            // Format label to show the decision context
+            const decisionLabel = `${source} Branch`;
+            
+            // Position decision node to the right of the source event
+            const decisionNode = {
+              id: decisionId,
+              type: 'decision',
+              position: { 
+                x: sourceNode.position.x + 250,
+                y: sourceNode.position.y + 20 // Center it vertically to the source node
+              },
+              data: { 
+                label: decisionLabel,
+                outputs: transition.to,
+                source: source
+              },
+              width: 80,
+              height: 80,
+            };
+            
+            decisionNodes.push(decisionNode);
+            
+            // Create edge from source to decision
+            transitionEdges.push({
+              id: `${source}-${decisionId}`,
+              source,
+              sourceHandle: 'source-right',
+              target: decisionId,
+              targetHandle: 'target-left',
+              type: 'smoothstep',
+              style: { stroke: '#2ecc71', strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: '#2ecc71',
+              },
+            });
+            
+            // Create edges from decision to each destination
+            transition.to.forEach((dest, destIdx) => {
+              const targetNode = eventNodes.find(node => node.id === dest.event_type);
+              if (!targetNode) return;
+              
+              // Determine which handle to use based on index
+              // First item always uses right handle (next event), others use top/bottom
+              let sourceHandle;
+              if (destIdx === 0) {
+                sourceHandle = 'source-right'; // First item (next event) always uses right
+              } else if (destIdx === 1) {
+                sourceHandle = 'source-top'; // Second item (fallback) uses top
+              } else {
+                sourceHandle = 'source-bottom'; // Additional items use bottom
+              }
+              
+              // Determine edge color based on probability
+              let edgeColor;
+              if (dest.probability >= 0.7) {
+                edgeColor = '#5cb85c'; // Green for high probability
+              } else if (dest.probability >= 0.3) {
+                edgeColor = '#f0ad4e'; // Orange for medium probability
+              } else {
+                edgeColor = '#d9534f'; // Red for low probability
+              }
+              
+              // Create edge with label showing probability
               transitionEdges.push({
-                id: `${source}-${dest.event_type}`,
-                source,
+                id: `${decisionId}-${dest.event_type}`,
+                source: decisionId,
+                sourceHandle,
                 target: dest.event_type,
-                label: `${dest.probability * 100}%`,
+                targetHandle: 'target-left', // Just use a consistent target handle
+                type: 'step',
+                label: `${(dest.probability * 100).toFixed(0)}%`,
                 labelStyle: { fill: '#333', fontWeight: 'bold' },
-                style: { stroke: '#2ecc71', strokeWidth: 2 },
+                style: { stroke: edgeColor, strokeWidth: 2 },
                 markerEnd: {
                   type: MarkerType.ArrowClosed,
                   width: 20,
                   height: 20,
-                  color: '#2ecc71',
+                  color: edgeColor,
                 },
               });
+            });
+          } else if (transition.to && Array.isArray(transition.to) && transition.to.length === 1) {
+            // Direct connection for single destination
+            const dest = transition.to[0];
+            transitionEdges.push({
+              id: `${source}-${dest.event_type}`,
+              source,
+              sourceHandle: 'source-right',
+              target: dest.event_type,
+              targetHandle: 'target-left',
+              type: 'step',
+              label: `${(dest.probability * 100).toFixed(0)}%`,
+              labelStyle: { fill: '#333', fontWeight: 'bold' },
+              style: { stroke: '#2ecc71', strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                width: 20,
+                height: 20,
+                color: '#2ecc71',
+              },
             });
           }
         });
         
-        setNodes(eventNodes);
+        // Combine all nodes and set state
+        setNodes([...eventNodes, ...decisionNodes]);
         setEdges(transitionEdges);
       }
     } catch (error) {
       console.error('Error parsing YAML for event flow diagram:', error);
     }
   }, [yamlContent, setNodes, setEdges]);
+  
+  // Helper function to determine the best target handle based on node positions
+  const getTargetHandle = (sourceNode, targetNode) => {
+    // Compare positions to determine best connection point
+    if (targetNode.position.x < sourceNode.position.x - 100) {
+      return 'target-right'; // Target is to the left
+    } else if (targetNode.position.y < sourceNode.position.y - 100) {
+      return 'target-bottom'; // Target is above
+    } else if (targetNode.position.y > sourceNode.position.y + 100) {
+      return 'target-top'; // Target is below
+    } else {
+      return 'target-left'; // Target is to the right (default)
+    }
+  };
   
   // Handle connecting nodes
   const onConnect = useCallback(
@@ -137,12 +324,16 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         console.error('Invalid connection params:', params);
         return;
       }
-    
+      
+      // Check if source is a decision node
+      const isDecisionSource = params.source.startsWith('decision-');
+      
       // Create a new edge with styling
       const newEdge = { 
         ...params, 
         id: `${params.source}-${params.target}`,
-        label: '100%',
+        type: 'step',
+        label: isDecisionSource ? '0%' : '100%',
         labelStyle: { fill: '#333', fontWeight: 'bold' },
         style: { stroke: '#2ecc71', strokeWidth: 2 },
         markerEnd: {
@@ -155,8 +346,8 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
       
       setEdges((eds) => addEdge(newEdge, eds));
       
-      // If the schema exists, update it
-      if (simSchema) {
+      // If the schema exists and connection is not from/to a decision node, update it
+      if (simSchema && !isDecisionSource && !params.target.startsWith('decision-')) {
         // Create a copy of the schema to modify
         const updatedSchema = { ...simSchema };
         
@@ -230,7 +421,7 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         })
       );
       
-      console.log('Event node moved:', node);
+      console.log('Node moved:', node);
     },
     [setNodes]
   );
@@ -245,33 +436,39 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
       const updatedSchema = { ...simSchema };
       const eventSequence = updatedSchema.event_simulation.event_sequence;
       
+      // Filter out decision nodes from deleted nodes to find actual events
+      const deletedEvents = deleted.filter(node => !node.id.startsWith('decision-'));
+      
       // Remove the deleted event types
       if (eventSequence.event_types) {
         eventSequence.event_types = eventSequence.event_types.filter(
-          event => !deleted.some(node => node.id === event.name)
+          event => !deletedEvents.some(node => node.id === event.name)
         );
       }
       
-      // Remove transitions that reference the deleted events
+      // Remove transitions involving deleted events
       if (eventSequence.transitions) {
         // Remove transitions from deleted events
         eventSequence.transitions = eventSequence.transitions.filter(
-          transition => !deleted.some(node => node.id === transition.from)
+          transition => !deletedEvents.some(node => node.id === transition.from)
         );
         
-        // Remove transitions to deleted events
+        // Remove destinations to deleted events
         eventSequence.transitions.forEach(transition => {
           if (transition.to) {
             transition.to = transition.to.filter(
-              to => !deleted.some(node => node.id === to.event_type)
+              dest => !deletedEvents.some(node => node.id === dest.event_type)
             );
             
-            // Recalculate probabilities if needed
+            // If any destinations remain, recalculate probabilities
             if (transition.to.length > 0) {
-              const newProb = 1.0 / transition.to.length;
-              transition.to.forEach(target => {
-                target.probability = newProb;
-              });
+              const totalProb = transition.to.reduce((sum, dest) => sum + dest.probability, 0);
+              if (totalProb > 0 && totalProb < 1.0) {
+                // Normalize probabilities to sum to 1.0
+                transition.to.forEach(dest => {
+                  dest.probability = dest.probability / totalProb;
+                });
+              }
             }
           }
         });
@@ -293,65 +490,36 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
     },
     [simSchema, onDiagramChange]
   );
-  
-  // Handle edge deletion
-  const onEdgesDelete = useCallback(
-    (deleted) => {
-      if (!simSchema || !simSchema.event_simulation || 
-          !simSchema.event_simulation.event_sequence ||
-          !simSchema.event_simulation.event_sequence.transitions) return;
-      
-      // Create a copy of the schema to modify
-      const updatedSchema = { ...simSchema };
-      const transitions = updatedSchema.event_simulation.event_sequence.transitions;
-      
-      // Process each deleted edge
-      deleted.forEach(edge => {
-        const [sourceEvent, targetEvent] = edge.id.split('-');
-        
-        // Find the transition for this source event
-        const transitionIndex = transitions.findIndex(t => t.from === sourceEvent);
-        
-        if (transitionIndex !== -1) {
-          const transition = transitions[transitionIndex];
-          
-          // Find and remove the target from the "to" array
-          if (transition.to) {
-            transition.to = transition.to.filter(to => to.event_type !== targetEvent);
-            
-            // Recalculate probabilities
-            if (transition.to.length > 0) {
-              const newProb = 1.0 / transition.to.length;
-              transition.to.forEach(target => {
-                target.probability = newProb;
-              });
-            } else {
-              // If no targets left, remove the entire transition
-              transitions.splice(transitionIndex, 1);
-            }
-          }
-        }
-      });
-      
-      // Update the schema state
-      setSimSchema(updatedSchema);
-      
-      // Convert to YAML and notify parent
-      const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
-      if (onDiagramChange) {
-        onDiagramChange(updatedYaml);
-      }
-    },
-    [simSchema, onDiagramChange]
-  );
-  
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
-    return <div ref={containerRef} className="event-flow-container" style={{ width: '100%', height: '100%' }} />;
+    return (
+      <div 
+        ref={containerRef} 
+        className="event-flow-container" 
+        style={{ 
+          width: '100%', 
+          height: '600px',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }} 
+      />
+    );
   }
   
   return (
-    <div className="event-flow-container" style={{ width: '100%', height: '100%' }} ref={containerRef}>
+    <div 
+      className="event-flow-container" 
+      style={{ 
+        width: '100%', 
+        height: '600px',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        overflow: 'hidden'
+      }} 
+      ref={containerRef}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -360,10 +528,11 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
-        onEdgesDelete={onEdgesDelete}
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        deleteKeyCode="Delete"
+        multiSelectionKeyCode="Shift"
       >
         <Controls />
         <MiniMap />

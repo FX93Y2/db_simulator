@@ -7,20 +7,34 @@ import ReactFlow, {
   useNodesState,
   useEdgesState,
   MarkerType,
+  Handle,
+  Position,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import '../../styles/diagrams.css';
 import jsYaml from 'js-yaml';
 
 // Custom Entity Node component
 const EntityNode = ({ data }) => {
   return (
-    <div className="entity-node">
-      <div className="entity-node__title">{data.label}</div>
+    <div className="entity-node" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px', background: 'white' }}>
+      <Handle type="target" position={Position.Top} id="target-top" />
+      <Handle type="source" position={Position.Right} id="source-right" />
+      <Handle type="target" position={Position.Left} id="target-left" />
+      <Handle type="source" position={Position.Bottom} id="source-bottom" />
+      
+      <div className="entity-node__title" style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label}</div>
       <div className="entity-node__attributes">
         {data.attributes.map((attr, index) => (
           <div 
             key={index} 
             className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${attr.type === 'fk' ? 'foreign-key' : ''}`}
+            style={{ 
+              padding: '2px 5px',
+              margin: '2px 0',
+              fontSize: '0.9em',
+              backgroundColor: attr.type === 'pk' ? '#e8f5e9' : attr.type === 'fk' ? '#fff3e0' : 'transparent'
+            }}
           >
             {attr.name}: {attr.type}
           </div>
@@ -74,9 +88,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
               label: entity.name,
               attributes: entity.attributes || []
             },
-            // Add connection points without specific handles
-            sourcePosition: 'right',
-            targetPosition: 'left',
+            width: 200,
+            height: 100 + (entity.attributes?.length || 0) * 25,
           });
           
           // Create edges for relationships
@@ -87,9 +100,11 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
                 relationEdges.push({
                   id: `${entity.name}-${targetEntity}`,
                   source: entity.name,
-                  // Remove sourceHandle and targetHandle that don't exist
+                  sourceHandle: 'source-right',
                   target: targetEntity,
+                  targetHandle: 'target-left',
                   animated: true,
+                  type: 'smoothstep',
                   style: { stroke: '#3498db' },
                   label: attr.name,
                   markerEnd: {
@@ -126,6 +141,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
         ...params, 
         id: `${params.source}-${params.target}`,
         animated: true,
+        type: 'smoothstep',
         style: { stroke: '#3498db' },
         markerEnd: {
           type: MarkerType.ArrowClosed,
@@ -195,14 +211,61 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
     },
     [setNodes]
   );
+
+  // Handle node deletion
+  const onNodesDelete = useCallback(
+    (deleted) => {
+      if (!dbSchema || !dbSchema.entities) return;
+      
+      // Create a copy of the schema to modify
+      const updatedSchema = { ...dbSchema };
+      
+      // Remove the deleted entities
+      updatedSchema.entities = updatedSchema.entities.filter(
+        entity => !deleted.some(node => node.id === entity.name)
+      );
+      
+      // Update the schema state
+      setDbSchema(updatedSchema);
+      
+      // Convert to YAML and notify parent
+      const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+      if (onDiagramChange) {
+        onDiagramChange(updatedYaml);
+      }
+    },
+    [dbSchema, onDiagramChange]
+  );
   
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
-    return <div ref={containerRef} className="er-diagram-container" style={{ width: '100%', height: '100%' }} />;
+    return (
+      <div 
+        ref={containerRef} 
+        className="er-diagram-container" 
+        style={{ 
+          width: '100%', 
+          height: '600px',
+          border: '1px solid #ddd',
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }} 
+      />
+    );
   }
   
   return (
-    <div className="er-diagram-container" style={{ width: '100%', height: '100%' }} ref={containerRef}>
+    <div 
+      className="er-diagram-container" 
+      style={{ 
+        width: '100%', 
+        height: '600px',
+        border: '1px solid #ddd',
+        borderRadius: '4px',
+        overflow: 'hidden'
+      }} 
+      ref={containerRef}
+    >
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -210,9 +273,12 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
+        onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        deleteKeyCode="Delete"
+        multiSelectionKeyCode="Shift"
       >
         <Controls />
         <MiniMap />

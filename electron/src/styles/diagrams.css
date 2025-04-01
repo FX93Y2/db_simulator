@@ -1,0 +1,271 @@
+/* Common styles for diagram containers */
+.er-diagram-container,
+.event-flow-container {
+  position: relative;
+  background-color: #f8f9fa;
+  margin: 1rem 0;
+}
+
+/* Entity node styles */
+.entity-node {
+  min-width: 200px;
+  max-width: 300px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.entity-node__title {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 8px;
+}
+
+.entity-node__attribute {
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.entity-node__attribute:hover {
+  background-color: #f5f5f5;
+}
+
+/* Event node styles */
+.event-node {
+  min-width: 180px;
+  max-width: 250px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.event-node__title {
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+  margin-bottom: 8px;
+}
+
+.event-node__info {
+  padding: 4px 8px;
+  margin: 2px 0;
+  border-radius: 3px;
+  transition: background-color 0.2s;
+}
+
+.event-node__info:hover {
+  background-color: #f5f5f5;
+}
+
+/* Handle styles */
+.react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background-color: #3498db;
+  border: 2px solid white;
+  box-shadow: 0 0 0 2px #3498db;
+}
+
+.react-flow__handle:hover {
+  background-color: #2980b9;
+}
+
+/* Edge styles */
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* Step edge styles */
+.react-flow__edge.step-edge .react-flow__edge-path {
+  stroke-width: 2;
+  fill: none;
+}
+
+/* Custom edge label background */
+.react-flow__edge.step-edge .react-flow__edge-text,
+.react-flow__edge.smoothstep-edge .react-flow__edge-text {
+  background-color: white;
+  padding: 3px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  fill: #333;
+  paint-order: stroke;
+  stroke: white;
+  stroke-width: 3px;
+}
+
+/* Node selection styles */
+.react-flow__node.selected .entity-node,
+.react-flow__node.selected .event-node,
+.react-flow__node.selected .decision-node > div {
+  box-shadow: 0 0 0 2px #3498db;
+}
+
+/* Controls and minimap styles */
+.react-flow__controls {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__minimap {
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+/* Background styles */
+.react-flow__background {
+  background-color: #f8f9fa;
+}
+
+/* Node dragging styles */
+.react-flow__node.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+/* Edge connecting styles */
+.react-flow__edge.connecting {
+  stroke: #3498db;
+  stroke-width: 2;
+}
+
+/* Edge selected styles */
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3;
+  stroke-dasharray: none;
+  stroke: #3498db;
+}
+
+/* Node dragging preview styles */
+.react-flow__node.dragging .entity-node,
+.react-flow__node.dragging .event-node {
+  transform: scale(1.02);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Handle connection styles */
+.react-flow__handle.connecting {
+  background-color: #2980b9;
+  box-shadow: 0 0 0 2px #2980b9;
+}
+
+/* Edge label styles */
+.react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 500;
+  fill: #333;
+  background-color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+/* Node deletion styles */
+.react-flow__node.deleting {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+/* Edge deletion styles */
+.react-flow__edge.deleting {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+/* Zoom controls styles */
+.react-flow__controls-zoom {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+}
+
+.react-flow__controls-zoom button {
+  border: none;
+  background: none;
+  padding: 5px;
+  cursor: pointer;
+  color: #666;
+}
+
+.react-flow__controls-zoom button:hover {
+  color: #333;
+  background-color: #f5f5f5;
+}
+
+/* Node resizing styles */
+.react-flow__node.resizing {
+  opacity: 0.8;
+  cursor: nwse-resize;
+}
+
+/* Node rotation styles */
+.react-flow__node.rotating {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+/* Edge updating styles */
+.react-flow__edge.updating {
+  stroke-dasharray: 5;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 10;
+  }
+}
+
+/* Decision node styles */
+.decision-node {
+  width: 100px;
+  height: 100px;
+  z-index: 10;
+}
+
+.decision-node .react-flow__handle {
+  width: 8px;
+  height: 8px;
+  background-color: #eea236;
+  border: 2px solid white;
+}
+
+.decision-node .react-flow__handle:hover {
+  background-color: #d58512;
+}
+
+/* Color-code the decision node handles */
+.decision-node .react-flow__handle[id="source-right"] {
+  background-color: #5cb85c; /* Green for "next" path */
+  border: 2px solid white;
+}
+
+.decision-node .react-flow__handle[id="source-top"] {
+  background-color: #f0ad4e; /* Orange for "other" path */
+  border: 2px solid white;
+}
+
+.decision-node .react-flow__handle[id="source-bottom"] {
+  background-color: #d9534f; /* Red for third+ paths */
+  border: 2px solid white;
+}
+
+/* Create more spacing for handles on the decision node */
+.decision-node .react-flow__handle-top {
+  top: -10px;
+}
+
+.decision-node .react-flow__handle-right {
+  right: -10px;
+}
+
+.decision-node .react-flow__handle-bottom {
+  bottom: -10px;
+}
+
+.decision-node .react-flow__handle-left {
+  left: -10px;
+} 
