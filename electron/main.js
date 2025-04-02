@@ -18,6 +18,56 @@ let isBackendReady = false;
 const apiCache = {};
 const CACHE_EXPIRY = 10000; // 10 seconds in ms
 
+// Helper function to get application paths
+function getAppPaths() {
+  // Get user data path - this is where app-specific data should be stored
+  const userDataPath = app.getPath('userData');
+  
+  // Base paths for various app resources
+  const paths = {
+    // User shouldn't directly access these paths
+    output: app.isPackaged 
+      ? path.join(userDataPath, 'output') 
+      : path.join(path.dirname(app.getAppPath()), 'output'),
+    
+    // Config database location
+    configDb: app.isPackaged
+      ? path.join(userDataPath, 'config', 'configs.db')
+      : path.join(path.dirname(app.getAppPath()), 'python', 'config_storage', 'configs.db'),
+    
+    // Python executable and script paths
+    python: app.isPackaged 
+      ? path.join(process.resourcesPath, 'python', 'venv', 'bin', 'python')
+      : 'python',
+    
+    pythonScript: app.isPackaged
+      ? path.join(process.resourcesPath, 'python', 'main.py')
+      : path.join(__dirname, '..', 'python', 'main.py')
+  };
+  
+  // Create directories if they don't exist
+  if (app.isPackaged) {
+    const configDir = path.dirname(paths.configDb);
+    if (!fs.existsSync(configDir)) {
+      fs.mkdirSync(configDir, { recursive: true });
+    }
+    
+    if (!fs.existsSync(paths.output)) {
+      fs.mkdirSync(paths.output, { recursive: true });
+    }
+  }
+  
+  console.log('Application paths:');
+  Object.entries(paths).forEach(([key, value]) => {
+    console.log(`- ${key}: ${value}`);
+  });
+  
+  return paths;
+}
+
+// Get application paths
+const appPaths = getAppPaths();
+
 function createWindow() {
   // Create the browser window
   mainWindow = new BrowserWindow({
@@ -71,16 +121,18 @@ function startBackend() {
   
   try {
     console.log('Starting Python backend...');
-    const pythonPath = app.isPackaged 
-      ? path.join(process.resourcesPath, 'python', 'venv', 'bin', 'python')
-      : 'python';
     
-    const scriptPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'python', 'main.py')
-      : path.join(__dirname, '..', 'python', 'main.py');
+    // Pass important paths to the Python backend as environment variables
+    const env = {
+      ...process.env,
+      DB_SIMULATOR_OUTPUT_DIR: appPaths.output,
+      DB_SIMULATOR_CONFIG_DB: appPaths.configDb,
+      DB_SIMULATOR_PACKAGED: app.isPackaged ? 'true' : 'false'
+    };
     
-    backendProcess = spawn(pythonPath, [scriptPath, 'api'], {
-      stdio: 'pipe'
+    backendProcess = spawn(appPaths.python, [appPaths.pythonScript, 'api'], {
+      stdio: 'pipe',
+      env
     });
     
     backendProcess.stdout.on('data', (data) => {
@@ -302,7 +354,27 @@ ipcMain.handle('api:clearConfigs', async (_, includeProjectConfigs = true) => {
 
 // Database Generation
 ipcMain.handle('api:generateDatabase', async (_, data) => {
-  return await makeApiRequest('POST', 'generate-database', data);
+  try {
+    // Make sure project_id is included in the data for project-specific storage
+    if (data.project_id) {
+      console.log(`Generating database for project: ${data.project_id}`);
+      
+      // Create project-specific directory if it doesn't exist
+      if (app.isPackaged) {
+        const projectDir = path.join(appPaths.output, data.project_id);
+        if (!fs.existsSync(projectDir)) {
+          fs.mkdirSync(projectDir, { recursive: true });
+          console.log(`Created project output directory: ${projectDir}`);
+        }
+      }
+    }
+    
+    // Pass the request to the backend API
+    return await makeApiRequest('POST', 'generate-database', data);
+  } catch (error) {
+    console.error(`Error generating database: ${error.message}`);
+    return { success: false, error: error.message };
+  }
 });
 
 // Simulation
@@ -423,21 +495,27 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
   try {
     console.log(`Getting tables from database at path: ${databasePath}`);
     
-    // Try to resolve the database path using the same logic
+    // Try to resolve the database path using the new appPaths
     let resolvedPath = databasePath;
     
-    // Try multiple locations to find the database file
-    const possiblePaths = [
-      databasePath,                                    // Original path
-      path.resolve(process.cwd(), databasePath),       // Relative to CWD
-      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
-      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
-    ];
+    // Try multiple locations to find the database file with priority for packaged paths
+    const possiblePaths = [];
     
-    // Add one more path for project root/output case
-    const projectRoot = path.dirname(app.getAppPath());
+    // If the path starts with 'output/', it's likely a relative path to our output directory
     if (databasePath.startsWith('output/')) {
-      possiblePaths.push(path.resolve(projectRoot, databasePath));
+      // For a packaged app, prioritize the user data output directory
+      if (app.isPackaged) {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+      } else {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+        possiblePaths.push(path.resolve(path.dirname(app.getAppPath()), databasePath));
+      }
+    } else {
+      // For absolute or other relative paths
+      possiblePaths.push(databasePath);                                    // Original path
+      possiblePaths.push(path.resolve(app.getPath('userData'), databasePath)); // User data directory
+      possiblePaths.push(path.resolve(process.cwd(), databasePath));       // Current working directory
+      possiblePaths.push(path.resolve(app.getAppPath(), databasePath));    // App directory
     }
     
     console.log('Checking these possible database paths:');
@@ -484,21 +562,27 @@ ipcMain.handle('api:getTableData', async (_, params) => {
     const { databasePath, tableName, limit = 1000 } = params;
     console.log(`Getting data from table ${tableName} in database at path: ${databasePath}`);
     
-    // Try to resolve the database path using the same logic
+    // Try to resolve the database path using the new appPaths
     let resolvedPath = databasePath;
     
-    // Try multiple locations to find the database file
-    const possiblePaths = [
-      databasePath,                                    // Original path
-      path.resolve(process.cwd(), databasePath),       // Relative to CWD
-      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
-      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
-    ];
+    // Try multiple locations to find the database file with priority for packaged paths
+    const possiblePaths = [];
     
-    // Add one more path for project root/output case
-    const projectRoot = path.dirname(app.getAppPath());
+    // If the path starts with 'output/', it's likely a relative path to our output directory
     if (databasePath.startsWith('output/')) {
-      possiblePaths.push(path.resolve(projectRoot, databasePath));
+      // For a packaged app, prioritize the user data output directory
+      if (app.isPackaged) {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+      } else {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+        possiblePaths.push(path.resolve(path.dirname(app.getAppPath()), databasePath));
+      }
+    } else {
+      // For absolute or other relative paths
+      possiblePaths.push(databasePath);                                    // Original path
+      possiblePaths.push(path.resolve(app.getPath('userData'), databasePath)); // User data directory
+      possiblePaths.push(path.resolve(process.cwd(), databasePath));       // Current working directory
+      possiblePaths.push(path.resolve(app.getAppPath(), databasePath));    // App directory
     }
     
     console.log('Checking these possible database paths:');
@@ -543,21 +627,27 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
   try {
     console.log(`Exporting database at path: ${databasePath} to CSV`);
     
-    // Try to resolve the database path using the same logic
+    // Try to resolve the database path using the new appPaths
     let resolvedPath = databasePath;
     
-    // Try multiple locations to find the database file
-    const possiblePaths = [
-      databasePath,                                    // Original path
-      path.resolve(process.cwd(), databasePath),       // Relative to CWD
-      path.resolve(app.getAppPath(), databasePath),    // Relative to app path
-      path.resolve(path.dirname(app.getAppPath()), databasePath) // Relative to project root
-    ];
+    // Try multiple locations to find the database file with priority for packaged paths
+    const possiblePaths = [];
     
-    // Add one more path for project root/output case
-    const projectRoot = path.dirname(app.getAppPath());
+    // If the path starts with 'output/', it's likely a relative path to our output directory
     if (databasePath.startsWith('output/')) {
-      possiblePaths.push(path.resolve(projectRoot, databasePath));
+      // For a packaged app, prioritize the user data output directory
+      if (app.isPackaged) {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+      } else {
+        possiblePaths.push(path.join(appPaths.output, databasePath.replace('output/', '')));
+        possiblePaths.push(path.resolve(path.dirname(app.getAppPath()), databasePath));
+      }
+    } else {
+      // For absolute or other relative paths
+      possiblePaths.push(databasePath);                                    // Original path
+      possiblePaths.push(path.resolve(app.getPath('userData'), databasePath)); // User data directory
+      possiblePaths.push(path.resolve(process.cwd(), databasePath));       // Current working directory
+      possiblePaths.push(path.resolve(app.getAppPath(), databasePath));    // App directory
     }
     
     console.log('Checking these possible database paths:');
@@ -579,16 +669,16 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
     console.log(`Using database at: ${resolvedPath} for CSV export`);
     
     // Create output directory
-    const exportDir = path.join(path.dirname(resolvedPath), 'exports');
-    console.log(`Creating export directory at: ${exportDir}`);
-    if (!fs.existsSync(exportDir)) {
-      fs.mkdirSync(exportDir, { recursive: true });
+    const exportsDir = path.join(appPaths.output, 'exports');
+    console.log(`Creating export directory at: ${exportsDir}`);
+    if (!fs.existsSync(exportsDir)) {
+      fs.mkdirSync(exportsDir, { recursive: true });
     }
     
     // Export file path
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const dbName = path.basename(resolvedPath, '.db');
-    const exportPath = path.join(exportDir, `${dbName}_export_${timestamp}.csv`);
+    const exportPath = path.join(exportsDir, `${dbName}_export_${timestamp}.csv`);
     console.log(`Will export to: ${exportPath}`);
     
     // Get all tables using better-sqlite3
@@ -596,7 +686,8 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
     const db = new Database(resolvedPath, { readonly: true });
     
     try {
-      // For this implementation, just export the first table
+      // For this implementation, we'll just export the first table
+      // You could enhance this to export all tables or specific ones
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").all();
       
       if (tables.length === 0) {
@@ -669,19 +760,32 @@ ipcMain.handle('api:deleteResult', async (_, resultPath) => {
   try {
     console.log(`Deleting simulation result: ${resultPath}`);
     
-    // Resolve the full path to the result file
+    // Resolve the full path to the result file using the new appPaths
     let resolvedPath = resultPath;
     
-    // Try multiple locations to find the database file
-    const possiblePaths = [
-      resultPath,                                   // Original path
-      path.resolve(process.cwd(), resultPath),      // Relative to CWD
-      path.resolve(app.getAppPath(), resultPath),   // Relative to app path
-      path.resolve(path.dirname(app.getAppPath()), resultPath) // Relative to project root
-    ];
+    // Try multiple locations to find the result file with priority for packaged paths
+    const possiblePaths = [];
     
-    // Find the correct path
+    // If the path starts with 'output/', it's likely a relative path to our output directory
+    if (resultPath.startsWith('output/')) {
+      // For a packaged app, prioritize the user data output directory
+      if (app.isPackaged) {
+        possiblePaths.push(path.join(appPaths.output, resultPath.replace('output/', '')));
+      } else {
+        possiblePaths.push(path.join(appPaths.output, resultPath.replace('output/', '')));
+        possiblePaths.push(path.resolve(path.dirname(app.getAppPath()), resultPath));
+      }
+    } else {
+      // For absolute or other relative paths
+      possiblePaths.push(resultPath);                                    // Original path
+      possiblePaths.push(path.resolve(app.getPath('userData'), resultPath)); // User data directory
+      possiblePaths.push(path.resolve(process.cwd(), resultPath));       // Current working directory
+      possiblePaths.push(path.resolve(app.getAppPath(), resultPath));    // App directory
+    }
+    
+    console.log('Checking these possible result paths:');
     for (const p of possiblePaths) {
+      console.log(` - ${p}`);
       if (fs.existsSync(p)) {
         resolvedPath = p;
         console.log(`Found result file at: ${resolvedPath}`);

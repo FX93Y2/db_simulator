@@ -29,11 +29,25 @@ class ConfigManager:
                                     If None, uses the default path.
         """
         if db_path is None:
-            # Get the directory of this file
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            db_path = os.path.join(current_dir, 'configs.db')
+            # Check if an environment variable is set for the config database
+            # This will be set by the Electron app when packaged
+            if 'DB_SIMULATOR_CONFIG_DB' in os.environ:
+                db_path = os.environ['DB_SIMULATOR_CONFIG_DB']
+                logger.info(f"Using config database path from environment: {db_path}")
+                
+                # Ensure the directory exists
+                db_dir = os.path.dirname(db_path)
+                if not os.path.exists(db_dir):
+                    os.makedirs(db_dir, exist_ok=True)
+                    logger.info(f"Created config database directory: {db_dir}")
+            else:
+                # Default path - get the directory of this file
+                current_dir = os.path.dirname(os.path.abspath(__file__))
+                db_path = os.path.join(current_dir, 'configs.db')
+                logger.info(f"Using default config database path: {db_path}")
         
         self.db_path = db_path
+        logger.info(f"Initializing config database at: {self.db_path}")
         self._init_db()
     
     def _init_db(self):

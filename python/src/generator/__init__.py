@@ -15,7 +15,7 @@ from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_f
 logger = logging.getLogger(__name__)
 
 # Export the generate_database function
-def generate_database(config_path_or_content, output_dir='output', db_name=None):
+def generate_database(config_path_or_content, output_dir='output', db_name=None, project_id=None):
     """
     Generate a SQLite database from a configuration file path or content string.
     
@@ -23,6 +23,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None)
         config_path_or_content (str): Path to the database configuration file or YAML content
         output_dir (str): Directory to store the generated database
         db_name (str, optional): Name of the database (without extension)
+        project_id (str, optional): Project ID to organize output files
         
     Returns:
         Path: Path to the generated database file
@@ -35,23 +36,39 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None)
         logger.info("Generating database from config content string")
         config = parse_db_config_from_string(config_path_or_content)
     
-    # Make sure output_dir is an absolute path
-    if not os.path.isabs(output_dir):
-        # Check if we're in a project environment
-        # Try to find the project root (look for directories like 'python' and 'electron' as siblings)
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        project_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+    # Check if we're in packaged mode (environment variable set by Electron)
+    is_packaged = os.environ.get('DB_SIMULATOR_PACKAGED', 'false').lower() == 'true'
+    logger.info(f"Running in {'packaged' if is_packaged else 'development'} mode")
+    
+    # Check if output directory is specified in environment
+    if 'DB_SIMULATOR_OUTPUT_DIR' in os.environ:
+        base_output_dir = os.environ['DB_SIMULATOR_OUTPUT_DIR']
+        logger.info(f"Using output directory from environment: {base_output_dir}")
         
-        # Look for project structure indicators
-        if os.path.isdir(os.path.join(project_dir, 'python')) and \
-           os.path.isdir(os.path.join(project_dir, 'electron')):
-            # Found project root, use it as base for output
-            output_dir = os.path.join(project_dir, output_dir)
-            logger.info(f"Using project root-based output directory: {output_dir}")
+        # If project_id is provided, create a project-specific subdirectory
+        if project_id:
+            output_dir = os.path.join(base_output_dir, project_id)
+            logger.info(f"Using project-specific output directory: {output_dir}")
         else:
-            # Can't find project root, use absolute path of current directory
-            output_dir = os.path.abspath(output_dir)
-            logger.info(f"Using absolute output directory: {output_dir}")
+            output_dir = base_output_dir
+    else:
+        # Fall back to the original logic for development mode
+        if not os.path.isabs(output_dir):
+            # Check if we're in a project environment
+            # Try to find the project root (look for directories like 'python' and 'electron' as siblings)
+            current_dir = os.path.dirname(os.path.abspath(__file__))
+            project_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
+            
+            # Look for project structure indicators
+            if os.path.isdir(os.path.join(project_dir, 'python')) and \
+               os.path.isdir(os.path.join(project_dir, 'electron')):
+                # Found project root, use it as base for output
+                output_dir = os.path.join(project_dir, output_dir)
+                logger.info(f"Using project root-based output directory: {output_dir}")
+            else:
+                # Can't find project root, use absolute path of current directory
+                output_dir = os.path.abspath(output_dir)
+                logger.info(f"Using absolute output directory: {output_dir}")
     
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
