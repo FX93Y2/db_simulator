@@ -25,6 +25,7 @@
     "electron": "^28.0.0",
     "electron-builder": "^24.6.3",
     "mini-css-extract-plugin": "^2.7.6",
+    "ncp": "^2.0.0",
     "rimraf": "^5.0.1",
     "sass": "^1.69.0",
     "sass-loader": "^13.3.2",
@@ -64,12 +65,71 @@
     ],
     "extraResources": [
       {
-        "from": "../python",
-        "to": "python",
+        "from": "../python/dist/db_simulator_api",
+        "to": "python/dist/db_simulator_api",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../python/main.py",
+        "to": "python/main.py"
+      },
+      {
+        "from": "../python/api.py",
+        "to": "python/api.py"
+      },
+      {
+        "from": "../python/run.py",
+        "to": "python/run.py"
+      },
+      {
+        "from": "../python/requirements.txt",
+        "to": "python/requirements.txt"
+      },
+      {
+        "from": "../python/USE_COPIED_ENV",
+        "to": "python/USE_COPIED_ENV",
+        "filter": ["**/*"]
+      },
+      {
+        "from": "../python/api",
+        "to": "python/api",
         "filter": [
           "**/*",
           "!**/__pycache__/**",
           "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "../python/src",
+        "to": "python/src",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "../python/config_storage",
+        "to": "python/config_storage",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      },
+      {
+        "from": "../python/venv",
+        "to": "python/venv",
+        "filter": [
+          "Scripts/**",
+          "Lib/**",
+          "Include/**",
+          "pyvenv.cfg",
+          "!**/__pycache__/**",
+          "!**/*.pyc",
+          "!**/*.git"
         ]
       }
     ],

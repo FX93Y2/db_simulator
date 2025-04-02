@@ -12,7 +12,8 @@ from flask_cors import CORS
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-from python.api.routes import api
+# Fix import to use relative import instead of absolute import from "python" module
+from api.routes import api
 
 # Configure logging
 logging.basicConfig(

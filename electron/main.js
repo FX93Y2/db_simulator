@@ -197,113 +197,188 @@ function startBackend() {
   try {
     console.log('Starting Python backend...');
     
-    // Determine correct Python path for packaged app
-    let pythonExePath = appPaths.python;
-    let pythonScriptPath = appPaths.pythonScript;
+    // Check if we should use the PyInstaller executable or copied Python environment
+    const useCopiedEnvPath = app.isPackaged
+      ? path.join(process.resourcesPath, 'python', 'USE_COPIED_ENV')
+      : path.join(__dirname, '..', 'python', 'USE_COPIED_ENV');
     
-    // Log the paths we're using
-    console.log(`Python executable path: ${pythonExePath}`);
-    console.log(`Python script path: ${pythonScriptPath}`);
+    const useCopiedEnv = fs.existsSync(useCopiedEnvPath);
     
-    // Check if the Python script exists
-    if (!fs.existsSync(pythonScriptPath)) {
-      console.error(`Python script not found at: ${pythonScriptPath}`);
-      console.log('Searching for Python script in resources...');
-      
-      // Try to find the Python script in resources directory
-      const resourcesDir = process.resourcesPath;
-      console.log(`Resources directory: ${resourcesDir}`);
-      
-      // List files in resources/python to debug
-      try {
-        if (fs.existsSync(path.join(resourcesDir, 'python'))) {
-          const pythonDir = fs.readdirSync(path.join(resourcesDir, 'python'));
-          console.log('Files in resources/python:', pythonDir);
-        } else {
-          console.error('resources/python directory does not exist!');
-        }
-      } catch (err) {
-        console.error('Error listing files in resources/python:', err);
-      }
-      
-      // Try alternative paths
-      const alternativePaths = [
-        path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'main.py'),
-        path.join(process.resourcesPath, 'python', 'main.py'),
-        path.join(process.cwd(), 'resources', 'python', 'main.py')
-      ];
-      
-      for (const altPath of alternativePaths) {
-        console.log(`Checking alternative path: ${altPath}`);
-        if (fs.existsSync(altPath)) {
-          pythonScriptPath = altPath;
-          console.log(`Found Python script at: ${pythonScriptPath}`);
-          break;
-        }
-      }
+    if (useCopiedEnv) {
+      console.log('Using copied Python environment (PyInstaller was not successful)');
+      startBackendWithPython();
+    } else {
+      console.log('Using PyInstaller-generated executable');
+      startBackendWithExecutable();
     }
-    
-    // Check if Python executable exists
-    if (app.isPackaged && !fs.existsSync(pythonExePath)) {
-      console.error(`Python executable not found at: ${pythonExePath}`);
-      
-      // On Windows, try using the system Python if packaged Python not found
-      if (process.platform === 'win32') {
-        pythonExePath = 'python';
-        console.log(`Falling back to system Python: ${pythonExePath}`);
-      }
-    }
-    
-    // Pass important paths to the Python backend as environment variables
-    const env = {
-      ...process.env,
-      DB_SIMULATOR_OUTPUT_DIR: appPaths.output,
-      DB_SIMULATOR_CONFIG_DB: appPaths.configDb,
-      DB_SIMULATOR_PACKAGED: app.isPackaged ? 'true' : 'false',
-      PYTHONUNBUFFERED: '1'  // Make Python output unbuffered for better logging
-    };
-    
-    console.log('Environment variables for Python backend:');
-    Object.entries(env).forEach(([key, value]) => {
-      if (key.startsWith('DB_SIMULATOR_')) {
-        console.log(`- ${key}: ${value}`);
-      }
-    });
-    
-    // Start the backend process
-    console.log(`Spawning Python process: ${pythonExePath} ${pythonScriptPath} api`);
-    backendProcess = spawn(pythonExePath, [pythonScriptPath, 'api'], {
-      stdio: 'pipe',
-      env
-    });
-    
-    // Log stdout from the process
-    backendProcess.stdout.on('data', (data) => {
-      console.log(`Backend stdout: ${data.toString().trim()}`);
-    });
-    
-    // Log stderr from the process
-    backendProcess.stderr.on('data', (data) => {
-      console.error(`Backend stderr: ${data.toString().trim()}`);
-    });
-    
-    backendProcess.on('error', (err) => {
-      console.error(`Failed to start backend process: ${err.message}`);
-      if (err.code === 'ENOENT') {
-        console.error('Python executable not found. Make sure Python is installed and in PATH.');
-      }
-    });
-    
-    backendProcess.on('close', (code) => {
-      console.log(`Backend process exited with code ${code}`);
-      backendProcess = null;
-    });
-    
-    // Wait for backend to start
-    checkBackendStatus(30); // Try for 30 seconds
   } catch (error) {
     console.error('Error starting Python backend:', error);
+    
+    // If the primary method fails, try the fallback
+    try {
+      console.log('Trying fallback method to start backend...');
+      if (backendProcess) return; // Avoid starting multiple processes
+      
+      const useExecutableFallback = !fs.existsSync(path.join(process.resourcesPath, 'python', 'USE_COPIED_ENV'));
+      if (useExecutableFallback) {
+        startBackendWithPython();
+      } else {
+        startBackendWithExecutable();
+      }
+    } catch (fallbackError) {
+      console.error('Error with fallback method:', fallbackError);
+    }
   }
+}
+
+// Start backend using PyInstaller-generated executable
+function startBackendWithExecutable() {
+  // Use the PyInstaller executable in packaged mode
+  let backendExePath = app.isPackaged 
+    ? path.join(process.resourcesPath, 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe')
+    : path.join(__dirname, '..', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe');
+  
+  // Log the path we're using
+  console.log(`Backend executable path: ${backendExePath}`);
+  
+  // Check if the executable exists
+  if (!fs.existsSync(backendExePath)) {
+    console.error(`Backend executable not found at: ${backendExePath}`);
+    
+    // Try alternative paths if not found
+    const alternativePaths = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe'),
+      path.join(process.cwd(), 'resources', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe')
+    ];
+    
+    for (const altPath of alternativePaths) {
+      console.log(`Checking alternative path: ${altPath}`);
+      if (fs.existsSync(altPath)) {
+        backendExePath = altPath;
+        console.log(`Found backend executable at: ${backendExePath}`);
+        break;
+      }
+    }
+  }
+  
+  // Pass important paths to the backend as command line arguments
+  const args = ['api', 
+    '--output-dir', appPaths.output,
+    '--config-db', appPaths.configDb,
+    '--packaged', app.isPackaged ? 'true' : 'false'
+  ];
+  
+  // Start the backend process
+  console.log(`Spawning backend process: ${backendExePath} ${args.join(' ')}`);
+  backendProcess = spawn(backendExePath, args, {
+    stdio: 'pipe',
+    env: {
+      ...process.env,
+      PYTHONUNBUFFERED: '1'  // Keep this for any internal Python components
+    }
+  });
+  
+  setupBackendProcessHandlers();
+}
+
+// Start backend using Python directly
+function startBackendWithPython() {
+  console.log('Starting backend with Python directly...');
+  
+  // Determine correct Python path for packaged app
+  let pythonExePath = 'python'; // First try system Python
+  let pythonScriptPath = app.isPackaged
+    ? path.join(process.resourcesPath, 'python', 'main.py')
+    : path.join(__dirname, '..', 'python', 'main.py');
+  
+  // Check if packaged Python exists and use it if available
+  if (app.isPackaged) {
+    const packagedPythonPath = path.join(process.resourcesPath, 'python', 'venv', 'Scripts', 'python.exe');
+    if (fs.existsSync(packagedPythonPath)) {
+      pythonExePath = packagedPythonPath;
+      console.log(`Using packaged Python: ${pythonExePath}`);
+    } else {
+      console.log('Packaged Python not found, using system Python');
+    }
+  }
+  
+  // Log the paths we're using
+  console.log(`Python executable path: ${pythonExePath}`);
+  console.log(`Python script path: ${pythonScriptPath}`);
+  
+  // Check if the Python script exists
+  if (!fs.existsSync(pythonScriptPath)) {
+    console.error(`Python script not found at: ${pythonScriptPath}`);
+    
+    // Try alternative paths
+    const alternativePaths = [
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'main.py'),
+      path.join(process.resourcesPath, 'python', 'main.py'),
+      path.join(process.cwd(), 'resources', 'python', 'main.py')
+    ];
+    
+    for (const altPath of alternativePaths) {
+      console.log(`Checking alternative path: ${altPath}`);
+      if (fs.existsSync(altPath)) {
+        pythonScriptPath = altPath;
+        console.log(`Found Python script at: ${pythonScriptPath}`);
+        break;
+      }
+    }
+  }
+  
+  // Pass important paths to the Python backend as environment variables
+  const env = {
+    ...process.env,
+    DB_SIMULATOR_OUTPUT_DIR: appPaths.output,
+    DB_SIMULATOR_CONFIG_DB: appPaths.configDb,
+    DB_SIMULATOR_PACKAGED: app.isPackaged ? 'true' : 'false',
+    PYTHONUNBUFFERED: '1'  // Make Python output unbuffered for better logging
+  };
+  
+  console.log('Environment variables for Python backend:');
+  Object.entries(env).forEach(([key, value]) => {
+    if (key.startsWith('DB_SIMULATOR_')) {
+      console.log(`- ${key}: ${value}`);
+    }
+  });
+  
+  // Start the backend process
+  console.log(`Spawning Python process: ${pythonExePath} ${pythonScriptPath} api`);
+  backendProcess = spawn(pythonExePath, [pythonScriptPath, 'api'], {
+    stdio: 'pipe',
+    env
+  });
+  
+  setupBackendProcessHandlers();
+}
+
+// Common process handler setup
+function setupBackendProcessHandlers() {
+  // Log stdout from the process
+  backendProcess.stdout.on('data', (data) => {
+    console.log(`Backend stdout: ${data.toString().trim()}`);
+  });
+  
+  // Log stderr from the process
+  backendProcess.stderr.on('data', (data) => {
+    console.error(`Backend stderr: ${data.toString().trim()}`);
+  });
+  
+  backendProcess.on('error', (err) => {
+    console.error(`Failed to start backend process: ${err.message}`);
+    if (err.code === 'ENOENT') {
+      console.error('Backend executable or Python not found.');
+    }
+  });
+  
+  backendProcess.on('close', (code) => {
+    console.log(`Backend process exited with code ${code}`);
+    backendProcess = null;
+  });
+  
+  // Wait for backend to start
+  checkBackendStatus(30); // Try for 30 seconds
 }
 
 // Function to check if backend is ready

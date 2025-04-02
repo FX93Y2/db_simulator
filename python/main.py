@@ -249,6 +249,11 @@ def main():
     api_parser.add_argument('--host', default='127.0.0.1', help='Host to bind the API server')
     api_parser.add_argument('--port', type=int, default=5000, help='Port to bind the API server')
     
+    # Added for PyInstaller compatibility - will be passed by Electron
+    api_parser.add_argument('--output-dir', help='Output directory for files')
+    api_parser.add_argument('--config-db', help='Path to config database')
+    api_parser.add_argument('--packaged', help='Whether running in packaged mode')
+    
     # Generate database command (preserved for CLI compatibility)
     gen_parser = subparsers.add_parser('generate', help='Generate a synthetic database')
     gen_parser.add_argument('config', help='Path to database configuration file')
@@ -279,7 +284,23 @@ def main():
     # Parse arguments
     args = parser.parse_args()
     
+    # Handle environment variables for compatibility
     if args.command == 'api':
+        # Set environment variables from args for backward compatibility
+        if args.output_dir:
+            os.environ['DB_SIMULATOR_OUTPUT_DIR'] = args.output_dir
+            
+        if args.config_db:
+            os.environ['DB_SIMULATOR_CONFIG_DB'] = args.config_db
+            
+        if args.packaged:
+            os.environ['DB_SIMULATOR_PACKAGED'] = args.packaged
+            
+        # Log the environment variables for debugging
+        logger.info(f"Running with output_dir: {os.environ.get('DB_SIMULATOR_OUTPUT_DIR', 'not set')}")
+        logger.info(f"Running with config_db: {os.environ.get('DB_SIMULATOR_CONFIG_DB', 'not set')}")
+        logger.info(f"Running in packaged mode: {os.environ.get('DB_SIMULATOR_PACKAGED', 'not set')}")
+        
         run_api(host=args.host, port=args.port)
     elif args.command == 'generate':
         try:
