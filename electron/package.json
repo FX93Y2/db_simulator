@@ -6,9 +6,11 @@
   "scripts": {
     "start": "electron .",
     "dev": "concurrently \"cross-env NODE_ENV=development webpack --watch\" \"electron .\" \"cd ../python && python main.py api\"",
+    "prebuild": "node build-scripts/package-python.js",
     "build": "cross-env NODE_ENV=production webpack && electron-builder",
     "clean": "rimraf dist",
-    "webpack": "webpack"
+    "webpack": "webpack",
+    "postinstall": "electron-builder install-app-deps"
   },
   "author": "FX93V2",
   "license": "MIT",
@@ -60,17 +62,43 @@
       "preload.js",
       "index.html"
     ],
+    "extraResources": [
+      {
+        "from": "../python",
+        "to": "python",
+        "filter": [
+          "**/*",
+          "!**/__pycache__/**",
+          "!**/*.pyc"
+        ]
+      }
+    ],
     "directories": {
       "output": "dist"
     },
     "win": {
-      "target": "nsis"
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "public/app-icon.ico"
     },
-    "mac": {
-      "target": "dmg"
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "installerIcon": "public/app-icon.ico",
+      "uninstallerIcon": "public/app-icon.ico",
+      "installerHeader": "public/app-icon.ico",
+      "installerSidebar": "public/app-icon.ico",
+      "uninstallerSidebar": "public/app-icon.ico",
+      "perMachine": true,
+      "artifactName": "${productName} Setup ${version}.${ext}",
+      "shortcutName": "${productName}",
+      "include": "installer.nsh"
     },
-    "linux": {
-      "target": "AppImage"
+    "portable": {
+      "artifactName": "${productName}-portable-${version}.${ext}"
     }
   }
 }

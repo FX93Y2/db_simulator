@@ -468,41 +468,80 @@ def generate_and_simulate():
         
         if not db_config or not sim_config:
             return jsonify({"success": False, "error": "Configuration not found"}), 404
-            
-        # Get project root directory (parent of python directory)
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         
-        # Use a single shared output directory at the project root
-        shared_output_dir = os.path.join(project_root, "output")
-        logger.info(f"Using shared output directory at project root: {shared_output_dir}")
+        # Check if we're in packaged mode (environment variable set by Electron)
+        is_packaged = os.environ.get('DB_SIMULATOR_PACKAGED', 'false').lower() == 'true'
+        logger.info(f"Running in {'packaged' if is_packaged else 'development'} mode")
         
-        # Create project-specific output directory if project_id is provided
-        if 'project_id' in data:
-            project_id = data['project_id']
-            output_dir = os.path.join(shared_output_dir, project_id)
-            logger.info(f"Using project-specific output directory: {output_dir}")
+        # Get environment output directory if specified
+        output_base_dir = os.environ.get('DB_SIMULATOR_OUTPUT_DIR', None)
+        
+        if output_base_dir:
+            logger.info(f"Using output directory from environment: {output_base_dir}")
+            # Use the environment-specified directory
+            output_dir = output_base_dir
         else:
-            output_dir = shared_output_dir
+            # Default to project root 'output' directory
+            project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            output_dir = os.path.join(project_root, "output")
+            logger.info(f"Using default output directory at project root: {output_dir}")
         
-        # Create output directory
+        # Create base output directory
         os.makedirs(output_dir, exist_ok=True)
-        logger.info(f"Created or verified output directory: {output_dir}")
+        logger.info(f"Created or verified base output directory: {output_dir}")
         
+        # Get project ID for project-specific folder
+        project_id = data.get('project_id')
         db_name = data.get('name')
         
         # Generate complete database with all tables
-        logger.info(f"Generating database in shared directory: {output_dir}")
+        # Pass the project_id to ensure correct directory structure
+        logger.info(f"Generating database with project_id: {project_id}")
         db_path = generate_database(
             db_config['content'], 
             output_dir,
-            db_name
+            db_name,
+            project_id
         )
         
-        # Log database creation
+        # Log database creation with full details
         if os.path.exists(db_path):
-            logger.info(f"Database file created successfully: {db_path}, size: {os.path.getsize(db_path)} bytes")
+            file_size = os.path.getsize(db_path)
+            logger.info(f"Database file created successfully: {db_path}, size: {file_size} bytes")
+            
+            # Log directory contents for debugging
+            db_dir = os.path.dirname(db_path)
+            if os.path.exists(db_dir):
+                logger.info(f"Contents of database directory {db_dir}:")
+                for f in os.listdir(db_dir):
+                    file_path = os.path.join(db_dir, f)
+                    if os.path.isfile(file_path):
+                        logger.info(f"  - {f} ({os.path.getsize(file_path)} bytes)")
         else:
             logger.error(f"Database file was not created at expected path: {db_path}")
+            # Try to log the output directory contents
+            if os.path.exists(output_dir):
+                logger.info(f"Contents of output directory {output_dir}:")
+                for f in os.listdir(output_dir):
+                    logger.info(f"  - {f}")
+                    
+                # Check if project directory exists
+                if project_id:
+                    project_dir = os.path.join(output_dir, project_id)
+                    if os.path.exists(project_dir):
+                        logger.info(f"Contents of project directory {project_dir}:")
+                        for f in os.listdir(project_dir):
+                            file_path = os.path.join(project_dir, f)
+                            if os.path.isfile(file_path):
+                                file_size = os.path.getsize(file_path)
+                                logger.info(f"  - {f} ({file_size} bytes)")
+                    else:
+                        logger.warning(f"Project directory does not exist: {project_dir}")
+            
+            return jsonify({
+                "success": False,
+                "error": f"Failed to create database file at {db_path}"
+            }), 500
         
         # Run simulation
         logger.info(f"Running simulation using database at: {db_path}")
@@ -510,26 +549,100 @@ def generate_and_simulate():
         
         # Verify database file after simulation
         if os.path.exists(db_path):
-            logger.info(f"Database file exists after simulation: {db_path}, size: {os.path.getsize(db_path)} bytes")
+            file_size = os.path.getsize(db_path)
+            logger.info(f"Database file exists after simulation: {db_path}, size: {file_size} bytes")
+            
+            # Verify database has tables and content
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = cursor.fetchall()
+                logger.info(f"Database contains {len(tables)} tables: {[t[0] for t in tables]}")
+                
+                # Count rows in a few key tables
+                for table_name in [t[0] for t in tables]:
+                    try:
+                        cursor.execute(f"SELECT COUNT(*) FROM \"{table_name}\"")
+                        count = cursor.fetchone()[0]
+                        logger.info(f"Table '{table_name}' has {count} rows")
+                    except Exception as e:
+                        logger.error(f"Error counting rows in table '{table_name}': {e}")
+                
+                conn.close()
+            except Exception as e:
+                logger.error(f"Error verifying database content: {e}")
             
             # Create a relative path for the frontend to use
-            # We need to extract just the part relative to the project root
             db_filename = os.path.basename(db_path)
             
-            if 'project_id' in data:
-                relative_path = os.path.join("output", data['project_id'], db_filename)
+            # For project-specific path
+            if project_id:
+                relative_path = f"output/{project_id}/{db_filename}"
             else:
-                relative_path = os.path.join("output", db_filename)
+                relative_path = f"output/{db_filename}"
                 
             logger.info(f"Using relative path for frontend: {relative_path}")
-            db_path_for_response = relative_path.replace('\\', '/')
+            db_path_for_response = relative_path
         else:
             logger.error(f"Database file not found after simulation: {db_path}")
-            db_path_for_response = db_path
+            # Try to find the file by pattern matching
+            expected_dir = os.path.dirname(db_path)
+            if os.path.exists(expected_dir):
+                files = os.listdir(expected_dir)
+                db_files = [f for f in files if f.endswith('.db')]
+                if db_files:
+                    logger.info(f"Found alternative database files in directory: {db_files}")
+                    
+                    # Use the first database file found as a fallback
+                    alternative_db = os.path.join(expected_dir, db_files[0])
+                    logger.info(f"Using alternative database file: {alternative_db}")
+                    
+                    # Create a relative path for the frontend
+                    if project_id:
+                        relative_path = f"output/{project_id}/{db_files[0]}"
+                    else:
+                        relative_path = f"output/{db_files[0]}"
+                        
+                    logger.info(f"Using alternative relative path for frontend: {relative_path}")
+                    db_path_for_response = relative_path
+                else:
+                    logger.error(f"No database files found in directory: {expected_dir}")
+                    db_path_for_response = str(db_path)
+            else:
+                logger.error(f"Expected directory does not exist: {expected_dir}")
+                db_path_for_response = str(db_path)
+        
+        # Make sure path uses forward slashes for consistent handling in frontend
+        db_path_for_response = db_path_for_response.replace('\\', '/')
+        
+        # Add a final verification that the database file exists in the expected location
+        # This helps diagnose issues where the backend and frontend have different path expectations
+        try:
+            # Try different ways of resolving the path
+            potential_paths = [
+                db_path,  # Original absolute path
+                db_path_for_response,  # Relative path for frontend
+                os.path.join(output_dir, db_path_for_response.replace('output/', ''))  # Resolved from output dir
+            ]
+            
+            # Check if any of these paths exist
+            found = False
+            for path in potential_paths:
+                if os.path.exists(path):
+                    logger.info(f"Final verification: Database exists at: {path}")
+                    found = True
+                    break
+            
+            if not found:
+                logger.warning("Final verification: Database file not found at any expected location")
+        except Exception as e:
+            logger.error(f"Error in final verification: {e}")
         
         return jsonify({
             "success": True,
-            "database_path": str(db_path_for_response),
+            "database_path": db_path_for_response,
             "results": results,
             "message": "Generate-and-simulate completed successfully"
         })

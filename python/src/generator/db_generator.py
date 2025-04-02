@@ -53,8 +53,21 @@ class DatabaseGenerator:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             db_name = f"generated_db_{timestamp}"
         
-        # Ensure output directory exists
-        os.makedirs(self.output_dir, exist_ok=True)
+        # Ensure output directory exists with detailed logging
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            logger.info(f"Ensured output directory exists: {self.output_dir}")
+            
+            # Check if directory is writable
+            if not os.access(self.output_dir, os.W_OK):
+                logger.warning(f"Output directory {self.output_dir} is not writable!")
+        except Exception as e:
+            logger.error(f"Error creating output directory {self.output_dir}: {e}")
+            # Try to find an alternative directory
+            alt_dir = os.path.abspath('.')
+            logger.info(f"Falling back to current directory: {alt_dir}")
+            self.output_dir = alt_dir
+            os.makedirs(self.output_dir, exist_ok=True)
         
         # Create database file path (ensure it's absolute)
         if os.path.isabs(self.output_dir):
@@ -64,7 +77,15 @@ class DatabaseGenerator:
         
         logger.info(f"Generating database at absolute path: {db_path}")
         
-        # Create SQLAlchemy engine
+        # Delete the file if it already exists to ensure we start fresh
+        if os.path.exists(db_path):
+            try:
+                os.remove(db_path)
+                logger.info(f"Removed existing database file: {db_path}")
+            except Exception as e:
+                logger.error(f"Error removing existing database file: {e}")
+        
+        # Create SQLAlchemy engine with specific flags for better reliability
         connection_string = f"sqlite:///{db_path}"
         self.engine = create_engine(connection_string, echo=False)
         
@@ -82,11 +103,47 @@ class DatabaseGenerator:
         self.session.commit()
         self.session.close()
         
-        # Verify the database file exists
+        # Verify the database file exists and is not empty
         if not os.path.exists(db_path):
             logger.error(f"Database file was not created at expected path: {db_path}")
+            
+            # Log directory contents for debugging
+            try:
+                logger.info(f"Contents of directory {self.output_dir}:")
+                for f in os.listdir(self.output_dir):
+                    logger.info(f"  - {f}")
+            except Exception as e:
+                logger.error(f"Error listing directory contents: {e}")
+                
+            # Try connecting to the database directly as a final check
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                conn.close()
+                logger.info(f"Successfully connected to database despite file check failure")
+            except Exception as e:
+                logger.error(f"Failed to connect to database: {e}")
         else:
-            logger.info(f"Database generated successfully at {db_path}, size: {os.path.getsize(db_path)} bytes")
+            size = os.path.getsize(db_path)
+            logger.info(f"Database generated successfully at {db_path}, size: {size} bytes")
+            
+            if size == 0:
+                logger.warning(f"Database file exists but is empty (0 bytes)")
+            
+            # Verify the database can be opened
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Check for tables
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = cursor.fetchall()
+                logger.info(f"Database contains {len(tables)} tables: {[t[0] for t in tables]}")
+                
+                conn.close()
+            except Exception as e:
+                logger.error(f"Error verifying database: {e}")
         
         return db_path
     

@@ -9,14 +9,17 @@ import {
   Form, 
   Tabs, 
   Tab, 
-  Table
+  Table,
+  Modal,
+  InputGroup
 } from 'react-bootstrap';
 import { 
   FiArrowLeft, 
   FiDatabase, 
   FiList, 
   FiBarChart2, 
-  FiDownload
+  FiDownload,
+  FiFolder
 } from 'react-icons/fi';
 import ChartView from '../shared/ChartView';
 import {
@@ -46,6 +49,11 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   });
   const [databasePath, setDatabasePath] = useState('');
   
+  // Export-related state
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportPath, setExportPath] = useState('');
+  const [exportLoading, setExportLoading] = useState(false);
+  
   // Get the selected table from the URL query parameter
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
@@ -61,7 +69,19 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     if (resultId) {
       let dbPath;
       
-      if (projectId) {
+      // Log for debugging
+      console.log("ResultsViewer constructing database path with:", {
+        resultId,
+        projectId,
+        isProjectTab
+      });
+      
+      // Check if resultId already contains a path
+      if (resultId.includes('/') || resultId.includes('\\') || resultId.endsWith('.db')) {
+        // This is already a full path or filename with extension
+        dbPath = resultId;
+        console.log("Using resultId as database path:", dbPath);
+      } else if (projectId) {
         // Construct a project-specific path
         dbPath = `output/${projectId}/${resultId}.db`;
         console.log("Setting project-specific database path:", dbPath);
@@ -71,16 +91,42 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
         console.log("Setting standalone database path:", dbPath);
       }
       
-      // Check if this is an absolute path or just a filename
-      if (resultId.includes('/') || resultId.includes('\\')) {
-        // This might be a full path already
-        dbPath = resultId;
-        console.log("Using full path as database path:", dbPath);
-      }
-      
+      console.log("Final database path for querying:", dbPath);
       setDatabasePath(dbPath);
+      
+      // Force refresh by scanning for project results if we have a projectId
+      if (projectId) {
+        console.log("Force refreshing results for project:", projectId);
+        window.api.scanProjectResults(projectId)
+          .then(result => {
+            if (result.success && result.results) {
+              console.log("Scan found", result.results.length, "results:", result.results);
+              
+              // Check if our result ID is in the list
+              const matchingResult = result.results.find(r => 
+                r.id === resultId || 
+                r.path === dbPath || 
+                r.path === `output/${projectId}/${resultId}.db`
+              );
+              
+              if (matchingResult) {
+                console.log("Found matching result:", matchingResult);
+                // Update path if it differs
+                if (matchingResult.path !== dbPath) {
+                  console.log("Updating database path to:", matchingResult.path);
+                  setDatabasePath(matchingResult.path);
+                }
+              } else {
+                console.log("Result not found in project scan results");
+              }
+            }
+          })
+          .catch(err => {
+            console.error("Error scanning for results:", err);
+          });
+      }
     }
-  }, [resultId, projectId]);
+  }, [resultId, projectId, isProjectTab]);
   
   // Load database info and tables
   useEffect(() => {
@@ -183,6 +229,92 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     }
   }, [selectedTable, databasePath]);
   
+  // Handle showing the export modal
+  const handleShowExportModal = () => {
+    setExportPath('');
+    setShowExportModal(true);
+  };
+  
+  // Handle closing the export modal
+  const handleCloseExportModal = () => {
+    setShowExportModal(false);
+  };
+  
+  // Handle selecting a directory for export
+  const handleSelectExportDirectory = async () => {
+    try {
+      const result = await window.api.showDirectoryPicker({
+        title: 'Select Export Directory',
+        buttonLabel: 'Export Here'
+      });
+      
+      if (result.success) {
+        setExportPath(result.path);
+      } else if (!result.canceled && result.error) {
+        alert(`Error selecting directory: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error showing directory picker:', error);
+      alert(`Error selecting directory: ${error.message}`);
+    }
+  };
+  
+  // Handle exporting data with custom path
+  const handleExportWithCustomPath = async () => {
+    try {
+      setExportLoading(true);
+      console.log("Exporting database:", databasePath, "to custom path:", exportPath);
+      
+      const result = await exportDatabaseToCSV(databasePath, exportPath);
+      
+      if (result.success) {
+        handleCloseExportModal();
+        alert(
+          `Export completed successfully!\n\n` +
+          `Location: ${result.path}\n` +
+          `Tables exported: ${result.tables}\n` +
+          `Total rows: ${result.totalRows}\n\n` +
+          `The data has been saved to a folder named after the database.`
+        );
+      } else {
+        alert(`Error exporting database: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error exporting database:', error);
+      alert(`Error exporting database: ${error.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  };
+  
+  // Handle exporting data to default location
+  const handleExportToDefault = async () => {
+    try {
+      setLoading(true);
+      console.log("Exporting database to default location:", databasePath);
+      
+      const result = await exportDatabaseToCSV(databasePath);
+      
+      if (result.success) {
+        handleCloseExportModal();
+        alert(
+          `Export completed successfully!\n\n` +
+          `Location: ${result.path}\n` +
+          `Tables exported: ${result.tables}\n` +
+          `Total rows: ${result.totalRows}\n\n` +
+          `The data has been saved to a folder named after the database.`
+        );
+      } else {
+        alert(`Error exporting database: ${result.error}`);
+      }
+    } catch (error) {
+      console.error('Error exporting database:', error);
+      alert(`Error exporting database: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   // Change the table selection by updating the URL query parameter
   const changeSelectedTable = (tableName) => {
     // Create URL with the new table parameter
@@ -211,27 +343,6 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       navigate(`/project/${projectId}`);
     } else {
       navigate('/');
-    }
-  };
-  
-  // Handle exporting data
-  const handleExportData = async () => {
-    try {
-      setLoading(true);
-      console.log("Exporting database:", databasePath);
-      
-      const result = await exportDatabaseToCSV(databasePath);
-      
-      if (result.success) {
-        alert(`Database exported successfully to: ${result.path}`);
-      } else {
-        alert(`Error exporting database: ${result.error}`);
-      }
-    } catch (error) {
-      console.error('Error exporting database:', error);
-      alert(`Error exporting database: ${error.message}`);
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -290,7 +401,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           </div>
           <Button 
             variant="success" 
-            onClick={handleExportData}
+            onClick={handleShowExportModal}
             disabled={loading}
           >
             <FiDownload /> Export Data
@@ -477,6 +588,90 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
               </div>
             </div>
           )}
+          
+          {/* Export Modal */}
+          <Modal 
+            show={showExportModal} 
+            onHide={handleCloseExportModal}
+            backdrop="static"
+            centered
+          >
+            <Modal.Header closeButton>
+              <Modal.Title>Export Database</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <p>You are about to export the database <strong>{databasePath ? databasePath.split('/').pop() : 'N/A'}</strong></p>
+              
+              {tables.length > 0 && (
+                <div className="mb-3">
+                  <p>
+                    <strong>{tables.length}</strong> tables will be exported as CSV files:
+                  </p>
+                  <div style={{ maxHeight: '100px', overflowY: 'auto', border: '1px solid #dee2e6', padding: '10px', borderRadius: '4px', backgroundColor: '#f8f9fa' }}>
+                    {tables.map((tableName, index) => (
+                      <div key={tableName} className="small">
+                        {index + 1}. {tableName}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              <div className="mb-3 mt-4">
+                <Form.Label>Export Location</Form.Label>
+                <InputGroup>
+                  <Form.Control
+                    type="text"
+                    value={exportPath}
+                    placeholder="Select a directory to export to"
+                    readOnly
+                  />
+                  <Button 
+                    variant="outline-secondary"
+                    onClick={handleSelectExportDirectory}
+                  >
+                    <FiFolder /> Browse
+                  </Button>
+                </InputGroup>
+                <Form.Text className="text-muted">
+                  {exportPath ? 
+                    `Files will be exported to a new folder inside ${exportPath}` : 
+                    "If no location is selected, the files will be exported to the default location."}
+                </Form.Text>
+              </div>
+            </Modal.Body>
+            <Modal.Footer>
+              <Button 
+                variant="secondary" 
+                onClick={handleCloseExportModal}
+              >
+                Cancel
+              </Button>
+              <Button 
+                variant="primary" 
+                onClick={exportPath ? handleExportWithCustomPath : handleExportToDefault}
+                disabled={exportLoading}
+              >
+                {exportLoading ? (
+                  <>
+                    <Spinner
+                      as="span"
+                      animation="border"
+                      size="sm"
+                      role="status"
+                      aria-hidden="true"
+                      className="me-2"
+                    />
+                    Exporting...
+                  </>
+                ) : exportPath ? (
+                  <>Export to Selected Location</>
+                ) : (
+                  <>Export to Default Location</>
+                )}
+              </Button>
+            </Modal.Footer>
+          </Modal>
         </>
       )}
     </div>

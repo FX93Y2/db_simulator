@@ -60,12 +60,13 @@ contextBridge.exposeInMainWorld(
     getSimulationResults: (databasePath) => ipcRenderer.invoke('api:getSimulationResults', databasePath),
     getDatabaseTables: (databasePath) => ipcRenderer.invoke('api:getDatabaseTables', databasePath),
     getTableData: (params) => ipcRenderer.invoke('api:getTableData', params),
-    exportDatabaseToCSV: (databasePath) => ipcRenderer.invoke('api:exportDatabaseToCSV', databasePath),
+    exportDatabaseToCSV: (databasePath, customExportPath) => ipcRenderer.invoke('api:exportDatabaseToCSV', databasePath, customExportPath),
     scanProjectResults: (projectId) => ipcRenderer.invoke('api:scanProjectResults', projectId),
     deleteResult: (resultPath) => ipcRenderer.invoke('api:deleteResult', resultPath),
     
     // File Management
     openFile: (filePath) => ipcRenderer.invoke('api:openFile', filePath),
-    saveFile: (filePath, content) => ipcRenderer.invoke('api:saveFile', filePath, content)
+    saveFile: (filePath, content) => ipcRenderer.invoke('api:saveFile', filePath, content),
+    showDirectoryPicker: (options) => ipcRenderer.invoke('api:showDirectoryPicker', options)
   }
 ); 

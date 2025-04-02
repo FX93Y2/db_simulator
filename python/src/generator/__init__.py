@@ -40,6 +40,15 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
     is_packaged = os.environ.get('DB_SIMULATOR_PACKAGED', 'false').lower() == 'true'
     logger.info(f"Running in {'packaged' if is_packaged else 'development'} mode")
     
+    # Log environment variables for troubleshooting
+    logger.info("Environment variables:")
+    env_vars = ['DB_SIMULATOR_OUTPUT_DIR', 'DB_SIMULATOR_CONFIG_DB', 'DB_SIMULATOR_PACKAGED', 'PATH', 'TEMP', 'TMP']
+    for var in env_vars:
+        logger.info(f"  {var}: {os.environ.get(var, 'not set')}")
+    
+    # Log current working directory
+    logger.info(f"Current working directory: {os.getcwd()}")
+    
     # Check if output directory is specified in environment
     if 'DB_SIMULATOR_OUTPUT_DIR' in os.environ:
         base_output_dir = os.environ['DB_SIMULATOR_OUTPUT_DIR']
@@ -70,18 +79,109 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
                 output_dir = os.path.abspath(output_dir)
                 logger.info(f"Using absolute output directory: {output_dir}")
     
-    # Create output directory if it doesn't exist
-    os.makedirs(output_dir, exist_ok=True)
-    logger.info(f"Output directory: {output_dir}")
+    # If project_id is provided but not yet in path, add it to the output path
+    if project_id and not output_dir.endswith(project_id):
+        project_path = os.path.join(output_dir, project_id)
+        logger.info(f"Adding project_id to path: {project_path}")
+        output_dir = project_path
     
-    generator = DatabaseGenerator(config, output_dir, db_name)
-    db_path = generator.generate()
+    # Create output directory if it doesn't exist
+    try:
+        os.makedirs(output_dir, exist_ok=True)
+        logger.info(f"Created/verified output directory: {output_dir}")
+        
+        # Check if directory is writable
+        if os.access(output_dir, os.W_OK):
+            logger.info(f"Output directory is writable: {output_dir}")
+        else:
+            logger.warning(f"Output directory is NOT writable: {output_dir}")
+            
+            # Try to use a temporary directory as fallback
+            import tempfile
+            temp_dir = tempfile.gettempdir()
+            fallback_dir = os.path.join(temp_dir, 'db_simulator', 'output')
+            if project_id:
+                fallback_dir = os.path.join(fallback_dir, project_id)
+                
+            logger.info(f"Trying fallback directory: {fallback_dir}")
+            os.makedirs(fallback_dir, exist_ok=True)
+            
+            if os.access(fallback_dir, os.W_OK):
+                logger.info(f"Using fallback directory: {fallback_dir}")
+                output_dir = fallback_dir
+            else:
+                logger.error(f"Fallback directory is also not writable: {fallback_dir}")
+    except Exception as e:
+        logger.error(f"Error creating output directory {output_dir}: {e}")
+        
+        # Try a fallback to temp directory
+        import tempfile
+        temp_dir = os.path.join(tempfile.gettempdir(), 'db_simulator', 'output')
+        if project_id:
+            temp_dir = os.path.join(temp_dir, project_id)
+        
+        logger.info(f"Using temporary directory as fallback: {temp_dir}")
+        os.makedirs(temp_dir, exist_ok=True)
+        output_dir = temp_dir
+    
+    logger.info(f"Final output directory: {output_dir}")
+    
+    # Generate a database name if not provided
+    if not db_name:
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        db_name = f"generated_db_{timestamp}"
+        logger.info(f"Generated database name: {db_name}")
+    else:
+        logger.info(f"Using provided database name: {db_name}")
+    
+    # Make sure db_name doesn't have .db extension already
+    if db_name.endswith('.db'):
+        db_name = db_name[:-3]
+        logger.info(f"Removed .db extension from database name: {db_name}")
+    
+    generator = DatabaseGenerator(config, output_dir, None)
+    db_path = generator.generate(db_name)
     
     # Ensure the returned path is absolute
     if not os.path.isabs(db_path):
         db_path = os.path.abspath(db_path)
     
-    logger.info(f"Generated database at path: {db_path}")
+    # Verify the database file exists
+    if os.path.exists(db_path):
+        file_size = os.path.getsize(db_path)
+        logger.info(f"Generated database at path: {db_path} (size: {file_size} bytes)")
+        
+        # Verify content by making sure the file is not empty
+        if file_size == 0:
+            logger.warning(f"Generated database file is empty (0 bytes)")
+        
+        # Try to open the database to verify it's valid
+        try:
+            import sqlite3
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+            tables = cursor.fetchall()
+            logger.info(f"Database contains {len(tables)} tables: {[t[0] for t in tables]}")
+            conn.close()
+        except Exception as e:
+            logger.error(f"Error verifying database: {e}")
+    else:
+        logger.error(f"Database file does not exist at expected path: {db_path}")
+        
+        # List files in output directory to help troubleshoot
+        try:
+            logger.info(f"Files in output directory {output_dir}:")
+            for f in os.listdir(output_dir):
+                file_path = os.path.join(output_dir, f)
+                if os.path.isfile(file_path):
+                    logger.info(f"  - {f} ({os.path.getsize(file_path)} bytes)")
+                else:
+                    logger.info(f"  - {f} (directory)")
+        except Exception as dir_error:
+            logger.error(f"Error listing directory contents: {dir_error}")
+    
     return db_path
 
 def generate_database_for_simulation(db_config_path, sim_config_path, output_dir='output', db_name=None):

@@ -228,6 +228,13 @@ def generate_simulate():
         logger.error(f"Error in generate-simulate: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
+@app.route('/api/health', methods=['GET'])
+def health_check():
+    """
+    Simple health check endpoint to verify the API is running.
+    """
+    return jsonify({'status': 'ok', 'message': 'API is running'})
+
 def run_api(host='127.0.0.1', port=5000):
     """Run the Flask API server"""
     app.run(host=host, port=port, debug=False)

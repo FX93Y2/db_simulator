@@ -40,9 +40,9 @@ export const getTableData = async (databasePath, tableName, limit = 1000) => {
 };
 
 // Function to export database to CSV
-export const exportDatabaseToCSV = async (databasePath) => {
+export const exportDatabaseToCSV = async (databasePath, customExportPath = null) => {
   try {
-    const result = await window.api.exportDatabaseToCSV(databasePath);
+    const result = await window.api.exportDatabaseToCSV(databasePath, customExportPath);
     return result;
   } catch (error) {
     console.error('Error exporting database to CSV:', error);
