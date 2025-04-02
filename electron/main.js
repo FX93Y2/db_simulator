@@ -458,25 +458,21 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
     
     console.log(`Using database at: ${resolvedPath}`);
     
-    // Query for all table names
-    const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(resolvedPath);
+    // Query for all table names using better-sqlite3
+    const Database = require('better-sqlite3');
+    const db = new Database(resolvedPath, { readonly: true });
     
-    return new Promise((resolve) => {
-      db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'", [], (err, rows) => {
-        if (err) {
-          console.error(`Error querying database tables: ${err.message}`);
-          db.close();
-          resolve({ success: false, error: err.message });
-          return;
-        }
-        
-        const tables = rows.map(row => row.name);
-        console.log(`Found ${tables.length} tables: ${tables.join(', ')}`);
-        db.close();
-        resolve({ success: true, tables });
-      });
-    });
+    try {
+      const rows = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+      const tables = rows.map(row => row.name);
+      console.log(`Found ${tables.length} tables: ${tables.join(', ')}`);
+      db.close();
+      return { success: true, tables };
+    } catch (err) {
+      console.error(`Error querying database tables: ${err.message}`);
+      db.close();
+      return { success: false, error: err.message };
+    }
   } catch (error) {
     console.error(`Error getting database tables: ${error.message}`);
     return { success: false, error: error.message };
@@ -523,24 +519,20 @@ ipcMain.handle('api:getTableData', async (_, params) => {
     
     console.log(`Using database at: ${resolvedPath} to query table: ${tableName}`);
     
-    // Query for table data
-    const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(resolvedPath);
+    // Query for table data using better-sqlite3
+    const Database = require('better-sqlite3');
+    const db = new Database(resolvedPath, { readonly: true });
     
-    return new Promise((resolve) => {
-      db.all(`SELECT * FROM "${tableName}" LIMIT ${limit}`, [], (err, rows) => {
-        if (err) {
-          console.error(`Error querying table data: ${err.message}`);
-          db.close();
-          resolve({ success: false, error: err.message });
-          return;
-        }
-        
-        console.log(`Retrieved ${rows.length} rows from table ${tableName}`);
-        db.close();
-        resolve({ success: true, data: rows });
-      });
-    });
+    try {
+      const rows = db.prepare(`SELECT * FROM "${tableName}" LIMIT ${limit}`).all();
+      console.log(`Retrieved ${rows.length} rows from table ${tableName}`);
+      db.close();
+      return { success: true, data: rows };
+    } catch (err) {
+      console.error(`Error querying table data: ${err.message}`);
+      db.close();
+      return { success: false, error: err.message };
+    }
   } catch (error) {
     console.error(`Error getting table data: ${error.message}`);
     return { success: false, error: error.message };
@@ -599,73 +591,54 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath) => {
     const exportPath = path.join(exportDir, `${dbName}_export_${timestamp}.csv`);
     console.log(`Will export to: ${exportPath}`);
     
-    // Get all tables
-    const sqlite3 = require('sqlite3').verbose();
-    const db = new sqlite3.Database(resolvedPath);
+    // Get all tables using better-sqlite3
+    const Database = require('better-sqlite3');
+    const db = new Database(resolvedPath, { readonly: true });
     
-    // For this implementation, we'll just export the first table
-    // You could enhance this to export all tables or specific ones
-    return new Promise((resolve) => {
-      db.all("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1", [], (err, tables) => {
-        if (err) {
-          console.error(`Error getting tables for export: ${err.message}`);
-          db.close();
-          resolve({ success: false, error: err.message });
-          return;
-        }
-        
-        if (tables.length === 0) {
-          console.error('No tables found in database');
-          db.close();
-          resolve({ success: false, error: 'No tables found in database' });
-          return;
-        }
-        
-        // Get data from the first table
-        const tableName = tables[0].name;
-        console.log(`Exporting data from table: ${tableName}`);
-        db.all(`SELECT * FROM "${tableName}"`, [], (dataErr, rows) => {
-          db.close();
-          
-          if (dataErr) {
-            console.error(`Error getting data for export: ${dataErr.message}`);
-            resolve({ success: false, error: dataErr.message });
-            return;
-          }
-          
-          // Convert to CSV
-          try {
-            if (rows.length === 0) {
-              console.error('No data found in table');
-              resolve({ success: false, error: 'No data found in table' });
-              return;
-            }
-            
-            // Get headers
-            const headers = Object.keys(rows[0]);
-            const csvContent = [
-              headers.join(','),
-              ...rows.map(row => headers.map(header => {
-                // Ensure proper CSV formatting (escape commas, quotes, etc.)
-                const value = row[header];
-                if (value === null || value === undefined) return '';
-                const str = String(value);
-                return str.includes(',') || str.includes('"') || str.includes('\n')
-                  ? `"${str.replace(/"/g, '""')}"`
-                  : str;
-              }).join(','))
-            ].join('\n');
-            
-            fs.writeFileSync(exportPath, csvContent);
-            console.log(`Successfully exported to: ${exportPath}`);
-            resolve({ success: true, exportPath });
-          } catch (csvErr) {
-            console.error(`Error creating CSV: ${csvErr.message}`);
-            resolve({ success: false, error: csvErr.message });
-          }
-        });
-      });
-    });
+    try {
+      // For this implementation, just export the first table
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' LIMIT 1").all();
+      
+      if (tables.length === 0) {
+        console.error('No tables found in database');
+        db.close();
+        return { success: false, error: 'No tables found in database' };
+      }
+      
+      // Get data from the first table
+      const tableName = tables[0].name;
+      console.log(`Exporting data from table: ${tableName}`);
+      const rows = db.prepare(`SELECT * FROM "${tableName}"`).all();
+      db.close();
+      
+      if (rows.length === 0) {
+        console.error('No data found in table');
+        return { success: false, error: 'No data found in table' };
+      }
+      
+      // Get headers
+      const headers = Object.keys(rows[0]);
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => headers.map(header => {
+          // Ensure proper CSV formatting (escape commas, quotes, etc.)
+          const value = row[header];
+          if (value === null || value === undefined) return '';
+          const str = String(value);
+          return str.includes(',') || str.includes('"') || str.includes('\n')
+            ? `"${str.replace(/"/g, '""')}"`
+            : str;
+        }).join(','))
+      ].join('\n');
+      
+      fs.writeFileSync(exportPath, csvContent);
+      console.log(`Successfully exported to: ${exportPath}`);
+      return { success: true, exportPath };
+    } catch (err) {
+      console.error(`Error exporting database: ${err.message}`);
+      db.close();
+      return { success: false, error: err.message };
+    }
   } catch (error) {
     console.error(`Error exporting database: ${error.message}`);
     return { success: false, error: error.message };
