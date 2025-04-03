@@ -48,8 +48,8 @@
     "react-dom": "^18.2.0",
     "react-flow-renderer": "^10.3.17",
     "react-icons": "^4.11.0",
+    "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.16.0",
-    "react-split-pane": "^0.1.92",
     "reactflow": "^11.10.1",
     "sass": "^1.69.0",
     "sql.js": "^1.8.0"
@@ -72,65 +72,8 @@
         ]
       },
       {
-        "from": "../python/main.py",
-        "to": "python/main.py"
-      },
-      {
-        "from": "../python/api.py",
-        "to": "python/api.py"
-      },
-      {
-        "from": "../python/run.py",
-        "to": "python/run.py"
-      },
-      {
-        "from": "../python/requirements.txt",
-        "to": "python/requirements.txt"
-      },
-      {
-        "from": "../python/USE_COPIED_ENV",
-        "to": "python/USE_COPIED_ENV",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "../python/api",
-        "to": "python/api",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
-        ]
-      },
-      {
-        "from": "../python/src",
-        "to": "python/src",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
-        ]
-      },
-      {
-        "from": "../python/config_storage",
-        "to": "python/config_storage",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
-        ]
-      },
-      {
-        "from": "../python/venv",
-        "to": "python/venv",
-        "filter": [
-          "Scripts/**",
-          "Lib/**",
-          "Include/**",
-          "pyvenv.cfg",
-          "!**/__pycache__/**",
-          "!**/*.pyc",
-          "!**/*.git"
-        ]
+        "from": "../python/USE_EXECUTABLE",
+        "to": "python/USE_EXECUTABLE"
       }
     ],
     "directories": {

@@ -9,7 +9,7 @@ import {
   Spinner,
   InputGroup
 } from 'react-bootstrap';
-import SplitPane from 'react-split-pane';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
@@ -65,7 +65,7 @@ event_simulation:
             probability: 1.0
 `;
 
-const SimConfigEditor = ({ projectId, isProjectTab }) => {
+const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
@@ -450,78 +450,91 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
   
   const renderEditor = () => (
     <div className="editor-container-split">
-      <SplitPane
-        split="vertical"
-        minSize={200}
-        defaultSize="40%"
-        style={{ position: 'relative' }}
-        paneStyle={{ overflow: 'auto' }}
-      >
-        <div className="editor-yaml-panel">
-          <div className="panel-header">YAML Editor</div>
-          {loading && !yamlContent ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading configuration...</div>
+      <PanelGroup direction="horizontal">
+        <Panel defaultSize={40} minSize={20} order={1}>
+          <div className="editor-yaml-panel">
+            <div className="panel-header">
+              <span>YAML Editor</span>
+              <div className="panel-header-actions">
+                <Button 
+                  size="sm" 
+                  className="action-button btn-custom-toolbar"
+                  onClick={handleSave} 
+                  disabled={loading}
+                  title="Save Configuration"
+                >
+                  <FiSave />
+                </Button>
+              </div>
             </div>
-          ) : (
-            <YamlEditor 
-              initialValue={yamlContent} 
-              onSave={(content) => {
-                console.log("SimConfigEditor: YamlEditor onSave callback triggered");
-                // First update the local content
-                handleYamlChange(content);
-                
-                // Then save to backend with the new content directly 
-                // (don't rely on yamlContent which might not be updated yet)
-                console.log("SimConfigEditor: Saving to backend from YamlEditor");
-                if (projectId && isProjectTab) {
-                  // Create a copy of the config data with the updated content
-                  const configData = {
-                    name: name || 'Project Simulation',
-                    config_type: 'simulation',
-                    content: content, // Use the content parameter directly
-                    description
-                  };
+            {loading && !yamlContent ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" />
+                <div className="mt-2">Loading configuration...</div>
+              </div>
+            ) : (
+              <YamlEditor 
+                initialValue={yamlContent} 
+                onSave={(content) => {
+                  console.log("SimConfigEditor: YamlEditor onSave callback triggered");
+                  // First update the local content
+                  handleYamlChange(content);
                   
-                  // Save with the updated content
-                  saveConfigWithContent(configData);
-                } else {
-                  // For standalone mode, show the save modal
-                  setShowSaveModal(true);
-                }
-              }}
-              height="calc(100vh - 160px)"
-            />
-          )}
-        </div>
-        
-        <div className="editor-canvas-panel">
-          <div className="canvas-header d-flex justify-content-between align-items-center">
-            <div>Event Flow</div>
-            <Button 
-              variant="primary" 
-              size="sm"
-              onClick={handleAddEvent}
-              disabled={loading}
-            >
-              <FiPlus /> Add Event
-            </Button>
+                  // Then save to backend with the new content directly 
+                  // (don't rely on yamlContent which might not be updated yet)
+                  console.log("SimConfigEditor: Saving to backend from YamlEditor");
+                  if (projectId && isProjectTab) {
+                    // Create a copy of the config data with the updated content
+                    const configData = {
+                      name: name || 'Project Simulation',
+                      config_type: 'simulation',
+                      content: content, // Use the content parameter directly
+                      description
+                    };
+                    
+                    // Save with the updated content
+                    saveConfigWithContent(configData);
+                  } else {
+                    // For standalone mode, show the save modal
+                    setShowSaveModal(true);
+                  }
+                }}
+                height="calc(100vh - 160px)"
+                theme={theme}
+              />
+            )}
           </div>
-          
-          {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading event flow...</div>
+        </Panel>
+        <PanelResizeHandle className="editor-resize-handle" />
+        <Panel defaultSize={60} minSize={30} order={2}>
+          <div className="editor-canvas-panel">
+            <div className="canvas-header d-flex justify-content-between align-items-center">
+              <div>Event Flow</div>
+              <Button 
+                size="sm"
+                className="btn-custom-toolbar"
+                onClick={handleAddEvent}
+                disabled={loading}
+              >
+                <FiPlus /> Add Event
+              </Button>
             </div>
-          ) : (
-            <EventFlow 
-              yamlContent={yamlContent} 
-              onDiagramChange={handleDiagramChange} 
-            />
-          )}
-        </div>
-      </SplitPane>
+            
+            {loading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" />
+                <div className="mt-2">Loading event flow...</div>
+              </div>
+            ) : (
+              <EventFlow 
+                yamlContent={yamlContent} 
+                onDiagramChange={handleDiagramChange} 
+                theme={theme}
+              />
+            )}
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
   
@@ -531,7 +544,6 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
         <div className="mb-4 d-flex justify-content-between align-items-center">
           <div className="d-flex align-items-center">
             <Button 
-              variant="outline-secondary" 
               className="me-3"
               onClick={handleBack}
             >
@@ -543,8 +555,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
           </div>
           <div>
             <Button 
-              variant="success" 
-              className="me-2"
+              className="me-2 btn-custom-toolbar"
               onClick={handleRun}
               disabled={loading}
             >
@@ -557,7 +568,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
       {renderEditor()}
       
       {/* Save Configuration Modal - only used for standalone configurations */}
-      <Modal show={showSaveModal} onHide={handleCloseModal}>
+      <Modal show={showSaveModal} onHide={handleCloseModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Save Simulation Configuration</Modal.Title>
         </Modal.Header>
@@ -600,7 +611,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
             Cancel
           </Button>
           <Button 
-            variant="primary" 
+            className="btn-custom-toolbar"
             onClick={handleSaveConfig}
             disabled={loading}
           >
@@ -610,7 +621,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
       </Modal>
       
       {/* Run Simulation Modal */}
-      <Modal show={showRunModal} onHide={handleCloseRunModal}>
+      <Modal show={showRunModal} onHide={handleCloseRunModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Run Simulation</Modal.Title>
         </Modal.Header>
@@ -680,7 +691,7 @@ const SimConfigEditor = ({ projectId, isProjectTab }) => {
             Cancel
           </Button>
           <Button 
-            variant="success" 
+            className="btn-custom-toolbar"
             onClick={handleRunSimulation}
             disabled={loading || !selectedDbConfig}
           >

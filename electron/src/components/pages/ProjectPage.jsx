@@ -11,7 +11,7 @@ import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSi
 // Cache for project data to reduce loading flicker
 const projectCache = {};
 
-const ProjectPage = () => {
+const ProjectPage = ({ theme }) => {
   const { projectId, resultId, activeTab } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -286,18 +286,10 @@ const ProjectPage = () => {
     <Container fluid className="project-page p-0">
       <div className="project-header mb-3 d-flex justify-content-between align-items-center">
         <div className="d-flex align-items-center">
-          <Button 
-            variant="outline-secondary" 
-            className="me-3"
-            onClick={handleBack}
-          >
-            <FiArrowLeft /> Back
-          </Button>
-          <h2 className="mb-0">{project?.name || 'Project'}</h2>
+          <h2 className="mb-0 me-2">{project?.name || 'Project'}</h2>
           <Button
-            variant="outline-secondary"
             size="sm"
-            className="ms-2"
+            className="ms-2 btn-custom-toolbar"
             onClick={handleEditProjectName}
             title="Edit project name"
           >
@@ -305,23 +297,6 @@ const ProjectPage = () => {
           </Button>
         </div>
         <div className="d-flex align-items-center">
-          <Button
-            variant="success"
-            className="me-3"
-            onClick={handleRunSimulation}
-            disabled={runningSimulation}
-          >
-            {runningSimulation ? (
-              <>
-                <Spinner size="sm" className="me-2" animation="border" />
-                Running Simulation...
-              </>
-            ) : (
-              <>
-                <FiPlay className="me-2" /> Run Simulation
-              </>
-            )}
-          </Button>
           <div>
             <small className="text-muted">
               Last updated: {formatDate(project?.updated_at).split(' ')[0]}
@@ -339,25 +314,44 @@ const ProjectPage = () => {
           onSelect={handleTabChange}
         >
           <div className="project-tabs-wrapper">
-            <Nav variant="tabs" className="project-tabs">
-              <Nav.Item>
-                <Nav.Link eventKey="database">
-                  <FiDatabase className="me-2" /> Database Configuration
-                </Nav.Link>
-              </Nav.Item>
-              <Nav.Item>
-                <Nav.Link eventKey="simulation">
-                  <FiActivity className="me-2" /> Simulation Configuration
-                </Nav.Link>
-              </Nav.Item>
-            </Nav>
+            <div className="d-flex justify-content-between align-items-center border-bottom">
+              <Nav variant="tabs" className="project-tabs flex-grow-1">
+                <Nav.Item>
+                  <Nav.Link eventKey="database">
+                    <FiDatabase className="me-2" /> Database Configuration
+                  </Nav.Link>
+                </Nav.Item>
+                <Nav.Item>
+                  <Nav.Link eventKey="simulation">
+                    <FiActivity className="me-2" /> Simulation Configuration
+                  </Nav.Link>
+                </Nav.Item>
+              </Nav>
+              <Button
+                className="ms-auto me-2 mb-1 btn-custom-toolbar"
+                size="sm"
+                onClick={handleRunSimulation}
+                disabled={runningSimulation}
+              >
+                {runningSimulation ? (
+                  <>
+                    <Spinner size="sm" className="me-2" animation="border" />
+                    Running...
+                  </>
+                ) : (
+                  <>
+                    <FiPlay className="me-2" /> Run Simulation
+                  </>
+                )}
+              </Button>
+            </div>
 
             <Tab.Content className="project-tab-content">
               <Tab.Pane eventKey="database">
-                <DbConfigEditor projectId={projectId} isProjectTab={true} />
+                <DbConfigEditor projectId={projectId} isProjectTab={true} theme={theme} />
               </Tab.Pane>
               <Tab.Pane eventKey="simulation">
-                <SimConfigEditor projectId={projectId} isProjectTab={true} />
+                <SimConfigEditor projectId={projectId} isProjectTab={true} theme={theme} />
               </Tab.Pane>
             </Tab.Content>
           </div>
@@ -365,7 +359,7 @@ const ProjectPage = () => {
       )}
 
       {/* Edit Project Modal */}
-      <Modal show={showEditModal} onHide={handleCloseEditModal}>
+      <Modal show={showEditModal} onHide={handleCloseEditModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Edit Project Name</Modal.Title>
         </Modal.Header>
@@ -386,7 +380,7 @@ const ProjectPage = () => {
             Cancel
           </Button>
           <Button 
-            variant="primary" 
+            className="btn-custom-toolbar"
             onClick={handleSaveProjectName}
             disabled={isUpdating}
           >

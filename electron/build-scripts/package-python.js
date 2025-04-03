@@ -54,6 +54,17 @@ try {
   process.exit(1);
 }
 
+// Remove any existing marker files
+const useExecutableMarker = path.join(pythonDir, 'USE_EXECUTABLE');
+const useCopiedEnvMarker = path.join(pythonDir, 'USE_COPIED_ENV');
+
+if (fs.existsSync(useExecutableMarker)) {
+  fs.unlinkSync(useExecutableMarker);
+}
+if (fs.existsSync(useCopiedEnvMarker)) {
+  fs.unlinkSync(useCopiedEnvMarker);
+}
+
 // Try to build the Python backend using PyInstaller
 let pyinstallerSucceeded = false;
 console.log('Building standalone Python executable with PyInstaller...');
@@ -73,23 +84,110 @@ try {
   if (fs.existsSync(exeDestPath)) {
     console.log('Python backend built successfully with PyInstaller.');
     pyinstallerSucceeded = true;
+    
+    // Create a marker file to indicate we should use the PyInstaller executable
+    fs.writeFileSync(useExecutableMarker, 'This file indicates that PyInstaller succeeded and we should use the executable.', 'utf8');
   } else {
     throw new Error('PyInstaller completed but executable not found');
   }
 } catch (error) {
   console.error('Error building Python backend with PyInstaller:', error.message);
-  console.log('Falling back to copying the Python directory...');
-}
-
-// Fallback: If PyInstaller fails, create a marker file to indicate we should use the copied Python directory
-if (!pyinstallerSucceeded) {
-  console.log('Creating a fallback Python environment...');
+  console.log('Using fallback approach with copied Python environment.');
   
   // Create marker file to indicate we should use the copied Python environment
-  fs.writeFileSync(path.join(pythonDir, 'USE_COPIED_ENV'), 'This file indicates that PyInstaller failed and we should use the copied Python environment instead.', 'utf8');
+  fs.writeFileSync(useCopiedEnvMarker, 'This file indicates that PyInstaller failed and we should use the copied Python environment instead.', 'utf8');
+}
+
+// Update package.json to include only necessary files
+console.log('Updating package.json for Python packaging...');
+try {
+  const packageJsonPath = path.join(__dirname, '..', 'package.json');
+  const packageJson = require(packageJsonPath);
   
-  console.log('Python environment prepared for packaging with fallback approach.');
-  console.log('NOTE: The app will use the system Python on the target machine if available.');
+  // Reset extraResources
+  packageJson.build.extraResources = [];
+  
+  if (pyinstallerSucceeded) {
+    // Only include the PyInstaller executable if it was successfully built
+    packageJson.build.extraResources.push({
+      from: "../python/dist/db_simulator_api",
+      to: "python/dist/db_simulator_api",
+      filter: ["**/*"]
+    });
+    
+    // Include marker file
+    packageJson.build.extraResources.push({
+      from: "../python/USE_EXECUTABLE",
+      to: "python/USE_EXECUTABLE"
+    });
+  } else {
+    // Include marker file
+    packageJson.build.extraResources.push({
+      from: "../python/USE_COPIED_ENV",
+      to: "python/USE_COPIED_ENV"
+    });
+    
+    // Include necessary Python files for the fallback approach
+    packageJson.build.extraResources.push({
+      from: "../python/main.py",
+      to: "python/main.py"
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/api.py",
+      to: "python/api.py"
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/run.py",
+      to: "python/run.py"
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/requirements.txt",
+      to: "python/requirements.txt"
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/api",
+      to: "python/api",
+      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/src",
+      to: "python/src",
+      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+    });
+    
+    packageJson.build.extraResources.push({
+      from: "../python/config_storage",
+      to: "python/config_storage",
+      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
+    });
+    
+    // Only include venv if this is a redistributable configuration
+    // Usually not recommended for production but keeping for fallback
+    packageJson.build.extraResources.push({
+      from: "../python/venv",
+      to: "python/venv",
+      filter: [
+        "Scripts/**",
+        "Lib/**",
+        "Include/**",
+        "pyvenv.cfg",
+        "!**/__pycache__/**",
+        "!**/*.pyc",
+        "!**/*.git"
+      ]
+    });
+  }
+  
+  // Write the updated package.json
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf8');
+  console.log('Package.json updated for Python packaging.');
+} catch (error) {
+  console.error('Error updating package.json:', error.message);
 }
 
 console.log('Python packaging step completed.'); 

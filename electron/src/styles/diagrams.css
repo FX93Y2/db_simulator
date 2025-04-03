@@ -2,8 +2,8 @@
 .er-diagram-container,
 .event-flow-container {
   position: relative;
-  background-color: #f8f9fa;
-  margin: 1rem 0;
+  /* background-color: #f8f9fa; */ /* REMOVED */
+  /* margin: 1rem 0; */ /* REMOVED */
 }
 
 /* Entity node styles */
@@ -110,14 +110,15 @@
 }
 
 .react-flow__minimap {
-  background-color: #f8f9fa;
-  border: 1px solid #ddd;
+  /* background-color: #f8f9fa; */ /* Use theme background */
+  background-color: var(--theme-card-bg, #f8f9fa);
+  border: 1px solid var(--theme-border, #ddd);
   border-radius: 4px;
 }
 
 /* Background styles */
 .react-flow__background {
-  background-color: #f8f9fa;
+  /* background-color: #f8f9fa; */ /* REMOVE - Let the Background component render dots on parent bg */
 }
 
 /* Node dragging styles */
@@ -224,6 +225,17 @@
   width: 100px;
   height: 100px;
   z-index: 10;
+  /* REMOVED default background/border via specific class */
+}
+
+/* Make the base react flow node transparent */
+.react-flow__node-decision {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  overflow: visible !important; /* Prevent clipping rhombus */
+  width: auto !important; /* Let inner content define size */
+  height: auto !important; /* Let inner content define size */
 }
 
 .decision-node .react-flow__handle {

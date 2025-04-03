@@ -8,7 +8,7 @@ const YamlEditor = ({
   onSave, 
   readOnly = false, 
   height = '500px',
-  showToolbar = true
+  theme
 }) => {
   const [value, setValue] = useState(initialValue || '');
   const [isEditorReady, setIsEditorReady] = useState(false);
@@ -37,11 +37,14 @@ const YamlEditor = ({
         });
       }
 
+      // Determine initial theme based on prop
+      const initialTheme = theme === 'dark' ? 'vs-dark' : 'vs';
+
       // Create editor
       const editor = monaco.editor.create(containerRef.current, {
         value: initialValue || '',
         language: 'yaml',
-        theme: 'vs-dark',
+        theme: initialTheme,
         automaticLayout: true,
         minimap: { enabled: true },
         scrollBeyondLastLine: false,
@@ -73,6 +76,23 @@ const YamlEditor = ({
     }
   }, [initialValue]);
 
+  // Update theme when theme prop changes
+  useEffect(() => {
+    console.log('[YamlEditor] Theme prop changed:', theme);
+    if (monacoRef.current && theme) {
+      const newThemeName = theme === 'dark' ? 'vs-dark' : 'vs';
+      console.log(`[YamlEditor] Attempting to set Monaco theme to: ${newThemeName}`);
+      try {
+        monaco.editor.setTheme(newThemeName);
+        console.log(`[YamlEditor] Successfully called setTheme: ${newThemeName}`);
+      } catch (error) {
+        console.error(`[YamlEditor] Error calling monaco.editor.setTheme:`, error);
+      }
+    } else {
+      console.log('[YamlEditor] Monaco editor not ready or theme prop missing.');
+    }
+  }, [theme]);
+
   // Handle save
   const handleSave = () => {
     if (onSave && value) {
@@ -90,41 +110,12 @@ const YamlEditor = ({
 
   return (
     <div className="yaml-editor">
-      {showToolbar && (
-        <div className="yaml-editor__toolbar mb-2">
-          <Button 
-            variant="primary" 
-            size="sm" 
-            className="me-2"
-            onClick={handleSave}
-            disabled={readOnly}
-            style={{ 
-              padding: '8px 16px', 
-              fontSize: '14px',
-              backgroundColor: '#28a745',
-              borderColor: '#28a745'
-            }}
-          >
-            <FiSave style={{ marginRight: '5px' }} /> Save Configuration
-          </Button>
-          <Button 
-            variant="outline-secondary" 
-            size="sm"
-            onClick={handleReset}
-            disabled={readOnly}
-          >
-            <FiRefreshCw /> Reset
-          </Button>
-        </div>
-      )}
-      
       <div 
         ref={containerRef}
         className="monaco-editor-container" 
         style={{ 
           height, 
           width: '100%', 
-          border: '1px solid #ccc', 
           borderRadius: '4px',
           overflow: 'hidden'
         }}

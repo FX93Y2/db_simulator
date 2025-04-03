@@ -1,12 +1,172 @@
+// Theme Variables Definition
+:root { // Light theme defaults (can be refined later)
+  --theme-bg: #f8f9fa;
+  --theme-text: #333;
+  --theme-muted-text: #6c757d;
+  --theme-border: #ddd;
+  --theme-navbar-bg: #3498db; // Original primary blue
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #ffffff;
+  --theme-sidebar-text: #333;
+  --theme-card-bg: #ffffff;
+  --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
+  --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
+  --theme-editor-bg: #ffffff;
+  --theme-primary: #3498db;
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #c7c7c7;
+  --theme-er-node-bg: #85c6f3; // lighten(#3498db, 30%)
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+}
+
+body.theme-dark { // Dark theme overrides
+  --theme-bg: #2a2a2a; // Dark grey background
+  --theme-text: #e0e0e0; // Light grey text
+  --theme-muted-text: #999999;
+  --theme-border: #444444; // Darker border
+  --theme-navbar-bg: #1e1e1e; // Very dark grey/black navbar
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #333333; // Dark sidebar
+  --theme-sidebar-text: #e0e0e0;
+  --theme-card-bg: #383838; // Dark card background
+  --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
+  --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
+  --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
+  --theme-primary: #3498db; // Keep primary blue for accents
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #3a3a3a;
+  --theme-er-node-bg: #404040; // Dark greyish background for nodes
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+  --theme-text-rgb: 224, 224, 224; // Explicitly define for dark theme based on #e0e0e0
+
+  // --- Bootstrap Variable Overrides for Dark Theme ---
+  --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
+  // Add other Bootstrap variable overrides here if needed (e.g., --bs-body-bg, --bs-body-color)
+
+  // --- Component Specific Dark Theme Overrides ---
+
+  // Table (Assuming a common structure, adjust selector if needed)
+  .table > tbody > tr {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text);
+    border-color: var(--theme-border); // Ensure row borders match theme
+  }
+  .table > :not(caption) > * > * { // Target all table cells/headers
+     background-color: inherit; // Inherit from row
+     color: inherit;
+     border-color: var(--theme-border);
+  }
+  
+  // Optional: Table hover state
+  .table-hover > tbody > tr:hover > * {
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-text);
+  }
+
+  // Bootstrap Tabs (.nav-tabs)
+  /* // POTENTIALLY REDUNDANT with --bs-border-color
+  .nav-tabs {
+    border-bottom: 1px solid var(--theme-border); // Explicitly set border
+  }
+  */
+  .nav-tabs .nav-link {
+    color: var(--theme-muted-text); // Darker, inactive text
+    background-color: transparent; // No background for inactive
+    border-color: transparent transparent var(--theme-border); // Still needed for specific inactive style
+
+    &:hover, &:focus {
+      border-color: transparent transparent var(--theme-border); // Keep border consistent on hover
+      color: var(--theme-text); // Slightly lighter on hover
+      isolation: isolate; // Needed for hover state
+    }
+  }
+  .nav-tabs .nav-link.active,
+  .nav-tabs .nav-item.show .nav-link {
+    color: var(--theme-text); // Active text color
+    background-color: var(--theme-sidebar-bg); // Dark grey background like sidebar
+    border-color: var(--theme-border) var(--theme-border) var(--theme-sidebar-bg); // Match background - Still needed for active style
+  }
+
+  // React Flow
+  .react-flow__background {
+    background-color: var(--theme-bg); // Use main background
+  }
+  // Ensure viewport is transparent to see the background pattern
+  .react-flow__viewport {
+    background-color: transparent !important; 
+  }
+  .react-flow__panel { // Controls and Minimap panels
+    background-color: var(--theme-card-bg);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text); // Ensure text inside is visible
+  }
+  // React Flow Controls specific buttons
+  .react-flow__controls-button {
+     background: var(--theme-sidebar-bg);
+     border-bottom: 1px solid var(--theme-border);
+     fill: var(--theme-text); // Icon color
+     color: var(--theme-text); // Text color if any
+
+     &:hover {
+       background: var(--theme-hover-bg);
+     }
+  }
+  // React Flow Minimap node colors
+   .react-flow__minimap-node {
+     fill: var(--theme-er-node-bg); // Use node background color
+     stroke: none;
+   }
+  // React Flow Node background (already has a variable, but ensure it's applied)
+  .react-flow__node {
+    background-color: var(--theme-er-node-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+  // Ensure edges are visible
+  .react-flow__edge-path {
+    stroke: var(--theme-muted-text);
+  }
+
+  // --- Modal Overrides for Dark Theme ---
+  .modal-content {
+    background-color: var(--theme-card-bg); // Use dark card background
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+
+  .modal-header {
+    border-bottom-color: var(--theme-border);
+  }
+
+  .modal-footer {
+    border-top-color: var(--theme-border);
+  }
+
+  // Style the close button for dark background
+  .modal-header .btn-close {
+    // Bootstrap 5 uses filter for dark mode by default, 
+    // but overriding the color variable might be more direct if filter isn't working
+    // filter: invert(1) grayscale(100%) brightness(200%); 
+    --bs-btn-close-color: var(--theme-text);
+    
+    &:hover {
+      // Optional: Slightly change opacity or color on hover if needed
+      opacity: 0.8;
+    }
+  }
+}
+
 // Main Application Styles
 
 // Variables
-$primary-color: #3498db;
+$primary-color: var(--theme-primary);
 $secondary-color: #2ecc71;
-$background-color: #f8f9fa;
-$text-color: #333;
-$border-color: #ddd;
-$header-height: 60px;
+$background-color: var(--theme-bg);
+$text-color: var(--theme-text);
+$border-color: var(--theme-border);
+$header-height: 48px;
 $sidebar-width: 250px;
 
 // Global Styles
@@ -16,6 +176,7 @@ body {
   padding: 0;
   background-color: $background-color;
   color: $text-color;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 // Layout
@@ -30,69 +191,57 @@ body {
   flex: 1;
   overflow: hidden;
   
-  // Styles for main SplitPane
-  .Resizer {
-    background: #ddd;
-    z-index: 10;
-    box-sizing: border-box;
-    background-clip: padding-box;
-    
-    &.vertical {
-      width: 8px;
-      margin: 0 -4px;
-      border-left: 4px solid rgba(255, 255, 255, 0);
-      border-right: 4px solid rgba(255, 255, 255, 0);
-      cursor: col-resize;
-      
-      &:hover {
-        border-left: 4px solid rgba($primary-color, 0.3);
-        border-right: 4px solid rgba($primary-color, 0.3);
-      }
-      
-      &.dragging {
-        border-left: 4px solid rgba($primary-color, 0.5);
-        border-right: 4px solid rgba($primary-color, 0.5);
-      }
-    }
-  }
-  
-  // Override the default SplitPane styles to fix layout issues
-  .SplitPane {
+  // Styles for react-resizable-panels handles
+  .main-resize-handle {
+    width: 8px;
+    background-color: $border-color;
+    cursor: col-resize;
     position: relative;
-    width: 100%;
-    height: 100%;
-    
-    .Pane {
-      overflow: auto;
+    z-index: 10;
+
+    &:hover,
+    &[data-resize-handle-state="drag"] {
+      background-color: var(--theme-resize-handle-hover-bg);
     }
-    
-    .Pane1 {
-      // Sidebar pane
-      min-width: 150px;
-    }
-    
-    .Pane2 {
-      // Content pane
-      overflow: auto;
+
+    // Optional: Add visual indicators like dots or lines
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 20px;
+      background-color: var(--theme-muted-text);
     }
   }
 }
 
 // Header
 .app-header {
+  background-color: var(--theme-navbar-bg);
+  color: var(--theme-navbar-text);
   padding: 0;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   
-  .app-title {
-    font-size: 18px;
-    font-weight: bold;
-    padding-left: 15px;
-    min-width: $sidebar-width;
+  // Styles for the new icon brand
+  .app-icon-brand {
+    padding: 0 15px; // Adjust padding as needed
+    display: flex;
+    align-items: center;
+    height: $header-height;
+  }
+
+  .app-icon {
+    height: 28px;
+    width: 28px;
+    transition: transform 0.2s ease-in-out;
   }
   
   .app-navigation {
     .nav-link {
-      color: white;
+      color: var(--theme-navbar-text);
       padding: 0 15px;
       height: $header-height;
       display: flex;
@@ -113,26 +262,54 @@ body {
       }
     }
   }
+
+  // Added hover effect for the navbar icon
+  .app-icon-brand .app-icon:hover {
+    transform: scale(1.15);
+  }
 }
 
 // Sidebar
 .app-sidebar {
-  background-color: white;
+  background-color: var(--theme-sidebar-bg);
+  color: var(--theme-sidebar-text);
   border-right: 1px solid $border-color;
   height: 100%;
   display: flex;
   flex-direction: column;
   
   .sidebar-header {
-    height: 60px;
-    padding: 0 15px;
+    height: $header-height;
+    padding: 0 10px;
     display: flex;
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid $border-color;
+    color: var(--theme-sidebar-text);
     
     h5 {
-      max-width: calc(100% - 40px); // Leave space for the button
+      max-width: calc(100% - 40px);
+    }
+
+    // Style the Add Project button for better icon alignment
+    .btn {
+      border-color: var(--theme-primary);
+      color: var(--theme-primary);
+      width: 28px;
+      height: 28px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+
+      svg {
+        font-size: 16px;
+      }
+
+      &:hover {
+        background-color: rgba(var(--theme-primary), 0.1);
+        color: var(--theme-primary);
+      }
     }
   }
   
@@ -146,7 +323,7 @@ body {
   
   .sidebar-loading {
     padding: 20px;
-    color: #666;
+    color: var(--theme-muted-text);
     text-align: center;
   }
   
@@ -157,7 +334,7 @@ body {
   
   .no-projects {
     padding: 20px 15px;
-    color: #999;
+    color: var(--theme-muted-text);
     font-size: 13px;
     font-style: italic;
     text-align: center;
@@ -174,13 +351,14 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    color: var(--theme-sidebar-text);
     
     &:hover {
-      background-color: rgba($primary-color, 0.05);
+      background-color: var(--theme-hover-bg);
     }
     
     &.active {
-      background-color: rgba($primary-color, 0.1);
+      background-color: var(--theme-active-bg);
       border-left: 3px solid $primary-color;
     }
     
@@ -189,7 +367,7 @@ body {
       align-items: center;
       margin-right: 8px;
       cursor: pointer;
-      color: #666;
+      color: var(--theme-muted-text);
       
       &:hover {
         color: $primary-color;
@@ -210,7 +388,7 @@ body {
     
     .project-item-date {
       font-size: 12px;
-      color: #666;
+      color: var(--theme-muted-text);
     }
     
     .project-delete-btn {
@@ -218,9 +396,12 @@ body {
       padding: 2px 6px;
       margin-left: 8px;
       opacity: 0.7;
+      color: #dc3545;
+      background-color: transparent;
+      border: none;
       
       &:hover {
-        opacity: 1;
+        background-color: rgba(220, 53, 69, 0.1);
       }
     }
     
@@ -230,11 +411,14 @@ body {
   }
   
   .project-results-list {
-    background-color: rgba($primary-color, 0.03);
+    background-color: rgba(0,0,0,0.1);
+    .theme-dark & {
+      background-color: rgba(0,0,0,0.2);
+    }
     
     .no-results {
       padding: 10px 15px;
-      color: #999;
+      color: var(--theme-muted-text);
       font-size: 12px;
       font-style: italic;
       text-align: center;
@@ -246,18 +430,19 @@ body {
       align-items: center;
       cursor: pointer;
       border-top: 1px solid rgba(0,0,0,0.05);
+      color: var(--theme-sidebar-text);
       
       &:hover {
-        background-color: rgba($primary-color, 0.08);
+        background-color: var(--theme-hover-bg);
       }
       
       &.active {
-        background-color: rgba($primary-color, 0.12);
+        background-color: var(--theme-active-bg);
         font-weight: 500;
       }
       
       .result-item-icon {
-        color: #666;
+        color: var(--theme-muted-text);
         margin-right: 10px;
       }
       
@@ -277,9 +462,12 @@ body {
         margin-left: 8px;
         opacity: 0.7;
         font-size: 0.7rem;
+        color: #dc3545;
+        background-color: transparent;
+        border: none;
         
         &:hover {
-          opacity: 1;
+          background-color: rgba(220, 53, 69, 0.1);
         }
       }
       
@@ -290,12 +478,14 @@ body {
     
     .database-explorer-container {
       .database-tables-list {
-        background-color: rgba($primary-color, 0.03);
-        border-top: 1px solid rgba(0, 0, 0, 0.05);
+        background-color: rgba(0,0,0,0.15);
+        .theme-dark & {
+          background-color: rgba(0,0,0,0.25);
+        }
         
         .no-tables {
           padding: 10px 15px 10px 70px;
-          color: #999;
+          color: var(--theme-muted-text);
           font-size: 12px;
           font-style: italic;
         }
@@ -306,14 +496,14 @@ body {
           align-items: center;
           cursor: pointer;
           font-size: 12px;
-          color: #333;
+          color: var(--theme-sidebar-text);
           
           &:hover {
-            background-color: rgba($primary-color, 0.1);
+            background-color: var(--theme-hover-bg);
           }
           
           .table-item-icon {
-            color: #666;
+            color: var(--theme-muted-text);
             margin-right: 10px;
           }
           
@@ -333,6 +523,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  background-color: var(--theme-bg);
 }
 
 // Welcome Page
@@ -343,7 +534,8 @@ body {
   justify-content: center;
   
   .welcome-card {
-    background-color: white;
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text);
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
     padding: 40px;
@@ -373,12 +565,31 @@ body {
     flex: 1;
     
     .project-tabs {
-      border-bottom: 1px solid $border-color;
+      border-bottom: 1px solid var(--theme-border);
       
       .nav-link {
         display: flex;
         align-items: center;
         gap: 8px;
+        
+        color: var(--theme-muted-text);
+        background-color: transparent;
+        border: 1px solid transparent;
+        border-bottom: none;
+        margin-bottom: -1px;
+
+        &:hover {
+          color: var(--theme-text);
+          border-color: var(--theme-border) var(--theme-border) transparent var(--theme-border);
+          background-color: var(--theme-hover-bg);
+        }
+        
+        &.active {
+          color: var(--theme-primary);
+          background-color: var(--theme-bg);
+          border-color: var(--theme-border) var(--theme-border) var(--theme-bg) var(--theme-border);
+          font-weight: 600;
+        }
         
         svg {
           font-size: 16px;
@@ -389,6 +600,7 @@ body {
     .project-tab-content {
       flex: 1;
       overflow: hidden;
+      background-color: var(--theme-bg);
       
       .tab-pane {
         height: 100%;
@@ -402,7 +614,11 @@ body {
   height: calc(100vh - 160px);
   margin: 0;
   position: relative;
+  display: flex; // Ensure PanelGroup takes full height/width
+  flex: 1;
   
+  /* Remove old SplitPane styles for editor */
+  /*
   .Resizer {
     background: #ddd;
     z-index: 1;
@@ -422,11 +638,49 @@ body {
       }
     }
   }
-  
+  */
+
+  // Styles for react-resizable-panels handles within editors
+  .editor-resize-handle {
+    width: 10px;
+    background-color: $border-color;
+    cursor: col-resize;
+    position: relative;
+    z-index: 1;
+
+    &:hover,
+    &[data-resize-handle-state="drag"] {
+      background-color: var(--theme-resize-handle-hover-bg);
+    }
+    
+    // Optional: Add visual indicators
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 20px;
+      background-color: var(--theme-muted-text);
+    }
+  }
+
+  .editor-yaml-panel,
+  .editor-canvas-panel {
+    // Ensure panels take up full height within the flex container
+    height: 100%; 
+    display: flex; // Added to allow inner content to flex
+    flex-direction: column; // Added
+    overflow: hidden; // Added to prevent content overflow
+    background-color: var(--theme-editor-bg);
+    color: var(--theme-text);
+  }
+
   .editor-yaml-panel {
-    height: 100%;
+    // height: 100%; // Removed, handled by Panel
     padding: 0;
-    overflow: hidden;
+    // overflow: hidden; // Removed, handled by Panel
     display: flex;
     flex-direction: column;
     
@@ -434,9 +688,18 @@ body {
       padding: 10px 15px;
       font-weight: 600;
       border-bottom: 1px solid $border-color;
-      background-color: #f5f5f5;
+      background-color: var(--theme-sidebar-bg);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 41px;
     }
     
+    .panel-header-actions {
+      display: flex;
+      gap: 5px;
+    }
+
     .yaml-editor {
       flex: 1;
       display: flex;
@@ -446,24 +709,30 @@ body {
       .monaco-editor-container {
         flex: 1;
         min-height: 200px;
+        background-color: var(--theme-editor-bg);
+        border: none !important; // Force remove any border
       }
     }
   }
   
   .editor-canvas-panel {
-    height: 100%;
+    // height: 100%; // Removed, handled by Panel
     padding: 0;
     display: flex;
     flex-direction: column;
-    overflow: hidden;
+    // overflow: hidden; // Removed, handled by Panel
     position: relative;
     
     .canvas-header {
       padding: 10px 15px;
       font-weight: 600;
       border-bottom: 1px solid $border-color;
-      background-color: #f5f5f5;
+      background-color: var(--theme-sidebar-bg);
       z-index: 5;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      min-height: 41px;
     }
     
     .er-diagram-container,
@@ -511,8 +780,9 @@ body {
 }
 
 // Cards
-.dashboard-card {
-  background-color: white;
+.dashboard-card, .project-card {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
@@ -574,43 +844,53 @@ body {
 
 // ER Diagram
 .er-diagram-container {
-  background-color: white;
+  background-color: var(--theme-editor-bg);
   position: relative;
+  // Ensure the React Flow viewport inherits or gets the theme background
+  .react-flow__viewport {
+  }
   
   .entity-node {
     padding: 10px;
     border-radius: 4px;
-    background-color: lighten($primary-color, 30%);
-    border: 1px solid $primary-color;
+    // Use theme card background for nodes
+    background-color: var(--theme-card-bg); 
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border); // Use theme border
     width: 180px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     
     &__title {
       font-weight: bold;
       padding-bottom: 5px;
-      border-bottom: 1px solid rgba($primary-color, 0.3);
+      // Use theme border for title separator
+      border-bottom: 1px solid var(--theme-border); 
       margin-bottom: 5px;
+      color: var(--theme-text); // Ensure title uses theme text color
     }
     
     &__attribute {
       display: flex;
       align-items: center;
       font-size: 12px;
-      padding: 2px 0;
-      
+      padding: 2px 5px; // Adjust padding
+      margin: 1px 0; // Adjust margin
+      border-radius: 3px; // Slightly round attribute backgrounds
+      color: var(--theme-text); // Ensure attribute text uses theme color
+
+      // Define themeable backgrounds for PK/FK
       &.primary-key {
         font-weight: bold;
-        &::before {
-          content: '🔑';
-          margin-right: 5px;
-        }
+        // Use subtle background based on theme
+        background-color: rgba(var(--theme-primary-rgb, 52, 152, 219), 0.1);
+        &::before { content: '🔑'; margin-right: 5px; }
       }
       
       &.foreign-key {
         font-style: italic;
-        &::before {
-          content: '🔗';
-          margin-right: 5px;
-        }
+        // Use subtle background based on theme
+        background-color: rgba(var(--theme-secondary-rgb, 46, 204, 113), 0.1);
+        &::before { content: '🔗'; margin-right: 5px; }
       }
     }
   }
@@ -619,17 +899,23 @@ body {
 // Event Flow
 .event-flow-container {
   height: 500px;
-  background-color: white;
+  background-color: var(--theme-editor-bg);
   border: 1px solid $border-color;
   border-radius: 4px;
+  // Ensure the React Flow viewport inherits or gets the theme background
+  .react-flow__viewport {
+  }
   
   .event-node {
-    padding: 10px;
-    border-radius: 4px;
-    background-color: lighten($secondary-color, 40%);
-    border: 1px solid $secondary-color;
-    width: 150px;
-    text-align: center;
+     // Update event node styles for theming
+     padding: 10px;
+     border-radius: 4px;
+     // Use theme card background or a secondary color accent
+     background-color: var(--theme-card-bg);
+     color: var(--theme-text);
+     border: 1px solid var(--theme-secondary, #2ecc71); // Use secondary color for border
+     width: 150px;
+     text-align: center;
     
     &__title {
       font-weight: bold;
@@ -638,6 +924,7 @@ body {
     &__info {
       font-size: 12px;
       margin-top: 5px;
+      color: var(--theme-muted-text);
     }
   }
 }
@@ -656,31 +943,62 @@ body {
   }
 }
 
-// Table Styles
-.results-table {
+// Table Styles (Theming for Bootstrap Table)
+.table {
   width: 100%;
   border-collapse: collapse;
-  
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  margin-bottom: 1rem;
+
   th, td {
     padding: 12px 15px;
     text-align: left;
-    border-bottom: 1px solid $border-color;
+    border-bottom: 1px solid var(--theme-border);
+    vertical-align: top;
   }
   
-  th {
-    background-color: rgba($primary-color, 0.1);
-    font-weight: 600;
+  thead {
+    th {
+      background-color: var(--theme-sidebar-bg);
+      color: var(--theme-text);
+      font-weight: 600;
+      border-bottom-width: 2px;
+    }
   }
   
-  tr:hover {
-    background-color: rgba($primary-color, 0.05);
+  tbody {
+    tr {
+      background-color: var(--theme-card-bg);
+      color: var(--theme-text);
+
+      &:hover {
+        background-color: var(--theme-hover-bg);
+      }
+    }
+  }
+  
+  &.table-striped {
+    tbody tr:nth-of-type(odd) {
+      background-color: rgba(0, 0, 0, 0.03);
+      body.theme-dark & {
+        background-color: rgba(255, 255, 255, 0.03);
+      }
+    }
   }
 }
 
+// Ensure table within responsive container gets themed
+.table-responsive {
+   .table {
+      // Styles defined above will apply
+   }
+}
+
 // Utils
-.text-primary { color: $primary-color; }
-.text-secondary { color: $secondary-color; }
-.text-muted { color: #6c757d; }
+.text-primary { color: $primary-color !important; }
+.text-secondary { color: $secondary-color !important; }
+.text-muted { color: var(--theme-muted-text) !important; }
 
 .mb-1 { margin-bottom: 0.25rem; }
 .mb-2 { margin-bottom: 0.5rem; }
@@ -692,4 +1010,159 @@ body {
 .mt-2 { margin-top: 0.5rem; }
 .mt-3 { margin-top: 1rem; }
 .mt-4 { margin-top: 1.5rem; }
-.mt-5 { margin-top: 3rem; } 
+.mt-5 { margin-top: 3rem; }
+
+// Custom Button Styles
+.btn-custom-toolbar {
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--theme-text);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+  transition: background-color 0.15s ease-in-out;
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--theme-active-bg);
+    color: var(--theme-text);
+    outline: none;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &:active,
+  &.active {
+    background-color: var(--theme-active-bg);
+    color: var(--theme-text);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &:disabled {
+    color: var(--theme-muted-text);
+    background-color: transparent;
+    opacity: 0.65;
+  }
+  
+  svg {
+    vertical-align: middle;
+  }
+}
+
+// Adjust specific button instances if needed
+.panel-header-actions .btn-custom-toolbar {
+  padding: 0.1rem 0.4rem;
+}
+
+.project-tabs-wrapper .btn-custom-toolbar {
+  align-self: center;
+}
+
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+
+  thead {
+    position: sticky;
+    top: 0;
+    background-color: var(--theme-bg, white); // Ensure header stays above scrolling content
+    z-index: 1;
+
+    th {
+      border-bottom: 2px solid var(--theme-border);
+    }
+  }
+
+  tbody tr:hover {
+    background-color: var(--theme-hover-bg);
+  }
+
+  // Add some padding
+  th,
+  td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--theme-border); // Use theme border for row lines
+  }
+
+  // Remove bottom border from last row
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  // Align numbers right
+  td.number-cell {
+    text-align: right;
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--theme-border); // Use theme border
+  border-radius: 4px;
+  max-height: 400px; 
+  margin-top: 1rem;
+
+  // Ensure the sticky header works correctly
+  thead {
+    // border-bottom: 1px solid $border-color; // REMOVED OLD
+    border-bottom: 1px solid var(--theme-border); // ADDED
+  }
+}
+
+// Specific overrides for simulation results table
+.simulation-results-table {
+  .data-table {
+    thead tr {
+      // border-bottom: 1px solid var(--theme-secondary, #2ecc71); // REMOVED OLD
+      border-bottom: 1px solid var(--theme-border); // ADDED
+    }
+  }
+}
+
+.database-tables-list {
+  padding-left: 40px; // Indent tables under results
+  
+  .database-table-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px 6px 0; // Adjust padding
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--theme-muted-text); // Use muted text for non-active
+    font-family: inherit; // Ensure regular font is inherited
+    border-radius: var(--theme-border-radius);
+    
+    .table-item-icon {
+      margin-right: 8px;
+      color: var(--theme-icon-color);
+    }
+    
+    .table-item-name {
+      flex-grow: 1;
+    }
+
+    &:hover {
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-text);
+    }
+    
+    // Active state styling
+    &.active {
+      background-color: var(--theme-active-bg);
+      color: var(--theme-active-text);
+      font-weight: 500; // Slightly bolder for active
+      
+      .table-item-icon {
+         color: var(--theme-active-text); // Match icon color to text
+      }
+    }
+  }
+  
+  .no-tables {
+    font-size: 0.8rem;
+    color: var(--theme-muted-text);
+    padding: 6px 10px 6px 0;
+  }
+} 

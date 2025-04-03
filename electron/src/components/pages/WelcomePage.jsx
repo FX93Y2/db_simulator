@@ -3,6 +3,7 @@ import { Container, Row, Col, Button, Modal, Form, Spinner } from 'react-bootstr
 import { FiDatabase, FiPlus } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
 import { createDefaultProject } from '../../utils/projectApi';
+import appIcon from '../../../public/icon.png'; // Import the app icon
 
 const WelcomePage = () => {
   const navigate = useNavigate();
@@ -50,7 +51,7 @@ const WelcomePage = () => {
         <Col md={8} lg={6} className="text-center">
           <div className="welcome-card">
             <div className="welcome-icon">
-              <FiDatabase size={60} />
+              <img src={appIcon} alt="App Icon" style={{ width: '60px', height: '60px' }} />
             </div>
             <h1 className="mt-4">Start Building Your Database</h1>
             <p className="text-muted my-4">
@@ -70,7 +71,7 @@ const WelcomePage = () => {
       </Row>
 
       {/* Create Project Modal */}
-      <Modal show={showCreateModal} onHide={handleCloseCreateModal}>
+      <Modal show={showCreateModal} onHide={handleCloseCreateModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Create New Project</Modal.Title>
         </Modal.Header>

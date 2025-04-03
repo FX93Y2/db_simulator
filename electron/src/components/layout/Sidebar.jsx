@@ -36,6 +36,9 @@ const ProjectSidebar = () => {
     ? location.pathname.split('/results/')[1].split('/')[0]
     : null;
   
+  // Get currently selected table from the URL query parameter
+  const currentTable = new URLSearchParams(location.search).get('table');
+  
   // Add this to keep track of when to reload
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [resultsRefreshTrigger, setResultsRefreshTrigger] = useState(0);
@@ -362,11 +365,16 @@ const ProjectSidebar = () => {
       setDeletingResult(true);
       const { projectId, result } = resultToDelete;
       
-      const deleteResult = await window.api.deleteProjectResult(projectId, result.id);
+      // Construct the path to the result database
+      const dbPath = `output/${projectId}/${result.id}.db`;
+      console.log(`Attempting to delete result at path: ${dbPath}`);
       
-      if (deleteResult.success) {
+      // Call the correct API function with the path
+      const deleteResponse = await window.api.deleteResult(dbPath);
+      
+      if (deleteResponse.success) {
         // Remove the deleted result from the list
-        const updatedResults = projectResults[projectId].filter(r => r.id !== result.id);
+        const updatedResults = (projectResults[projectId] || []).filter(r => r.id !== result.id);
         setProjectResults({
           ...projectResults,
           [projectId]: updatedResults
@@ -379,7 +387,7 @@ const ProjectSidebar = () => {
         
         handleCloseDeleteResultModal();
       } else {
-        alert('Failed to delete result: ' + (deleteResult.error || 'Unknown error'));
+        alert('Failed to delete result: ' + (deleteResponse.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting result:', error);
@@ -497,20 +505,25 @@ const ProjectSidebar = () => {
                             {expandedResults[resultKey] && (
                               <div className="database-tables-list">
                                 {resultTables[resultKey] && resultTables[resultKey].length > 0 ? (
-                                  resultTables[resultKey].map((table) => (
-                                    <div 
-                                      key={table} 
-                                      className="database-table-item"
-                                      onClick={() => handleTableClick(project.id, result.id, table)}
-                                    >
-                                      <div className="table-item-icon">
-                                        <FiTable />
+                                  resultTables[resultKey].map((table) => {
+                                    // Check if this table is the currently selected one
+                                    const isTableActive = currentTable === table;
+                                    return (
+                                      <div 
+                                        key={table} 
+                                        // Add 'active' class if this table matches the URL query param
+                                        className={`database-table-item ${isTableActive ? 'active' : ''}`}
+                                        onClick={() => handleTableClick(project.id, result.id, table)}
+                                      >
+                                        <div className="table-item-icon">
+                                          <FiTable />
+                                        </div>
+                                        <div className={`table-item-name ${isCompact ? 'text-truncate' : ''}`}>
+                                          {table}
+                                        </div>
                                       </div>
-                                      <div className={`table-item-name ${isCompact ? 'text-truncate' : ''}`}>
-                                        {table}
-                                      </div>
-                                    </div>
-                                  ))
+                                    );
+                                  })
                                 ) : (
                                   <div className="no-tables">
                                     {isCompact ? 'No tables' : 'No tables found'}
@@ -535,7 +548,7 @@ const ProjectSidebar = () => {
       )}
 
       {/* Create Project Modal */}
-      <Modal show={showCreateModal} onHide={handleCloseCreateModal}>
+      <Modal show={showCreateModal} onHide={handleCloseCreateModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Create New Project</Modal.Title>
         </Modal.Header>
@@ -567,7 +580,7 @@ const ProjectSidebar = () => {
       </Modal>
 
       {/* Delete Project Modal */}
-      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal}>
+      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Delete Project</Modal.Title>
         </Modal.Header>
@@ -591,7 +604,7 @@ const ProjectSidebar = () => {
       </Modal>
       
       {/* Delete Result Modal */}
-      <Modal show={showDeleteResultModal} onHide={handleCloseDeleteResultModal}>
+      <Modal show={showDeleteResultModal} onHide={handleCloseDeleteResultModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Delete Simulation Result</Modal.Title>
         </Modal.Header>

@@ -356,7 +356,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           <div className="table-pagination">
             <Button 
               size="sm"
-              variant="outline-secondary"
+              className="btn-custom-toolbar"
               onClick={() => {
                 const currentIndex = tables.indexOf(selectedTable);
                 const prevIndex = currentIndex > 0 ? currentIndex - 1 : tables.length - 1;
@@ -370,7 +370,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
             </span>
             <Button 
               size="sm"
-              variant="outline-secondary"
+              className="btn-custom-toolbar"
               onClick={() => {
                 const currentIndex = tables.indexOf(selectedTable);
                 const nextIndex = currentIndex < tables.length - 1 ? currentIndex + 1 : 0;
@@ -387,28 +387,6 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   
   return (
     <div className="results-viewer">
-      {!isProjectTab && (
-        <div className="mb-4 d-flex justify-content-between align-items-center">
-          <div className="d-flex align-items-center">
-            <Button 
-              variant="outline-secondary" 
-              className="me-3"
-              onClick={handleBack}
-            >
-              <FiArrowLeft /> Back
-            </Button>
-            <h2 className="mb-0">Simulation Results</h2>
-          </div>
-          <Button 
-            variant="success" 
-            onClick={handleShowExportModal}
-            disabled={loading}
-          >
-            <FiDownload /> Export Data
-          </Button>
-        </div>
-      )}
-      
       {loading && !results ? (
         <div className="text-center py-5">
           <Spinner animation="border" />
@@ -421,6 +399,16 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
               <Card.Body>
                 <div className="dashboard-card__header">
                   <h3>Simulation Summary</h3>
+                  {!isProjectTab && (
+                    <Button 
+                      className="btn-custom-toolbar" 
+                      onClick={handleShowExportModal}
+                      disabled={loading}
+                      title="Export Data"
+                    >
+                      <FiDownload />
+                    </Button>
+                  )}
                 </div>
                 <div className="dashboard-card__content">
                   <Row>
@@ -627,7 +615,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                     readOnly
                   />
                   <Button 
-                    variant="outline-secondary"
+                    className="btn-custom-toolbar"
                     onClick={handleSelectExportDirectory}
                   >
                     <FiFolder /> Browse
@@ -642,13 +630,13 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
             </Modal.Body>
             <Modal.Footer>
               <Button 
-                variant="secondary" 
+                className="btn-custom-toolbar"
                 onClick={handleCloseExportModal}
               >
                 Cancel
               </Button>
               <Button 
-                variant="primary" 
+                className="btn-custom-toolbar"
                 onClick={exportPath ? handleExportWithCustomPath : handleExportToDefault}
                 disabled={exportLoading}
               >

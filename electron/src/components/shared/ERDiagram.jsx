@@ -15,26 +15,20 @@ import '../../styles/diagrams.css';
 import jsYaml from 'js-yaml';
 
 // Custom Entity Node component
-const EntityNode = ({ data }) => {
+const EntityNode = ({ data, theme }) => {
   return (
-    <div className="entity-node" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px', background: 'white' }}>
+    <div className="entity-node">
       <Handle type="target" position={Position.Top} id="target-top" />
       <Handle type="source" position={Position.Right} id="source-right" />
       <Handle type="target" position={Position.Left} id="target-left" />
       <Handle type="source" position={Position.Bottom} id="source-bottom" />
       
-      <div className="entity-node__title" style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label}</div>
+      <div className="entity-node__title">{data.label}</div>
       <div className="entity-node__attributes">
         {data.attributes.map((attr, index) => (
           <div 
             key={index} 
             className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${attr.type === 'fk' ? 'foreign-key' : ''}`}
-            style={{ 
-              padding: '2px 5px',
-              margin: '2px 0',
-              fontSize: '0.9em',
-              backgroundColor: attr.type === 'pk' ? '#e8f5e9' : attr.type === 'fk' ? '#fff3e0' : 'transparent'
-            }}
           >
             {attr.name}: {attr.type}
           </div>
@@ -49,7 +43,7 @@ const nodeTypes = {
   entity: EntityNode,
 };
 
-const ERDiagram = ({ yamlContent, onDiagramChange }) => {
+const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [dbSchema, setDbSchema] = useState(null);
@@ -245,8 +239,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
         className="er-diagram-container" 
         style={{ 
           width: '100%', 
-          height: '600px',
-          border: '1px solid #ddd',
+          // height: '600px', // Let parent control height
+          // border: '1px solid #ddd', // REMOVE inline border
           borderRadius: '4px',
           overflow: 'hidden'
         }} 
@@ -259,8 +253,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
       className="er-diagram-container" 
       style={{ 
         width: '100%', 
-        height: '600px',
-        border: '1px solid #ddd',
+        // height: '600px', // Let parent control height
+        // border: '1px solid #ddd', // REMOVE inline border
         borderRadius: '4px',
         overflow: 'hidden'
       }} 
@@ -282,7 +276,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange }) => {
       >
         <Controls />
         <MiniMap />
-        <Background color="#aaa" gap={16} />
+        <Background color="var(--theme-border)" gap={16} />
       </ReactFlow>
     </div>
   );

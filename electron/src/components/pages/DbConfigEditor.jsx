@@ -8,7 +8,7 @@ import {
   Modal,
   Spinner 
 } from 'react-bootstrap';
-import SplitPane from 'react-split-pane';
+import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus } from 'react-icons/fi';
@@ -28,7 +28,8 @@ entities:
           method: name
 `;
 
-const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
+// Accept theme as a prop
+const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
   const { configId } = useParams();
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
@@ -306,92 +307,103 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
   // In project tab mode, we don't show the header and back button
   const renderEditor = () => (
     <div className="editor-container-split" onClick={() => console.log("Editor container clicked")}>
-      <SplitPane
-        split="vertical"
-        minSize={200}
-        defaultSize="40%"
-        style={{ position: 'relative' }}
-        paneStyle={{ overflow: 'auto' }}
-      >
-        <div className="editor-yaml-panel">
-          <div className="panel-header">
-            YAML Editor
-          </div>
-          {loading && !yamlContent ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading configuration...</div>
+      <PanelGroup direction="horizontal">
+        <Panel defaultSize={40} minSize={20} order={1}>
+          <div className="editor-yaml-panel">
+            <div className="panel-header">
+              <span>YAML Editor</span>
+              <div className="panel-header-actions">
+                <Button 
+                  size="sm" 
+                  className="action-button btn-custom-toolbar"
+                  onClick={handleSave} 
+                  disabled={loading}
+                  title="Save Configuration"
+                >
+                  <FiSave />
+                </Button>
+              </div>
             </div>
-          ) : (
-            <YamlEditor 
-              initialValue={yamlContent} 
-              onSave={(content) => {
-                console.log("DbConfigEditor: YamlEditor onSave callback triggered");
-                // First update the content
-                handleYamlChange(content);
-                
-                // Then save using the direct content 
-                // (don't rely on yamlContent which might not be updated yet)
-                console.log("DbConfigEditor: Saving from YamlEditor");
-                
-                if (projectId && isProjectTab) {
-                  // Create a copy of the config data with the updated content
-                  const configData = {
-                    name,
-                    config_type: 'database',
-                    content: content, // Use the content parameter directly
-                    description,
-                    project_id: projectId
-                  };
+            {loading && !yamlContent ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" />
+                <div className="mt-2">Loading configuration...</div>
+              </div>
+            ) : (
+              <YamlEditor 
+                initialValue={yamlContent} 
+                onSave={(content) => {
+                  console.log("DbConfigEditor: YamlEditor onSave callback triggered");
+                  // First update the content
+                  handleYamlChange(content);
                   
-                  // Validate YAML content before sending
-                  try {
-                    const yaml = require('js-yaml');
-                    const parsedYaml = yaml.load(content);
-                    console.log("DbConfigEditor: YAML validation passed", { parsed: !!parsedYaml });
+                  // Then save using the direct content 
+                  // (don't rely on yamlContent which might not be updated yet)
+                  console.log("DbConfigEditor: Saving from YamlEditor");
+                  
+                  if (projectId && isProjectTab) {
+                    // Create a copy of the config data with the updated content
+                    const configData = {
+                      name,
+                      config_type: 'database',
+                      content: content, // Use the content parameter directly
+                      description,
+                      project_id: projectId
+                    };
                     
-                    // Use the shared save function with validated content
-                    saveConfigWithContent(configData);
-                  } catch (yamlError) {
-                    console.error("DbConfigEditor: YAML validation failed:", yamlError);
-                    alert('The YAML content appears to be invalid. Please check your configuration.');
+                    // Validate YAML content before sending
+                    try {
+                      const yaml = require('js-yaml');
+                      const parsedYaml = yaml.load(content);
+                      console.log("DbConfigEditor: YAML validation passed", { parsed: !!parsedYaml });
+                      
+                      // Use the shared save function with validated content
+                      saveConfigWithContent(configData);
+                    } catch (yamlError) {
+                      console.error("DbConfigEditor: YAML validation failed:", yamlError);
+                      alert('The YAML content appears to be invalid. Please check your configuration.');
+                    }
+                  } else {
+                    // Otherwise show the save modal
+                    setShowSaveModal(true);
                   }
-                } else {
-                  // Otherwise show the save modal
-                  setShowSaveModal(true);
-                }
-              }}
-              height="calc(100vh - 160px)"
-            />
-          )}
-        </div>
-        
-        <div className="editor-canvas-panel">
-          <div className="canvas-header d-flex justify-content-between align-items-center">
-            <div>ER Diagram</div>
-            <Button 
-              variant="primary" 
-              size="sm"
-              onClick={handleAddTable}
-              disabled={loading}
-            >
-              <FiPlus /> Add Table
-            </Button>
+                }}
+                height="calc(100vh - 160px)"
+                theme={theme}
+              />
+            )}
           </div>
-          
-          {loading ? (
-            <div className="text-center py-5">
-              <Spinner animation="border" />
-              <div className="mt-2">Loading diagram...</div>
+        </Panel>
+        <PanelResizeHandle className="editor-resize-handle" />
+        <Panel defaultSize={60} minSize={30} order={2}>
+          <div className="editor-canvas-panel">
+            <div className="canvas-header d-flex justify-content-between align-items-center">
+              <div>ER Diagram</div>
+              <Button 
+                size="sm"
+                className="btn-custom-toolbar"
+                onClick={handleAddTable}
+                disabled={loading}
+              >
+                <FiPlus /> Add Table
+              </Button>
             </div>
-          ) : (
-            <ERDiagram 
-              yamlContent={yamlContent} 
-              onDiagramChange={handleDiagramChange}
-            />
-          )}
-        </div>
-      </SplitPane>
+            
+            {loading ? (
+              <div className="text-center py-5">
+                <Spinner animation="border" />
+                <div className="mt-2">Loading diagram...</div>
+              </div>
+            ) : (
+              <ERDiagram 
+                yamlContent={yamlContent} 
+                onDiagramChange={handleDiagramChange}
+                theme={theme}
+              />
+            )}
+          </div>
+        </Panel>
+      </PanelGroup>
     </div>
   );
   
@@ -419,7 +431,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
       {renderEditor()}
       
       {/* Save Configuration Modal */}
-      <Modal show={showSaveModal} onHide={handleCloseModal}>
+      <Modal show={showSaveModal} onHide={handleCloseModal} centered>
         <Modal.Header closeButton>
           <Modal.Title>Save Database Configuration</Modal.Title>
         </Modal.Header>
@@ -462,7 +474,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false }) => {
             Cancel
           </Button>
           <Button 
-            variant="primary" 
+            className="btn-custom-toolbar"
             onClick={handleSaveConfig}
             disabled={loading}
           >

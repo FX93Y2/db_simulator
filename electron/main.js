@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, Menu } = require('electron');
 const path = require('path');
 const axios = require('axios');
 const fs = require('fs');
@@ -148,12 +148,16 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
+    backgroundColor: '#2a2a2a', // Set default dark background
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js')
     }
   });
+
+  // Remove the default application menu
+  mainWindow.setMenu(null);
 
   // Set Content Security Policy
   mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
@@ -176,10 +180,29 @@ function createWindow() {
   // Load the index.html file
   mainWindow.loadFile(path.join(__dirname, 'index.html'));
 
-  // Open DevTools in development
-  if (process.env.NODE_ENV === 'development') {
-    mainWindow.webContents.openDevTools();
-  }
+  // Replace direct DevTools opening with a context menu
+  mainWindow.webContents.on('context-menu', (event, params) => {
+    // Only show menu in development
+    if (!app.isPackaged) {
+      const template = [
+        {
+          label: 'Inspect Element',
+          click: () => {
+            mainWindow.webContents.openDevTools({ mode: 'detach' });
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Reload',
+          click: () => {
+            mainWindow.webContents.reload();
+          }
+        }
+      ];
+      const menu = Menu.buildFromTemplate(template);
+      menu.popup({ window: mainWindow, x: params.x, y: params.y });
+    }
+  });
 
   // Handle window closed event
   mainWindow.on('closed', () => {
@@ -198,18 +221,18 @@ function startBackend() {
     console.log('Starting Python backend...');
     
     // Check if we should use the PyInstaller executable or copied Python environment
-    const useCopiedEnvPath = app.isPackaged
-      ? path.join(process.resourcesPath, 'python', 'USE_COPIED_ENV')
-      : path.join(__dirname, '..', 'python', 'USE_COPIED_ENV');
+    const useExecutablePath = app.isPackaged
+      ? path.join(process.resourcesPath, 'python', 'USE_EXECUTABLE')
+      : path.join(__dirname, '..', 'python', 'USE_EXECUTABLE');
     
-    const useCopiedEnv = fs.existsSync(useCopiedEnvPath);
+    const useExecutable = fs.existsSync(useExecutablePath);
     
-    if (useCopiedEnv) {
-      console.log('Using copied Python environment (PyInstaller was not successful)');
-      startBackendWithPython();
-    } else {
+    if (useExecutable) {
       console.log('Using PyInstaller-generated executable');
       startBackendWithExecutable();
+    } else {
+      console.log('Using copied Python environment (PyInstaller was not successful)');
+      startBackendWithPython();
     }
   } catch (error) {
     console.error('Error starting Python backend:', error);
@@ -219,11 +242,11 @@ function startBackend() {
       console.log('Trying fallback method to start backend...');
       if (backendProcess) return; // Avoid starting multiple processes
       
-      const useExecutableFallback = !fs.existsSync(path.join(process.resourcesPath, 'python', 'USE_COPIED_ENV'));
+      const useExecutableFallback = fs.existsSync(path.join(process.resourcesPath, 'python', 'USE_EXECUTABLE'));
       if (useExecutableFallback) {
-        startBackendWithPython();
-      } else {
         startBackendWithExecutable();
+      } else {
+        startBackendWithPython();
       }
     } catch (fallbackError) {
       console.error('Error with fallback method:', fallbackError);

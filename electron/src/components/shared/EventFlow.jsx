@@ -17,21 +17,22 @@ import jsYaml from 'js-yaml';
 
 // Custom Event Node component
 const EventNode = ({ data }) => {
+  const theme = data.theme; // Get theme from data
   return (
-    <div className="event-node" style={{ padding: '10px', border: '1px solid #ccc', borderRadius: '5px', background: 'white' }}>
+    <div className="event-node">
       <Handle type="target" position={Position.Top} id="target-top" />
       <Handle type="source" position={Position.Right} id="source-right" />
       <Handle type="target" position={Position.Left} id="target-left" />
       <Handle type="source" position={Position.Bottom} id="source-bottom" />
       
-      <div className="event-node__title" style={{ fontWeight: 'bold', marginBottom: '5px' }}>{data.label}</div>
+      <div className="event-node__title">{data.label}</div>
       {data.duration && (
-        <div className="event-node__info" style={{ fontSize: '0.9em', color: '#666' }}>
+        <div className="event-node__info">
           Duration: {data.duration.distribution?.mean || 0} days
         </div>
       )}
       {data.resources && (
-        <div className="event-node__info" style={{ fontSize: '0.9em', color: '#666' }}>
+        <div className="event-node__info">
           Resources: {data.resources}
         </div>
       )}
@@ -41,11 +42,11 @@ const EventNode = ({ data }) => {
 
 // Custom Decision Node component (rhombus shape)
 const DecisionNode = ({ data }) => {
+  const theme = data.theme; // Get theme from data
   const style = {
     width: '80px',
     height: '80px',
-    background: '#f0ad4e',
-    border: '2px solid #eea236',
+    background: theme === 'dark' ? '#b38600' : '#f0ad4e',
     transform: 'rotate(45deg)',
     position: 'relative',
     display: 'flex',
@@ -53,7 +54,6 @@ const DecisionNode = ({ data }) => {
     alignItems: 'center',
   };
 
-  // We need to counter-rotate the text inside the rotated div
   const textStyle = {
     transform: 'rotate(-45deg)',
     fontSize: '14px',
@@ -61,7 +61,7 @@ const DecisionNode = ({ data }) => {
     textAlign: 'center',
     whiteSpace: 'nowrap',
     position: 'absolute',
-    color: '#333',
+    color: theme === 'dark' ? '#e0e0e0' : '#333',
   };
 
   return (
@@ -76,7 +76,6 @@ const DecisionNode = ({ data }) => {
         <div style={textStyle}>{data.label}</div>
       </div>
       
-      {/* Right handle for "next" event (first/main path) */}
       <Handle
         type="source"
         position={Position.Right}
@@ -84,7 +83,6 @@ const DecisionNode = ({ data }) => {
         style={{ right: '-10px', top: '40px' }}
       />
       
-      {/* Top handle for "other" event (secondary path) */}
       <Handle
         type="source"
         position={Position.Top}
@@ -92,7 +90,6 @@ const DecisionNode = ({ data }) => {
         style={{ top: '-10px', left: '40px' }}
       />
       
-      {/* Only add bottom handle if we have more than 2 outputs */}
       {data.outputs && data.outputs.length > 2 && (
         <Handle
           type="source"
@@ -111,7 +108,7 @@ const nodeTypes = {
   decision: DecisionNode,
 };
 
-const EventFlow = ({ yamlContent, onDiagramChange }) => {
+const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [simSchema, setSimSchema] = useState(null);
@@ -163,7 +160,8 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
             data: { 
               label: event.name,
               duration: event.duration,
-              resources: resourcesText
+              resources: resourcesText,
+              theme: theme
             },
             width: 200,
             height: 120,
@@ -200,7 +198,8 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
               data: { 
                 label: decisionLabel,
                 outputs: transition.to,
-                source: source
+                source: source,
+                theme: theme
               },
               width: 80,
               height: 80,
@@ -300,7 +299,7 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
     } catch (error) {
       console.error('Error parsing YAML for event flow diagram:', error);
     }
-  }, [yamlContent, setNodes, setEdges]);
+  }, [yamlContent, setNodes, setEdges, theme]);
   
   // Helper function to determine the best target handle based on node positions
   const getTargetHandle = (sourceNode, targetNode) => {
@@ -498,9 +497,7 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
         ref={containerRef} 
         className="event-flow-container" 
         style={{ 
-          width: '100%', 
-          height: '600px',
-          border: '1px solid #ddd',
+          width: '100%',
           borderRadius: '4px',
           overflow: 'hidden'
         }} 
@@ -513,8 +510,6 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
       className="event-flow-container" 
       style={{ 
         width: '100%', 
-        height: '600px',
-        border: '1px solid #ddd',
         borderRadius: '4px',
         overflow: 'hidden'
       }} 
@@ -536,7 +531,7 @@ const EventFlow = ({ yamlContent, onDiagramChange }) => {
       >
         <Controls />
         <MiniMap />
-        <Background color="#aaa" gap={16} />
+        <Background color="var(--theme-border)" gap={16} />
       </ReactFlow>
     </div>
   );
