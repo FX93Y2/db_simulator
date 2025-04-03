@@ -19,6 +19,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
 from ..config_parser import DatabaseConfig, Entity, Attribute
+from ..utils.faker_utils import generate_fake_data
 
 logger = logging.getLogger(__name__)
 
@@ -487,12 +488,8 @@ class DatabaseGenerator:
         
         # Faker generator
         if generator_type == 'faker':
-            if generator.method == 'name':
-                return f"Person {row_index}"
-            elif generator.method == 'email':
-                return f"person{row_index}@example.com"
-            else:
-                return f"{generator.method}_{row_index}"
+            # Use the faker_utils module to generate realistic fake data
+            return generate_fake_data(generator.method)
         
         # Template generator
         elif generator_type == 'template':
