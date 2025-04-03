@@ -16,6 +16,18 @@ import jsYaml from 'js-yaml';
 import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiX } from 'react-icons/fi';
 
+// Helper to generate a storage key for node positions
+const getNodePositionsStorageKey = (yamlContent) => {
+  try {
+    // Create a hash based on the content to uniquely identify the configuration
+    const contentHash = btoa(encodeURIComponent(yamlContent)).substring(0, 32);
+    return `er-diagram-positions-${contentHash}`;
+  } catch (error) {
+    console.error('Error generating storage key:', error);
+    return null;
+  }
+};
+
 // Node Details Modal Component
 const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
   const [name, setName] = useState('');
@@ -73,6 +85,7 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
       size="lg"
       backdrop="static"
       className="node-details-modal"
+      animation={true}
     >
       <Modal.Header closeButton>
         <Modal.Title>Entity Details</Modal.Title>
@@ -203,6 +216,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
+  const positionsKey = useRef(null);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -210,6 +224,13 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setInitialized(true);
     }
   }, []);
+
+  // Generate the storage key when yamlContent changes
+  useEffect(() => {
+    if (yamlContent) {
+      positionsKey.current = getNodePositionsStorageKey(yamlContent);
+    }
+  }, [yamlContent]);
 
   // Parse YAML to extract entities
   useEffect(() => {
@@ -223,10 +244,25 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         const entityNodes = [];
         const relationEdges = [];
         
+        // Try to load saved positions from localStorage
+        let savedPositions = {};
+        if (positionsKey.current) {
+          try {
+            const savedData = localStorage.getItem(positionsKey.current);
+            if (savedData) {
+              savedPositions = JSON.parse(savedData);
+            }
+          } catch (error) {
+            console.error('Error loading saved positions:', error);
+          }
+        }
+        
         // Create nodes for each entity
         parsedYaml.entities.forEach((entity, index) => {
-          const xPos = (index % 3) * 300 + 50;
-          const yPos = Math.floor(index / 3) * 300 + 50;
+          // Use saved position if available, otherwise use default layout
+          const savedPosition = savedPositions[entity.name];
+          const xPos = savedPosition ? savedPosition.x : (index % 3) * 300 + 50;
+          const yPos = savedPosition ? savedPosition.y : Math.floor(index / 3) * 300 + 50;
           
           entityNodes.push({
             id: entity.name,
@@ -345,6 +381,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node movement
   const onNodeDragStop = useCallback(
     (event, node) => {
+      if (!node) return; // Guard against undefined node
+      
       // Update the position in our node state
       setNodes(nds => 
         nds.map(n => {
@@ -355,7 +393,23 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         })
       );
       
-      console.log('Node moved:', node);
+      // Save positions to localStorage
+      if (positionsKey.current && node) {
+        try {
+          // Get existing saved positions or initialize as empty object
+          const savedData = localStorage.getItem(positionsKey.current);
+          let savedPositions = savedData ? JSON.parse(savedData) : {};
+          
+          // Update the position for this node
+          savedPositions[node.id] = node.position;
+          
+          // Save back to localStorage
+          localStorage.setItem(positionsKey.current, JSON.stringify(savedPositions));
+          console.log('Saved node position for:', node.id);
+        } catch (error) {
+          console.error('Error saving node positions:', error);
+        }
+      }
     },
     [setNodes]
   );
@@ -380,6 +434,28 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
       if (onDiagramChange) {
         onDiagramChange(updatedYaml);
+      }
+      
+      // Remove deleted nodes from saved positions
+      if (positionsKey.current && deleted.length > 0) {
+        try {
+          const savedData = localStorage.getItem(positionsKey.current);
+          if (savedData) {
+            let savedPositions = JSON.parse(savedData);
+            
+            // Remove deleted nodes
+            deleted.forEach(node => {
+              if (savedPositions[node.id]) {
+                delete savedPositions[node.id];
+              }
+            });
+            
+            // Save updated positions
+            localStorage.setItem(positionsKey.current, JSON.stringify(savedPositions));
+          }
+        } catch (error) {
+          console.error('Error updating saved positions after deletion:', error);
+        }
       }
     },
     [dbSchema, onDiagramChange]
@@ -451,6 +527,27 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           });
           
           setEdges(updatedEdges);
+          
+          // Update saved positions if the node ID changed
+          if (positionsKey.current) {
+            try {
+              const savedData = localStorage.getItem(positionsKey.current);
+              if (savedData) {
+                let savedPositions = JSON.parse(savedData);
+                
+                // Copy position from old ID to new ID and remove old one
+                if (savedPositions[selectedNode.id]) {
+                  savedPositions[updatedNode.data.label] = savedPositions[selectedNode.id];
+                  delete savedPositions[selectedNode.id];
+                  
+                  // Save updated positions
+                  localStorage.setItem(positionsKey.current, JSON.stringify(savedPositions));
+                }
+              }
+            } catch (error) {
+              console.error('Error updating saved positions after node update:', error);
+            }
+          }
         } else {
           // Just update the node data
           setNodes(
@@ -533,6 +630,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         deleteKeyCode="Delete"
         multiSelectionKeyCode="Shift"
+        onError={(error) => console.error("ReactFlow error:", error)}
       >
         <Controls />
         <MiniMap />
