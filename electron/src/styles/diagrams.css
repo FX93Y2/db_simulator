@@ -54,6 +54,60 @@
   background-color: #f5f5f5;
 }
 
+/* Node Details Modal */
+.node-details-modal .modal-header {
+  background-color: var(--theme-sidebar-bg);
+  color: var(--theme-text);
+  border-bottom: 1px solid var(--theme-border);
+}
+
+.node-details-modal .modal-content {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+}
+
+.node-details-modal .modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+.node-details-modal .form-label {
+  color: var(--theme-text);
+}
+
+.node-details-modal .form-control,
+.node-details-modal .form-select,
+.node-details-modal .input-group-text {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  border-color: var(--theme-border);
+}
+
+.node-details-modal .form-control:focus,
+.node-details-modal .form-select:focus {
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  border-color: var(--theme-primary);
+  box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
+}
+
+.node-details-modal .modal-footer {
+  border-top: 1px solid var(--theme-border);
+}
+
+.node-details-modal .attribute-item,
+.node-details-modal .resource-item {
+  transition: all 0.2s ease;
+  padding: 8px;
+  border-radius: 4px;
+}
+
+.node-details-modal .attribute-item:hover,
+.node-details-modal .resource-item:hover {
+  background-color: var(--theme-hover-bg);
+}
+
 /* Handle styles */
 .react-flow__handle {
   width: 8px;

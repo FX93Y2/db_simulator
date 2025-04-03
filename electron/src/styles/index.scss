@@ -234,9 +234,75 @@ body {
   }
 
   .app-icon {
-    height: 28px;
-    width: 28px;
+    height: 40px;
+    width: 40px;
     transition: transform 0.2s ease-in-out;
+  }
+  
+  // Theme toggle switch styles
+  .theme-toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 28px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+    
+    .theme-icons {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 6px;
+      z-index: 1;
+      pointer-events: none;
+      
+      .theme-icon {
+        color: white;
+        font-size: 16px;
+        opacity: 0.9;
+        
+        &.sun {
+          color: #f1c40f;
+        }
+        
+        &.moon {
+          color: #f1f1f1;
+        }
+      }
+    }
+    
+    .theme-toggle-slider {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      z-index: 2;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      
+      &.active {
+        transform: translateX(32px);
+      }
+    }
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.25);
+      
+      .theme-toggle-slider {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+    }
   }
   
   .app-navigation {
@@ -291,7 +357,44 @@ body {
       max-width: calc(100% - 40px);
     }
 
-    // Style the Add Project button for better icon alignment
+    // Create database button with flat design
+    .create-db-button {
+      position: relative;
+      color: var(--theme-primary);
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s ease;
+
+      .db-icon {
+        font-size: 20px;
+      }
+
+      .plus-icon {
+        position: absolute;
+        bottom: 0;
+        right: 0;
+        font-size: 12px;
+        background-color: var(--theme-primary);
+        color: white;
+        border-radius: 50%;
+        width: 14px;
+        height: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      &:hover {
+        transform: scale(1.15);
+        color: var(--theme-primary);
+      }
+    }
+
+    // Style the Add Project button for better icon alignment (kept for backward compatibility)
     .btn {
       border-color: var(--theme-primary);
       color: var(--theme-primary);
@@ -565,7 +668,7 @@ body {
     flex: 1;
     
     .project-tabs {
-      border-bottom: 1px solid var(--theme-border);
+      border-bottom: none; // Remove bottom border from tabs container
       
       .nav-link {
         display: flex;
@@ -574,21 +677,36 @@ body {
         
         color: var(--theme-muted-text);
         background-color: transparent;
-        border: 1px solid transparent;
-        border-bottom: none;
-        margin-bottom: -1px;
+        border: none; // Remove all borders
+        border-bottom: 1px solid var(--theme-border); // Only keep bottom border for inactive tabs
+        border-radius: 0;
+        margin-bottom: 0;
+        padding: 0.75rem 1.25rem; // Slightly increased padding
 
         &:hover {
           color: var(--theme-text);
-          border-color: var(--theme-border) var(--theme-border) transparent var(--theme-border);
-          background-color: var(--theme-hover-bg);
+          border-bottom-color: var(--theme-border);
+          background-color: rgba(var(--theme-primary-rgb), 0.03);
         }
         
         &.active {
           color: var(--theme-primary);
-          background-color: var(--theme-bg);
-          border-color: var(--theme-border) var(--theme-border) var(--theme-bg) var(--theme-border);
+          background-color: var(--theme-sidebar-bg); // Match editor header color
+          border: none; // Remove all borders
+          position: relative;
+          padding-bottom: calc(0.75rem + 1px); // Account for removed border
           font-weight: 600;
+          
+          // Create seamless connection to content below
+          &::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: var(--theme-primary); // Active tab indicator
+          }
         }
         
         svg {
@@ -601,6 +719,8 @@ body {
       flex: 1;
       overflow: hidden;
       background-color: var(--theme-bg);
+      border-top: 1px solid var(--theme-border); // Add top border to content
+      margin-top: -1px; // Pull up to overlap with tabs
       
       .tab-pane {
         height: 100%;
@@ -692,7 +812,7 @@ body {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      min-height: 41px;
+      height: 46px; // Explicit height to match canvas-header
     }
     
     .panel-header-actions {
@@ -704,7 +824,7 @@ body {
       flex: 1;
       display: flex;
       flex-direction: column;
-      height: calc(100% - 41px);
+      height: calc(100% - 46px); // Match the header height
       
       .monaco-editor-container {
         flex: 1;
@@ -732,13 +852,13 @@ body {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      min-height: 41px;
+      height: 46px; // Explicit height to match panel-header
     }
     
     .er-diagram-container,
     .event-flow-container {
       flex: 1;
-      height: calc(100% - 41px) !important; /* Important to override inline styles */
+      height: calc(100% - 46px) !important; /* Important to override inline styles */
       min-height: 300px;
       width: 100% !important; /* Important to override inline styles */
       position: relative;
@@ -1060,6 +1180,41 @@ body {
   align-self: center;
 }
 
+// Run Simulation button styled like tabs
+.run-simulation-btn {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--theme-primary);
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  margin: 0.25rem 0.5rem;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  transition: color 0.15s, background-color 0.15s;
+  
+  &:hover, &:focus {
+    color: var(--theme-primary);
+    background-color: rgba(var(--theme-primary-rgb), 0.08);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  
+  &:active, &.active {
+    color: var(--theme-primary);
+    background-color: rgba(var(--theme-primary-rgb), 0.12);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  
+  &:disabled {
+    color: var(--theme-muted-text);
+    background-color: transparent;
+    opacity: 0.65;
+  }
+}
+
 .data-table {
   border-collapse: separate;
   border-spacing: 0;
@@ -1164,5 +1319,20 @@ body {
     font-size: 0.8rem;
     color: var(--theme-muted-text);
     padding: 6px 10px 6px 0;
+  }
+}
+
+// Save configuration button styling
+.save-config-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  
+  .save-icon {
+    position: relative;
+    top: 1px; // Slight nudge downward for bottom alignment
+    font-size: 15px;
   }
 } 

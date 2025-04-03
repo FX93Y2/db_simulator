@@ -404,14 +404,14 @@ const ProjectSidebar = () => {
           {isCompact ? 'Explorer' : 'Database Explorer'}
         </h5>
         <div className="d-flex">
-          <Button 
-            variant="outline-primary" 
-            size="sm" 
+          <div 
+            className="create-db-button"
             onClick={handleOpenCreateModal}
-            title="Create New Project"
+            title="Create New Database"
           >
-            <FiPlus />
-          </Button>
+            <FiDatabase className="db-icon" />
+            <FiPlus className="plus-icon" />
+          </div>
         </div>
       </div>
       

@@ -13,6 +13,158 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import jsYaml from 'js-yaml';
+import { Modal, Button, Form, Spinner } from 'react-bootstrap';
+import { FiTrash2, FiEdit, FiX } from 'react-icons/fi';
+
+// Node Details Modal Component
+const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
+  const [name, setName] = useState('');
+  const [attributes, setAttributes] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize form when node changes
+  useEffect(() => {
+    if (node) {
+      setName(node.id || '');
+      setAttributes(node.data?.attributes || []);
+    }
+  }, [node]);
+
+  const handleSubmit = () => {
+    setIsLoading(true);
+    try {
+      // Update node data
+      const updatedNode = {
+        ...node,
+        id: name,
+        data: {
+          ...node.data,
+          label: name,
+          attributes: attributes
+        }
+      };
+      
+      onNodeUpdate(updatedNode);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error updating node:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    setIsLoading(true);
+    try {
+      onNodeDelete(node);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error deleting node:', error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="lg"
+      backdrop="static"
+      className="node-details-modal"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title>Entity Details</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {!node ? (
+          <div className="text-center">
+            <Spinner animation="border" />
+          </div>
+        ) : (
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Entity Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter entity name"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Attributes</Form.Label>
+              <div className="attribute-list">
+                {attributes.map((attr, index) => (
+                  <div key={index} className="attribute-item d-flex align-items-center mb-2">
+                    <Form.Control
+                      className="me-2"
+                      type="text"
+                      value={attr.name}
+                      onChange={(e) => {
+                        const newAttrs = [...attributes];
+                        newAttrs[index] = { ...attr, name: e.target.value };
+                        setAttributes(newAttrs);
+                      }}
+                      placeholder="Attribute name"
+                    />
+                    <Form.Select
+                      value={attr.type}
+                      onChange={(e) => {
+                        const newAttrs = [...attributes];
+                        newAttrs[index] = { ...attr, type: e.target.value };
+                        setAttributes(newAttrs);
+                      }}
+                    >
+                      <option value="string">string</option>
+                      <option value="integer">integer</option>
+                      <option value="float">float</option>
+                      <option value="boolean">boolean</option>
+                      <option value="date">date</option>
+                      <option value="pk">Primary Key</option>
+                      <option value="fk">Foreign Key</option>
+                    </Form.Select>
+                    <Button
+                      variant="link"
+                      className="text-danger"
+                      onClick={() => {
+                        const newAttrs = attributes.filter((_, i) => i !== index);
+                        setAttributes(newAttrs);
+                      }}
+                    >
+                      <FiX />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={() => setAttributes([...attributes, { name: '', type: 'string' }])}
+                >
+                  Add Attribute
+                </Button>
+              </div>
+            </Form.Group>
+          </Form>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline-danger" onClick={handleDelete} disabled={isLoading}>
+          <FiTrash2 className="me-2" /> Delete Entity
+        </Button>
+        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
+          {isLoading ? <Spinner size="sm" animation="border" className="me-2" /> : <FiEdit className="me-2" />}
+          Save Changes
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 // Custom Entity Node component
 const EntityNode = ({ data, theme }) => {
@@ -49,6 +201,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [dbSchema, setDbSchema] = useState(null);
   const containerRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [showNodeModal, setShowNodeModal] = useState(false);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -230,7 +384,112 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     },
     [dbSchema, onDiagramChange]
   );
-  
+
+  // Handle node double click
+  const onNodeDoubleClick = useCallback(
+    (event, node) => {
+      setSelectedNode(node);
+      setShowNodeModal(true);
+    },
+    []
+  );
+
+  // Handle node update from modal
+  const handleNodeUpdate = useCallback(
+    (updatedNode) => {
+      if (!dbSchema || !dbSchema.entities) return;
+      
+      // Create a copy of the schema to modify
+      const updatedSchema = { ...dbSchema };
+      
+      // Find the entity corresponding to the node
+      const entityIndex = updatedSchema.entities.findIndex(
+        entity => entity.name === selectedNode.id
+      );
+      
+      if (entityIndex !== -1) {
+        // Update the entity
+        updatedSchema.entities[entityIndex] = {
+          name: updatedNode.data.label,
+          attributes: updatedNode.data.attributes
+        };
+        
+        // Update related foreign keys if name changed
+        if (selectedNode.id !== updatedNode.data.label) {
+          // Update nodes with new ID
+          const updatedNodes = nodes.map(n => {
+            if (n.id === selectedNode.id) {
+              return {
+                ...n,
+                id: updatedNode.data.label,
+                data: {
+                  ...n.data,
+                  label: updatedNode.data.label
+                }
+              };
+            }
+            return n;
+          });
+          
+          setNodes(updatedNodes);
+          
+          // Update edges if entity name changed
+          const updatedEdges = edges.map(edge => {
+            let newEdge = { ...edge };
+            
+            if (edge.source === selectedNode.id) {
+              newEdge.source = updatedNode.data.label;
+              newEdge.id = `${updatedNode.data.label}-${edge.target}`;
+            }
+            
+            if (edge.target === selectedNode.id) {
+              newEdge.target = updatedNode.data.label;
+              newEdge.id = `${edge.source}-${updatedNode.data.label}`;
+            }
+            
+            return newEdge;
+          });
+          
+          setEdges(updatedEdges);
+        } else {
+          // Just update the node data
+          setNodes(
+            nodes.map(n => {
+              if (n.id === selectedNode.id) {
+                return {
+                  ...n,
+                  data: {
+                    ...n.data,
+                    attributes: updatedNode.data.attributes
+                  }
+                };
+              }
+              return n;
+            })
+          );
+        }
+        
+        // Update the schema state
+        setDbSchema(updatedSchema);
+        
+        // Convert to YAML and notify parent
+        const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+        if (onDiagramChange) {
+          onDiagramChange(updatedYaml);
+        }
+      }
+    },
+    [dbSchema, selectedNode, nodes, edges, setNodes, setEdges, onDiagramChange]
+  );
+
+  // Handle node deletion from modal
+  const handleNodeDelete = useCallback(
+    (nodeToDelete) => {
+      onNodesDelete([nodeToDelete]);
+    },
+    [onNodesDelete]
+  );
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
@@ -268,6 +527,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
+        onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
@@ -278,6 +538,15 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         <MiniMap />
         <Background color="var(--theme-border)" gap={16} />
       </ReactFlow>
+      
+      <NodeDetailsModal
+        show={showNodeModal}
+        onHide={() => setShowNodeModal(false)}
+        node={selectedNode}
+        onNodeUpdate={handleNodeUpdate}
+        onNodeDelete={handleNodeDelete}
+        theme={theme}
+      />
     </div>
   );
 };

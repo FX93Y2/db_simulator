@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Container, Navbar, Button } from 'react-bootstrap';
+import { Container, Navbar } from 'react-bootstrap';
 import { FiSun, FiMoon } from 'react-icons/fi';
 import appIcon from '../../../public/icon.png';
 
@@ -17,15 +17,17 @@ const Header = ({ currentTheme, onToggleTheme }) => {
         </Navbar.Brand>
         
         <div className="ms-auto">
-          <Button 
-            variant="outline-light"
-            size="sm"
+          <div 
+            className="theme-toggle-switch"
             onClick={onToggleTheme}
-            className="btn-custom-toolbar"
             title={currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
           >
-            {currentTheme === 'dark' ? <FiSun /> : <FiMoon />}
-          </Button>
+            <div className="theme-icons">
+              <FiSun className="theme-icon sun" />
+              <FiMoon className="theme-icon moon" />
+            </div>
+            <div className={`theme-toggle-slider ${currentTheme === 'dark' ? 'active' : ''}`}></div>
+          </div>
         </div>
       </Container>
     </Navbar>

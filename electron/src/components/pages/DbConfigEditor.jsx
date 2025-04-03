@@ -315,12 +315,12 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
               <div className="panel-header-actions">
                 <Button 
                   size="sm" 
-                  className="action-button btn-custom-toolbar"
+                  className="action-button btn-custom-toolbar save-config-btn"
                   onClick={handleSave} 
                   disabled={loading}
                   title="Save Configuration"
                 >
-                  <FiSave />
+                  <FiSave className="save-icon" /> Save
                 </Button>
               </div>
             </div>

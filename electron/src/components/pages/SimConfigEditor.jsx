@@ -458,12 +458,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
               <div className="panel-header-actions">
                 <Button 
                   size="sm" 
-                  className="action-button btn-custom-toolbar"
+                  className="action-button btn-custom-toolbar save-config-btn"
                   onClick={handleSave} 
                   disabled={loading}
                   title="Save Configuration"
                 >
-                  <FiSave />
+                  <FiSave className="save-icon" /> Save
                 </Button>
               </div>
             </div>
@@ -555,11 +555,11 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           </div>
           <div>
             <Button 
-              className="me-2 btn-custom-toolbar"
+              className="me-2 run-simulation-btn"
               onClick={handleRun}
               disabled={loading}
             >
-              <FiPlay /> Run Simulation
+              <FiPlay className="me-2" /> Run Simulation
             </Button>
           </div>
         </div>
@@ -691,11 +691,11 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
             Cancel
           </Button>
           <Button 
-            className="btn-custom-toolbar"
+            className="btn-primary"
             onClick={handleRunSimulation}
             disabled={loading || !selectedDbConfig}
           >
-            {loading ? <Spinner size="sm" /> : <><FiPlay /> Run</>}
+            {loading ? <Spinner size="sm" /> : <><FiPlay className="me-2" /> Run</>}
           </Button>
         </Modal.Footer>
       </Modal>

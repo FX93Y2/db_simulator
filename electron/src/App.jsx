@@ -15,13 +15,19 @@ import SimConfigEditor from './components/pages/SimConfigEditor';
 import ResultsViewer from './components/pages/ResultsViewer';
 
 const App = () => {
-  // Theme state management
-  const [theme, setTheme] = useState('dark'); // Default to dark theme
+  // Theme state management - initialize from localStorage or default to 'dark'
+  const [theme, setTheme] = useState(() => {
+    const savedTheme = localStorage.getItem('theme');
+    return savedTheme || 'dark';
+  });
 
   // Effect to apply theme class to body
   useEffect(() => {
     document.body.classList.remove('theme-light', 'theme-dark');
     document.body.classList.add(`theme-${theme}`);
+    
+    // Save theme preference to localStorage
+    localStorage.setItem('theme', theme);
   }, [theme]);
 
   // Function to toggle theme

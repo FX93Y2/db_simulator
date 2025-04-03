@@ -296,13 +296,6 @@ const ProjectPage = ({ theme }) => {
             <FiEdit />
           </Button>
         </div>
-        <div className="d-flex align-items-center">
-          <div>
-            <small className="text-muted">
-              Last updated: {formatDate(project?.updated_at).split(' ')[0]}
-            </small>
-          </div>
-        </div>
       </div>
 
       {/* Show ResultsViewer if we're on a results page */}
@@ -328,8 +321,7 @@ const ProjectPage = ({ theme }) => {
                 </Nav.Item>
               </Nav>
               <Button
-                className="ms-auto me-2 mb-1 btn-custom-toolbar"
-                size="sm"
+                className="ms-auto me-2 run-simulation-btn"
                 onClick={handleRunSimulation}
                 disabled={runningSimulation}
               >

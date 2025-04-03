@@ -14,6 +14,269 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import jsYaml from 'js-yaml';
+import { Modal, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
+import { FiTrash2, FiEdit, FiX, FiPlus } from 'react-icons/fi';
+
+// Event Node Details Modal
+const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
+  const [name, setName] = useState('');
+  const [duration, setDuration] = useState({ distribution: { type: 'normal', mean: 1, stddev: 0.5 } });
+  const [resources, setResources] = useState([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize form when node changes
+  useEffect(() => {
+    if (node && node.data) {
+      setName(node.data.label || '');
+      setDuration(node.data.duration || { 
+        distribution: { type: 'normal', mean: 1, stddev: 0.5 } 
+      });
+      setResources(node.data.resource_requirements || []);
+    }
+  }, [node]);
+
+  const handleSubmit = () => {
+    setIsLoading(true);
+    try {
+      // Update node data
+      const updatedNode = {
+        ...node,
+        data: {
+          ...node.data,
+          label: name,
+          duration: duration,
+          resource_requirements: resources
+        }
+      };
+      
+      onNodeUpdate(updatedNode);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error updating event node:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDelete = () => {
+    setIsLoading(true);
+    try {
+      onNodeDelete(node);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error deleting event node:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const handleDurationChange = (field, value) => {
+    setDuration(prev => ({
+      ...prev,
+      distribution: {
+        ...prev.distribution,
+        [field]: value
+      }
+    }));
+  };
+
+  const handleAddResource = () => {
+    setResources([...resources, { resource_table: 'Consultant', value: '', count: 1 }]);
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="lg"
+      backdrop="static"
+      className="node-details-modal"
+    >
+      <Modal.Header closeButton>
+        <Modal.Title>Event Details</Modal.Title>
+      </Modal.Header>
+      <Modal.Body>
+        {!node ? (
+          <div className="text-center">
+            <Spinner animation="border" />
+          </div>
+        ) : (
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Event Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Enter event name"
+              />
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Duration</Form.Label>
+              <div className="mb-2">
+                <Form.Select 
+                  value={duration.distribution.type}
+                  onChange={(e) => handleDurationChange('type', e.target.value)}
+                  className="mb-2"
+                >
+                  <option value="normal">Normal Distribution</option>
+                  <option value="uniform">Uniform Distribution</option>
+                  <option value="exponential">Exponential Distribution</option>
+                  <option value="constant">Constant</option>
+                </Form.Select>
+                
+                {duration.distribution.type === 'normal' && (
+                  <>
+                    <InputGroup className="mb-2">
+                      <InputGroup.Text>Mean</InputGroup.Text>
+                      <Form.Control 
+                        type="number" 
+                        value={duration.distribution.mean} 
+                        onChange={(e) => handleDurationChange('mean', parseFloat(e.target.value))}
+                        min="0.1" 
+                        step="0.1"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <InputGroup.Text>Std Dev</InputGroup.Text>
+                      <Form.Control 
+                        type="number" 
+                        value={duration.distribution.stddev}
+                        onChange={(e) => handleDurationChange('stddev', parseFloat(e.target.value))}
+                        min="0.1" 
+                        step="0.1" 
+                      />
+                    </InputGroup>
+                  </>
+                )}
+                
+                {duration.distribution.type === 'uniform' && (
+                  <>
+                    <InputGroup className="mb-2">
+                      <InputGroup.Text>Min</InputGroup.Text>
+                      <Form.Control 
+                        type="number" 
+                        value={duration.distribution.min || 0.5} 
+                        onChange={(e) => handleDurationChange('min', parseFloat(e.target.value))}
+                        min="0.1" 
+                        step="0.1"
+                      />
+                    </InputGroup>
+                    <InputGroup>
+                      <InputGroup.Text>Max</InputGroup.Text>
+                      <Form.Control 
+                        type="number" 
+                        value={duration.distribution.max || 1.5}
+                        onChange={(e) => handleDurationChange('max', parseFloat(e.target.value))}
+                        min="0.1" 
+                        step="0.1" 
+                      />
+                    </InputGroup>
+                  </>
+                )}
+                
+                {duration.distribution.type === 'exponential' && (
+                  <InputGroup>
+                    <InputGroup.Text>Scale</InputGroup.Text>
+                    <Form.Control 
+                      type="number" 
+                      value={duration.distribution.scale || 1.0}
+                      onChange={(e) => handleDurationChange('scale', parseFloat(e.target.value))}
+                      min="0.1" 
+                      step="0.1" 
+                    />
+                  </InputGroup>
+                )}
+                
+                {duration.distribution.type === 'constant' && (
+                  <InputGroup>
+                    <InputGroup.Text>Value</InputGroup.Text>
+                    <Form.Control 
+                      type="number" 
+                      value={duration.distribution.value || 1.0}
+                      onChange={(e) => handleDurationChange('value', parseFloat(e.target.value))}
+                      min="0.1" 
+                      step="0.1" 
+                    />
+                  </InputGroup>
+                )}
+              </div>
+            </Form.Group>
+            
+            <Form.Group className="mb-3">
+              <Form.Label>Resources</Form.Label>
+              <div className="resource-list">
+                {resources.map((resource, index) => (
+                  <div key={index} className="resource-item d-flex align-items-center mb-2">
+                    <Form.Control
+                      className="me-2"
+                      type="text"
+                      value={resource.value}
+                      onChange={(e) => {
+                        const newResources = [...resources];
+                        newResources[index] = { ...resource, value: e.target.value };
+                        setResources(newResources);
+                      }}
+                      placeholder="Resource value"
+                    />
+                    <InputGroup className="me-2" style={{ maxWidth: "150px" }}>
+                      <InputGroup.Text>Count</InputGroup.Text>
+                      <Form.Control
+                        type="number"
+                        value={resource.count}
+                        onChange={(e) => {
+                          const newResources = [...resources];
+                          newResources[index] = { 
+                            ...resource, 
+                            count: parseInt(e.target.value, 10) 
+                          };
+                          setResources(newResources);
+                        }}
+                        min="1"
+                        step="1"
+                      />
+                    </InputGroup>
+                    <Button
+                      variant="link"
+                      className="text-danger"
+                      onClick={() => {
+                        const newResources = resources.filter((_, i) => i !== index);
+                        setResources(newResources);
+                      }}
+                    >
+                      <FiX />
+                    </Button>
+                  </div>
+                ))}
+                <Button
+                  variant="outline-primary"
+                  size="sm"
+                  onClick={handleAddResource}
+                >
+                  <FiPlus className="me-1" /> Add Resource
+                </Button>
+              </div>
+            </Form.Group>
+          </Form>
+        )}
+      </Modal.Body>
+      <Modal.Footer>
+        <Button variant="outline-danger" onClick={handleDelete} disabled={isLoading}>
+          <FiTrash2 className="me-2" /> Delete Event
+        </Button>
+        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
+          {isLoading ? <Spinner size="sm" animation="border" className="me-2" /> : <FiEdit className="me-2" />}
+          Save Changes
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
 
 // Custom Event Node component
 const EventNode = ({ data }) => {
@@ -114,6 +377,8 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   const [simSchema, setSimSchema] = useState(null);
   const containerRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
+  const [selectedNode, setSelectedNode] = useState(null);
+  const [showNodeModal, setShowNodeModal] = useState(false);
   
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -490,6 +755,157 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
     [simSchema, onDiagramChange]
   );
 
+  // Handle node double click
+  const onNodeDoubleClick = useCallback(
+    (event, node) => {
+      // Only handle event nodes, not decision nodes
+      if (node.type !== 'decision') {
+        setSelectedNode(node);
+        setShowNodeModal(true);
+      }
+    },
+    []
+  );
+
+  // Handle node update from modal
+  const handleNodeUpdate = useCallback(
+    (updatedNode) => {
+      if (!simSchema || !simSchema.event_simulation || 
+          !simSchema.event_simulation.event_sequence) return;
+      
+      // Create a copy of the schema to modify
+      const updatedSchema = { ...simSchema };
+      const eventSequence = updatedSchema.event_simulation.event_sequence;
+      
+      // Find the event corresponding to the node
+      const eventIndex = eventSequence.event_types.findIndex(
+        event => event.name === selectedNode.data.label
+      );
+      
+      if (eventIndex !== -1) {
+        // Update the event
+        eventSequence.event_types[eventIndex] = {
+          name: updatedNode.data.label,
+          duration: updatedNode.data.duration,
+          resource_requirements: updatedNode.data.resource_requirements
+        };
+        
+        // Update related transitions if name changed
+        if (selectedNode.data.label !== updatedNode.data.label) {
+          // Update nodes with new data
+          const updatedNodes = nodes.map(n => {
+            if (n.id === selectedNode.id) {
+              return {
+                ...n,
+                id: updatedNode.data.label,
+                data: updatedNode.data
+              };
+            }
+            return n;
+          });
+          
+          setNodes(updatedNodes);
+          
+          // Update transitions with the new event name
+          if (eventSequence.transitions) {
+            // Update sources
+            eventSequence.transitions.forEach(transition => {
+              if (transition.from === selectedNode.data.label) {
+                transition.from = updatedNode.data.label;
+              }
+            });
+            
+            // Update destinations
+            eventSequence.transitions.forEach(transition => {
+              if (transition.to) {
+                transition.to.forEach(dest => {
+                  if (dest.event_type === selectedNode.data.label) {
+                    dest.event_type = updatedNode.data.label;
+                  }
+                });
+              }
+            });
+            
+            // Update edges
+            const updatedEdges = edges.map(edge => {
+              let newEdge = { ...edge };
+              
+              if (edge.source === selectedNode.id) {
+                newEdge.source = updatedNode.data.label;
+                if (edge.target.startsWith('decision-')) {
+                  // For decision nodes, update their ID
+                  const decisionParts = edge.target.split('-');
+                  if (decisionParts[1] === selectedNode.data.label) {
+                    const newDecisionId = `decision-${updatedNode.data.label}-${decisionParts[2]}`;
+                    newEdge.target = newDecisionId;
+                    
+                    // Also update the decision node
+                    setNodes(prevNodes => 
+                      prevNodes.map(n => {
+                        if (n.id === edge.target) {
+                          return {
+                            ...n,
+                            id: newDecisionId,
+                            data: {
+                              ...n.data,
+                              source: updatedNode.data.label
+                            }
+                          };
+                        }
+                        return n;
+                      })
+                    );
+                  }
+                }
+                newEdge.id = `${updatedNode.data.label}-${edge.target}`;
+              }
+              
+              if (edge.target === selectedNode.id) {
+                newEdge.target = updatedNode.data.label;
+                newEdge.id = `${edge.source}-${updatedNode.data.label}`;
+              }
+              
+              return newEdge;
+            });
+            
+            setEdges(updatedEdges);
+          }
+        } else {
+          // Just update the node data
+          setNodes(
+            nodes.map(n => {
+              if (n.id === selectedNode.id) {
+                return {
+                  ...n,
+                  data: updatedNode.data
+                };
+              }
+              return n;
+            })
+          );
+        }
+        
+        // Update the schema state
+        setSimSchema(updatedSchema);
+        
+        // Convert to YAML and notify parent
+        const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+        if (onDiagramChange) {
+          onDiagramChange(updatedYaml);
+        }
+      }
+    },
+    [simSchema, selectedNode, nodes, edges, setNodes, setEdges, onDiagramChange]
+  );
+
+  // Handle node deletion from modal
+  const handleNodeDelete = useCallback(
+    (nodeToDelete) => {
+      onNodesDelete([nodeToDelete]);
+    },
+    [onNodesDelete]
+  );
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
@@ -509,7 +925,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
     <div 
       className="event-flow-container" 
       style={{ 
-        width: '100%', 
+        width: '100%',
         borderRadius: '4px',
         overflow: 'hidden'
       }} 
@@ -523,9 +939,11 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         onConnect={onConnect}
         onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
+        onNodeDoubleClick={onNodeDoubleClick}
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        zoomOnScroll={false}
         deleteKeyCode="Delete"
         multiSelectionKeyCode="Shift"
       >
@@ -533,6 +951,15 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         <MiniMap />
         <Background color="var(--theme-border)" gap={16} />
       </ReactFlow>
+      
+      <EventNodeDetailsModal
+        show={showNodeModal}
+        onHide={() => setShowNodeModal(false)}
+        node={selectedNode}
+        onNodeUpdate={handleNodeUpdate}
+        onNodeDelete={handleNodeDelete}
+        theme={theme}
+      />
     </div>
   );
 };
