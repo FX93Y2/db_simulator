@@ -104,6 +104,7 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
       size="lg"
       backdrop="static"
       className="node-details-modal"
+      animation={true}
     >
       <Modal.Header closeButton>
         <Modal.Title>Event Details</Modal.Title>
@@ -712,6 +713,8 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node drag end
   const onNodeDragStop = useCallback(
     (event, node) => {
+      if (!node) return; // Guard against undefined node
+      
       // Update the position in our node state
       setNodes(nds => 
         nds.map(n => {
@@ -1053,6 +1056,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
         deleteKeyCode="Delete"
         multiSelectionKeyCode="Shift"
+        onError={(error) => console.error("ReactFlow error:", error)}
       >
         <Controls />
         <MiniMap />
