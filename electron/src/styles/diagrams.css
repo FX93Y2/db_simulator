@@ -61,72 +61,10 @@
   border-bottom: 1px solid var(--theme-border);
 }
 
-.node-details-modal .modal-dialog {
-  opacity: 0;
-  transform: scale(0.7);
-  animation: node-modal-zoom 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-  transform-origin: center center;
-}
-
 .node-details-modal .modal-content {
   background-color: var(--theme-card-bg);
   color: var(--theme-text);
   border: 1px solid var(--theme-border);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-  overflow: hidden; /* Prevent content from showing outside during animation */
-}
-
-.node-details-modal .modal-content::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: radial-gradient(circle at center, var(--theme-primary) 0%, transparent 70%);
-  opacity: 0;
-  z-index: -1;
-  animation: node-glow 0.5s ease-out forwards;
-}
-
-@keyframes node-glow {
-  0% {
-    opacity: 0.2;
-  }
-  50% {
-    opacity: 0.1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-.node-details-modal.show .modal-backdrop {
-  opacity: 0;
-  animation: node-backdrop-fade 0.25s ease-out forwards;
-}
-
-@keyframes node-modal-zoom {
-  0% {
-    transform: scale(0.7);
-    opacity: 0;
-  }
-  20% {
-    opacity: 1;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-@keyframes node-backdrop-fade {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 0.5;
-  }
 }
 
 .node-details-modal .modal-body {
