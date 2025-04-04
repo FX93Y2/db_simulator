@@ -20,9 +20,12 @@ from sqlalchemy import create_engine, inspect, select, func, text, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from ..config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift
+from ..config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig
+from ..config_parser import Entity as DbEntity, Attribute as DbAttribute
 from ..utils.distribution_utils import generate_from_distribution
+from ..utils.data_generation import generate_attribute_value
 from .event_tracker import EventTracker
+import dataclasses
 
 logger = logging.getLogger(__name__)
 
@@ -36,15 +39,17 @@ class EventSimulator:
     - Resources (e.g., Consultants, Doctors) are allocated to complete events
     """
     
-    def __init__(self, config: SimulationConfig, db_path: str):
+    def __init__(self, config: SimulationConfig, db_config: DatabaseConfig, db_path: str):
         """
         Initialize the simulator
         
         Args:
             config: Simulation configuration
+            db_config: Database configuration (for generators)
             db_path: Path to the SQLite database
         """
         self.config = config
+        self.db_config = db_config
         self.db_path = db_path
         
         # Use NullPool to avoid connection pool issues with SQLite
@@ -70,8 +75,25 @@ class EventSimulator:
             random.seed(config.random_seed)
             np.random.seed(config.random_seed)
             
-        # Initialize event tracker
-        self.event_tracker = EventTracker(db_path, config.start_date)
+        # Initialize event tracker - Pass table names from config
+        event_table_name = None
+        resource_table_name = None
+        if config.event_simulation and config.event_simulation.table_specification:
+            spec = config.event_simulation.table_specification
+            event_table_name = spec.event_table
+            # Assuming single resource table for bridging for now based on demo_sim
+            # TODO: Handle multiple resource tables if needed
+            resource_table_name = spec.resource_table 
+            logger.info(f"Passing event_table='{event_table_name}', resource_table='{resource_table_name}' to EventTracker")
+        else:
+            logger.warning("Event simulation or table specification missing in config. EventTracker may not create bridging table.")
+
+        self.event_tracker = EventTracker(
+            db_path,
+            config.start_date,
+            event_table_name=event_table_name,
+            resource_table_name=resource_table_name
+        )
         
         # Dictionary to track the current event type for each entity
         self.entity_current_event_types = {}
@@ -180,6 +202,15 @@ class EventSimulator:
             
             logger.info(f"Set up {len(self.resources)} resources of {len(resources_by_type)} types")
     
+    def _get_entity_config(self, entity_name: str) -> Optional[DbEntity]:
+        """Find entity configuration by name."""
+        if not self.db_config:
+            return None
+        for entity in self.db_config.entities:
+            if entity.name == entity_name:
+                return entity
+        return None
+
     def _pre_generate_entity_arrivals(self) -> List[float]:
         """
         Pre-generate all entity arrival times at the beginning of the simulation
@@ -487,40 +518,72 @@ class EventSimulator:
                 except Exception as e:
                     logger.error(f"Error checking column patterns: {str(e)}", exc_info=True)
             
-            # If we still don't have a relationship column, use a fallback approach
+            # If we still don't have a relationship column, raise an error or return empty
             if not relationship_columns:
-                logger.warning(f"Could not find relationship column between {entity_table} and {event_table}, using fallback")
-                relationship_columns = ['project_id']  # Default fallback for demo_db
+                logger.error(f"Could not automatically determine relationship column between {entity_table} and {event_table}. "
+                             f"Ensure a column named like '{entity_table}_id' exists in {event_table}, or configure explicitly.")
+                # Depending on desired behavior, either raise an error or return empty list
+                # raise ValueError(f"Could not find relationship column for {entity_table} -> {event_table}")
+                return [] # Returning empty list for now
             
             return relationship_columns
             
         except Exception as e:
             logger.error(f"Error finding relationship columns: {str(e)}", exc_info=True)
-            return ['project_id']  # Default fallback for demo_db
+            # raise # Re-raise the exception or return empty list
+            return [] # Returning empty list for now
     
     def _create_entity(self, session, entity_table: str) -> int:
         """
-        Create a new entity in the database
+        Create a new entity in the database, populating attributes based on generators.
         
         Args:
             session: SQLAlchemy session
             entity_table: Name of the entity table
             
         Returns:
-            ID of the created entity
+            ID of the created entity or None on error
         """
         try:
+            entity_config = self._get_entity_config(entity_table)
+            if not entity_config:
+                logger.error(f"Database configuration not found for entity: {entity_table}")
+                return None
+
             # Get the next ID
-            logger.debug(f"Getting next ID for {entity_table}")
             sql_query = text(f"SELECT MAX(id) FROM {entity_table}")
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
-            logger.debug(f"Next ID: {next_id}")
             
-            # Create the entity
-            logger.debug(f"Creating entity with ID {next_id}")
-            sql_query = text(f"INSERT INTO {entity_table} (id, name) VALUES ({next_id}, 'Project_{next_id}')")
-            session.execute(sql_query)
+            row_data = {"id": next_id}
+            
+            # Generate values for other attributes
+            for attr in entity_config.attributes:
+                if attr.is_primary_key:
+                    continue # Skip primary key
+                
+                # If generator exists, use it
+                if attr.generator:
+                     # Convert generator dataclass to dict for the utility function
+                    gen_dict = dataclasses.asdict(attr.generator) if attr.generator else None
+                    attr_config_dict = {
+                        'name': attr.name,
+                        'generator': gen_dict
+                    }
+                    # Use next_id - 1 for 0-based row_index context for generators
+                    row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
+                else:
+                    # Handle attributes without generators if necessary (e.g., default NULL or specific value)
+                    # For now, let the DB handle defaults or NULL
+                    pass 
+            
+            # Build INSERT statement dynamically
+            columns = ", ".join(row_data.keys())
+            placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+            sql_query = text(f"INSERT INTO {entity_table} ({columns}) VALUES ({placeholders})")
+            
+            logger.debug(f"Creating entity in {entity_table} with data: {row_data}")
+            session.execute(sql_query, row_data)
             
             return next_id
         except Exception as e:
@@ -529,7 +592,7 @@ class EventSimulator:
     
     def _create_events(self, session, entity_id: int, event_table: str, relationship_column: str) -> List[int]:
         """
-        Create events for an entity
+        Create initial events for an entity based on event sequence, populating attributes.
         
         Args:
             session: SQLAlchemy session
@@ -541,71 +604,93 @@ class EventSimulator:
             List of created event IDs
         """
         try:
-            # Get the next ID
-            logger.debug(f"Getting next ID for {event_table}")
+            event_entity_config = self._get_entity_config(event_table)
+            if not event_entity_config:
+                logger.error(f"Database configuration not found for event entity: {event_table}")
+                return []
+
+            # Get the next event ID
             sql_query = text(f"SELECT MAX(id) FROM {event_table}")
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
-            logger.debug(f"Next ID for event: {next_id}")
             
             event_ids = []
             
-            # Check if event sequence is configured
             event_sim = self.config.event_simulation
-            logger.debug(f"Event simulation config available: {event_sim is not None}")
-            if event_sim and event_sim.event_sequence:
-                logger.debug(f"Event sequence available: {event_sim.event_sequence is not None}")
-                # Find the initial event type from transitions
-                # The first transition's 'from' event is considered the initial event
-                if event_sim.event_sequence.transitions:
-                    logger.debug(f"Transitions available: {len(event_sim.event_sequence.transitions)}")
-                    initial_event_type = event_sim.event_sequence.transitions[0].from_event
-                    logger.debug(f"Initial event type: {initial_event_type}")
-                    
-                    # Find the event type column name (try 'event_type' or 'type')
-                    event_type_column = self._find_event_type_column(session, event_table)
-                    if not event_type_column:
-                        logger.error(f"Could not find event type column in {event_table}")
-                        return []
-                    
-                    logger.debug(f"Using event type column: {event_type_column}")
+            if event_sim and event_sim.event_sequence and event_sim.event_sequence.transitions:
+                initial_event_type = event_sim.event_sequence.transitions[0].from_event
+                event_type_column = self._find_event_type_column(session, event_table)
                 
-                    # Create the initial event
-                    sql_query = text(
-                        f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}, name) "
-                        f"VALUES ({next_id}, {entity_id}, '{initial_event_type}', 'Deliverable_{next_id}')"
-                    )
-                    logger.debug(f"SQL Query: {sql_query}")
-                    session.execute(sql_query)
-                    event_ids.append(next_id)
+                if not event_type_column:
+                    logger.error(f"Could not find event type column in {event_table}")
+                    return []
+
+                row_data = {
+                    "id": next_id,
+                    relationship_column: entity_id,
+                    event_type_column: initial_event_type
+                }
+
+                # Generate values for other attributes
+                for attr in event_entity_config.attributes:
+                    # Skip PK, the FK to the entity, and the event type column
+                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
+                        continue
                     
-                    # Record the current event type for this entity
-                    self.entity_current_event_types[entity_id] = initial_event_type
+                    # Skip other Foreign Keys for now, assume they might be populated later or nullable
+                    # A more robust solution might try to find valid FK values if required
+                    if attr.is_foreign_key:
+                         logger.debug(f"Skipping FK {attr.name} during initial event creation.")
+                         continue
+
+                    if attr.generator:
+                        # Special handling for 'simulation_event' generator type - skip it
+                        if attr.generator.type == 'simulation_event':
+                            continue 
+                            
+                        gen_dict = dataclasses.asdict(attr.generator)
+                        attr_config_dict = {
+                            'name': attr.name,
+                            'generator': gen_dict
+                        }
+                        # Use next_id - 1 for 0-based row_index context
+                        row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
+                    else:
+                        # Handle attributes without generators if needed
+                        pass
+
+                # Build INSERT statement dynamically
+                columns = ", ".join(row_data.keys())
+                placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+                sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
+
+                logger.debug(f"Creating initial event in {event_table} with data: {row_data}")
+                session.execute(sql_query, row_data)
+                event_ids.append(next_id)
+                
+                # Record the current event type for this entity
+                self.entity_current_event_types[entity_id] = initial_event_type
             else:
-                logger.debug("No event sequence configured")
+                logger.warning("No event sequence configured, cannot create initial event.")
             
             return event_ids
         except Exception as e:
             logger.error(f"Error creating events for entity {entity_id} in {event_table}: {str(e)}", exc_info=True)
             return []
     
-    def _find_event_type_column(self, session, event_table: str) -> str:
-        """
-        Find the column used for event types in the event table
-        
-        Args:
-            session: SQLAlchemy session
-            event_table: Name of the event table
-            
-        Returns:
-            Name of the column used for event types
-        """
+    def _find_event_type_column(self, session, event_table: str) -> Optional[str]:
+        """ Find the column used for event types in the event table (handle potential errors) """
         try:
             # Common column names for event types
             common_names = ['event_type', 'type', 'event_name', 'status']
             
             # Get all column names for this table
-            inspector = inspect(session.get_bind())
+            bind = session.get_bind()
+            if not bind:
+                 logger.error("No database engine bound to the session.")
+                 return 'type' # Fallback
+
+            inspector = inspect(bind)
             columns = [col['name'] for col in inspector.get_columns(event_table)]
             
             # Try to find a matching column
@@ -614,49 +699,83 @@ class EventSimulator:
                     return name
                     
             # If no match found, return the first one in our list that makes sense
+            logger.warning(f"Could not find standard event type column in {event_table}, falling back to 'type'")
             return 'type'  # Default fallback
         except Exception as e:
-            logger.error(f"Error finding event type column: {str(e)}", exc_info=True)
+            logger.error(f"Error finding event type column in {event_table}: {str(e)}", exc_info=True)
             return 'type'  # Default fallback
     
     def _create_random_events(self, session, entity_id: int, event_table: str, relationship_column: str, next_id: int, event_ids: List[int]):
         """
-        Create random events for an entity (fallback method when event sequence is not configured)
-        
-        Args:
-            session: SQLAlchemy session
-            entity_id: Entity ID
-            event_table: Name of the event table
-            relationship_column: Name of the column that references the entity
-            next_id: Starting ID for new events
-            event_ids: List to append event IDs to
+        Create random events for an entity (fallback method), populating attributes.
         """
-        # Get possible event types from the database config if available
-        event_types = ["Design", "Coding", "Testing"]  # Default fallback
-        
+        event_entity_config = self._get_entity_config(event_table)
+        if not event_entity_config:
+            logger.error(f"Database configuration not found for event entity: {event_table}")
+            return
+            
+        event_types = []
         event_sim = self.config.event_simulation
         if event_sim and event_sim.event_sequence and event_sim.event_sequence.event_types:
-            # Use event types from the configuration
             event_types = [et.name for et in event_sim.event_sequence.event_types]
         
-        # Determine number of events to create (using normal distribution)
+        if not event_types:
+             logger.warning("No event types defined in config for random event generation fallback.")
+             return
+
         num_events = int(round(random.normalvariate(4, 1)))
-        num_events = max(2, min(8, num_events))  # Clamp between 2 and 8
+        num_events = max(2, min(8, num_events))
         
+        event_type_column = self._find_event_type_column(session, event_table)
+        if not event_type_column:
+            logger.error(f"Could not find event type column in {event_table} for random events.")
+            return
+
+        current_event_id = next_id
         for i in range(num_events):
-            # Choose a random event type
-            event_type = random.choice(event_types)
-            
-            # Create the event
-            sql_query = text(f"""
-                INSERT INTO {event_table} (id, {relationship_column}, name, type) 
-                VALUES ({next_id}, {entity_id}, 'Deliverable_{next_id}', '{event_type}')
-            """)
-            session.execute(sql_query)
-            
-            event_ids.append(next_id)
-            next_id += 1
-    
+            try:
+                event_type = random.choice(event_types)
+                
+                row_data = {
+                    "id": current_event_id,
+                    relationship_column: entity_id,
+                    event_type_column: event_type
+                }
+                
+                # Generate values for other attributes
+                for attr in event_entity_config.attributes:
+                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
+                        continue
+                    if attr.is_foreign_key:
+                        continue # Skip FKs for now
+
+                    if attr.generator:
+                        if attr.generator.type == 'simulation_event':
+                            continue
+                        gen_dict = dataclasses.asdict(attr.generator)
+                        attr_config_dict = {'name': attr.name, 'generator': gen_dict}
+                        # Use current_event_id - 1 for 0-based context
+                        row_data[attr.name] = generate_attribute_value(attr_config_dict, current_event_id - 1)
+                    else:
+                        pass # Let DB handle defaults/NULL
+
+                # Build INSERT statement dynamically
+                columns = ", ".join(row_data.keys())
+                placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+                sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
+                
+                session.execute(sql_query, row_data)
+                event_ids.append(current_event_id)
+                self.entity_current_event_types[entity_id] = event_type # Update tracker
+                current_event_id += 1
+            except Exception as e:
+                 logger.error(f"Error creating random event {i+1} for entity {entity_id}: {e}", exc_info=True)
+                 # Decide whether to continue or stop creating events for this entity
+                 break # Stop creating more events for this entity on error
+
+            # Note: Removed the duplicate event creation and commit from the original loop
+            # Commit should happen outside the loop, likely after all events for the entity are created
+
     def _process_entity_events(self, entity_id: int):
         """
         Process all events for an entity
@@ -1246,12 +1365,17 @@ class EventSimulator:
                         result = session.execute(sql_query).fetchone()
                         next_id = (result[0] or 0) + 1
                         
-                        # Create the next event
+                        # Create the next event - Only insert essential columns (id, fk, type)
+                        # Other attributes should be handled by db generation.
                         sql_query = text(
-                            f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}, name) "
-                            f"VALUES ({next_id}, {entity_id}, '{next_event_type}', 'Deliverable_{next_id}')"
+                            f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}) "
+                            f"VALUES (:id, :entity_id, :event_type)"
                         )
-                        session.execute(sql_query)
+                        session.execute(sql_query, {
+                            "id": next_id, 
+                            "entity_id": entity_id, 
+                            "event_type": next_event_type
+                        })
                         
                         # Commit the changes
                         session.commit()

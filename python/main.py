@@ -139,15 +139,28 @@ def simulate():
     """Run a simulation"""
     try:
         data = request.json
-        if not data or not data.get('config_id') or not data.get('database_path'):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
+        # Require sim_config_id, db_config_id, and database_path
+        if not data or not data.get('sim_config_id') or not data.get('db_config_id') or not data.get('database_path'):
+            return jsonify({"success": False, "error": "Missing sim_config_id, db_config_id, or database_path"}), 400
             
-        config = config_manager.get_config(data['config_id'])
-        if not config:
-            return jsonify({"success": False, "error": "Configuration not found"}), 404
+        sim_config = config_manager.get_config(data['sim_config_id'])
+        db_config = config_manager.get_config(data['db_config_id'])
+        
+        if not sim_config:
+            return jsonify({"success": False, "error": f"Simulation configuration ID {data['sim_config_id']} not found"}), 404
+        if not db_config:
+            return jsonify({"success": False, "error": f"Database configuration ID {data['db_config_id']} not found"}), 404
+        if db_config['config_type'] != 'database':
+            return jsonify({"success": False, "error": f"Configuration ID {data['db_config_id']} is not a database configuration"}), 400
+        if sim_config['config_type'] != 'simulation':
+            return jsonify({"success": False, "error": f"Configuration ID {data['sim_config_id']} is not a simulation configuration"}), 400
             
         # Run simulation using the configuration content
-        results = run_simulation(config['content'], data['database_path'])
+        results = run_simulation(
+            sim_config_path_or_content=sim_config['content'], 
+            db_config_path_or_content=db_config['content'], 
+            db_path=data['database_path']
+        )
         return jsonify({
             "success": True,
             "results": results,
@@ -217,7 +230,11 @@ def generate_simulate():
             db_name
         )
         
-        results = run_simulation(sim_config['content'], db_path)
+        results = run_simulation(
+            sim_config_path_or_content=sim_config['content'], 
+            db_config_path_or_content=db_config['content'], 
+            db_path=db_path
+        )
         return jsonify({
             "success": True,
             "database_path": str(db_path),
@@ -263,6 +280,7 @@ def main():
     # Run simulation command (preserved for CLI compatibility)
     sim_parser = subparsers.add_parser('simulate', help='Run a simulation')
     sim_parser.add_argument('config', help='Path to simulation configuration file')
+    sim_parser.add_argument('db_config', help='Path to database configuration file')
     sim_parser.add_argument('database', help='Path to SQLite database file')
     
     # Generate resources and run simulation command
@@ -311,7 +329,8 @@ def main():
             sys.exit(1)
     elif args.command == 'simulate':
         try:
-            results = run_simulation(args.config, args.database)
+            # Pass sim config path, db config path, and db path
+            results = run_simulation(args.config, args.db_config, args.database)
             logger.info(f"Simulation results: {results}")
         except Exception as e:
             logger.error(f"Error running simulation: {e}")
@@ -324,7 +343,7 @@ def main():
             logger.info(f"Database generated at: {db_path}")
             
             # Run simulation with dynamic entity generation
-            results = run_simulation(args.sim_config, db_path)
+            results = run_simulation(args.sim_config, args.db_config, db_path)
             logger.info(f"Simulation results: {results}")
         except Exception as e:
             logger.error(f"Error in dynamic simulation: {e}")
@@ -340,7 +359,7 @@ def main():
             logger.info(f"Complete database generated at: {db_path}")
             
             # Run simulation on the complete database
-            results = run_simulation(args.sim_config, db_path)
+            results = run_simulation(args.sim_config, args.db_config, db_path)
             logger.info(f"Simulation results: {results}")
         except Exception as e:
             logger.error(f"Error in generate-simulate: {e}")

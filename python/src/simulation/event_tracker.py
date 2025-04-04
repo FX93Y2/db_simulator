@@ -18,18 +18,28 @@ class EventTracker:
     - Entity arrivals
     - Event processing
     - Resource allocations
-    - Deliverable_Consultant bridging table (main simulation output)
+    - A dynamic event-resource bridging table (e.g., Deliverable_Consultant)
     """
     
-    def __init__(self, db_path: str, start_date: Optional[datetime] = None):
+    def __init__(self, db_path: str, start_date: Optional[datetime] = None, 
+                 event_table_name: Optional[str] = None, 
+                 resource_table_name: Optional[str] = None):
         """
         Initialize the event tracker
         
         Args:
             db_path: Path to the SQLite database
             start_date: Simulation start date
+            event_table_name: Name of the main event table (e.g., 'Deliverable')
+            resource_table_name: Name of the main resource table (e.g., 'Consultant')
         """
         self.db_path = db_path
+        self.event_table_name = event_table_name
+        self.resource_table_name = resource_table_name
+        self.bridge_table_name = None
+        self.bridge_table = None # Will hold the SQLAlchemy Table object
+        self.event_fk_column = None
+        self.resource_fk_column = None
         
         # Use NullPool to avoid connection pool issues with SQLite
         # and enable WAL journal mode for better concurrency
@@ -40,6 +50,16 @@ class EventTracker:
         
         self.metadata = MetaData()
         self.start_date = start_date or datetime.now()
+        
+        # Determine dynamic bridge table name and columns
+        if self.event_table_name and self.resource_table_name:
+            self.bridge_table_name = f"{self.event_table_name}_{self.resource_table_name}"
+            # Construct foreign key column names (e.g., deliverable_id, consultant_id)
+            self.event_fk_column = f"{self.event_table_name.lower()}_id"
+            self.resource_fk_column = f"{self.resource_table_name.lower()}_id"
+            logger.info(f"EventTracker configured for bridge table: {self.bridge_table_name}")
+        else:
+            logger.warning("EventTracker: Event or resource table name not provided, bridge table will not be created.")
         
         # Create tracking tables
         self._create_tracking_tables()
@@ -83,18 +103,37 @@ class EventTracker:
             Column('release_datetime', DateTime, nullable=False)
         )
         
-        # Deliverable_Consultant bridging table (main simulation output)
-        self.deliverable_consultant = Table(
-            'Deliverable_Consultant', self.metadata,
-            Column('id', Integer, primary_key=True),
-            Column('deliverable_id', Integer, nullable=False),  # Reference to Deliverable.id
-            Column('consultant_id', Integer, nullable=False),   # Reference to Consultant.id
-            Column('start_date', DateTime, nullable=False),
-            Column('end_date', DateTime, nullable=False)
-        )
+        # Reflect existing event and resource tables if names provided
+        try:
+            if self.event_table_name:
+                Table(self.event_table_name, self.metadata, autoload_with=self.engine)
+                logger.debug(f"Reflected table {self.event_table_name} into metadata.")
+            if self.resource_table_name:
+                Table(self.resource_table_name, self.metadata, autoload_with=self.engine)
+                logger.debug(f"Reflected table {self.resource_table_name} into metadata.")
+        except Exception as e:
+            logger.error(f"Error reflecting event/resource tables: {e}. Bridge table FK constraints might fail.")
         
-        # Create all tables
-        self.metadata.create_all(self.engine)
+        # Dynamic event-resource bridging table (if names provided)
+        if self.bridge_table_name and self.event_fk_column and self.resource_fk_column:
+            self.bridge_table = Table(
+                self.bridge_table_name, self.metadata,
+                Column('id', Integer, primary_key=True),
+                # Use dynamic column names and attempt to add FK constraints
+                # Note: FK constraints might fail if target tables don't exist yet during init.
+                # Consider creating tables sequentially or adding constraints later if issues arise.
+                Column(self.event_fk_column, Integer, ForeignKey(f"{self.event_table_name}.id"), nullable=False), 
+                Column(self.resource_fk_column, Integer, ForeignKey(f"{self.resource_table_name}.id"), nullable=False),
+                Column('start_date', DateTime, nullable=False),
+                Column('end_date', DateTime, nullable=True) # Allow NULL for ongoing allocations
+            )
+        
+        # Create all tables defined in this metadata (sim tracking + bridge if defined)
+        try:
+            self.metadata.create_all(self.engine)
+        except Exception as e:
+            # Catch errors during create_all, e.g., if FKs still fail
+            logger.error(f"Error during metadata.create_all: {e}")
     
     def record_entity_arrival(self, entity_table: str, entity_id: int, sim_time: float):
         """
@@ -165,15 +204,17 @@ class EventTracker:
                 )
                 conn.execute(stmt)
                 
-                # Also populate the Deliverable_Consultant table if the resource is a Consultant
-                if resource_table == 'Consultant':
-                    # Record in the Deliverable_Consultant bridging table
-                    stmt = insert(self.deliverable_consultant).values(
-                        deliverable_id=event_id,
-                        consultant_id=resource_id,
-                        start_date=allocation_datetime,
-                        end_date=release_datetime
-                    )
+                # Populate the dynamic bridge table if it exists and the resource table matches
+                if self.bridge_table is not None and resource_table == self.resource_table_name:
+                    logger.debug(f"Recording allocation in bridge table {self.bridge_table_name}")
+                    # Use dynamic column names
+                    bridge_data = {
+                        self.event_fk_column: event_id,
+                        self.resource_fk_column: resource_id,
+                        'start_date': allocation_datetime,
+                        'end_date': release_datetime
+                    }
+                    stmt = insert(self.bridge_table).values(**bridge_data)
                     conn.execute(stmt)
                 
                 # Move the commit inside the with block to ensure the transaction is committed before the connection is closed

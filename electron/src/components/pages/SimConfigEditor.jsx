@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Row,
@@ -10,6 +10,7 @@ import {
   InputGroup
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
+import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
@@ -70,6 +71,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   const navigate = useNavigate();
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
+  const [parsedYamlObject, setParsedYamlObject] = useState(null);
+  const [yamlError, setYamlError] = useState(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,18 +81,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   const [saveAsNew, setSaveAsNew] = useState(false);
   const [dbConfigs, setDbConfigs] = useState([]);
   const [selectedDbConfig, setSelectedDbConfig] = useState('');
-  const instanceId = useRef(`simconfigeditor-${Math.random().toString(36).substr(2, 9)}`);
-  const yamlUpdatesFromDiagram = useRef(0);
-  const yamlUpdatesFromEditor = useRef(0);
-  const isSaving = useRef(false);
-  
-  // Log component initialization
-  useEffect(() => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Initialized with projectId: ${projectId}, isProjectTab: ${isProjectTab}`);
-    return () => {
-      console.log(`[SimConfigEditor ${instanceId.current}] Component unmounting`);
-    };
-  }, []);
   
   // Load existing configuration if editing
   useEffect(() => {
@@ -97,30 +88,23 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       setLoading(true);
       
       try {
-        console.log(`[SimConfigEditor ${instanceId.current}] Loading configuration, projectId: ${projectId}, configId: ${configId}`);
-        
         if (projectId) {
           // If we have a projectId, try to load the project's simulation config
-          console.log(`[SimConfigEditor ${instanceId.current}] Loading project simulation config`);
           const result = await window.api.getProjectSimConfig(projectId);
           if (result.success && result.config) {
-            console.log(`[SimConfigEditor ${instanceId.current}] Project simulation config loaded successfully, content length: ${result.config.content ? result.config.content.length : 0}`);
             setConfig(result.config);
             setName(result.config.name || `${result.projectName} Simulation`);
             setDescription(result.config.description || '');
             setYamlContent(result.config.content);
           } else {
             // New simulation config for this project
-            console.log(`[SimConfigEditor ${instanceId.current}] No existing simulation config, creating new one`);
             setName(`${result.projectName || 'Project'} Simulation`);
             setYamlContent(DEFAULT_SIM_CONFIG);
           }
         } else if (configId) {
           // Load standalone config
-          console.log(`[SimConfigEditor ${instanceId.current}] Loading standalone config by ID: ${configId}`);
           const result = await window.api.getConfig(configId);
           if (result.success) {
-            console.log(`[SimConfigEditor ${instanceId.current}] Standalone config loaded successfully`);
             setConfig(result.config);
             setName(result.config.name);
             setDescription(result.config.description || '');
@@ -128,11 +112,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           }
         } else {
           // New standalone configuration
-          console.log(`[SimConfigEditor ${instanceId.current}] Creating new standalone simulation config`);
           setYamlContent(DEFAULT_SIM_CONFIG);
         }
       } catch (error) {
-        console.error(`[SimConfigEditor ${instanceId.current}] Error loading configuration:`, error);
+        console.error('Error loading configuration:', error);
       } finally {
         setLoading(false);
       }
@@ -141,28 +124,22 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
     // Load database configurations for run simulation modal
     const loadDbConfigs = async () => {
       try {
-        console.log(`[SimConfigEditor ${instanceId.current}] Loading database configurations`);
-        
         if (projectId) {
           // Get project's database config
-          console.log(`[SimConfigEditor ${instanceId.current}] Loading project database config`);
           const result = await window.api.getProjectDbConfig(projectId);
           if (result.success && result.config) {
-            console.log(`[SimConfigEditor ${instanceId.current}] Project database config loaded successfully`);
             setDbConfigs([result.config]);
             setSelectedDbConfig(result.config.id);
           }
         } else {
           // Get all database configs
-          console.log(`[SimConfigEditor ${instanceId.current}] Loading all database configs`);
           const result = await window.api.getConfigs('database');
           if (result.success) {
-            console.log(`[SimConfigEditor ${instanceId.current}] Loaded ${result.configs ? result.configs.length : 0} database configs`);
             setDbConfigs(result.configs || []);
           }
         }
       } catch (error) {
-        console.error(`[SimConfigEditor ${instanceId.current}] Error loading database configurations:`, error);
+        console.error('Error loading database configurations:', error);
       }
     };
     
@@ -170,117 +147,100 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
     loadDbConfigs();
   }, [configId, projectId]);
   
-  // Handle YAML content changes
-  const handleYamlChange = (content) => {
-    console.log(`[SimConfigEditor ${instanceId.current}] YAML content changed from editor, length: ${content.length}`);
-    yamlUpdatesFromEditor.current += 1;
-    setYamlContent(content);
-  };
-  
-  // Track YAML update counts
+  // Effect to parse YAML content whenever it changes
   useEffect(() => {
-    console.log(`[SimConfigEditor ${instanceId.current}] YAML content updated, stats:`, {
-      length: yamlContent ? yamlContent.length : 0,
-      updatesFromEditor: yamlUpdatesFromEditor.current,
-      updatesFromDiagram: yamlUpdatesFromDiagram.current
-    });
+    try {
+      if (yamlContent) {
+        // Use parseDocument to keep track of structure/comments if needed later
+        const doc = yaml.parseDocument(yamlContent);
+        // Check for parse errors reported by the document model
+         if (doc.errors && doc.errors.length > 0) {
+          console.error("YAML Parsing Errors:", doc.errors);
+          setYamlError(doc.errors[0]); // Store first error
+          setParsedYamlObject(null); // Clear parsed object on error
+        } else {
+          setParsedYamlObject(doc.toJSON()); // Store the JS object representation
+          setYamlError(null); // Clear errors on successful parse
+        }
+      } else {
+         setParsedYamlObject(null);
+         setYamlError(null);
+      }
+    } catch (e) {
+      // Catch errors not caught by parseDocument.errors (e.g., completely invalid syntax)
+      console.error("YAML Parsing Exception:", e);
+      setYamlError(e);
+      setParsedYamlObject(null);
+    }
   }, [yamlContent]);
   
-  // Handle adding a new event
-  const handleAddEvent = () => {
+  // Handle YAML content changes from editor
+  const handleYamlChange = useCallback((content) => {
+     setYamlContent(content);
+     // Parsing happens in the useEffect above
+  }, []);
+  
+  // Handle diagram changes - expects object, stringifies it
+  const handleDiagramChange = useCallback((updatedDiagramData) => {
     try {
-      console.log(`[SimConfigEditor ${instanceId.current}] Adding new event to YAML`);
-      // Parse existing YAML
-      const yaml = require('js-yaml');
-      const parsedYaml = yaml.load(yamlContent) || {};
-      
-      // Ensure event_simulation structure exists
-      if (!parsedYaml.event_simulation) {
-        parsedYaml.event_simulation = {};
-      }
-      
-      if (!parsedYaml.event_simulation.event_sequence) {
-        parsedYaml.event_simulation.event_sequence = {};
-      }
-      
-      if (!parsedYaml.event_simulation.event_sequence.event_types) {
-        parsedYaml.event_simulation.event_sequence.event_types = [];
-      }
-      
-      // Generate a unique event name
+      // updatedDiagramData is the JS object from EventFlow
+      const updatedYaml = yaml.stringify(updatedDiagramData);
+      setYamlContent(updatedYaml); // Update string state, triggers re-parse effect
+      setParsedYamlObject(updatedDiagramData); // Optimistically update parsed state
+      setYamlError(null); // Assume diagram changes produce valid structure
+    } catch (error) {
+      console.error('Error stringifying diagram changes:', error);
+      setYamlError(error);
+    }
+  }, []);
+  
+  // Handle adding a new event - operates on object if possible
+  const handleAddEvent = () => {
+     if (yamlError || !parsedYamlObject) {
+         alert('Cannot add event: Current YAML has errors or is empty.');
+         return;
+     }
+
+    try {
+      // Work on a deep copy of the parsed object
+      const updatedSchema = JSON.parse(JSON.stringify(parsedYamlObject));
+
+      // ... (logic to add new event to updatedSchema, similar to before but using the object) ...
+      if (!updatedSchema.event_simulation) updatedSchema.event_simulation = {};
+      if (!updatedSchema.event_simulation.event_sequence) updatedSchema.event_simulation.event_sequence = {};
+      if (!updatedSchema.event_simulation.event_sequence.event_types) updatedSchema.event_simulation.event_sequence.event_types = [];
+       // (Unique name generation logic)
       const baseEventName = "NewEvent";
       let eventName = baseEventName;
       let counter = 1;
-      
-      while (parsedYaml.event_simulation.event_sequence.event_types.some(
+      while (updatedSchema.event_simulation.event_sequence.event_types.some(
         event => event.name === eventName)) {
         eventName = `${baseEventName}${counter}`;
         counter++;
       }
-      
-      console.log(`[SimConfigEditor ${instanceId.current}] Generated unique event name: ${eventName}`);
-      
-      // Add new event template
-      parsedYaml.event_simulation.event_sequence.event_types.push({
+      // (Add event template)
+      updatedSchema.event_simulation.event_sequence.event_types.push({
         name: eventName,
-        duration: {
-          distribution: {
-            type: "normal",
-            mean: 5,
-            stddev: 1
-          }
-        },
-        resource_requirements: [
-          {
-            resource_table: "Resource",
-            value: "Type1",
-            count: 1
-          }
-        ]
+        duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
+        resource_requirements: [{ resource_table: "Resource", value: "Type1", count: 1 }]
       });
-      
-      // Convert back to YAML
-      const updatedYaml = yaml.dump(parsedYaml, { lineWidth: 120 });
-      console.log(`[SimConfigEditor ${instanceId.current}] Added new event, updating YAML content, new length: ${updatedYaml.length}`);
-      yamlUpdatesFromEditor.current += 1;
-      setYamlContent(updatedYaml);
-      
+
+
+      // Convert back to YAML and update state
+      const updatedYaml = yaml.stringify(updatedSchema);
+      setYamlContent(updatedYaml); // Update string state, triggers re-parse
+      setParsedYamlObject(updatedSchema); // Optimistically update parsed state
+
     } catch (error) {
-      console.error(`[SimConfigEditor ${instanceId.current}] Error adding event:`, error);
-      alert('Failed to add event. Please check that your YAML is valid.');
-    }
-  };
-  
-  // Handle event flow diagram changes
-  const handleDiagramChange = (updatedYaml) => {
-    // Update the editor content with the changes from the diagram
-    if (updatedYaml) {
-      console.log(`[SimConfigEditor ${instanceId.current}] Diagram initiated YAML update, length: ${updatedYaml.length}`);
-      yamlUpdatesFromDiagram.current += 1;
-      setYamlContent(updatedYaml);
-      
-      // If in project context, also auto-save to ensure backend is updated
-      if (projectId && isProjectTab) {
-        console.log(`[SimConfigEditor ${instanceId.current}] Auto-saving after diagram change`);
-        const configData = {
-          name: name || 'Project Simulation',
-          config_type: 'simulation',
-          content: updatedYaml, // Use the updated YAML directly
-          description
-        };
-        
-        // Schedule this after state update to ensure we're using latest content
-        setTimeout(() => {
-          console.log(`[SimConfigEditor ${instanceId.current}] Executing delayed save after diagram change`);
-          saveConfigWithContent(configData);
-        }, 0);
-      }
+      console.error('Error adding event:', error);
+      alert('Failed to add event.');
+      setYamlError(error);
     }
   };
   
   // Toggle save modal
   const handleSave = () => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Save button clicked`);
+    console.log("SimConfigEditor: handleSave button clicked");
     if (projectId && isProjectTab) {
       // For project tabs, save directly without the modal
       handleSaveConfig();
@@ -291,47 +251,46 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   
   // Toggle run simulation modal
   const handleRun = () => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Run button clicked`);
     setShowRunModal(true);
   };
   
   // Close save modal
   const handleCloseModal = () => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Closing save modal`);
     setShowSaveModal(false);
     setSaveAsNew(false);
   };
   
   // Close run modal
   const handleCloseRunModal = () => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Closing run modal`);
     setShowRunModal(false);
   };
   
   // Save the configuration
   const handleSaveConfig = async () => {
-    console.log(`[SimConfigEditor ${instanceId.current}] Saving config with name: ${name}, YAML length: ${yamlContent ? yamlContent.length : 0}`);
+    console.log("SimConfigEditor: handleSaveConfig called with:", { 
+      name, 
+      hasContent: !!yamlContent && yamlContent.length > 0,
+      yamlContentLength: yamlContent ? yamlContent.length : 0,
+      projectId,
+      configId,
+      saveAsNew 
+    });
     
     try {
       setLoading(true);
       
       if (!name && !projectId) {
-        console.warn(`[SimConfigEditor ${instanceId.current}] Save failed - missing name`);
         alert('Please enter a name for the configuration');
         setLoading(false);
         return;
       }
       
-      // Validate YAML content before sending
-      try {
-        const yaml = require('js-yaml');
-        const parsedYaml = yaml.load(yamlContent);
-        console.log(`[SimConfigEditor ${instanceId.current}] YAML validation passed:`, { hasContent: !!parsedYaml });
-      } catch (yamlError) {
-        console.error(`[SimConfigEditor ${instanceId.current}] YAML validation failed:`, yamlError);
-        alert('The YAML content appears to be invalid. Please check your configuration.');
-        setLoading(false);
-        return;
+      // Check for YAML errors before saving
+      if (yamlError) {
+          console.error("SimConfigEditor: Cannot save due to YAML errors:", yamlError);
+          alert(`Cannot save configuration. Please fix the YAML errors first.\nError: ${yamlError.message || 'Invalid YAML'}`);
+          setLoading(false);
+          return;
       }
       
       const configData = {
@@ -341,13 +300,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
         description
       };
       
-      console.log(`[SimConfigEditor ${instanceId.current}] Calling saveConfigWithContent`);
+      console.log("SimConfigEditor: About to save with configData:", configData);
       
       // Call the shared save function with this config data
       await saveConfigWithContent(configData);
       
     } catch (error) {
-      console.error(`[SimConfigEditor ${instanceId.current}] Error saving configuration:`, error);
+      console.error('SimConfigEditor: Error saving configuration:', error);
       alert('Error saving configuration');
     } finally {
       setLoading(false);
@@ -355,77 +314,66 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   };
   
   // Function to save configuration with provided content
+  // This separates the saving logic from building the config object
   const saveConfigWithContent = async (configData) => {
-    if (isSaving.current) {
-      console.log(`[SimConfigEditor ${instanceId.current}] Save already in progress, skipping duplicate call`);
-      return;
-    }
-    
     try {
-      console.log(`[SimConfigEditor ${instanceId.current}] Saving config with content length: ${configData.content.length}`);
-      isSaving.current = true;
       setLoading(true);
       let result;
       
       if (projectId && isProjectTab) {
         // Save as project simulation config
-        console.log(`[SimConfigEditor ${instanceId.current}] Saving project sim config for projectId: ${projectId}`);
+        console.log("SimConfigEditor: Saving as project sim config, projectId:", projectId);
         result = await window.api.saveProjectSimConfig(projectId, configData);
         
         if (result.success) {
           // Just update locally in project tab mode
-          console.log(`[SimConfigEditor ${instanceId.current}] Project sim config saved successfully`);
+          console.log("SimConfigEditor: Save successful, updating local config");
           setConfig(result.config);
           
           // Add success message
           alert('Simulation configuration saved successfully');
         } else {
-          console.error(`[SimConfigEditor ${instanceId.current}] Error saving project sim config:`, result);
+          console.error("SimConfigEditor: Error saving configuration:", result);
           alert('Error saving configuration');
         }
       } else if (configId && !saveAsNew) {
         // Update existing standalone configuration
-        console.log(`[SimConfigEditor ${instanceId.current}] Updating existing config with ID: ${configId}`);
+        console.log("SimConfigEditor: Updating existing config, configId:", configId);
         result = await window.api.updateConfig(configId, configData);
         
         if (result.success) {
           // Close modal and navigate back to dashboard
-          console.log(`[SimConfigEditor ${instanceId.current}] Config updated successfully`);
+          console.log("SimConfigEditor: Update successful, closing modal and navigating");
           handleCloseModal();
           navigate('/');
         }
       } else {
         // Save as new standalone configuration
-        console.log(`[SimConfigEditor ${instanceId.current}] Saving as new standalone config`);
+        console.log("SimConfigEditor: Saving as new standalone config");
         result = await window.api.saveConfig(configData);
         
         if (result.success) {
           // Close modal and navigate to the new config
-          console.log(`[SimConfigEditor ${instanceId.current}] New config saved with ID: ${result.config_id}`);
+          console.log("SimConfigEditor: Save successful, closing modal and navigating to new config");
           handleCloseModal();
           navigate(`/sim-config/${result.config_id}`);
         }
       }
       
-      console.log(`[SimConfigEditor ${instanceId.current}] Save result:`, {
-        success: result.success,
-        message: result.message,
-        config_id: result.config_id
-      });
+      console.log("SimConfigEditor: Save result:", result);
       
       if (!result.success) {
-        console.error(`[SimConfigEditor ${instanceId.current}] Save failed:`, result);
+        console.error("SimConfigEditor: Error: result.success is false", result);
         alert('Error saving configuration');
       }
       
       return result;
     } catch (error) {
-      console.error(`[SimConfigEditor ${instanceId.current}] Error in saveConfigWithContent:`, error);
+      console.error('SimConfigEditor: Error in saveConfigWithContent:', error);
       alert('Error saving configuration');
       throw error;
     } finally {
       setLoading(false);
-      isSaving.current = false;
     }
   };
   
@@ -556,32 +504,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
             ) : (
               <YamlEditor 
                 initialValue={yamlContent} 
-                onSave={(content) => {
-                  console.log(`[SimConfigEditor ${instanceId.current}] YamlEditor onSave callback triggered, content length: ${content.length}`);
-                  // Update content first
-                  handleYamlChange(content);
-                  
-                  // Auto-save if in project context
-                  if (projectId && isProjectTab) {
-                    console.log(`[SimConfigEditor ${instanceId.current}] Auto-saving from YamlEditor change`);
-                    const configData = {
-                      name: name || 'Project Simulation',
-                      config_type: 'simulation',
-                      content, // Use the content parameter directly
-                      description
-                    };
-                    
-                    // Validate YAML content before sending
-                    try {
-                      const yaml = require('js-yaml');
-                      yaml.load(content); // Just check if it parses without error
-                      saveConfigWithContent(configData);
-                    } catch (yamlError) {
-                      console.error(`[SimConfigEditor ${instanceId.current}] YAML validation failed:`, yamlError);
-                      alert('The YAML content appears to be invalid. Please check your configuration.');
-                    }
-                  }
-                }}
+                onChange={handleYamlChange}
+                onSave={null}
                 height="calc(100vh - 160px)"
                 theme={theme}
               />
@@ -611,6 +535,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
             ) : (
               <EventFlow 
                 yamlContent={yamlContent} 
+                parsedSchema={parsedYamlObject}
                 onDiagramChange={handleDiagramChange} 
                 theme={theme}
               />
@@ -651,7 +576,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       {renderEditor()}
       
       {/* Save Configuration Modal - only used for standalone configurations */}
-      <Modal show={showSaveModal} onHide={handleCloseModal} centered>
+      <Modal
+        show={showSaveModal}
+        onHide={handleCloseModal}
+        centered
+        enforceFocus={false}
+      >
         <Modal.Header closeButton>
           <Modal.Title>Save Simulation Configuration</Modal.Title>
         </Modal.Header>
@@ -704,7 +634,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       </Modal>
       
       {/* Run Simulation Modal */}
-      <Modal show={showRunModal} onHide={handleCloseRunModal} centered>
+      <Modal
+        show={showRunModal}
+        onHide={handleCloseRunModal}
+        centered
+        enforceFocus={false}
+      >
         <Modal.Header closeButton>
           <Modal.Title>Run Simulation</Modal.Title>
         </Modal.Header>

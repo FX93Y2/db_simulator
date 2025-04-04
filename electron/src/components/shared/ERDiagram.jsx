@@ -12,7 +12,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
-import jsYaml from 'js-yaml';
+import yaml from 'yaml';
 import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiX } from 'react-icons/fi';
 
@@ -21,8 +21,6 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
   const [name, setName] = useState('');
   const [attributes, setAttributes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
-  const nameInputRef = useRef(null);
-  const modalRef = useRef(null);
 
   // Initialize form when node changes
   useEffect(() => {
@@ -31,35 +29,6 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
       setAttributes(node.data?.attributes || []);
     }
   }, [node]);
-
-  // Focus name input when modal shows
-  useEffect(() => {
-    if (show && nameInputRef.current) {
-      // Delay focus to ensure modal is fully rendered
-      setTimeout(() => {
-        try {
-          nameInputRef.current.focus();
-          console.log('NodeDetailsModal: Set focus to name input');
-        } catch (err) {
-          console.error('NodeDetailsModal: Error focusing name input:', err);
-        }
-      }, 100);
-    }
-  }, [show]);
-
-  // Handle key events for the modal
-  const handleKeyDown = (e) => {
-    // Close modal on escape
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onHide();
-    }
-    // Submit on ctrl+enter or cmd+enter
-    else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
 
   const handleSubmit = () => {
     setIsLoading(true);
@@ -104,8 +73,6 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
       size="lg"
       backdrop="static"
       className="node-details-modal"
-      onKeyDown={handleKeyDown}
-      ref={modalRef}
     >
       <Modal.Header closeButton>
         <Modal.Title>Entity Details</Modal.Title>
@@ -120,12 +87,10 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
             <Form.Group className="mb-3">
               <Form.Label>Entity Name</Form.Label>
               <Form.Control
-                ref={nameInputRef}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter entity name"
-                autoFocus
               />
             </Form.Group>
             
@@ -238,75 +203,33 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
-  const instanceId = useRef(`erdiagram-${Math.random().toString(36).substr(2, 9)}`);
-  const lastYamlContent = useRef(yamlContent);
-  const yamlParsingInProgress = useRef(false);
-  const flowWrapperRef = useRef(null);
-
-  // Log component mount/unmount
-  useEffect(() => {
-    console.log(`[ERDiagram ${instanceId.current}] Component mounted, initial YAML length: ${yamlContent ? yamlContent.length : 0}`);
-    return () => {
-      console.log(`[ERDiagram ${instanceId.current}] Component unmounting`);
-    };
-  }, []);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
-      console.log(`[ERDiagram ${instanceId.current}] Container ref initialized, setting initialized flag`);
       setInitialized(true);
     }
   }, []);
 
   // Parse YAML to extract entities
   useEffect(() => {
+    console.log(`[ERDiagram] useEffect triggered by yamlContent change: ${yamlContent ? yamlContent.substring(0, 50) : 'null'}...`);
     try {
-      console.log(`[ERDiagram ${instanceId.current}] YAML content effect triggered`, {
-        hasContent: !!yamlContent,
-        yamlLength: yamlContent ? yamlContent.length : 0,
-        hasChanged: yamlContent !== lastYamlContent.current
-      });
-
       if (!yamlContent) {
-        console.log(`[ERDiagram ${instanceId.current}] No YAML content provided, skipping update`);
+        setDbSchema(null);
+        setNodes([]);
+        setEdges([]);
         return;
       }
-      
-      // Force parse on first run, or if content changed
-      const shouldForceUpdate = !lastYamlContent.current || yamlContent !== lastYamlContent.current;
-      
-      // Skip only if the exact same content is already in progress
-      if (!shouldForceUpdate && yamlParsingInProgress.current) {
-        console.log(`[ERDiagram ${instanceId.current}] YAML parsing already in progress, skipping`);
-        return;
-      }
+      console.log('[ERDiagram] Parsing YAML content...');
+      const parsedDoc = yaml.parseDocument(yamlContent);
+      const parsedYaml = parsedDoc.toJSON();
+      console.log('[ERDiagram] Parsed YAML:', parsedYaml);
 
-      // Update the ref to track current content
-      lastYamlContent.current = yamlContent;
-      yamlParsingInProgress.current = true;
-      
-      console.log(`[ERDiagram ${instanceId.current}] Processing YAML content...`);
-      let parsedYaml;
-      try {
-        parsedYaml = jsYaml.load(yamlContent);
-        console.log(`[ERDiagram ${instanceId.current}] YAML parsed successfully:`, {
-          hasEntities: parsedYaml && !!parsedYaml.entities,
-          entityCount: parsedYaml && parsedYaml.entities ? parsedYaml.entities.length : 0,
-          yaml: yamlContent.substring(0, 100) + (yamlContent.length > 100 ? '...' : '')
-        });
-      } catch (parseError) {
-        console.error(`[ERDiagram ${instanceId.current}] Error parsing YAML:`, parseError);
-        yamlParsingInProgress.current = false;
-        return;
-      }
-      
-      // Always update dbSchema, even if it appears to be the same object
-      // This ensures React will register the change
-      setDbSchema(JSON.parse(JSON.stringify(parsedYaml)));
+      setDbSchema(parsedYaml);
       
       if (parsedYaml && parsedYaml.entities) {
-        console.log(`[ERDiagram ${instanceId.current}] Processing ${parsedYaml.entities.length} entities...`);
+        console.log("[ERDiagram] Processing entities and relationships...");
         const entityNodes = [];
         const relationEdges = [];
         
@@ -315,7 +238,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           const xPos = (index % 3) * 300 + 50;
           const yPos = Math.floor(index / 3) * 300 + 50;
           
-          console.log(`[ERDiagram ${instanceId.current}] Creating node for entity: ${entity.name}`);
           entityNodes.push({
             id: entity.name,
             type: 'entity',
@@ -333,7 +255,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             entity.attributes.forEach(attr => {
               if (attr.type === 'fk' && attr.ref) {
                 const [targetEntity] = attr.ref.split('.');
-                console.log(`[ERDiagram ${instanceId.current}] Creating edge: ${entity.name} -> ${targetEntity}`);
                 relationEdges.push({
                   id: `${entity.name}-${targetEntity}`,
                   source: entity.name,
@@ -356,97 +277,63 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           }
         });
         
-        console.log(`[ERDiagram ${instanceId.current}] Setting nodes (${entityNodes.length}) and edges (${relationEdges.length})`);
+        console.log("[ERDiagram] Setting nodes:", entityNodes);
+        console.log("[ERDiagram] Setting edges:", relationEdges);
         setNodes(entityNodes);
         setEdges(relationEdges);
+        console.log("[ERDiagram] Nodes and Edges state updated.");
       } else {
-        console.log(`[ERDiagram ${instanceId.current}] No entities found in YAML, clearing diagram`);
-        setNodes([]);
-        setEdges([]);
+        console.warn("[ERDiagram] Parsed YAML missing expected structure (entities).");
       }
-      yamlParsingInProgress.current = false;
     } catch (error) {
-      yamlParsingInProgress.current = false;
-      console.error(`[ERDiagram ${instanceId.current}] Error processing YAML:`, error);
+      console.error('[ERDiagram] Error parsing YAML for ER diagram:', error);
+      setDbSchema(null);
+      setNodes([]);
+      setEdges([]);
     }
-  }, [yamlContent]);
+  }, [yamlContent, theme]);
   
   // Handle connecting nodes
   const onConnect = useCallback(
     (params) => {
       // Validate connection params
       if (!params.source || !params.target) {
-        console.error(`[ERDiagram ${instanceId.current}] Invalid connection params:`, params);
+        console.error('Invalid connection params:', params);
         return;
       }
       
-      console.log(`[ERDiagram ${instanceId.current}] Connection created: ${params.source} -> ${params.target}`);
-      
-      // When a connection is made, we need to update the YAML
-      const newEdge = { 
-        ...params, 
-        id: `${params.source}-${params.target}`,
-        animated: true,
-        type: 'smoothstep',
-        style: { stroke: '#3498db' },
-        markerEnd: {
-          type: MarkerType.ArrowClosed,
-          width: 20,
-          height: 20,
-          color: '#3498db',
-        },
-      };
-      
-      // Only proceed if dbSchema exists
-      if (!dbSchema || !dbSchema.entities) {
-        console.error(`[ERDiagram ${instanceId.current}] No schema available for edge creation`);
-        return;
-      }
-      
-      // Find the source and target entities
-      const sourceEntity = dbSchema.entities.find(e => e.name === params.source);
-      const targetEntity = dbSchema.entities.find(e => e.name === params.target);
-      
-      if (sourceEntity && targetEntity) {
-        console.log(`[ERDiagram ${instanceId.current}] Updating schema to add FK from ${sourceEntity.name} to ${targetEntity.name}`);
-        
-        // Add a foreign key to the source entity
-        if (!sourceEntity.attributes) {
-          sourceEntity.attributes = [];
+      if (dbSchema) {
+        // Create a deep copy to avoid direct state mutation
+        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
+
+        // ... logic to modify updatedSchema based on new connection (params) ...
+        // Example: Add relationship
+
+        if (!updatedSchema.relationships) {
+            updatedSchema.relationships = [];
         }
-        
-        // Generate a foreign key name
-        const fkName = `${targetEntity.name.toLowerCase()}_id`;
-        
-        // Check if this foreign key already exists
-        if (!sourceEntity.attributes.some(attr => attr.name === fkName)) {
-          // Add the foreign key attribute
-          sourceEntity.attributes.push({
-            name: fkName,
-            type: 'fk',
-            ref: `${targetEntity.name}.id`
-          });
-          
-          // Convert the updated schema back to YAML
-          const updatedYaml = jsYaml.dump(dbSchema, { lineWidth: 120 });
-          
-          // Call the parent's callback with the updated YAML content
-          if (onDiagramChange) {
-            console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from connection`);
-            lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
-            onDiagramChange(updatedYaml);
-          }
+        updatedSchema.relationships.push({
+            from: params.source,
+            to: params.target,
+            type: 'one-to-many' // Example type
+        });
+
+        // Update the internal state
+        setDbSchema(updatedSchema);
+
+        // Call the callback with the updated OBJECT
+        if (onDiagramChange) {
+          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after connect:", updatedSchema);
+          onDiagramChange(updatedSchema);
         }
       }
     },
-    [dbSchema, onDiagramChange]
+    [dbSchema, onDiagramChange, setEdges]
   );
   
   // Handle node movement
   const onNodeDragStop = useCallback(
     (event, node) => {
-      console.log(`[ERDiagram ${instanceId.current}] Node moved: ${node.id}`, node.position);
-      
       // Update the position in our node state
       setNodes(nds => 
         nds.map(n => {
@@ -456,39 +343,41 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           return n;
         })
       );
+      
+      console.log('Node moved:', node);
     },
     [setNodes]
   );
 
   // Handle node deletion
   const onNodesDelete = useCallback(
-    (deleted) => {
-      console.log(`[ERDiagram ${instanceId.current}] Nodes deleted:`, deleted.map(n => n.id));
-      
-      if (!dbSchema || !dbSchema.entities) return;
-      
-      // Create a copy of the schema to modify
-      const updatedSchema = { ...dbSchema };
-      
-      // Remove the deleted entities
-      updatedSchema.entities = updatedSchema.entities.filter(
-        entity => !deleted.some(node => node.id === entity.name)
-      );
-      
-      console.log(`[ERDiagram ${instanceId.current}] Updated schema after deletion:`, {
-        originalCount: dbSchema.entities.length,
-        newCount: updatedSchema.entities.length
-      });
-      
-      // Update the schema state
-      setDbSchema(updatedSchema);
-      
-      // Convert to YAML and notify parent
-      const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
-      if (onDiagramChange) {
-        console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from deletion`);
-        lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
-        onDiagramChange(updatedYaml);
+    (deletedNodes) => {
+      if (dbSchema) {
+        // Create a deep copy
+        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
+
+        // Logic to remove entities/relationships from updatedSchema based on deletedNodes
+        const deletedIds = deletedNodes.map(n => n.id);
+
+        if (updatedSchema.entities) {
+            updatedSchema.entities = updatedSchema.entities.filter(
+                entity => !deletedIds.includes(entity.name)
+            );
+        }
+        if (updatedSchema.relationships) {
+            updatedSchema.relationships = updatedSchema.relationships.filter(
+                rel => !deletedIds.includes(rel.from) && !deletedIds.includes(rel.to)
+            );
+        }
+
+        // Update internal state
+        setDbSchema(updatedSchema);
+
+        // Call the callback with the updated OBJECT
+        if (onDiagramChange) {
+          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after delete:", updatedSchema);
+          onDiagramChange(updatedSchema);
+        }
       }
     },
     [dbSchema, onDiagramChange]
@@ -497,7 +386,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node double click
   const onNodeDoubleClick = useCallback(
     (event, node) => {
-      console.log(`[ERDiagram ${instanceId.current}] Node double-clicked: ${node.id}`);
       setSelectedNode(node);
       setShowNodeModal(true);
     },
@@ -505,133 +393,34 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   );
 
   // Handle node update from modal
-  const handleNodeUpdate = useCallback(
-    (updatedNode) => {
-      console.log(`[ERDiagram ${instanceId.current}] Node update requested:`, {
-        nodeId: updatedNode.id,
-        newLabel: updatedNode.data.label,
-        attributeCount: updatedNode.data.attributes.length
-      });
-      
-      if (!dbSchema || !dbSchema.entities) {
-        console.warn(`[ERDiagram ${instanceId.current}] Cannot update node, schema not available`);
-        return;
-      }
-      
-      // Create a copy of the schema to modify
-      const updatedSchema = { ...dbSchema };
-      
-      // Find the entity corresponding to the node
-      const entityIndex = updatedSchema.entities.findIndex(
-        entity => entity.name === selectedNode.id
-      );
-      
-      if (entityIndex !== -1) {
-        const oldName = updatedSchema.entities[entityIndex].name;
-        const newName = updatedNode.data.label;
-        
-        console.log(`[ERDiagram ${instanceId.current}] Updating entity:`, {
-          entityIndex,
-          oldName,
-          newName,
-          nameChanged: oldName !== newName
-        });
-        
-        // Update the entity
-        updatedSchema.entities[entityIndex] = {
-          name: updatedNode.data.label,
-          attributes: updatedNode.data.attributes
-        };
-        
-        // Update related foreign keys if name changed
-        if (selectedNode.id !== updatedNode.data.label) {
-          console.log(`[ERDiagram ${instanceId.current}] Entity name changed, updating references`);
-          
-          // Update nodes with new ID
-          const updatedNodes = nodes.map(n => {
-            if (n.id === selectedNode.id) {
-              return {
-                ...n,
-                id: updatedNode.data.label,
-                data: {
-                  ...n.data,
-                  label: updatedNode.data.label
-                }
-              };
-            }
-            return n;
-          });
-          
-          // Update edges if entity name changed
-          const updatedEdges = edges.map(edge => {
-            let newEdge = { ...edge };
-            
-            if (edge.source === selectedNode.id) {
-              newEdge.source = updatedNode.data.label;
-              newEdge.id = `${updatedNode.data.label}-${edge.target}`;
-            }
-            
-            if (edge.target === selectedNode.id) {
-              newEdge.target = updatedNode.data.label;
-              newEdge.id = `${edge.source}-${updatedNode.data.label}`;
-            }
-            
-            return newEdge;
-          });
-          
-          console.log(`[ERDiagram ${instanceId.current}] Setting updated nodes and edges`);
-          setNodes(updatedNodes);
-          setEdges(updatedEdges);
-        } else {
-          console.log(`[ERDiagram ${instanceId.current}] Only attributes changed, no need to update references`);
+  const handleNodeUpdate = useCallback((updatedNodeData) => {
+      if (dbSchema) {
+         // Create a deep copy
+        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
+
+        // Find and update the entity in the schema
+        const entityIndex = updatedSchema.entities.findIndex(e => e.name === updatedNodeData.id);
+        if (entityIndex !== -1) {
+            // Update attributes, name, etc. based on updatedNodeData.data
+            updatedSchema.entities[entityIndex] = {
+                // Reconstruct the entity based on modal data
+                // This needs careful mapping from node data back to schema structure
+                name: updatedNodeData.data.label,
+                attributes: updatedNodeData.data.attributes, // Assuming modal updates attributes directly
+                // ... other entity properties ...
+            };
         }
-        
-        // Update the schema state
+
+        // Update internal state
         setDbSchema(updatedSchema);
-        
-        // Convert to YAML and notify parent
-        const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
+
+        // Call the callback with the updated OBJECT
         if (onDiagramChange) {
-          console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from node update`);
-          lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
-          onDiagramChange(updatedYaml);
+          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after node update:", updatedSchema);
+          onDiagramChange(updatedSchema);
         }
-      } else {
-        console.warn(`[ERDiagram ${instanceId.current}] Entity not found for update:`, selectedNode.id);
       }
-    },
-    [dbSchema, selectedNode, nodes, edges, onDiagramChange]
-  );
-
-  // Handle node deletion from modal
-  const handleNodeDelete = useCallback(
-    (nodeToDelete) => {
-      onNodesDelete([nodeToDelete]);
-    },
-    [onNodesDelete]
-  );
-
-  // Force focus to the ReactFlow container - this can help with keyboard interactions
-  const forceFocus = useCallback(() => {
-    if (flowWrapperRef.current) {
-      try {
-        // Try to give focus to the wrapper
-        flowWrapperRef.current.focus();
-        console.log(`[ERDiagram ${instanceId.current}] Forced focus to flow wrapper`);
-      } catch (error) {
-        console.error(`[ERDiagram ${instanceId.current}] Error forcing focus:`, error);
-      }
-    }
-  }, []);
-
-  // Handle click on container to ensure proper focus
-  const handleContainerClick = useCallback((e) => {
-    // Only handle direct clicks on the container
-    if (e.target === flowWrapperRef.current) {
-      console.log(`[ERDiagram ${instanceId.current}] Container clicked, ensuring focus`);
-      forceFocus();
-    }
-  }, [forceFocus]);
+  }, [dbSchema, onDiagramChange]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
@@ -641,6 +430,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         className="er-diagram-container" 
         style={{ 
           width: '100%', 
+          // height: '600px', // Let parent control height
+          // border: '1px solid #ddd', // REMOVE inline border
           borderRadius: '4px',
           overflow: 'hidden'
         }} 
@@ -653,44 +444,39 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       className="er-diagram-container" 
       style={{ 
         width: '100%', 
+        // height: '600px', // Let parent control height
+        // border: '1px solid #ddd', // REMOVE inline border
         borderRadius: '4px',
         overflow: 'hidden'
       }} 
       ref={containerRef}
-      onClick={handleContainerClick}
     >
-      <div 
-        ref={flowWrapperRef}
-        style={{ width: '100%', height: '100%' }}
-        tabIndex={0} // Make focusable
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onNodeDragStop={onNodeDragStop}
+        onNodesDelete={onNodesDelete}
+        onNodeDoubleClick={onNodeDoubleClick}
+        nodeTypes={nodeTypes}
+        fitView
+        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        deleteKeyCode="Delete"
+        multiSelectionKeyCode="Shift"
       >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeDragStop={onNodeDragStop}
-          onNodesDelete={onNodesDelete}
-          onNodeDoubleClick={onNodeDoubleClick}
-          nodeTypes={nodeTypes}
-          fitView
-          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-          deleteKeyCode="Delete"
-          multiSelectionKeyCode="Shift"
-        >
-          <Controls />
-          <MiniMap />
-          <Background color="var(--theme-border)" gap={16} />
-        </ReactFlow>
-      </div>
+        <Controls />
+        <MiniMap />
+        <Background color="var(--theme-border)" gap={16} />
+      </ReactFlow>
       
       <NodeDetailsModal
         show={showNodeModal}
         onHide={() => setShowNodeModal(false)}
         node={selectedNode}
         onNodeUpdate={handleNodeUpdate}
-        onNodeDelete={handleNodeDelete}
+        onNodeDelete={onNodesDelete}
         theme={theme}
       />
     </div>

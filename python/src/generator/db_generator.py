@@ -12,13 +12,16 @@ import numpy as np
 from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 from datetime import datetime
+from ..utils.faker_utils import generate_fake_data
 import sqlite3
+import dataclasses # Import dataclasses
 
 from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, MetaData, Table, inspect, text
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
 from ..config_parser import DatabaseConfig, Entity, Attribute
+from ..utils.data_generation import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 
@@ -469,59 +472,24 @@ class DatabaseGenerator:
     
     def _generate_attribute_value(self, attr: Attribute, row_index: int) -> Any:
         """
-        Generate value for an attribute based on its generator configuration
+        Generate value for an attribute using the utility function.
         
         Args:
-            attr: Attribute configuration
+            attr: Attribute configuration object
             row_index: Index of current row
             
         Returns:
             Generated value
         """
-        generator = attr.generator
+        # Convert Attribute object's generator to dictionary for the utility function
+        attr_config_dict = {
+            'name': attr.name,
+            'generator': dataclasses.asdict(attr.generator) if attr.generator else None
+            # Add other necessary fields from attr if needed by the utility function
+        }
         
-        if not generator:
-            return f"Default_{attr.name}_{row_index}"
-        
-        generator_type = generator.type
-        
-        # Faker generator
-        if generator_type == 'faker':
-            if generator.method == 'name':
-                return f"Person {row_index}"
-            elif generator.method == 'email':
-                return f"person{row_index}@example.com"
-            else:
-                return f"{generator.method}_{row_index}"
-        
-        # Template generator
-        elif generator_type == 'template':
-            template = generator.template or "{id}"
-            context = {'id': row_index + 1}
-            return template.format(**context)
-        
-        # Distribution generator
-        elif generator_type == 'distribution':
-            if not generator.distribution:
-                return f"Dist_{row_index}"
-                
-            dist_type = generator.distribution.get('type')
-            
-            if dist_type == 'choice':
-                values = generator.distribution.get('values', [])
-                weights = generator.distribution.get('weights')
-                
-                if not values:
-                    return f"Choice_{row_index}"
-                
-                return random.choices(values, weights=weights, k=1)[0]
-            
-            # Other distribution types can be implemented as needed
-            
-            return f"Dist_{dist_type}_{row_index}"
-        
-        # Default
-        return f"Value_{row_index}"
+        # Note: Pass 0-based row_index to the utility function
+        return generate_attribute_value(attr_config_dict, row_index)
         
     def print_database_stats(self):
         """Print statistics about the generated database"""

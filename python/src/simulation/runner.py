@@ -11,34 +11,56 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Union
 
 from ..config_parser import parse_sim_config, parse_sim_config_from_string
+from ..config_parser import parse_db_config, parse_db_config_from_string # Import db config parsers
 from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)
 
-def run_simulation(sim_config_path_or_content: Union[str, Path], db_path: Union[str, Path]) -> Dict[str, Any]:
+def run_simulation(sim_config_path_or_content: Union[str, Path], 
+                   db_config_path_or_content: Union[str, Path], 
+                   db_path: Union[str, Path]) -> Dict[str, Any]:
     """
     Run a simulation based on configuration
     
     Args:
         sim_config_path_or_content: Path to the simulation configuration file or YAML content string
+        db_config_path_or_content: Path to the database configuration file or YAML content string.
         db_path: Path to the SQLite database
         
     Returns:
         Dictionary with simulation results
     """
     # Parse simulation configuration
+    sim_config = None
     if isinstance(sim_config_path_or_content, (str, Path)) and os.path.exists(sim_config_path_or_content) and os.path.isfile(sim_config_path_or_content):
-        logger.info(f"Running simulation from config file: {sim_config_path_or_content}")
+        logger.info(f"Parsing simulation config file: {sim_config_path_or_content}")
         sim_config = parse_sim_config(sim_config_path_or_content)
-    else:
-        logger.info("Running simulation from config content string")
+    elif isinstance(sim_config_path_or_content, str):
+        logger.info("Parsing simulation config from content string")
         sim_config = parse_sim_config_from_string(sim_config_path_or_content)
+    else:
+        raise ValueError("Invalid sim_config_path_or_content provided.")
+        
+    # Parse database configuration
+    db_config = None
+    if isinstance(db_config_path_or_content, (str, Path)) and os.path.exists(db_config_path_or_content) and os.path.isfile(db_config_path_or_content):
+        logger.info(f"Parsing database config file: {db_config_path_or_content}")
+        db_config = parse_db_config(db_config_path_or_content)
+    elif isinstance(db_config_path_or_content, str):
+        logger.info("Parsing database config from content string")
+        db_config = parse_db_config_from_string(db_config_path_or_content)
+    else:
+        raise ValueError("Invalid db_config_path_or_content provided.")
     
     # Ensure entity and event tables exist
-    ensure_simulation_tables(sim_config, db_path)
+    # This might need refinement if ensure_simulation_tables relies only on sim_config
+    # For now, assume it's okay or handled separately.
+    # ensure_simulation_tables(sim_config, db_path) 
+    # Commenting out for now as it might conflict or be redundant if db_generator runs first.
     
     # Create and run simulator
-    simulator = EventSimulator(sim_config, db_path)
+    logger.info("Initializing EventSimulator...")
+    simulator = EventSimulator(config=sim_config, db_config=db_config, db_path=db_path)
     results = simulator.run()
     
     logger.info(f"Simulation completed: {results}")
@@ -134,12 +156,15 @@ def ensure_simulation_tables(sim_config, db_path: Union[str, Path]):
     # Dispose of the engine
     engine.dispose()
 
-def run_simulation_from_config_dir(sim_config_dir: Union[str, Path], db_path: Union[str, Path]) -> Dict[str, Dict[str, Any]]:
+def run_simulation_from_config_dir(sim_config_dir: Union[str, Path], 
+                                   db_config_path_or_content: Union[str, Path], 
+                                   db_path: Union[str, Path]) -> Dict[str, Dict[str, Any]]:
     """
     Run simulations for all configuration files in a directory
     
     Args:
         sim_config_dir: Directory containing simulation configuration files
+        db_config_path_or_content: Path to the database configuration file or YAML content string.
         db_path: Path to the SQLite database
         
     Returns:
@@ -156,7 +181,8 @@ def run_simulation_from_config_dir(sim_config_dir: Union[str, Path], db_path: Un
         logger.info(f"Running simulation for configuration: {config_name}")
         
         try:
-            sim_results = run_simulation(config_file, db_path)
+            # Pass db_config_path_or_content to run_simulation
+            sim_results = run_simulation(config_file, db_config_path_or_content, db_path)
             results[config_name] = sim_results
         except Exception as e:
             logger.error(f"Error running simulation for {config_name}: {e}")

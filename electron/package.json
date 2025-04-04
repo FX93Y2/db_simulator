@@ -42,7 +42,6 @@
     "dagre": "^0.8.5",
     "date-fns": "^4.1.0",
     "electron-store": "^8.1.0",
-    "js-yaml": "^4.1.0",
     "monaco-editor": "^0.52.2",
     "react": "^18.2.0",
     "react-bootstrap": "^2.9.0",
@@ -53,7 +52,8 @@
     "react-router-dom": "^6.16.0",
     "reactflow": "^11.10.1",
     "sass": "^1.69.0",
-    "sql.js": "^1.8.0"
+    "sql.js": "^1.8.0",
+    "yaml": "^2.7.1"
   },
   "build": {
     "appId": "com.fx93v2.db-simulator",
