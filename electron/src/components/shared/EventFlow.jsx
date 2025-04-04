@@ -1051,6 +1051,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+        zoomOnScroll={false}
         deleteKeyCode="Delete"
         multiSelectionKeyCode="Shift"
       >
