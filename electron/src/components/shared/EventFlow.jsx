@@ -379,10 +379,22 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
+  const instanceId = useRef(`eventflow-${Math.random().toString(36).substr(2, 9)}`);
+  const lastYamlContent = useRef(yamlContent);
+  const yamlParsingInProgress = useRef(false);
+  
+  // Log component mount/unmount
+  useEffect(() => {
+    console.log(`[EventFlow ${instanceId.current}] Component mounted, initial YAML length: ${yamlContent ? yamlContent.length : 0}`);
+    return () => {
+      console.log(`[EventFlow ${instanceId.current}] Component unmounting`);
+    };
+  }, []);
   
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
+      console.log(`[EventFlow ${instanceId.current}] Container ref initialized, setting initialized flag`);
       setInitialized(true);
     }
   }, []);
@@ -390,10 +402,55 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   // Parse YAML to extract events and transitions
   useEffect(() => {
     try {
-      if (!yamlContent) return;
+      console.log(`[EventFlow ${instanceId.current}] YAML content effect triggered`, {
+        hasContent: !!yamlContent,
+        yamlLength: yamlContent ? yamlContent.length : 0,
+        hasChanged: yamlContent !== lastYamlContent.current
+      });
+
+      if (!yamlContent) {
+        console.log(`[EventFlow ${instanceId.current}] No YAML content provided, skipping update`);
+        return;
+      }
       
-      const parsedYaml = jsYaml.load(yamlContent);
-      setSimSchema(parsedYaml);
+      // Force parse on first run, or if content changed
+      const shouldForceUpdate = !lastYamlContent.current || yamlContent !== lastYamlContent.current;
+      
+      // Skip only if the exact same content is already in progress
+      if (!shouldForceUpdate && yamlParsingInProgress.current) {
+        console.log(`[EventFlow ${instanceId.current}] YAML parsing already in progress, skipping`);
+        return;
+      }
+
+      // Update the ref to track current content
+      lastYamlContent.current = yamlContent;
+      yamlParsingInProgress.current = true;
+      
+      console.log(`[EventFlow ${instanceId.current}] Processing YAML content...`);
+      let parsedYaml;
+      try {
+        parsedYaml = jsYaml.load(yamlContent);
+        console.log(`[EventFlow ${instanceId.current}] YAML parsed successfully:`, {
+          hasEventSimulation: parsedYaml && !!parsedYaml.event_simulation,
+          hasEventSequence: parsedYaml && parsedYaml.event_simulation && !!parsedYaml.event_simulation.event_sequence,
+          hasEventTypes: parsedYaml && parsedYaml.event_simulation && 
+                      parsedYaml.event_simulation.event_sequence && 
+                      !!parsedYaml.event_simulation.event_sequence.event_types,
+          eventTypeCount: parsedYaml && parsedYaml.event_simulation && 
+                       parsedYaml.event_simulation.event_sequence && 
+                       parsedYaml.event_simulation.event_sequence.event_types ? 
+                       parsedYaml.event_simulation.event_sequence.event_types.length : 0,
+          yaml: yamlContent.substring(0, 100) + (yamlContent.length > 100 ? '...' : '')
+        });
+      } catch (parseError) {
+        console.error(`[EventFlow ${instanceId.current}] Error parsing YAML:`, parseError);
+        yamlParsingInProgress.current = false;
+        return;
+      }
+      
+      // Always update simSchema, even if it appears to be the same object
+      // This ensures React will register the change
+      setSimSchema(JSON.parse(JSON.stringify(parsedYaml)));
       
       if (parsedYaml && parsedYaml.event_simulation && 
           parsedYaml.event_simulation.event_sequence && 
@@ -401,6 +458,8 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         
         const eventTypes = parsedYaml.event_simulation.event_sequence.event_types;
         const transitions = parsedYaml.event_simulation.event_sequence.transitions || [];
+        
+        console.log(`[EventFlow ${instanceId.current}] Processing ${eventTypes.length} event types with ${transitions.length} transitions`);
         
         // Create nodes for each event type
         const eventNodes = eventTypes.map((event, index) => {
@@ -418,6 +477,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
               .join(', ');
           }
           
+          console.log(`[EventFlow ${instanceId.current}] Creating node for event: ${event.name}`);
           return {
             id: event.name,
             type: 'event',
@@ -439,18 +499,24 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         
         transitions.forEach((transition, idx) => {
           const source = transition.from;
+          console.log(`[EventFlow ${instanceId.current}] Processing transition from: ${source}`);
           
           // If there are multiple destinations, create a decision node
           if (transition.to && Array.isArray(transition.to) && transition.to.length > 1) {
             // Find the source node position
             const sourceNode = eventNodes.find(node => node.id === source);
-            if (!sourceNode) return;
+            if (!sourceNode) {
+              console.warn(`[EventFlow ${instanceId.current}] Source node not found for transition: ${source}`);
+              return;
+            }
             
             // Create decision node with a unique ID
             const decisionId = `decision-${source}-${idx}`;
             
             // Format label to show the decision context
             const decisionLabel = `${source} Branch`;
+            
+            console.log(`[EventFlow ${instanceId.current}] Creating decision node: ${decisionId}`);
             
             // Position decision node to the right of the source event
             const decisionNode = {
@@ -472,6 +538,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
             
             decisionNodes.push(decisionNode);
             
+            console.log(`[EventFlow ${instanceId.current}] Creating edge: ${source} -> ${decisionId}`);
             // Create edge from source to decision
             transitionEdges.push({
               id: `${source}-${decisionId}`,
@@ -492,7 +559,12 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
             // Create edges from decision to each destination
             transition.to.forEach((dest, destIdx) => {
               const targetNode = eventNodes.find(node => node.id === dest.event_type);
-              if (!targetNode) return;
+              if (!targetNode) {
+                console.warn(`[EventFlow ${instanceId.current}] Target node not found for destination: ${dest.event_type}`);
+                return;
+              }
+              
+              console.log(`[EventFlow ${instanceId.current}] Creating edge from decision to: ${dest.event_type} (${dest.probability * 100}%)`);
               
               // Determine which handle to use based on index
               // First item always uses right handle (next event), others use top/bottom
@@ -537,6 +609,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
           } else if (transition.to && Array.isArray(transition.to) && transition.to.length === 1) {
             // Direct connection for single destination
             const dest = transition.to[0];
+            console.log(`[EventFlow ${instanceId.current}] Creating direct edge: ${source} -> ${dest.event_type} (${dest.probability * 100}%)`);
             transitionEdges.push({
               id: `${source}-${dest.event_type}`,
               source,
@@ -558,13 +631,20 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         });
         
         // Combine all nodes and set state
+        console.log(`[EventFlow ${instanceId.current}] Setting nodes (${eventNodes.length + decisionNodes.length}) and edges (${transitionEdges.length})`);
         setNodes([...eventNodes, ...decisionNodes]);
         setEdges(transitionEdges);
+      } else {
+        console.log(`[EventFlow ${instanceId.current}] No event types found in YAML, clearing diagram`);
+        setNodes([]);
+        setEdges([]);
       }
+      yamlParsingInProgress.current = false;
     } catch (error) {
-      console.error('Error parsing YAML for event flow diagram:', error);
+      yamlParsingInProgress.current = false;
+      console.error(`[EventFlow ${instanceId.current}] Error processing YAML:`, error);
     }
-  }, [yamlContent, setNodes, setEdges, theme]);
+  }, [yamlContent, theme]);
   
   // Helper function to determine the best target handle based on node positions
   const getTargetHandle = (sourceNode, targetNode) => {
@@ -585,9 +665,11 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
     (params) => {
       // Validate connection
       if (!params.source || !params.target) {
-        console.error('Invalid connection params:', params);
+        console.error(`[EventFlow ${instanceId.current}] Invalid connection params:`, params);
         return;
       }
+      
+      console.log(`[EventFlow ${instanceId.current}] Connection created: ${params.source} -> ${params.target}`);
       
       // Check if source is a decision node
       const isDecisionSource = params.source.startsWith('decision-');
@@ -608,10 +690,10 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         },
       };
       
-      setEdges((eds) => addEdge(newEdge, eds));
-      
       // If the schema exists and connection is not from/to a decision node, update it
       if (simSchema && !isDecisionSource && !params.target.startsWith('decision-')) {
+        console.log(`[EventFlow ${instanceId.current}] Updating schema with new connection`);
+        
         // Create a copy of the schema to modify
         const updatedSchema = { ...simSchema };
         
@@ -633,6 +715,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         
         if (!sourceTransition) {
           // Create a new transition entry
+          console.log(`[EventFlow ${instanceId.current}] Creating new transition for source: ${params.source}`);
           sourceTransition = {
             from: params.source,
             to: []
@@ -645,6 +728,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         
         if (!existingTarget) {
           // Add the new target with 100% probability
+          console.log(`[EventFlow ${instanceId.current}] Adding new target: ${params.target}`);
           sourceTransition.to.push({
             event_type: params.target,
             probability: 1.0
@@ -653,6 +737,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
           // If there were already other targets, adjust probabilities
           if (sourceTransition.to.length > 1) {
             const newProb = 1.0 / sourceTransition.to.length;
+            console.log(`[EventFlow ${instanceId.current}] Adjusting probabilities to: ${newProb}`);
             sourceTransition.to.forEach(target => {
               target.probability = newProb;
             });
@@ -665,16 +750,20 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         // Convert to YAML and notify parent
         const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
         if (onDiagramChange) {
+          console.log(`[EventFlow ${instanceId.current}] Notifying parent of YAML change from connection`);
+          lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
           onDiagramChange(updatedYaml);
         }
       }
     },
-    [setEdges, simSchema, onDiagramChange]
+    [simSchema, onDiagramChange]
   );
   
   // Handle node drag end
   const onNodeDragStop = useCallback(
     (event, node) => {
+      console.log(`[EventFlow ${instanceId.current}] Node moved: ${node.id}`, node.position);
+      
       // Update the position in our node state
       setNodes(nds => 
         nds.map(n => {
@@ -684,8 +773,6 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
           return n;
         })
       );
-      
-      console.log('Node moved:', node);
     },
     [setNodes]
   );
@@ -693,6 +780,8 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node deletion
   const onNodesDelete = useCallback(
     (deleted) => {
+      console.log(`[EventFlow ${instanceId.current}] Nodes deleted:`, deleted.map(n => n.id));
+      
       if (!simSchema || !simSchema.event_simulation || 
           !simSchema.event_simulation.event_sequence) return;
       
@@ -702,33 +791,44 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
       
       // Filter out decision nodes from deleted nodes to find actual events
       const deletedEvents = deleted.filter(node => !node.id.startsWith('decision-'));
+      console.log(`[EventFlow ${instanceId.current}] Filtered ${deletedEvents.length} actual events to delete`);
       
       // Remove the deleted event types
       if (eventSequence.event_types) {
+        const originalCount = eventSequence.event_types.length;
         eventSequence.event_types = eventSequence.event_types.filter(
           event => !deletedEvents.some(node => node.id === event.name)
         );
+        console.log(`[EventFlow ${instanceId.current}] Removed ${originalCount - eventSequence.event_types.length} event types`);
       }
       
       // Remove transitions involving deleted events
       if (eventSequence.transitions) {
         // Remove transitions from deleted events
+        const originalTransitionCount = eventSequence.transitions.length;
         eventSequence.transitions = eventSequence.transitions.filter(
           transition => !deletedEvents.some(node => node.id === transition.from)
         );
+        console.log(`[EventFlow ${instanceId.current}] Removed ${originalTransitionCount - eventSequence.transitions.length} transitions`);
         
         // Remove destinations to deleted events
         eventSequence.transitions.forEach(transition => {
           if (transition.to) {
+            const originalDestCount = transition.to.length;
             transition.to = transition.to.filter(
               dest => !deletedEvents.some(node => node.id === dest.event_type)
             );
+            
+            if (originalDestCount !== transition.to.length) {
+              console.log(`[EventFlow ${instanceId.current}] Removed ${originalDestCount - transition.to.length} destinations from transition: ${transition.from}`);
+            }
             
             // If any destinations remain, recalculate probabilities
             if (transition.to.length > 0) {
               const totalProb = transition.to.reduce((sum, dest) => sum + dest.probability, 0);
               if (totalProb > 0 && totalProb < 1.0) {
                 // Normalize probabilities to sum to 1.0
+                console.log(`[EventFlow ${instanceId.current}] Normalizing probabilities for transition: ${transition.from}`);
                 transition.to.forEach(dest => {
                   dest.probability = dest.probability / totalProb;
                 });
@@ -738,9 +838,13 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         });
         
         // Remove transitions with no destinations
+        const transitionsWithDestinations = eventSequence.transitions.length;
         eventSequence.transitions = eventSequence.transitions.filter(
           transition => transition.to && transition.to.length > 0
         );
+        if (transitionsWithDestinations !== eventSequence.transitions.length) {
+          console.log(`[EventFlow ${instanceId.current}] Removed ${transitionsWithDestinations - eventSequence.transitions.length} transitions with no destinations`);
+        }
       }
       
       // Update the schema state
@@ -749,6 +853,8 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
       // Convert to YAML and notify parent
       const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
       if (onDiagramChange) {
+        console.log(`[EventFlow ${instanceId.current}] Notifying parent of YAML change from deletion`);
+        lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
         onDiagramChange(updatedYaml);
       }
     },
@@ -803,8 +909,6 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
             }
             return n;
           });
-          
-          setNodes(updatedNodes);
           
           // Update transitions with the new event name
           if (eventSequence.transitions) {
@@ -870,19 +974,6 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
             
             setEdges(updatedEdges);
           }
-        } else {
-          // Just update the node data
-          setNodes(
-            nodes.map(n => {
-              if (n.id === selectedNode.id) {
-                return {
-                  ...n,
-                  data: updatedNode.data
-                };
-              }
-              return n;
-            })
-          );
         }
         
         // Update the schema state
@@ -895,7 +986,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         }
       }
     },
-    [simSchema, selectedNode, nodes, edges, setNodes, setEdges, onDiagramChange]
+    [simSchema, selectedNode, onDiagramChange]
   );
 
   // Handle node deletion from modal

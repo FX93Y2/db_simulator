@@ -203,10 +203,22 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
+  const instanceId = useRef(`erdiagram-${Math.random().toString(36).substr(2, 9)}`);
+  const lastYamlContent = useRef(yamlContent);
+  const yamlParsingInProgress = useRef(false);
+
+  // Log component mount/unmount
+  useEffect(() => {
+    console.log(`[ERDiagram ${instanceId.current}] Component mounted, initial YAML length: ${yamlContent ? yamlContent.length : 0}`);
+    return () => {
+      console.log(`[ERDiagram ${instanceId.current}] Component unmounting`);
+    };
+  }, []);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
+      console.log(`[ERDiagram ${instanceId.current}] Container ref initialized, setting initialized flag`);
       setInitialized(true);
     }
   }, []);
@@ -214,12 +226,51 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Parse YAML to extract entities
   useEffect(() => {
     try {
-      if (!yamlContent) return;
+      console.log(`[ERDiagram ${instanceId.current}] YAML content effect triggered`, {
+        hasContent: !!yamlContent,
+        yamlLength: yamlContent ? yamlContent.length : 0,
+        hasChanged: yamlContent !== lastYamlContent.current
+      });
+
+      if (!yamlContent) {
+        console.log(`[ERDiagram ${instanceId.current}] No YAML content provided, skipping update`);
+        return;
+      }
       
-      const parsedYaml = jsYaml.load(yamlContent);
-      setDbSchema(parsedYaml);
+      // Force parse on first run, or if content changed
+      const shouldForceUpdate = !lastYamlContent.current || yamlContent !== lastYamlContent.current;
+      
+      // Skip only if the exact same content is already in progress
+      if (!shouldForceUpdate && yamlParsingInProgress.current) {
+        console.log(`[ERDiagram ${instanceId.current}] YAML parsing already in progress, skipping`);
+        return;
+      }
+
+      // Update the ref to track current content
+      lastYamlContent.current = yamlContent;
+      yamlParsingInProgress.current = true;
+      
+      console.log(`[ERDiagram ${instanceId.current}] Processing YAML content...`);
+      let parsedYaml;
+      try {
+        parsedYaml = jsYaml.load(yamlContent);
+        console.log(`[ERDiagram ${instanceId.current}] YAML parsed successfully:`, {
+          hasEntities: parsedYaml && !!parsedYaml.entities,
+          entityCount: parsedYaml && parsedYaml.entities ? parsedYaml.entities.length : 0,
+          yaml: yamlContent.substring(0, 100) + (yamlContent.length > 100 ? '...' : '')
+        });
+      } catch (parseError) {
+        console.error(`[ERDiagram ${instanceId.current}] Error parsing YAML:`, parseError);
+        yamlParsingInProgress.current = false;
+        return;
+      }
+      
+      // Always update dbSchema, even if it appears to be the same object
+      // This ensures React will register the change
+      setDbSchema(JSON.parse(JSON.stringify(parsedYaml)));
       
       if (parsedYaml && parsedYaml.entities) {
+        console.log(`[ERDiagram ${instanceId.current}] Processing ${parsedYaml.entities.length} entities...`);
         const entityNodes = [];
         const relationEdges = [];
         
@@ -228,6 +279,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           const xPos = (index % 3) * 300 + 50;
           const yPos = Math.floor(index / 3) * 300 + 50;
           
+          console.log(`[ERDiagram ${instanceId.current}] Creating node for entity: ${entity.name}`);
           entityNodes.push({
             id: entity.name,
             type: 'entity',
@@ -245,6 +297,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             entity.attributes.forEach(attr => {
               if (attr.type === 'fk' && attr.ref) {
                 const [targetEntity] = attr.ref.split('.');
+                console.log(`[ERDiagram ${instanceId.current}] Creating edge: ${entity.name} -> ${targetEntity}`);
                 relationEdges.push({
                   id: `${entity.name}-${targetEntity}`,
                   source: entity.name,
@@ -267,22 +320,31 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           }
         });
         
+        console.log(`[ERDiagram ${instanceId.current}] Setting nodes (${entityNodes.length}) and edges (${relationEdges.length})`);
         setNodes(entityNodes);
         setEdges(relationEdges);
+      } else {
+        console.log(`[ERDiagram ${instanceId.current}] No entities found in YAML, clearing diagram`);
+        setNodes([]);
+        setEdges([]);
       }
+      yamlParsingInProgress.current = false;
     } catch (error) {
-      console.error('Error parsing YAML for ER diagram:', error);
+      yamlParsingInProgress.current = false;
+      console.error(`[ERDiagram ${instanceId.current}] Error processing YAML:`, error);
     }
-  }, [yamlContent, setNodes, setEdges]);
+  }, [yamlContent]);
   
   // Handle connecting nodes
   const onConnect = useCallback(
     (params) => {
       // Validate connection params
       if (!params.source || !params.target) {
-        console.error('Invalid connection params:', params);
+        console.error(`[ERDiagram ${instanceId.current}] Invalid connection params:`, params);
         return;
       }
+      
+      console.log(`[ERDiagram ${instanceId.current}] Connection created: ${params.source} -> ${params.target}`);
       
       // When a connection is made, we need to update the YAML
       const newEdge = { 
@@ -299,11 +361,9 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         },
       };
       
-      setEdges((eds) => addEdge(newEdge, eds));
-      
       // Only proceed if dbSchema exists
       if (!dbSchema || !dbSchema.entities) {
-        console.error('No schema available for edge creation');
+        console.error(`[ERDiagram ${instanceId.current}] No schema available for edge creation`);
         return;
       }
       
@@ -312,6 +372,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       const targetEntity = dbSchema.entities.find(e => e.name === params.target);
       
       if (sourceEntity && targetEntity) {
+        console.log(`[ERDiagram ${instanceId.current}] Updating schema to add FK from ${sourceEntity.name} to ${targetEntity.name}`);
+        
         // Add a foreign key to the source entity
         if (!sourceEntity.attributes) {
           sourceEntity.attributes = [];
@@ -334,17 +396,21 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           
           // Call the parent's callback with the updated YAML content
           if (onDiagramChange) {
+            console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from connection`);
+            lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
             onDiagramChange(updatedYaml);
           }
         }
       }
     },
-    [setEdges, dbSchema, onDiagramChange]
+    [dbSchema, onDiagramChange]
   );
   
   // Handle node movement
   const onNodeDragStop = useCallback(
     (event, node) => {
+      console.log(`[ERDiagram ${instanceId.current}] Node moved: ${node.id}`, node.position);
+      
       // Update the position in our node state
       setNodes(nds => 
         nds.map(n => {
@@ -354,8 +420,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           return n;
         })
       );
-      
-      console.log('Node moved:', node);
     },
     [setNodes]
   );
@@ -363,6 +427,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node deletion
   const onNodesDelete = useCallback(
     (deleted) => {
+      console.log(`[ERDiagram ${instanceId.current}] Nodes deleted:`, deleted.map(n => n.id));
+      
       if (!dbSchema || !dbSchema.entities) return;
       
       // Create a copy of the schema to modify
@@ -373,12 +439,19 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         entity => !deleted.some(node => node.id === entity.name)
       );
       
+      console.log(`[ERDiagram ${instanceId.current}] Updated schema after deletion:`, {
+        originalCount: dbSchema.entities.length,
+        newCount: updatedSchema.entities.length
+      });
+      
       // Update the schema state
       setDbSchema(updatedSchema);
       
       // Convert to YAML and notify parent
       const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
       if (onDiagramChange) {
+        console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from deletion`);
+        lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
         onDiagramChange(updatedYaml);
       }
     },
@@ -388,6 +461,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node double click
   const onNodeDoubleClick = useCallback(
     (event, node) => {
+      console.log(`[ERDiagram ${instanceId.current}] Node double-clicked: ${node.id}`);
       setSelectedNode(node);
       setShowNodeModal(true);
     },
@@ -397,7 +471,16 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node update from modal
   const handleNodeUpdate = useCallback(
     (updatedNode) => {
-      if (!dbSchema || !dbSchema.entities) return;
+      console.log(`[ERDiagram ${instanceId.current}] Node update requested:`, {
+        nodeId: updatedNode.id,
+        newLabel: updatedNode.data.label,
+        attributeCount: updatedNode.data.attributes.length
+      });
+      
+      if (!dbSchema || !dbSchema.entities) {
+        console.warn(`[ERDiagram ${instanceId.current}] Cannot update node, schema not available`);
+        return;
+      }
       
       // Create a copy of the schema to modify
       const updatedSchema = { ...dbSchema };
@@ -408,6 +491,16 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       );
       
       if (entityIndex !== -1) {
+        const oldName = updatedSchema.entities[entityIndex].name;
+        const newName = updatedNode.data.label;
+        
+        console.log(`[ERDiagram ${instanceId.current}] Updating entity:`, {
+          entityIndex,
+          oldName,
+          newName,
+          nameChanged: oldName !== newName
+        });
+        
         // Update the entity
         updatedSchema.entities[entityIndex] = {
           name: updatedNode.data.label,
@@ -416,6 +509,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         
         // Update related foreign keys if name changed
         if (selectedNode.id !== updatedNode.data.label) {
+          console.log(`[ERDiagram ${instanceId.current}] Entity name changed, updating references`);
+          
           // Update nodes with new ID
           const updatedNodes = nodes.map(n => {
             if (n.id === selectedNode.id) {
@@ -430,8 +525,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             }
             return n;
           });
-          
-          setNodes(updatedNodes);
           
           // Update edges if entity name changed
           const updatedEdges = edges.map(edge => {
@@ -450,23 +543,11 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             return newEdge;
           });
           
+          console.log(`[ERDiagram ${instanceId.current}] Setting updated nodes and edges`);
+          setNodes(updatedNodes);
           setEdges(updatedEdges);
         } else {
-          // Just update the node data
-          setNodes(
-            nodes.map(n => {
-              if (n.id === selectedNode.id) {
-                return {
-                  ...n,
-                  data: {
-                    ...n.data,
-                    attributes: updatedNode.data.attributes
-                  }
-                };
-              }
-              return n;
-            })
-          );
+          console.log(`[ERDiagram ${instanceId.current}] Only attributes changed, no need to update references`);
         }
         
         // Update the schema state
@@ -475,11 +556,15 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         // Convert to YAML and notify parent
         const updatedYaml = jsYaml.dump(updatedSchema, { lineWidth: 120 });
         if (onDiagramChange) {
+          console.log(`[ERDiagram ${instanceId.current}] Notifying parent of YAML change from node update`);
+          lastYamlContent.current = updatedYaml; // Update ref to prevent reprocessing
           onDiagramChange(updatedYaml);
         }
+      } else {
+        console.warn(`[ERDiagram ${instanceId.current}] Entity not found for update:`, selectedNode.id);
       }
     },
-    [dbSchema, selectedNode, nodes, edges, setNodes, setEdges, onDiagramChange]
+    [dbSchema, selectedNode, nodes, edges, onDiagramChange]
   );
 
   // Handle node deletion from modal
