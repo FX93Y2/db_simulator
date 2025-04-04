@@ -1360,24 +1360,64 @@ class EventSimulator:
                     next_event_type = self._get_next_event_type(event_type)
                     
                     if next_event_type:
+                        # --- Start: Logic copied and adapted from _create_events --- 
+                        event_entity_config = self._get_entity_config(event_table)
+                        if not event_entity_config:
+                            logger.error(f"Database configuration not found for event entity: {event_table} when creating next event")
+                            # Decide how to handle this - maybe stop processing for this entity?
+                            return 
+
                         # Get the next ID for the new event
                         sql_query = text(f"SELECT MAX(id) FROM {event_table}")
                         result = session.execute(sql_query).fetchone()
                         next_id = (result[0] or 0) + 1
                         
-                        # Create the next event - Only insert essential columns (id, fk, type)
-                        # Other attributes should be handled by db generation.
-                        sql_query = text(
-                            f"INSERT INTO {event_table} (id, {relationship_column}, {event_type_column}) "
-                            f"VALUES (:id, :entity_id, :event_type)"
-                        )
-                        session.execute(sql_query, {
-                            "id": next_id, 
-                            "entity_id": entity_id, 
-                            "event_type": next_event_type
-                        })
+                        # Prepare data for the new event row, including generated attributes
+                        row_data = {
+                            "id": next_id,
+                            relationship_column: entity_id,
+                            event_type_column: next_event_type
+                        }
+
+                        # Generate values for other attributes
+                        for attr in event_entity_config.attributes:
+                            # Skip PK, the FK to the entity, and the event type column
+                            if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
+                                continue
+                            
+                            # Skip other Foreign Keys for now
+                            if attr.is_foreign_key:
+                                continue
+
+                            if attr.generator:
+                                # Special handling for 'simulation_event' generator type - skip it
+                                if attr.generator.type == 'simulation_event':
+                                    continue 
+                                    
+                                gen_dict = dataclasses.asdict(attr.generator)
+                                attr_config_dict = {
+                                    'name': attr.name,
+                                    'generator': gen_dict
+                                }
+                                # Use next_id - 1 for 0-based row_index context
+                                row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
+                            else:
+                                # Handle attributes without generators if needed (e.g., let DB handle defaults)
+                                pass
+
+                        # Build INSERT statement dynamically
+                        columns = ", ".join(row_data.keys())
+                        placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+                        sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
+
+                        logger.debug(f"Creating next event in {event_table} with data: {row_data}")
+                        session.execute(sql_query, row_data)
+                        # --- End: Logic copied and adapted from _create_events --- 
                         
-                        # Commit the changes
+                        # Commit the changes for the new event immediately?
+                        # Or commit might happen when the session context manager exits?
+                        # Let's rely on the session commit at the end of _generate_entities or similar process start point.
+                        # Re-evaluating: The original code committed here. Let's keep that.
                         session.commit()
                         
                         # Process the new event

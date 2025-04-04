@@ -497,6 +497,31 @@ def generate_and_simulate():
         # Generate complete database with all tables
         # Pass the project_id to ensure correct directory structure
         logger.info(f"Generating database with project_id: {project_id}")
+        
+        # --- Explicitly delete existing DB file first --- 
+        try:
+            # Construct preliminary path to check for existence before generation logic determines final name
+            preliminary_db_name = db_name or db_config.get('name', 'database') # Use provided name or fallback
+            if not preliminary_db_name.endswith('.db'):
+                preliminary_db_name += '.db'
+                
+            target_dir = os.path.join(output_dir, project_id) if project_id else output_dir
+            preliminary_db_path = os.path.join(target_dir, preliminary_db_name)
+            
+            logger.info(f"Checking for existing database file at: {preliminary_db_path}")
+            if os.path.exists(preliminary_db_path):
+                logger.warning(f"Attempting to delete existing database file: {preliminary_db_path}")
+                os.remove(preliminary_db_path)
+                if not os.path.exists(preliminary_db_path):
+                    logger.info("Successfully deleted existing database file.")
+                else:
+                    logger.error("Failed to delete existing database file!")
+            else:
+                logger.info("No existing database file found at preliminary path.")
+        except Exception as del_err:
+            logger.error(f"Error trying to delete existing database file: {del_err}")
+        # --- Deletion attempt finished --- 
+        
         db_path = generate_database(
             db_config['content'], 
             output_dir,
@@ -545,7 +570,12 @@ def generate_and_simulate():
         
         # Run simulation
         logger.info(f"Running simulation using database at: {db_path}")
-        results = run_simulation(sim_config['content'], db_path)
+        # Pass both sim and db config content to run_simulation
+        results = run_simulation(
+            sim_config_path_or_content=sim_config['content'], 
+            db_config_path_or_content=db_config['content'], 
+            db_path=db_path
+        )
         
         # Verify database file after simulation
         if os.path.exists(db_path):

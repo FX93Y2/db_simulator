@@ -109,3 +109,4 @@ logger = logging.getLogger(__name__)
 #     logger.warning("faker_utils not found, faker generator will not work correctly.")
 #     def generate_fake_data(method):
 #         return f"Fake_{method}"
+
