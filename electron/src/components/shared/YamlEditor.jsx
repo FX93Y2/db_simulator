@@ -17,14 +17,54 @@ const YamlEditor = ({
   const valueChangeTimeoutRef = useRef(null);
   const editorInstanceId = useRef(`editor-${Math.random().toString(36).substr(2, 9)}`);
   const lastValueRef = useRef(initialValue || '');
+  const focusTimeoutRef = useRef(null);
 
   // Log component initialization
   useEffect(() => {
     console.log(`[YamlEditor ${editorInstanceId.current}] Initialized with initialValue length: ${initialValue ? initialValue.length : 0}`);
+    
+    // Add global event listeners to help restore focus
+    const handleWindowFocus = () => {
+      // When window gets focus, make sure editor can be focused
+      if (monacoRef.current) {
+        // Reset editor context
+        try {
+          monacoRef.current.updateOptions({
+            readOnly: false
+          });
+        } catch (err) {
+          console.error(`[YamlEditor ${editorInstanceId.current}] Error updating options:`, err);
+        }
+      }
+    };
+    
+    window.addEventListener('focus', handleWindowFocus);
+    
     return () => {
+      window.removeEventListener('focus', handleWindowFocus);
+      if (focusTimeoutRef.current) {
+        clearTimeout(focusTimeoutRef.current);
+      }
       console.log(`[YamlEditor ${editorInstanceId.current}] Component unmounting`);
     };
   }, []);
+
+  // Helper to focus and reset editor state
+  const resetEditorFocus = () => {
+    if (monacoRef.current) {
+      try {
+        // Force editor to refresh its focus state
+        monacoRef.current.focus();
+        
+        // Force a layout recomputation which can help with focus
+        monacoRef.current.layout();
+        
+        console.log(`[YamlEditor ${editorInstanceId.current}] Editor focus reset`);
+      } catch (err) {
+        console.error(`[YamlEditor ${editorInstanceId.current}] Error resetting focus:`, err);
+      }
+    }
+  };
 
   // Initialize editor
   useEffect(() => {
@@ -63,7 +103,10 @@ const YamlEditor = ({
         minimap: { enabled: true },
         scrollBeyondLastLine: false,
         readOnly,
-        wordWrap: 'on'
+        wordWrap: 'on',
+        // Improve focus handling
+        tabIndex: 0,
+        renderValidationDecorations: 'on'
       });
 
       // Update state when content changes
@@ -88,16 +131,33 @@ const YamlEditor = ({
           }, 1000); // 1 second debounce
         }
       });
+      
+      // Track focus state
+      editor.onDidFocusEditorWidget(() => {
+        console.log(`[YamlEditor ${editorInstanceId.current}] Editor gained focus`);
+      });
+      
+      editor.onDidBlurEditorWidget(() => {
+        console.log(`[YamlEditor ${editorInstanceId.current}] Editor lost focus`);
+      });
 
       monacoRef.current = editor;
       setIsEditorReady(true);
 
       console.log(`[YamlEditor ${editorInstanceId.current}] Editor created successfully`);
+      
+      // Set initial focus after creation
+      focusTimeoutRef.current = setTimeout(() => {
+        resetEditorFocus();
+      }, 200);
 
       // Cleanup
       return () => {
         if (valueChangeTimeoutRef.current) {
           clearTimeout(valueChangeTimeoutRef.current);
+        }
+        if (focusTimeoutRef.current) {
+          clearTimeout(focusTimeoutRef.current);
         }
         console.log(`[YamlEditor ${editorInstanceId.current}] Disposing editor instance`);
         editor.dispose();
@@ -127,6 +187,11 @@ const YamlEditor = ({
         lastValueRef.current = initialValue;
         monacoRef.current.setValue(initialValue);
         setValue(initialValue);
+        
+        // Reset focus state after content change
+        focusTimeoutRef.current = setTimeout(() => {
+          resetEditorFocus();
+        }, 100);
       }
     }
   }, [initialValue]);
@@ -166,6 +231,16 @@ const YamlEditor = ({
       setValue(initialValue);
     }
   };
+  
+  // Handle container click to ensure editor gets focus
+  const handleContainerClick = (e) => {
+    // If we clicked directly on the container but not in the editor,
+    // we should focus the editor
+    if (e.target === containerRef.current && monacoRef.current) {
+      console.log(`[YamlEditor ${editorInstanceId.current}] Container clicked, focusing editor`);
+      resetEditorFocus();
+    }
+  };
 
   return (
     <div className="yaml-editor">
@@ -178,6 +253,8 @@ const YamlEditor = ({
           borderRadius: '4px',
           overflow: 'hidden'
         }}
+        onClick={handleContainerClick}
+        tabIndex={-1} // Make sure container is in tab order
       >
         {!isEditorReady && (
           <div className="text-center p-4">

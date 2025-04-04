@@ -21,6 +21,8 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
   const [name, setName] = useState('');
   const [attributes, setAttributes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const nameInputRef = useRef(null);
+  const modalRef = useRef(null);
 
   // Initialize form when node changes
   useEffect(() => {
@@ -29,6 +31,35 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
       setAttributes(node.data?.attributes || []);
     }
   }, [node]);
+
+  // Focus name input when modal shows
+  useEffect(() => {
+    if (show && nameInputRef.current) {
+      // Delay focus to ensure modal is fully rendered
+      setTimeout(() => {
+        try {
+          nameInputRef.current.focus();
+          console.log('NodeDetailsModal: Set focus to name input');
+        } catch (err) {
+          console.error('NodeDetailsModal: Error focusing name input:', err);
+        }
+      }, 100);
+    }
+  }, [show]);
+
+  // Handle key events for the modal
+  const handleKeyDown = (e) => {
+    // Close modal on escape
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onHide();
+    }
+    // Submit on ctrl+enter or cmd+enter
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   const handleSubmit = () => {
     setIsLoading(true);
@@ -73,6 +104,8 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
       size="lg"
       backdrop="static"
       className="node-details-modal"
+      onKeyDown={handleKeyDown}
+      ref={modalRef}
     >
       <Modal.Header closeButton>
         <Modal.Title>Entity Details</Modal.Title>
@@ -87,10 +120,12 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
             <Form.Group className="mb-3">
               <Form.Label>Entity Name</Form.Label>
               <Form.Control
+                ref={nameInputRef}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter entity name"
+                autoFocus
               />
             </Form.Group>
             
@@ -206,6 +241,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const instanceId = useRef(`erdiagram-${Math.random().toString(36).substr(2, 9)}`);
   const lastYamlContent = useRef(yamlContent);
   const yamlParsingInProgress = useRef(false);
+  const flowWrapperRef = useRef(null);
 
   // Log component mount/unmount
   useEffect(() => {
@@ -575,6 +611,28 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     [onNodesDelete]
   );
 
+  // Force focus to the ReactFlow container - this can help with keyboard interactions
+  const forceFocus = useCallback(() => {
+    if (flowWrapperRef.current) {
+      try {
+        // Try to give focus to the wrapper
+        flowWrapperRef.current.focus();
+        console.log(`[ERDiagram ${instanceId.current}] Forced focus to flow wrapper`);
+      } catch (error) {
+        console.error(`[ERDiagram ${instanceId.current}] Error forcing focus:`, error);
+      }
+    }
+  }, []);
+
+  // Handle click on container to ensure proper focus
+  const handleContainerClick = useCallback((e) => {
+    // Only handle direct clicks on the container
+    if (e.target === flowWrapperRef.current) {
+      console.log(`[ERDiagram ${instanceId.current}] Container clicked, ensuring focus`);
+      forceFocus();
+    }
+  }, [forceFocus]);
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
@@ -583,8 +641,6 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         className="er-diagram-container" 
         style={{ 
           width: '100%', 
-          // height: '600px', // Let parent control height
-          // border: '1px solid #ddd', // REMOVE inline border
           borderRadius: '4px',
           overflow: 'hidden'
         }} 
@@ -597,32 +653,37 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       className="er-diagram-container" 
       style={{ 
         width: '100%', 
-        // height: '600px', // Let parent control height
-        // border: '1px solid #ddd', // REMOVE inline border
         borderRadius: '4px',
         overflow: 'hidden'
       }} 
       ref={containerRef}
+      onClick={handleContainerClick}
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onNodesDelete={onNodesDelete}
-        onNodeDoubleClick={onNodeDoubleClick}
-        nodeTypes={nodeTypes}
-        fitView
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        deleteKeyCode="Delete"
-        multiSelectionKeyCode="Shift"
+      <div 
+        ref={flowWrapperRef}
+        style={{ width: '100%', height: '100%' }}
+        tabIndex={0} // Make focusable
       >
-        <Controls />
-        <MiniMap />
-        <Background color="var(--theme-border)" gap={16} />
-      </ReactFlow>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          onNodeDoubleClick={onNodeDoubleClick}
+          nodeTypes={nodeTypes}
+          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          deleteKeyCode="Delete"
+          multiSelectionKeyCode="Shift"
+        >
+          <Controls />
+          <MiniMap />
+          <Background color="var(--theme-border)" gap={16} />
+        </ReactFlow>
+      </div>
       
       <NodeDetailsModal
         show={showNodeModal}

@@ -23,6 +23,8 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
   const [duration, setDuration] = useState({ distribution: { type: 'normal', mean: 1, stddev: 0.5 } });
   const [resources, setResources] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const nameInputRef = useRef(null);
+  const modalRef = useRef(null);
 
   // Initialize form when node changes
   useEffect(() => {
@@ -34,6 +36,35 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
       setResources(node.data.resource_requirements || []);
     }
   }, [node]);
+
+  // Focus name input when modal shows
+  useEffect(() => {
+    if (show && nameInputRef.current) {
+      // Delay focus to ensure modal is fully rendered
+      setTimeout(() => {
+        try {
+          nameInputRef.current.focus();
+          console.log('EventNodeDetailsModal: Set focus to name input');
+        } catch (err) {
+          console.error('EventNodeDetailsModal: Error focusing name input:', err);
+        }
+      }, 100);
+    }
+  }, [show]);
+
+  // Handle key events for the modal
+  const handleKeyDown = (e) => {
+    // Close modal on escape
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      onHide();
+    }
+    // Submit on ctrl+enter or cmd+enter
+    else if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
 
   const handleSubmit = () => {
     setIsLoading(true);
@@ -92,6 +123,8 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
       size="lg"
       backdrop="static"
       className="node-details-modal"
+      onKeyDown={handleKeyDown}
+      ref={modalRef}
     >
       <Modal.Header closeButton>
         <Modal.Title>Event Details</Modal.Title>
@@ -106,10 +139,12 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
             <Form.Group className="mb-3">
               <Form.Label>Event Name</Form.Label>
               <Form.Control
+                ref={nameInputRef}
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter event name"
+                autoFocus
               />
             </Form.Group>
             
@@ -382,6 +417,7 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
   const instanceId = useRef(`eventflow-${Math.random().toString(36).substr(2, 9)}`);
   const lastYamlContent = useRef(yamlContent);
   const yamlParsingInProgress = useRef(false);
+  const flowWrapperRef = useRef(null);
   
   // Log component mount/unmount
   useEffect(() => {
@@ -997,6 +1033,28 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
     [onNodesDelete]
   );
 
+  // Force focus to the ReactFlow container - this can help with keyboard interactions
+  const forceFocus = useCallback(() => {
+    if (flowWrapperRef.current) {
+      try {
+        // Try to give focus to the wrapper
+        flowWrapperRef.current.focus();
+        console.log(`[EventFlow ${instanceId.current}] Forced focus to flow wrapper`);
+      } catch (error) {
+        console.error(`[EventFlow ${instanceId.current}] Error forcing focus:`, error);
+      }
+    }
+  }, []);
+
+  // Handle click on container to ensure proper focus
+  const handleContainerClick = useCallback((e) => {
+    // Only handle direct clicks on the container
+    if (e.target === flowWrapperRef.current) {
+      console.log(`[EventFlow ${instanceId.current}] Container clicked, ensuring focus`);
+      forceFocus();
+    }
+  }, [forceFocus]);
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
@@ -1021,27 +1079,34 @@ const EventFlow = ({ yamlContent, onDiagramChange, theme }) => {
         overflow: 'hidden'
       }} 
       ref={containerRef}
+      onClick={handleContainerClick}
     >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onNodesDelete={onNodesDelete}
-        onNodeDoubleClick={onNodeDoubleClick}
-        nodeTypes={nodeTypes}
-        fitView
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        zoomOnScroll={false}
-        deleteKeyCode="Delete"
-        multiSelectionKeyCode="Shift"
+      <div 
+        ref={flowWrapperRef}
+        style={{ width: '100%', height: '100%' }}
+        tabIndex={0} // Make focusable
       >
-        <Controls />
-        <MiniMap />
-        <Background color="var(--theme-border)" gap={16} />
-      </ReactFlow>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          onNodeDoubleClick={onNodeDoubleClick}
+          nodeTypes={nodeTypes}
+          fitView
+          defaultViewport={{ x: 0, y: 0, zoom: 1 }}
+          zoomOnScroll={false}
+          deleteKeyCode="Delete"
+          multiSelectionKeyCode="Shift"
+        >
+          <Controls />
+          <MiniMap />
+          <Background color="var(--theme-border)" gap={16} />
+        </ReactFlow>
+      </div>
       
       <EventNodeDetailsModal
         show={showNodeModal}
