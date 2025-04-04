@@ -851,7 +851,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
         nodeTypes={nodeTypes}
         fitView
         defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        zoomOnScroll={false}
+        zoomOnScroll={true}
         deleteKeyCode="Delete"
         multiSelectionKeyCode="Shift"
       >
