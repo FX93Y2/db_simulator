@@ -203,6 +203,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
+  const [schemaId, setSchemaId] = useState(null);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -210,6 +211,34 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setInitialized(true);
     }
   }, []);
+
+  // Generate a consistent ID for the schema based on its entities
+  useEffect(() => {
+    if (yamlContent) {
+      try {
+        const parsedDoc = yaml.parseDocument(yamlContent);
+        const parsedYaml = parsedDoc.toJSON();
+        
+        if (parsedYaml) {
+          // Generate a more stable ID that doesn't change when entities are added/removed
+          // This uses a hash of the first part of the YAML content
+          const yamlPrefix = yamlContent.substring(0, 100).replace(/\s+/g, '');
+          let stableId = '';
+          
+          // Simple hash function to create a stable ID
+          for (let i = 0; i < yamlPrefix.length; i++) {
+            stableId += yamlPrefix.charCodeAt(i);
+          }
+          
+          const id = `er_diagram_positions_${stableId}`;
+          console.log('[ERDiagram] Generated stable schema ID:', id);
+          setSchemaId(id);
+        }
+      } catch (error) {
+        console.error('[ERDiagram] Error generating schema ID:', error);
+      }
+    }
+  }, [yamlContent]);
 
   // Parse YAML to extract entities
   useEffect(() => {
@@ -233,15 +262,32 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         const entityNodes = [];
         const relationEdges = [];
         
+        // Try to load saved positions from localStorage
+        let savedPositions = {};
+        if (schemaId) {
+          try {
+            const savedData = localStorage.getItem(schemaId);
+            if (savedData) {
+              savedPositions = JSON.parse(savedData);
+              console.log("[ERDiagram] Loaded saved positions:", savedPositions);
+            }
+          } catch (err) {
+            console.error("[ERDiagram] Error loading saved positions:", err);
+            savedPositions = {};
+          }
+        }
+        
         // Create nodes for each entity
         parsedYaml.entities.forEach((entity, index) => {
-          const xPos = (index % 3) * 300 + 50;
-          const yPos = Math.floor(index / 3) * 300 + 50;
+          // Use saved position if available, otherwise use default positioning
+          const position = savedPositions[entity.name] 
+            ? savedPositions[entity.name] 
+            : { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
           
           entityNodes.push({
             id: entity.name,
             type: 'entity',
-            position: { x: xPos, y: yPos },
+            position: position,
             data: { 
               label: entity.name,
               attributes: entity.attributes || []
@@ -291,7 +337,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setNodes([]);
       setEdges([]);
     }
-  }, [yamlContent, theme]);
+  }, [yamlContent, theme, schemaId]);
   
   // Handle connecting nodes
   const onConnect = useCallback(
@@ -345,8 +391,26 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       );
       
       console.log('Node moved:', node);
+      
+      // Save positions to localStorage
+      if (schemaId) {
+        try {
+          // Get existing positions or initialize empty object
+          const savedData = localStorage.getItem(schemaId);
+          let positions = savedData ? JSON.parse(savedData) : {};
+          
+          // Update position for the dragged node
+          positions[node.id] = node.position;
+          
+          // Save back to localStorage
+          localStorage.setItem(schemaId, JSON.stringify(positions));
+          console.log(`[ERDiagram] Saved positions to localStorage with key: ${schemaId}`);
+        } catch (err) {
+          console.error('[ERDiagram] Error saving positions to localStorage:', err);
+        }
+      }
     },
-    [setNodes]
+    [setNodes, schemaId]
   );
 
   // Handle node deletion
@@ -378,9 +442,32 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           console.log("[ERDiagram] Calling onDiagramChange with updated schema object after delete:", updatedSchema);
           onDiagramChange(updatedSchema);
         }
+        
+        // Remove the deleted node positions from localStorage
+        if (schemaId) {
+          try {
+            const savedData = localStorage.getItem(schemaId);
+            if (savedData) {
+              let positions = JSON.parse(savedData);
+              
+              // Remove positions for all deleted nodes
+              deletedIds.forEach(id => {
+                if (positions[id]) {
+                  console.log(`[ERDiagram] Removing position for deleted node: ${id}`);
+                  delete positions[id];
+                }
+              });
+              
+              // Save the updated positions back to localStorage
+              localStorage.setItem(schemaId, JSON.stringify(positions));
+            }
+          } catch (err) {
+            console.error('[ERDiagram] Error updating positions in localStorage after deletion:', err);
+          }
+        }
       }
     },
-    [dbSchema, onDiagramChange]
+    [dbSchema, onDiagramChange, schemaId]
   );
 
   // Handle node double click
@@ -422,6 +509,15 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       }
   }, [dbSchema, onDiagramChange]);
 
+  // Wrapper function to handle node deletion from the modal
+  const handleNodeDelete = useCallback((node) => {
+    // Convert single node to array before passing to onNodesDelete
+    if (node) {
+      console.log("[ERDiagram] Deleting node from modal:", node);
+      onNodesDelete([node]);
+    }
+  }, [onNodesDelete]);
+
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
@@ -440,43 +536,37 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   }
   
   return (
-    <div 
-      className="er-diagram-container" 
-      style={{ 
-        width: '100%', 
-        // height: '600px', // Let parent control height
-        // border: '1px solid #ddd', // REMOVE inline border
-        borderRadius: '4px',
-        overflow: 'hidden'
-      }} 
-      ref={containerRef}
-    >
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeDragStop={onNodeDragStop}
-        onNodesDelete={onNodesDelete}
-        onNodeDoubleClick={onNodeDoubleClick}
-        nodeTypes={nodeTypes}
-        fitView
-        defaultViewport={{ x: 0, y: 0, zoom: 1 }}
-        deleteKeyCode="Delete"
-        multiSelectionKeyCode="Shift"
-      >
-        <Controls />
-        <MiniMap />
-        <Background color="var(--theme-border)" gap={16} />
-      </ReactFlow>
-      
-      <NodeDetailsModal
-        show={showNodeModal}
-        onHide={() => setShowNodeModal(false)}
+    <div ref={containerRef} className="er-diagram-container">
+      {initialized && (
+        <>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeDragStop={onNodeDragStop}
+            onNodesDelete={onNodesDelete}
+            onNodeDoubleClick={onNodeDoubleClick}
+            nodeTypes={nodeTypes}
+            snapToGrid={true}
+            snapGrid={[20, 20]}
+            fitView
+            attributionPosition="bottom-right"
+            nodesDraggable={true}
+            elementsSelectable={true}
+          >
+            <Controls position="bottom-right" />
+            <Background variant="dots" gap={12} size={1} />
+          </ReactFlow>
+        </>
+      )}
+      <NodeDetailsModal 
+        show={showNodeModal} 
+        onHide={() => setShowNodeModal(false)} 
         node={selectedNode}
         onNodeUpdate={handleNodeUpdate}
-        onNodeDelete={onNodesDelete}
+        onNodeDelete={handleNodeDelete}
         theme={theme}
       />
     </div>

@@ -205,7 +205,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
   const handleAddTable = () => {
     try {
       // Parse existing YAML
-      const parsedYaml = yaml.load(yamlContent) || {};
+      const parsedYaml = yaml.parse(yamlContent) || {};
       
       // Ensure entities array exists
       if (!parsedYaml.entities) {
@@ -243,7 +243,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       });
       
       // Convert back to YAML
-      const updatedYaml = yaml.dump(parsedYaml, { lineWidth: 120 });
+      const updatedYaml = yaml.stringify(parsedYaml);
       setYamlContent(updatedYaml);
       
     } catch (error) {
