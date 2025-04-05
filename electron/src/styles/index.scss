@@ -1171,24 +1171,6 @@ body {
   }
 }
 
-// Make Save button and Add buttons blue
-.save-config-btn, 
-.canvas-header .btn-custom-toolbar {
-  color: #3498db;
-  
-  &:hover,
-  &:focus-visible {
-    background-color: rgba(52, 152, 219, 0.1);
-    color: #3498db;
-  }
-  
-  &:active,
-  &.active {
-    background-color: rgba(52, 152, 219, 0.15);
-    color: #3498db;
-  }
-}
-
 // Adjust specific button instances if needed
 .panel-header-actions .btn-custom-toolbar {
   padding: 0.1rem 0.4rem;
