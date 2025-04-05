@@ -321,7 +321,7 @@ const ProjectPage = ({ theme }) => {
                 </Nav.Item>
               </Nav>
               <Button
-                className="ms-auto me-2 run-simulation-btn"
+                className="ms-auto run-simulation-btn"
                 onClick={handleRunSimulation}
                 disabled={runningSimulation}
               >

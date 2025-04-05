@@ -563,7 +563,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           </div>
           <div>
             <Button 
-              className="me-2 run-simulation-btn"
+              className="run-simulation-btn"
               onClick={handleRun}
               disabled={loading}
             >
