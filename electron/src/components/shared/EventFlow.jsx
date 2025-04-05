@@ -826,7 +826,8 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
          if (onDiagramChange) {
            console.log("[EventFlow] Calling onDiagramChange with updated schema object after delete:", updatedSchema);
            onDiagramChange(updatedSchema);
-                  
+         }
+         
          // Remove the deleted node positions from localStorage
          if (schemaId) {
            try {
