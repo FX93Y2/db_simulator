@@ -1,78 +1,46 @@
 # DB Simulator
 
-A database simulation tool for modeling and simulating database workloads using discrete event simulation.
+A discrete event simulation tool for modeling and analyzing database workloads.
 
-## Features
+## Overview
 
-- Entity-Relationship diagram creation and editing
-- Discrete event simulation for database workloads
-- Visualization of simulation results
-- Support for various database systems and query types
-- Interactive flowchart editor for simulation configurations
+DB Simulator generates synthetic databases and simulates workloads to help analyze performance, resource utilization, and system behavior under various conditions. The application combines a Python simulation engine with an Electron-based GUI.
+
+## Key Features
+
+- **Synthetic Database Generation**: Create realistic test databases with configurable schemas and relationships
+- **Discrete Event Simulation**: Model entity arrivals, event processing, and resource allocation
+- **Interactive Visualization**: View simulation results through charts and diagrams
+- **Entity-Relationship Modeling**: Design database schemas through an intuitive interface
+- **Configurable Workloads**: Define custom event types, processing times, and resource requirements
+
+## Architecture
+
+- **Frontend**: Electron + React application providing the user interface
+- **Backend**: Python Flask API handling database generation and simulation
+- **Simulation Engine**: SimPy-based discrete event simulator
+- **Storage**: SQLite for both configuration and generated databases
 
 ## Getting Started
 
-### Prerequisites
-
-- Node.js 16+
-- Python 3.8+
-- npm or yarn
-
-### Development Setup
-
-1. Clone the repository:
-   ```
-   git clone https://github.com/yourusername/db-simulator.git
-   cd db-simulator
-   ```
-
-2. Install dependencies:
+1. **Prerequisites**: Node.js 16+, Python 3.8+
+2. **Installation**:
    ```
    # Install Python dependencies
-   pip install -r requirements.txt
+   pip install -r python/requirements.txt
    
    # Install Electron dependencies
-   cd electron
-   npm install
+   cd electron && npm install
+   ```
+3. **Run Development Mode**:
+   ```
+   cd electron && npm run dev
    ```
 
-3. Run the application in development mode:
-   ```
-   cd electron
-   npm run dev
-   ```
+## Workflow
 
-This will start both the Python backend API and the Electron frontend.
-
-## Packaging for Distribution
-
-We've prepared scripts to package the application for distribution. This creates standalone executables that users can install without having to set up Node.js or Python.
-
-### Windows Packaging
-
-Run the build script from the project root:
-```
-.\build-app.ps1
-```
-
-For detailed packaging instructions, see [PACKAGING.md](PACKAGING.md).
-
-## Project Structure
-
-- `/electron` - Electron frontend application
-  - `/src` - React application source code
-  - `/public` - Static assets
-- `/python` - Python backend API
-  - `/models` - Data models and database logic
-  - `/api` - API endpoints and controllers
-- `/output` - Simulation results and output files
-
-## Technologies Used
-
-- **Frontend**: Electron, React, React Flow, Chart.js
-- **Backend**: Python, Flask, SQLite
-- **Simulation**: Custom discrete event simulation engine
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details. 
+1. Create a project and define database schema
+2. Configure simulation parameters
+3. Generate synthetic database
+4. Run simulation
+5. Analyze results
