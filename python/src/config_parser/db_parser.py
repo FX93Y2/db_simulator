@@ -18,6 +18,7 @@ class Generator:
     distribution: Optional[Dict] = None
     values: Optional[List] = None
     weights: Optional[List[float]] = None
+    subtype: Optional[str] = None  # Added for foreign_key generator support
 
 @dataclass
 class Relationship:
@@ -73,7 +74,8 @@ def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
                     template=gen_dict.get('template'),
                     distribution=gen_dict.get('distribution'),
                     values=gen_dict.get('values'),
-                    weights=gen_dict.get('weights')
+                    weights=gen_dict.get('weights'),
+                    subtype=gen_dict.get('subtype')  # Support for foreign_key generator subtype
                 )
             
             relationship = None

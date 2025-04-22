@@ -24,7 +24,7 @@ def build_api():
     
     # Ensure PyInstaller is installed
     try:
-        import PyInstaller
+        import PyInstaller # type: ignore
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])

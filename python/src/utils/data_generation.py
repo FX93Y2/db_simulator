@@ -1,7 +1,3 @@
-"""
-Utility functions for generating synthetic data based on configurations.
-"""
-
 import random
 from typing import Any, Dict
 from .faker_utils import generate_fake_data
@@ -71,25 +67,21 @@ def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any
             except Exception as e:
                 logger.error(f"Error during 'choice' generation for {attr_name}: {e}")
                 return f"Choice_Error_{attr_name}_{row_index}"
-
-        # Add other distribution types here if needed (e.g., normal, uniform)
-        # else if dist_type == 'normal': ...
-
-        # Fallback for unhandled distribution types
         return f"Dist_{dist_type or 'Unknown'}_{attr_name}_{row_index}"
     
     # Handle simulation_event type specifically if needed, otherwise it falls through
     elif generator_type == 'simulation_event':
-         # This type is likely handled by simulation logic, return a placeholder or None
-         # Or potentially generate from 'values' if provided, similar to 'choice'?
-         # For now, return a placeholder indicating it's simulation-driven.
          values = generator_config.get('values', [])
          if values:
-              # Maybe pick one randomly as a default? Or leave it?
-              # Let's return None, assuming simulation MUST set this.
-              return None 
+              return None
          return f"SimEvent_{attr_name}_{row_index}"
-
+    
+    # Handle foreign_key generator type
+    elif generator_type == 'foreign_key':
+        # For foreign keys, we need to return None or a placeholder
+        # The actual foreign key resolution should happen in the database generator
+        # or in the simulator's _create_entity method
+        return None  # Let the calling code handle the foreign key resolution
 
     # Default fallback for unknown generator types
     return f"Value_{generator_type or 'Unknown'}_{attr_name}_{row_index}"

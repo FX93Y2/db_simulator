@@ -216,42 +216,12 @@ class DatabaseGenerator:
         # Sort entities to handle dependencies (foreign keys)
         sorted_entities = self._sort_entities_by_dependencies()
         
-        # Identify resource tables and entity/event tables
-        resource_tables = []
-        entity_event_tables = []
-        
+        # Populate all tables in sorted order
         for entity in sorted_entities:
-            # Check if this table should be skipped (dynamic entity/event table)
+            # Skip dynamic entity/event tables
             if entity.name in self.dynamic_entity_tables:
-                entity_event_tables.append(entity)
                 continue
-                
-            # Check if this is a resource table (has fixed number of rows)
-            if isinstance(entity.rows, int) and entity.rows > 0:
-                resource_tables.append(entity)
-            else:
-                entity_event_tables.append(entity)
-        
-        # First populate resource tables (always needed)
-        for entity in resource_tables:
             self._populate_entity(entity)
-        
-        # Check if we should populate entity/event tables
-        # This will be skipped if the simulation is configured to generate them dynamically
-        skip_entity_tables = self._should_skip_entity_tables()
-        
-        if not skip_entity_tables:
-            # Populate parent entity tables
-            parent_tables = [e for e in entity_event_tables if not any(attr.is_foreign_key for attr in e.attributes)]
-            for entity in parent_tables:
-                self._populate_entity(entity)
-            
-            # Populate child event tables
-            child_tables = [e for e in entity_event_tables if any(attr.is_foreign_key for attr in e.attributes)]
-            for entity in child_tables:
-                self._populate_child_entity(entity)
-        else:
-            logger.info("Skipping entity and event tables - will be generated dynamically during simulation")
     
     def _should_skip_entity_tables(self) -> bool:
         """
@@ -294,98 +264,65 @@ class DatabaseGenerator:
                 # Skip primary key for auto-increment
                 if attr.is_primary_key:
                     continue
-                
-                # Generate data based on generator configuration
-                if attr.generator:
+
+                # Handle new "foreign_key" generator type
+                if attr.generator and getattr(attr.generator, "type", None) == "foreign_key":
+                    # Get parent table and column
+                    if not attr.ref:
+                        logger.error(f"Foreign key attribute '{attr.name}' in table '{entity.name}' missing 'ref'. Assigning None.")
+                        row_data[attr.name] = None
+                    else:
+                        ref_table, ref_column = attr.ref.split('.')
+                        parent_model = self.models[ref_table]
+                        parent_ids = self.session.query(getattr(parent_model, ref_column)).all()
+                        parent_ids = [id[0] for id in parent_ids]
+                        if not parent_ids:
+                            logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{entity.name}'")
+                            row_data[attr.name] = None
+                        else:
+                            # Use user-defined distribution if present, else random
+                            dist = getattr(attr.generator, "distribution", None)
+                            if dist and getattr(dist, "type", None) == "choice" and getattr(dist, "values", None):
+                                # Weighted choice among parent_ids
+                                import numpy as np
+                                weights = getattr(dist, "values", None)
+                                if len(weights) == len(parent_ids):
+                                    row_data[attr.name] = np.random.choice(parent_ids, p=weights)
+                                else:
+                                    logger.warning(f"Distribution weights length does not match number of parent_ids for FK '{attr.name}' in '{entity.name}'. Using uniform random assignment.")
+                                    row_data[attr.name] = random.choices(parent_ids, k=1)[0]
+                            else:
+                                # Uniform random assignment if no distribution is provided
+                                row_data[attr.name] = random.choices(parent_ids, k=1)[0]
+                # Generate data based on other generator configuration
+                elif attr.generator:
                     row_data[attr.name] = self._generate_attribute_value(attr, i)
-                
-                # Default value for attributes without generator
+                # Handle foreign keys without generator
+                elif attr.is_foreign_key:
+                    logger.error(f"Missing generator for foreign key '{attr.name}' in table '{entity.name}'. Assigning None.")
+                    row_data[attr.name] = None
+                # Default value for other attributes without generator - Log warning
                 else:
-                    row_data[attr.name] = f"Default_{attr.name}_{i}"
+                    logger.warning(f"Missing generator for attribute '{attr.name}' in table '{entity.name}'. Using placeholder.")
+                    row_data[attr.name] = f"MissingGenerator_{attr.name}_{i}"
             
             # Create and add row
-            row = model_class(**row_data)
+            # Ensure row_data doesn't contain keys not present in the model if assigning None to FKs caused issues
+            valid_keys = {col.name for col in model_class.__table__.columns}
+            filtered_row_data = {k: v for k, v in row_data.items() if k in valid_keys}
+            
+            try:
+                 row = model_class(**filtered_row_data)
+                 self.session.add(row)
+            except Exception as e:
+                 logger.error(f"Error creating row for {entity.name} with data {filtered_row_data}: {e}")
+
             self.session.add(row)
         
         # Commit after each table to make IDs available for foreign keys
         self.session.commit()
     
-    def _populate_child_entity(self, entity: Entity):
-        """
-        Populate child table with proper relationship distribution
-        
-        Args:
-            entity: Entity configuration
-        """
-        model_class = self.models[entity.name]
-        
-        # Find foreign key attributes and their relationships
-        fk_attrs = []
-        for attr in entity.attributes:
-            if attr.is_foreign_key and attr.ref and attr.relationship:
-                ref_table, ref_column = attr.ref.split('.')
-                fk_attrs.append((attr, ref_table, ref_column))
-        
-        # If no foreign keys with relationships, use default population
-        if not fk_attrs:
-            self._populate_entity(entity)
-            return
-        
-        logger.info(f"Generating rows for child table {entity.name} with relationships")
-        
-        # For each foreign key with relationship
-        for attr, ref_table, ref_column in fk_attrs:
-            # Get all IDs from the parent table
-            parent_model = self.models[ref_table]
-            parent_ids = self.session.query(getattr(parent_model, ref_column)).all()
-            parent_ids = [id[0] for id in parent_ids]
-            
-            if not parent_ids:
-                logger.warning(f"No rows in parent table {ref_table}, skipping child table {entity.name}")
-                continue
-            
-            # Generate distribution of child counts per parent
-            multiplicity = attr.relationship.multiplicity
-            counts = self._generate_relationship_counts(multiplicity, len(parent_ids))
-            
-            # Create child rows for each parent based on the distribution
-            for i, parent_id in enumerate(parent_ids):
-                count = counts[i] if i < len(counts) else 0
-                
-                for j in range(count):
-                    row_data = {attr.name: parent_id}
-                    
-                    # Generate data for other attributes
-                    for other_attr in entity.attributes:
-                        # Skip primary key and the current foreign key
-                        if other_attr.is_primary_key or other_attr == attr:
-                            continue
-                        
-                        # Handle other foreign keys
-                        if other_attr.is_foreign_key and other_attr.ref:
-                            other_ref_table, other_ref_column = other_attr.ref.split('.')
-                            other_ids = self.session.query(getattr(self.models[other_ref_table], other_ref_column)).all()
-                            
-                            if other_ids:
-                                row_data[other_attr.name] = random.choice(other_ids)[0]
-                            else:
-                                logger.warning(f"No rows in referenced table {other_ref_table}")
-                                row_data[other_attr.name] = None
-                        
-                        # Generate data based on generator configuration
-                        elif other_attr.generator:
-                            row_data[other_attr.name] = self._generate_attribute_value(other_attr, j)
-                        
-                        # Default value
-                        else:
-                            row_data[other_attr.name] = f"Default_{other_attr.name}_{j}"
-                    
-                    # Create and add row
-                    row = model_class(**row_data)
-                    self.session.add(row)
-            
-            # Commit after processing each foreign key
-            self.session.commit()
+    # Removed legacy _populate_child_entity logic as foreign key assignment is now handled in _populate_entity with the "foreign_key" generator type.
     
     def _generate_relationship_counts(self, multiplicity: Dict, num_parents: int) -> List[int]:
         """

@@ -562,8 +562,38 @@ class EventSimulator:
                 if attr.is_primary_key:
                     continue # Skip primary key
                 
-                # If generator exists, use it
-                if attr.generator:
+                # Handle foreign key generator specifically
+                if attr.generator and attr.generator.type == "foreign_key":
+                    if not attr.ref:
+                        logger.error(f"Foreign key attribute '{attr.name}' in table '{entity_table}' missing 'ref'. Assigning None.")
+                        row_data[attr.name] = None
+                    else:
+                        ref_table, ref_column = attr.ref.split('.')
+                        # Query the parent table for valid IDs
+                        sql_query = text(f"SELECT {ref_column} FROM {ref_table}")
+                        result = session.execute(sql_query).fetchall()
+                        parent_ids = [id[0] for id in result]
+                        
+                        if not parent_ids:
+                            logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{entity_table}'")
+                            row_data[attr.name] = None
+                        else:
+                            # Use user-defined distribution if present, else random
+                            dist = getattr(attr.generator, "distribution", None)
+                            if dist and isinstance(dist, dict) and dist.get("type") == "choice" and dist.get("values"):
+                                # Weighted choice among parent_ids
+                                weights = dist.get("values")
+                                if len(weights) == len(parent_ids):
+                                    import numpy as np
+                                    row_data[attr.name] = np.random.choice(parent_ids, p=weights)
+                                else:
+                                    logger.warning(f"Distribution weights length does not match number of parent_ids for FK '{attr.name}' in '{entity_table}'. Using uniform random assignment.")
+                                    row_data[attr.name] = random.choice(parent_ids)
+                            else:
+                                # Uniform random assignment if no distribution is provided
+                                row_data[attr.name] = random.choice(parent_ids)
+                # Handle other generator types
+                elif attr.generator:
                      # Convert generator dataclass to dict for the utility function
                     gen_dict = dataclasses.asdict(attr.generator) if attr.generator else None
                     attr_config_dict = {
@@ -575,7 +605,7 @@ class EventSimulator:
                 else:
                     # Handle attributes without generators if necessary (e.g., default NULL or specific value)
                     # For now, let the DB handle defaults or NULL
-                    pass 
+                    pass
             
             # Build INSERT statement dynamically
             columns = ", ".join(row_data.keys())
@@ -637,16 +667,46 @@ class EventSimulator:
                     if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
                         continue
                     
-                    # Skip other Foreign Keys for now, assume they might be populated later or nullable
-                    # A more robust solution might try to find valid FK values if required
+                    # Handle foreign keys with a foreign_key generator type
                     if attr.is_foreign_key:
-                         logger.debug(f"Skipping FK {attr.name} during initial event creation.")
-                         continue
+                        if attr.generator and attr.generator.type == "foreign_key":
+                            if not attr.ref:
+                                logger.error(f"Foreign key attribute '{attr.name}' in table '{event_table}' missing 'ref'. Assigning None.")
+                                row_data[attr.name] = None
+                            else:
+                                ref_table, ref_column = attr.ref.split('.')
+                                # Query the parent table for valid IDs
+                                sql_query = text(f"SELECT {ref_column} FROM {ref_table}")
+                                result = session.execute(sql_query).fetchall()
+                                parent_ids = [id[0] for id in result]
+                                
+                                if not parent_ids:
+                                    logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{event_table}'")
+                                    row_data[attr.name] = None
+                                else:
+                                    # Use user-defined distribution if present, else random
+                                    dist = getattr(attr.generator, "distribution", None)
+                                    if dist and isinstance(dist, dict) and dist.get("type") == "choice" and dist.get("values"):
+                                        # Weighted choice among parent_ids
+                                        weights = dist.get("values")
+                                        if len(weights) == len(parent_ids):
+                                            import numpy as np
+                                            row_data[attr.name] = np.random.choice(parent_ids, p=weights)
+                                        else:
+                                            logger.warning(f"Distribution weights length does not match number of parent_ids for FK '{attr.name}' in '{event_table}'. Using uniform random assignment.")
+                                            row_data[attr.name] = random.choice(parent_ids)
+                                    else:
+                                        # Uniform random assignment if no distribution is provided
+                                        row_data[attr.name] = random.choice(parent_ids)
+                        else:
+                            # Skip foreign keys without a foreign_key generator
+                            logger.debug(f"Skipping FK {attr.name} without foreign_key generator during event creation.")
+                            continue
 
-                    if attr.generator:
+                    elif attr.generator:
                         # Special handling for 'simulation_event' generator type - skip it
                         if attr.generator.type == 'simulation_event':
-                            continue 
+                            continue
                             
                         gen_dict = dataclasses.asdict(attr.generator)
                         attr_config_dict = {
@@ -704,74 +764,8 @@ class EventSimulator:
         except Exception as e:
             logger.error(f"Error finding event type column in {event_table}: {str(e)}", exc_info=True)
             return 'type'  # Default fallback
+    # _create_random_events method removed as it's not useful for the current implementation
     
-    def _create_random_events(self, session, entity_id: int, event_table: str, relationship_column: str, next_id: int, event_ids: List[int]):
-        """
-        Create random events for an entity (fallback method), populating attributes.
-        """
-        event_entity_config = self._get_entity_config(event_table)
-        if not event_entity_config:
-            logger.error(f"Database configuration not found for event entity: {event_table}")
-            return
-            
-        event_types = []
-        event_sim = self.config.event_simulation
-        if event_sim and event_sim.event_sequence and event_sim.event_sequence.event_types:
-            event_types = [et.name for et in event_sim.event_sequence.event_types]
-        
-        if not event_types:
-             logger.warning("No event types defined in config for random event generation fallback.")
-             return
-
-        num_events = int(round(random.normalvariate(4, 1)))
-        num_events = max(2, min(8, num_events))
-        
-        event_type_column = self._find_event_type_column(session, event_table)
-        if not event_type_column:
-            logger.error(f"Could not find event type column in {event_table} for random events.")
-            return
-
-        current_event_id = next_id
-        for i in range(num_events):
-            try:
-                event_type = random.choice(event_types)
-                
-                row_data = {
-                    "id": current_event_id,
-                    relationship_column: entity_id,
-                    event_type_column: event_type
-                }
-                
-                # Generate values for other attributes
-                for attr in event_entity_config.attributes:
-                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
-                        continue
-                    if attr.is_foreign_key:
-                        continue # Skip FKs for now
-
-                    if attr.generator:
-                        if attr.generator.type == 'simulation_event':
-                            continue
-                        gen_dict = dataclasses.asdict(attr.generator)
-                        attr_config_dict = {'name': attr.name, 'generator': gen_dict}
-                        # Use current_event_id - 1 for 0-based context
-                        row_data[attr.name] = generate_attribute_value(attr_config_dict, current_event_id - 1)
-                    else:
-                        pass # Let DB handle defaults/NULL
-
-                # Build INSERT statement dynamically
-                columns = ", ".join(row_data.keys())
-                placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-                sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
-                
-                session.execute(sql_query, row_data)
-                event_ids.append(current_event_id)
-                self.entity_current_event_types[entity_id] = event_type # Update tracker
-                current_event_id += 1
-            except Exception as e:
-                 logger.error(f"Error creating random event {i+1} for entity {entity_id}: {e}", exc_info=True)
-                 # Decide whether to continue or stop creating events for this entity
-                 break # Stop creating more events for this entity on error
 
             # Note: Removed the duplicate event creation and commit from the original loop
             # Commit should happen outside the loop, likely after all events for the entity are created
