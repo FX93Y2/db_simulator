@@ -134,11 +134,6 @@ try {
     });
     
     packageJson.build.extraResources.push({
-      from: "../python/api.py",
-      to: "python/api.py"
-    });
-    
-    packageJson.build.extraResources.push({
       from: "../python/run.py",
       to: "python/run.py"
     });

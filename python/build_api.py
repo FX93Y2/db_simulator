@@ -9,7 +9,15 @@ import os
 import sys
 import subprocess
 import shutil
+import logging
 from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 def build_api():
     print("Building API executable with PyInstaller...")
@@ -110,7 +118,8 @@ coll = COLLECT(
     ], cwd=current_dir)
 
 def build_with_direct_command(current_dir):
-    # Direct command approach - more reliable for Windows paths
+    """Build using direct PyInstaller command without a spec file"""
+    logger.info("Building with direct PyInstaller command...")
     main_script = current_dir / "main.py"
     cmd = [
         sys.executable,
@@ -130,7 +139,7 @@ def build_with_direct_command(current_dir):
         str(main_script)
     ]
     
-    print(f"Running command: {' '.join(cmd)}")
+    logger.info(f"Running command: {' '.join(cmd)}")
     subprocess.check_call(cmd, cwd=current_dir)
 
 if __name__ == "__main__":

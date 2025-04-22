@@ -37,3 +37,8 @@ package-lock.json
 .env.test.local
 .env.production.local
 .cursor/
+
+# PyInstaller generated files
+python/USE_EXECUTABLE
+python/USE_COPIED_ENV
+python/db_simulator_api.spec
