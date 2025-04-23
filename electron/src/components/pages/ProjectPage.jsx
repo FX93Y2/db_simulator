@@ -92,7 +92,7 @@ const ProjectPage = ({ theme }) => {
       setLoading(false);
       setInitialLoad(false);
     }
-  }, [projectId, navigate, initialLoad]);
+  }, [projectId, navigate]);
 
   // Load existing simulation results for this project
   const loadExistingResults = useCallback(async () => {
@@ -130,10 +130,11 @@ const ProjectPage = ({ theme }) => {
   useEffect(() => {
     setInitialLoad(true);
     loadProject();
-    
     // Update active tab based on URL changes
     setCurrentTab(determineActiveTab());
-  }, [projectId, loadProject, determineActiveTab]);
+    // Only run when projectId changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
   
   // Separate effect for loading existing results that only runs when project changes
   useEffect(() => {
@@ -188,8 +189,8 @@ const ProjectPage = ({ theme }) => {
         projectCache[projectId] = updatedProject;
         
         handleCloseEditModal();
-        // Trigger sidebar refresh by navigating with refreshProjects state
-        navigate(`/project/${projectId}`, { state: { refreshProjects: true } });
+        // Trigger sidebar refresh by dispatching a custom event
+        window.dispatchEvent(new Event('refreshProjects'));
       } else {
         alert('Failed to update project name');
       }
@@ -286,19 +287,7 @@ const ProjectPage = ({ theme }) => {
 
   return (
     <Container fluid className="project-page p-0">
-      <div className="project-header mb-3 d-flex justify-content-between align-items-center">
-        <div className="d-flex align-items-center">
-          <h2 className="mb-0 me-2">{project?.name || 'Project'}</h2>
-          <Button
-            size="sm"
-            className="ms-2 btn-custom-toolbar"
-            onClick={handleEditProjectName}
-            title="Edit project name"
-          >
-            <FiEdit />
-          </Button>
-        </div>
-      </div>
+      {/* Project header removed: project name and edit button now in sidebar */}
 
       {/* Show ResultsViewer if we're on a results page */}
       {resultId ? (

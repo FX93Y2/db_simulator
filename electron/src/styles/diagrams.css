@@ -375,3 +375,96 @@
 .decision-node .react-flow__handle-left {
   left: -10px;
 } 
+/* Ensure edit and delete buttons in sidebar are visually aligned and edit button has no outline */
+.project-edit-btn,
+.project-delete-btn {
+  padding: 2px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+  height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-edit-btn:focus, .project-edit-btn:active {
+  box-shadow: none !important;
+  outline: none !important;
+}
+/* Remove border and fix alignment for sidebar edit button */
+.project-edit-btn {
+  border: none !important;
+  box-shadow: none !important;
+  vertical-align: middle;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+/* Make delete button color more vibrant and align both buttons vertically */
+.project-delete-btn {
+  color: #ff4d4f !important;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  vertical-align: middle;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ensure the button container aligns items center */
+.project-item {
+  display: flex;
+  align-items: center;
+}
+
+/* Remove any default button background on focus/active for both buttons */
+.project-edit-btn:focus, .project-edit-btn:active,
+.project-delete-btn:focus, .project-delete-btn:active {
+  background: none !important;
+  box-shadow: none !important;
+}
+/* Restore accentuated background for delete button on hover/focus/active */
+.project-delete-btn:hover,
+.project-delete-btn:focus,
+.project-delete-btn:active {
+  background: rgba(255, 77, 79, 0.15) !important;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+/* Apply the same hover/focus/active background to the edit button as the delete button */
+.project-edit-btn:hover,
+.project-edit-btn:focus,
+.project-edit-btn:active {
+  background: rgba(255, 77, 79, 0.15) !important;
+  border-radius: 8px;
+  transition: background 0.15s;
+}
+/* Use a neutral background for both buttons on hover, keep icon color unchanged */
+.project-edit-btn,
+.project-delete-btn {
+  transition: background 0.15s, color 0.15s;
+}
+
+.project-edit-btn {
+  color: #90a4ae !important; /* original blue/gray, adjust as needed */
+}
+
+.project-delete-btn {
+  color: #ff4d4f !important; /* original red */
+}
+
+.project-edit-btn:hover,
+.project-edit-btn:focus,
+.project-edit-btn:active,
+.project-delete-btn:hover,
+.project-delete-btn:focus,
+.project-delete-btn:active {
+  background: rgba(128, 128, 128, 0.15) !important; /* neutral gray background */
+  border-radius: 8px;
+}

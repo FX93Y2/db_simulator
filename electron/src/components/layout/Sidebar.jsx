@@ -2,11 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
 import { Button, Spinner, Modal, Form } from 'react-bootstrap';
-import { getProjects, formatDate, createDefaultProject, deleteProject } from '../../utils/projectApi';
+import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject } from '../../utils/projectApi';
+import { FiEdit } from 'react-icons/fi';
 
 const ProjectSidebar = () => {
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Edit project name modal state
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState(null);
+  const [editingProjectName, setEditingProjectName] = useState('');
+  const [isUpdating, setIsUpdating] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showDeleteResultModal, setShowDeleteResultModal] = useState(false);
@@ -38,6 +45,17 @@ const ProjectSidebar = () => {
   
   // Get currently selected table from the URL query parameter
   const currentTable = new URLSearchParams(location.search).get('table');
+
+  // Listen for custom refreshProjects event to trigger a sidebar refresh
+  React.useEffect(() => {
+    const handler = () => {
+      setRefreshTrigger(prev => prev + 1);
+    };
+    window.addEventListener('refreshProjects', handler);
+    return () => {
+      window.removeEventListener('refreshProjects', handler);
+    };
+  }, []);
   
   // Add this to keep track of when to reload
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -428,17 +446,17 @@ const ProjectSidebar = () => {
             </div>
           ) : (
             projects.map((project) => (
-              <div 
+              <div
                 key={project.id}
                 className="project-container"
               >
-                <div 
+                <div
                   className={`project-item ${project.id === currentProjectId ? 'active' : ''}`}
                 >
                   <div className="project-item-expand-icon" onClick={() => toggleProjectExpansion(project.id)}>
                     {expandedProjects[project.id] ? <FiChevronDown /> : <FiChevronRight />}
                   </div>
-                  <div 
+                  <div
                     className="project-item-content"
                     onClick={() => handleOpenProject(project.id)}
                   >
@@ -451,10 +469,24 @@ const ProjectSidebar = () => {
                       </div>
                     )}
                   </div>
-                  <Button 
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    className="project-edit-btn ms-1"
+                    title="Edit project name"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setProjectToEdit(project);
+                      setEditingProjectName(project.name);
+                      setShowEditModal(true);
+                    }}
+                  >
+                    <FiEdit />
+                  </Button>
+                  <Button
                     variant="outline-danger"
                     size="sm"
-                    className="project-delete-btn"
+                    className="project-delete-btn ms-1"
                     onClick={(e) => handleDeleteClick(e, project)}
                   >
                     <FiTrash2 />
@@ -623,6 +655,67 @@ const ProjectSidebar = () => {
           >
             {deletingResult ? <Spinner size="sm" animation="border" className="me-2" /> : <FiTrash2 className="me-2" />}
             Delete Result
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Edit Project Name Modal */}
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Edit Project Name</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group>
+              <Form.Label>Project Name</Form.Label>
+              <Form.Control
+                type="text"
+                value={editingProjectName}
+                onChange={(e) => setEditingProjectName(e.target.value)}
+                autoFocus
+                disabled={isUpdating}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEditModal(false)} disabled={isUpdating}>
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              if (!editingProjectName.trim() || editingProjectName === projectToEdit?.name) {
+                setShowEditModal(false);
+                return;
+              }
+              setIsUpdating(true);
+              try {
+                const result = await updateProject(projectToEdit.id, { name: editingProjectName });
+                if (result.success) {
+                  // Update the project in the list
+                  setProjects((prev) =>
+                    prev.map((p) =>
+                      p.id === projectToEdit.id
+                        ? { ...p, name: editingProjectName, updated_at: new Date().toISOString() }
+                        : p
+                    )
+                  );
+                  setShowEditModal(false);
+                  // Trigger sidebar refresh
+                  window.dispatchEvent(new Event('refreshProjects'));
+                } else {
+                  alert('Failed to update project name');
+                }
+              } catch (error) {
+                alert('Error updating project name');
+              } finally {
+                setIsUpdating(false);
+              }
+            }}
+            disabled={isUpdating}
+          >
+            {isUpdating ? <Spinner animation="border" size="sm" /> : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
