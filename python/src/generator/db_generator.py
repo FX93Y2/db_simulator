@@ -25,10 +25,11 @@ from ..utils.data_generation import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 
-Base = declarative_base()
 
 class DatabaseGenerator:
     def __init__(self, config: DatabaseConfig, output_dir: str = "output", dynamic_entity_tables: Optional[List[str]] = None):
+        from sqlalchemy.ext.declarative import declarative_base
+        self.Base = declarative_base()
         self.config = config
         self.output_dir = output_dir
         self.engine = None
@@ -157,7 +158,7 @@ class DatabaseGenerator:
             self._create_model_class(entity)
         
         # Create all tables
-        Base.metadata.create_all(self.engine)
+        self.Base.metadata.create_all(self.engine)
     
     def _create_model_class(self, entity: Entity):
         """
@@ -189,7 +190,7 @@ class DatabaseGenerator:
                 attrs[attr.name] = Column(column_type)
         
         # Create model class
-        model_class = type(entity.name, (Base,), attrs)
+        model_class = type(entity.name, (self.Base,), attrs)
         self.models[entity.name] = model_class
     
     def _get_column_type(self, attr_type: str) -> Any:
