@@ -78,12 +78,13 @@ def parse_db_config_from_string(content: str) -> DatabaseConfig:
                 pass  # Ignore cleanup errors
         raise
 
-def parse_sim_config_from_string(content: str) -> SimulationConfig:
+def parse_sim_config_from_string(content: str, db_config: Optional[DatabaseConfig] = None) -> SimulationConfig:
     """
     Parse simulation configuration from a YAML string instead of a file.
     
     Args:
         content: YAML content as a string
+        db_config: Optional database configuration to derive table specifications
         
     Returns:
         SimulationConfig: Parsed simulation configuration
@@ -96,7 +97,7 @@ def parse_sim_config_from_string(content: str) -> SimulationConfig:
         
         # Parse the configuration from the temporary file
         logger.info(f"Parsing simulation config from temporary file: {temp_file_path}")
-        result = parse_sim_config(temp_file_path)
+        result = parse_sim_config(temp_file_path, db_config)
         
         # Clean up the temporary file
         os.unlink(temp_file_path)

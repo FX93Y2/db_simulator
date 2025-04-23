@@ -148,7 +148,7 @@ function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
-    backgroundColor: '#2a2a2a', // Set default dark background
+    // backgroundColor: '#2a2a2a', // Set default dark background - Removed to test focus issue
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

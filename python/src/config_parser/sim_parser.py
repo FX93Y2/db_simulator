@@ -77,6 +77,26 @@ class EventSimulation:
     work_shifts: Optional[WorkShifts] = None
     event_sequence: Optional[EventSequence] = None
 
+def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[str]:
+    """
+    Find a table with the specified type in the database configuration.
+    
+    Args:
+        db_config: The database configuration
+        table_type: The type of table to find (entity, event, resource)
+        
+    Returns:
+        The name of the table or None if not found
+    """
+    if not db_config:
+        return None
+        
+    for entity in db_config.entities:
+        if entity.type == table_type:
+            return entity.name
+            
+    return None
+
 @dataclass
 class SimulationConfig:
     duration_days: int
@@ -217,7 +237,7 @@ def get_initial_event(event_sequence: EventSequence) -> Optional[str]:
     # The first transition's "from" event is the initial event
     return event_sequence.transitions[0].from_event
 
-def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
+def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseConfig] = None) -> SimulationConfig:
     if isinstance(file_path, str):
         file_path = Path(file_path)
         
@@ -248,12 +268,26 @@ def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
         # Parse table specification
         table_spec = None
         if 'table_specification' in event_dict:
+            # Use the table specification from the simulation config
             table_dict = event_dict['table_specification']
             table_spec = TableSpecification(
                 entity_table=table_dict.get('entity_table', ''),
                 event_table=table_dict.get('event_table', ''),
                 resource_table=table_dict.get('resource_table', '')
             )
+        elif db_config:
+            # Derive table specification from database config based on table types
+            entity_table = find_table_by_type(db_config, 'entity')
+            event_table = find_table_by_type(db_config, 'event')
+            resource_table = find_table_by_type(db_config, 'resource')
+            
+            if entity_table and event_table and resource_table:
+                table_spec = TableSpecification(
+                    entity_table=entity_table,
+                    event_table=event_table,
+                    resource_table=resource_table
+                )
+                logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
         
         # Parse entity arrival configuration
         entity_arrival = None
@@ -349,4 +383,155 @@ def parse_sim_config(file_path: Union[str, Path]) -> SimulationConfig:
         start_date=start_date,
         random_seed=sim_dict.get('random_seed'),
         event_simulation=event_simulation
-    ) 
+    )
+
+def parse_sim_config_from_string(config_content: str, db_config: Optional[DatabaseConfig] = None) -> SimulationConfig:
+    """
+    Parse simulation configuration from a YAML string
+    
+    Args:
+        config_content: YAML content string
+        db_config: Optional database configuration to derive table specifications
+        
+    Returns:
+        Simulation configuration
+    """
+    config_dict = yaml.safe_load(config_content)
+    
+    sim_dict = config_dict.get('simulation', {})
+    
+    start_date = None
+    if 'start_date' in sim_dict:
+        date_str = str(sim_dict['start_date'])
+        try:
+            if len(date_str) == 10:
+                start_date = datetime.strptime(date_str, '%Y-%m-%d')
+            else:
+                start_date = datetime.fromisoformat(date_str)
+        except (ValueError, TypeError):
+            logger.warning(f"Failed to parse start_date: {date_str}")
+            start_date = datetime.now()
+    
+    event_simulation = None
+    if 'event_simulation' in config_dict:
+        event_dict = config_dict['event_simulation']
+        
+        # Parse table specification
+        table_spec = None
+        if 'table_specification' in event_dict:
+            # Use the table specification from the simulation config
+            table_dict = event_dict['table_specification']
+            table_spec = TableSpecification(
+                entity_table=table_dict.get('entity_table', ''),
+                event_table=table_dict.get('event_table', ''),
+                resource_table=table_dict.get('resource_table', '')
+            )
+        elif db_config:
+            # Derive table specification from database config based on table types
+            entity_table = find_table_by_type(db_config, 'entity')
+            event_table = find_table_by_type(db_config, 'event')
+            resource_table = find_table_by_type(db_config, 'resource')
+            
+            if entity_table and event_table and resource_table:
+                table_spec = TableSpecification(
+                    entity_table=entity_table,
+                    event_table=event_table,
+                    resource_table=resource_table
+                )
+                logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
+        
+        # Parse the rest of the event simulation configuration
+        # (This is the same code as in parse_sim_config)
+        entity_arrival = None
+        if 'entity_arrival' in event_dict:
+            arrival_dict = event_dict['entity_arrival']
+            entity_arrival = EntityArrival(
+                interarrival_time=arrival_dict.get('interarrival_time', {}),
+                max_entities=arrival_dict.get('max_entities'),
+                override_db_config=arrival_dict.get('override_db_config', True)
+            )
+        
+        work_shifts = None
+        if 'work_shifts' in event_dict:
+            shifts_dict = event_dict['work_shifts']
+            
+            # Parse shift patterns
+            shift_patterns = []
+            for pattern_dict in shifts_dict.get('shift_patterns', []):
+                shift_patterns.append(ShiftPattern(
+                    name=pattern_dict.get('name', ''),
+                    days=pattern_dict.get('days', []),
+                    start_time=pattern_dict.get('start_time', '09:00'),
+                    end_time=pattern_dict.get('end_time', '17:00')
+                ))
+            
+            # Parse resource shifts
+            resource_shifts = []
+            for shift_dict in shifts_dict.get('resource_shifts', []):
+                resource_shifts.append(ResourceShift(
+                    resource_type=shift_dict.get('resource_type', ''),
+                    shift_pattern=shift_dict.get('shift_pattern') or shift_dict.get('shift_patterns', [])
+                ))
+            
+            work_shifts = WorkShifts(
+                enabled=shifts_dict.get('enabled', False),
+                shift_patterns=shift_patterns,
+                resource_shifts=resource_shifts
+            )
+        
+        # Parse event sequence configuration
+        event_sequence = None
+        if 'event_sequence' in event_dict:
+            seq_dict = event_dict['event_sequence']
+            
+            # Parse event types
+            event_types = []
+            for event_type_dict in seq_dict.get('event_types', []):
+                # Parse resource requirements for this event type
+                resource_reqs = []
+                for req_dict in event_type_dict.get('resource_requirements', []):
+                    resource_reqs.append(ResourceRequirement(
+                        resource_table=req_dict.get('resource_table', ''),
+                        value=req_dict.get('value', ''),
+                        count=req_dict.get('count', 1)
+                    ))
+                
+                event_types.append(EventTypeDefinition(
+                    name=event_type_dict.get('name', ''),
+                    duration=event_type_dict.get('duration', {}),
+                    resource_requirements=resource_reqs
+                ))
+            
+            # Parse transitions
+            transitions = []
+            for transition_dict in seq_dict.get('transitions', []):
+                to_events = []
+                for to_event_dict in transition_dict.get('to', []):
+                    to_events.append(EventTransition(
+                        event_type=to_event_dict.get('event_type', ''),
+                        probability=to_event_dict.get('probability', 1.0)
+                    ))
+                
+                transitions.append(EventSequenceTransition(
+                    from_event=transition_dict.get('from', ''),
+                    to_events=to_events
+                ))
+            
+            event_sequence = EventSequence(
+                event_types=event_types,
+                transitions=transitions
+            )
+        
+        event_simulation = EventSimulation(
+            table_specification=table_spec,
+            entity_arrival=entity_arrival,
+            work_shifts=work_shifts,
+            event_sequence=event_sequence
+        )
+    
+    return SimulationConfig(
+        duration_days=sim_dict.get('duration_days', 0),
+        start_date=start_date,
+        random_seed=sim_dict.get('random_seed'),
+        event_simulation=event_simulation
+    )

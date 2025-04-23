@@ -188,6 +188,8 @@ const ProjectPage = ({ theme }) => {
         projectCache[projectId] = updatedProject;
         
         handleCloseEditModal();
+        // Trigger sidebar refresh by navigating with refreshProjects state
+        navigate(`/project/${projectId}`, { state: { refreshProjects: true } });
       } else {
         alert('Failed to update project name');
       }

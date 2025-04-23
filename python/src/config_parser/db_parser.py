@@ -63,6 +63,7 @@ class Entity:
     name: str
     attributes: List[Attribute]
     rows: Any = 0
+    type: Optional[str] = None  # Added to specify table type (entity, event, resource, etc.)
 
 @dataclass
 class DatabaseConfig:
@@ -114,7 +115,8 @@ def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
         entities.append(Entity(
             name=entity_dict['name'],
             attributes=attributes,
-            rows=entity_dict.get('rows', 0)
+            rows=entity_dict.get('rows', 0),
+            type=entity_dict.get('type')  # Parse the type field
         ))
     
     return DatabaseConfig(entities=entities) 

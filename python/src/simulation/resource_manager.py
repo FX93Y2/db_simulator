@@ -21,7 +21,7 @@ class ResourceManager:
     Handles resource initialization, allocation, and release during simulation.
     """
     
-    def __init__(self, env, engine, db_path):
+    def __init__(self, env, engine, db_path, db_config=None):
         """
         Initialize the resource manager
         
@@ -29,10 +29,12 @@ class ResourceManager:
             env: SimPy environment
             engine: SQLAlchemy engine
             db_path: Path to the SQLite database
+            db_config: Optional database configuration
         """
         self.env = env
         self.engine = engine
         self.db_path = db_path
+        self.db_config = db_config
         
         # Initialize resources
         self.resources = {}
@@ -40,6 +42,31 @@ class ResourceManager:
         
         # Dictionary to track allocated resources
         self.allocated_resources = {}
+    
+    def get_resource_table(self, event_sim):
+        """
+        Get the resource table name from event simulation configuration or database config
+        
+        Args:
+            event_sim: Event simulation configuration
+            
+        Returns:
+            Name of the resource table or None if not found
+        """
+        if not event_sim:
+            return None
+            
+        # Try to get from simulation config
+        if event_sim.table_specification and event_sim.table_specification.resource_table:
+            return event_sim.table_specification.resource_table
+            
+        # Try to find from database config based on table type
+        if hasattr(self, 'db_config') and self.db_config:
+            for entity in self.db_config.entities:
+                if entity.type == 'resource':
+                    return entity.name
+                    
+        return None
     
     def setup_resources(self, event_sim):
         """
@@ -51,7 +78,10 @@ class ResourceManager:
         if not event_sim:
             return
             
-        resource_table = event_sim.table_specification.resource_table
+        resource_table = self.get_resource_table(event_sim)
+        if not resource_table:
+            logger.error("Could not determine resource table name. Resources will not be set up.")
+            return
         
         # First find the resource_type column
         with Session(self.engine) as session:
@@ -125,7 +155,19 @@ class ResourceManager:
         try:
             with Session(process_engine) as session:
                 # Get the event type to determine specific resource requirements
-                event_table = event_sim.table_specification.event_table
+                # Get the event table name
+                event_table = None
+                if event_sim.table_specification and event_sim.table_specification.event_table:
+                    event_table = event_sim.table_specification.event_table
+                elif self.db_config:
+                    for entity in self.db_config.entities:
+                        if entity.type == 'event':
+                            event_table = entity.name
+                            break
+                
+                if not event_table:
+                    logger.error("Could not determine event table name. Cannot determine required resources.")
+                    return []
                 sql_query = text(f"SELECT type FROM {event_table} WHERE id = {event_id}")
                 result = session.execute(sql_query)
                 event_type = None
@@ -208,14 +250,9 @@ class ResourceManager:
                             if added < count:
                                 logger.warning(f"Only found {added} of {count} required resources of type {resource_value}")
                 
-                # If no specific requirements, fall back to default
+                # If no specific requirements, show an error
                 if not required_resources:
-                    # Default to using any available resource
-                    resource_table = event_sim.table_specification.resource_table
-                    for resource_key in self.resources:
-                        if resource_key.startswith(f"{resource_table}_"):
-                            required_resources.append(resource_key)
-                            break
+                    logger.error(f"Could not determine resource requirements for event {event_id}")
         except Exception as e:
             logger.error(f"Error determining required resources for event {event_id}: {str(e)}")
         finally:

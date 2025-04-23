@@ -61,7 +61,7 @@ class EventSimulator:
         self.env = simpy.Environment()
         
         # Initialize resource manager
-        self.resource_manager = ResourceManager(self.env, self.engine, self.db_path)
+        self.resource_manager = ResourceManager(self.env, self.engine, self.db_path, self.db_config)
         
         # Initialize counters
         self.processed_events = 0
@@ -76,14 +76,30 @@ class EventSimulator:
         resource_table_name = None
         bridge_table_config = None
         
-        if config.event_simulation and config.event_simulation.table_specification:
-            spec = config.event_simulation.table_specification
-            event_table_name = spec.event_table
-            # TODO: Handle multiple resource tables if needed
-            resource_table_name = spec.resource_table
-            logger.info(f"Passing event_table='{event_table_name}', resource_table='{resource_table_name}' to EventTracker")
+        if config.event_simulation:
+            if config.event_simulation.table_specification:
+                # Use table specification from simulation config
+                spec = config.event_simulation.table_specification
+                event_table_name = spec.event_table
+                # TODO: Handle multiple resource tables if needed
+                resource_table_name = spec.resource_table
+                logger.info(f"Using table specification from simulation config: event_table='{event_table_name}', resource_table='{resource_table_name}'")
+            elif db_config:
+                # Derive table specification from database config based on table types
+                for entity in db_config.entities:
+                    if entity.type == 'event':
+                        event_table_name = entity.name
+                    elif entity.type == 'resource':
+                        resource_table_name = entity.name
+                
+                if event_table_name and resource_table_name:
+                    logger.info(f"Derived table specification from database config: event_table='{event_table_name}', resource_table='{resource_table_name}'")
+                else:
+                    logger.warning("Could not derive complete table specification from database config. EventTracker may not work correctly.")
+            else:
+                logger.warning("Event simulation has no table specification and no database config provided. EventTracker may not create bridging table.")
         else:
-            logger.warning("Event simulation or table specification missing in config. EventTracker may not create bridging table.")
+            logger.warning("No event simulation configuration found. EventTracker may not create bridging table.")
         
         # Look for a bridge table in the database configuration
         if db_config and event_table_name and resource_table_name:
@@ -169,14 +185,11 @@ class EventSimulator:
         Args:
             entity_id: Entity ID (0-based index)
         """
-        event_sim = self.config.event_simulation
-        if not event_sim:
-            logger.warning(f"No event simulation configuration found for entity {entity_id}")
+        entity_table, event_table, resource_table = self.entity_manager.get_table_names()
+        if not entity_table or not event_table:
+            logger.error(f"Missing entity or event table names. Cannot process events for entity {entity_id}")
             yield self.env.timeout(0)  # Make it a generator by yielding
             return
-            
-        entity_table = event_sim.table_specification.entity_table
-        event_table = event_sim.table_specification.event_table
         
         # Create a process-specific engine for isolation
         process_engine = create_engine(

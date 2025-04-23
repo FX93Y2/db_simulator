@@ -20,6 +20,7 @@ import { FiTrash2, FiEdit, FiX } from 'react-icons/fi';
 const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
   const [name, setName] = useState('');
   const [attributes, setAttributes] = useState([]);
+  const [tableType, setTableType] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Initialize form when node changes
@@ -27,6 +28,7 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
     if (node) {
       setName(node.id || '');
       setAttributes(node.data?.attributes || []);
+      setTableType(node.data?.tableType || '');
     }
   }, [node]);
 
@@ -40,6 +42,7 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
         data: {
           ...node.data,
           label: name,
+          tableType: tableType,
           attributes: attributes
         }
       };
@@ -92,6 +95,19 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter entity name"
               />
+            </Form.Group>
+
+            <Form.Group className="mb-3">
+              <Form.Label>Table Type</Form.Label>
+              <Form.Select
+                value={tableType}
+                onChange={(e) => setTableType(e.target.value)}
+              >
+                <option value="">n/a</option>
+                <option value="entity">Entity</option>
+                <option value="event">Event</option>
+                <option value="resource">Resource</option>
+              </Form.Select>
             </Form.Group>
             
             <Form.Group className="mb-3">
@@ -172,14 +188,35 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
 
 // Custom Entity Node component
 const EntityNode = ({ data, theme }) => {
+  // Determine node class based on table type
+  const getNodeTypeClass = () => {
+    switch (data.tableType) {
+      case 'entity':
+        return 'entity-type';
+      case 'event':
+        return 'event-type';
+      case 'resource':
+        return 'resource-type';
+      default:
+        return '';
+    }
+  };
+
   return (
-    <div className="entity-node">
+    <div className={`entity-node ${getNodeTypeClass()}`}>
       <Handle type="target" position={Position.Top} id="target-top" />
       <Handle type="source" position={Position.Right} id="source-right" />
       <Handle type="target" position={Position.Left} id="target-left" />
       <Handle type="source" position={Position.Bottom} id="source-bottom" />
       
-      <div className="entity-node__title">{data.label}</div>
+      <div className="entity-node__title">
+        {data.label}
+        {data.tableType && (
+          <span className="entity-node__type-badge">
+            {data.tableType}
+          </span>
+        )}
+      </div>
       <div className="entity-node__attributes">
         {data.attributes.map((attr, index) => (
           <div
@@ -294,8 +331,9 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             id: entity.name,
             type: 'entity',
             position: position,
-            data: { 
+            data: {
               label: entity.name,
+              tableType: entity.type || '',
               attributes: entity.attributes || []
             },
             width: 200,
@@ -500,6 +538,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
                 // Reconstruct the entity based on modal data
                 // This needs careful mapping from node data back to schema structure
                 name: updatedNodeData.data.label,
+                type: updatedNodeData.data.tableType || undefined, // Include table type, but don't add if empty
                 attributes: updatedNodeData.data.attributes, // Assuming modal updates attributes directly
                 // ... other entity properties ...
             };

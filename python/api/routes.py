@@ -442,7 +442,21 @@ def run_sim():
             
         # Pass configuration content directly to run_simulation
         logger.info(f"Running simulation directly from config content")
-        results = run_simulation(config['content'], data['database_path'])
+        # Get database config if available
+        db_config_id = data.get('db_config_id')
+        db_config_content = None
+        
+        if db_config_id:
+            db_config = config_manager.get_config(db_config_id)
+            if db_config:
+                db_config_content = db_config['content']
+        
+        # Run simulation with database config if available
+        if db_config_content:
+            results = run_simulation(config['content'], db_config_content, data['database_path'])
+        else:
+            # Fallback to old method for backward compatibility
+            results = run_simulation(config['content'], data['database_path'])
         
         return jsonify({
             "success": True,
@@ -572,9 +586,9 @@ def generate_and_simulate():
         logger.info(f"Running simulation using database at: {db_path}")
         # Pass both sim and db config content to run_simulation
         results = run_simulation(
-            sim_config_path_or_content=sim_config['content'], 
-            db_config_path_or_content=db_config['content'], 
-            db_path=db_path
+            sim_config['content'],
+            db_config['content'],
+            db_path
         )
         
         # Verify database file after simulation

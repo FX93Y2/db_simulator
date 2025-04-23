@@ -61,6 +61,36 @@ class EntityManager:
                 return entity
         return None
     
+    def get_table_by_type(self, table_type: str) -> Optional[str]:
+        """Find a table with the specified type in the database configuration."""
+        if not self.db_config:
+            return None
+        
+        for entity in self.db_config.entities:
+            if entity.type == table_type:
+                return entity.name
+                
+        return None
+    
+    def get_table_names(self):
+        """Get entity, event, and resource table names from config or db config."""
+        event_sim = self.config.event_simulation
+        if not event_sim:
+            return None, None, None
+            
+        # Try to get table names from simulation config
+        if event_sim.table_specification:
+            entity_table = event_sim.table_specification.entity_table
+            event_table = event_sim.table_specification.event_table
+            resource_table = event_sim.table_specification.resource_table
+        else:
+            # Try to derive from database config based on table types
+            entity_table = self.get_table_by_type('entity')
+            event_table = self.get_table_by_type('event')
+            resource_table = self.get_table_by_type('resource')
+            
+        return entity_table, event_table, resource_table
+    
     def pre_generate_entity_arrivals(self) -> List[float]:
         """
         Pre-generate all entity arrival times at the beginning of the simulation
@@ -143,12 +173,10 @@ class EntityManager:
             arrival_times: List of arrival times in simulation minutes
             process_entity_events_callback: Callback function to process entity events
         """
-        event_sim = self.config.event_simulation
-        if not event_sim:
+        entity_table, event_table, resource_table = self.get_table_names()
+        if not entity_table or not event_table:
+            logger.error("Missing entity or event table names. Cannot process entity arrivals.")
             return
-            
-        entity_table = event_sim.table_specification.entity_table
-        event_table = event_sim.table_specification.event_table
         
         # Process each arrival time
         for arrival_time in arrival_times:
@@ -225,8 +253,11 @@ class EntityManager:
         if not event_sim or not event_sim.entity_arrival:
             return
             
-        entity_table = event_sim.table_specification.entity_table
-        event_table = event_sim.table_specification.event_table
+        entity_table, event_table, resource_table = self.get_table_names()
+        if not entity_table or not event_table:
+            logger.error("Missing entity or event table names. Cannot generate entities.")
+            return
+            
         arrival_config = event_sim.entity_arrival
         
         # Get the maximum number of entities to generate
