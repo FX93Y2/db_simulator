@@ -7,14 +7,10 @@ using SimPy to model resource allocation and scheduling.
 
 import logging
 import simpy
-import sqlite3
 import random
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Dict, List, Tuple, Any, Optional, Union
-import uuid
-import math
 import random
-from collections import defaultdict
 import numpy as np
 from sqlalchemy import create_engine, inspect, select, func, text, insert
 from sqlalchemy.orm import Session
@@ -78,21 +74,48 @@ class EventSimulator:
         # Initialize event tracker - Pass table names from config
         event_table_name = None
         resource_table_name = None
+        bridge_table_config = None
+        
         if config.event_simulation and config.event_simulation.table_specification:
             spec = config.event_simulation.table_specification
             event_table_name = spec.event_table
             # Assuming single resource table for bridging for now based on demo_sim
             # TODO: Handle multiple resource tables if needed
-            resource_table_name = spec.resource_table 
+            resource_table_name = spec.resource_table
             logger.info(f"Passing event_table='{event_table_name}', resource_table='{resource_table_name}' to EventTracker")
         else:
             logger.warning("Event simulation or table specification missing in config. EventTracker may not create bridging table.")
+        
+        # Look for a bridge table in the database configuration
+        if db_config and event_table_name and resource_table_name:
+            # Find a bridge table entity that has event_id and resource_id type attributes
+            for entity in db_config.entities:
+                event_fk_attr = None
+                resource_fk_attr = None
+                
+                # Check if this entity has attributes with type 'event_id' and 'resource_id'
+                for attr in entity.attributes:
+                    if attr.type == 'event_id' and attr.ref and attr.ref.startswith(f"{event_table_name}."):
+                        event_fk_attr = attr
+                    elif attr.type == 'resource_id' and attr.ref and attr.ref.startswith(f"{resource_table_name}."):
+                        resource_fk_attr = attr
+                
+                # If we found both attributes, this is our bridge table
+                if event_fk_attr and resource_fk_attr:
+                    bridge_table_config = {
+                        'name': entity.name,
+                        'event_fk_column': event_fk_attr.name,
+                        'resource_fk_column': resource_fk_attr.name
+                    }
+                    logger.info(f"Found bridge table in database config: {entity.name}")
+                    break
 
         self.event_tracker = EventTracker(
             db_path,
             config.start_date,
             event_table_name=event_table_name,
-            resource_table_name=resource_table_name
+            resource_table_name=resource_table_name,
+            bridge_table_config=bridge_table_config
         )
         
         # Dictionary to track the current event type for each entity
@@ -170,13 +193,6 @@ class EventSimulator:
                 
                 if resource_type_column:
                     break
-                
-            # If we still haven't found it, use 'type' or 'role' as fallback
-            if not resource_type_column:
-                for fallback in ['type', 'role', 'resource_type', 'category']:
-                    if fallback in [col['name'] for col in columns]:
-                        resource_type_column = fallback
-                        break
             
             if not resource_type_column:
                 logger.error(f"Could not find resource type column in table {resource_table}")
@@ -957,195 +973,6 @@ class EventSimulator:
             process_engine.dispose()
         
         return required_resources
-    
-    def _are_work_shifts_enabled(self) -> bool:
-        """Check if work shifts are enabled in the configuration"""
-        # Temporarily disabled for testing
-        return False
-        
-        # Original implementation:
-        # event_sim = self.config.event_simulation
-        # if not event_sim or not event_sim.work_shifts:
-        #     return False
-        
-        # return event_sim.work_shifts.enabled
-    
-    def _get_shift_pattern(self, pattern_name: str) -> Optional[ShiftPattern]:
-        """Get a shift pattern by name"""
-        event_sim = self.config.event_simulation
-        if not event_sim or not event_sim.work_shifts:
-            return None
-        
-        for pattern in event_sim.work_shifts.shift_patterns:
-            if pattern.name == pattern_name:
-                return pattern
-        
-        return None
-    
-    def _get_resource_shift_patterns(self, resource_type: str) -> List[ShiftPattern]:
-        """Get shift patterns for a resource type"""
-        event_sim = self.config.event_simulation
-        if not event_sim or not event_sim.work_shifts:
-            return []
-        
-        patterns = []
-        for resource_shift in event_sim.work_shifts.resource_shifts:
-            if resource_shift.resource_type == resource_type:
-                if isinstance(resource_shift.shift_pattern, list):
-                    for pattern_name in resource_shift.shift_pattern:
-                        pattern = self._get_shift_pattern(pattern_name)
-                        if pattern:
-                            patterns.append(pattern)
-                else:
-                    pattern = self._get_shift_pattern(resource_shift.shift_pattern)
-                    if pattern:
-                        patterns.append(pattern)
-        
-        return patterns
-    
-    def _is_resource_on_shift(self, resource_key: str, sim_time: Optional[float] = None) -> bool:
-        """
-        Check if a resource is on shift at the given simulation time
-        
-        Args:
-            resource_key: Resource key (e.g., "Consultant_1")
-            sim_time: Simulation time in minutes (defaults to current time)
-            
-        Returns:
-            True if the resource is on shift, False otherwise
-        """
-        if not self._are_work_shifts_enabled():
-            return True
-        
-        if sim_time is None:
-            sim_time = self.env.now
-        
-        # Get the resource type
-        resource_type = self.resource_types.get(resource_key)
-        if not resource_type:
-            return True  # If we don't know the resource type, assume it's always available
-        
-        # Get the shift patterns for this resource type
-        shift_patterns = self._get_resource_shift_patterns(resource_type)
-        if not shift_patterns:
-            return True  # If no shift patterns are defined, assume the resource is always available
-        
-        # Convert simulation time to datetime
-        sim_datetime = self.config.start_date + timedelta(minutes=sim_time)
-        
-        # Get day of week (0=Monday, 6=Sunday)
-        day_of_week = sim_datetime.weekday()
-        
-        # Get time of day
-        time_of_day = sim_datetime.time()
-        
-        # Check if the current time falls within any of the shift patterns
-        for pattern in shift_patterns:
-            # Check if current day is in shift days
-            if day_of_week in pattern.days:
-                # Parse shift start and end times
-                start_time = datetime.strptime(pattern.start_time, "%H:%M").time()
-                end_time = datetime.strptime(pattern.end_time, "%H:%M").time()
-                
-                # Check if current time is within shift hours
-                if start_time <= time_of_day < end_time:
-                    return True
-        
-        return False
-    
-    def _wait_until_resource_available(self, resource_key: str) -> float:
-        """
-        Calculate the next time when a resource will be available
-        
-        Args:
-            resource_key: Resource key (e.g., "Consultant_1")
-            
-        Returns:
-            Simulation time in minutes when the resource will be available
-        """
-        if not self._are_work_shifts_enabled():
-            return self.env.now
-        
-        # If the resource is already on shift, return current time
-        if self._is_resource_on_shift(resource_key):
-            return self.env.now
-        
-        # Get the resource type
-        resource_type = self.resource_types.get(resource_key)
-        if not resource_type:
-            return self.env.now
-        
-        # Get the shift patterns for this resource type
-        shift_patterns = self._get_resource_shift_patterns(resource_type)
-        if not shift_patterns:
-            return self.env.now
-        
-        # Start from current time and check each future minute until we find a time when the resource is on shift
-        # This is a simplistic approach; in a real system, we would calculate this more efficiently
-        sim_time = self.env.now
-        max_minutes_to_check = 7 * 24 * 60  # Check up to one week ahead
-        
-        for minutes_ahead in range(1, max_minutes_to_check):
-            check_time = sim_time + minutes_ahead
-            if self._is_resource_on_shift(resource_key, check_time):
-                return check_time
-        
-        # If we couldn't find a time when the resource is on shift, return a far future time
-        logger.warning(f"Could not find a future time when resource {resource_key} is on shift")
-        return sim_time + max_minutes_to_check
-    
-    def _calculate_next_shift_change(self, resource_keys: List[str]) -> Optional[float]:
-        """
-        Calculate the next time when any resource's shift status will change
-        
-        Args:
-            resource_keys: List of resource keys
-            
-        Returns:
-            Simulation time in minutes of the next shift change, or None if no shift changes are expected
-        """
-        if not self._are_work_shifts_enabled():
-            return None
-        
-        # Get the current shift status for each resource
-        current_status = {key: self._is_resource_on_shift(key) for key in resource_keys}
-        
-        # Start from current time and check each future minute until we find a time when any resource's shift status changes
-        sim_time = self.env.now
-        max_minutes_to_check = 24 * 60  # Check up to one day ahead
-        
-        for minutes_ahead in range(1, max_minutes_to_check):
-            check_time = sim_time + minutes_ahead
-            for key in resource_keys:
-                new_status = self._is_resource_on_shift(key, check_time)
-                if new_status != current_status[key]:
-                    return check_time
-        
-        # If we couldn't find a shift change, return None
-        return None
-    
-    def _calculate_next_available_time(self, resource_keys: List[str]) -> float:
-        """
-        Calculate the next time when all resources will be available
-        
-        Args:
-            resource_keys: List of resource keys
-            
-        Returns:
-            Simulation time in minutes when all resources will be available
-        """
-        if not self._are_work_shifts_enabled():
-            return self.env.now
-        
-        # Find the latest time when any resource becomes available
-        latest_time = self.env.now
-        
-        for key in resource_keys:
-            available_time = self._wait_until_resource_available(key)
-            if available_time > latest_time:
-                latest_time = available_time
-        
-        return latest_time
     
     def _get_event_duration(self, event_type: str) -> float:
         """

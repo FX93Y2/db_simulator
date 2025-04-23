@@ -21,9 +21,10 @@ class EventTracker:
     - A dynamic event-resource bridging table (e.g., Deliverable_Consultant)
     """
     
-    def __init__(self, db_path: str, start_date: Optional[datetime] = None, 
-                 event_table_name: Optional[str] = None, 
-                 resource_table_name: Optional[str] = None):
+    def __init__(self, db_path: str, start_date: Optional[datetime] = None,
+                 event_table_name: Optional[str] = None,
+                 resource_table_name: Optional[str] = None,
+                 bridge_table_config: Optional[Dict[str, Any]] = None):
         """
         Initialize the event tracker
         
@@ -32,6 +33,10 @@ class EventTracker:
             start_date: Simulation start date
             event_table_name: Name of the main event table (e.g., 'Deliverable')
             resource_table_name: Name of the main resource table (e.g., 'Consultant')
+            bridge_table_config: Optional configuration for the bridge table with keys:
+                - name: Name of the bridge table
+                - event_fk_column: Name of the column referencing the event table
+                - resource_fk_column: Name of the column referencing the resource table
         """
         self.db_path = db_path
         self.event_table_name = event_table_name
@@ -51,13 +56,20 @@ class EventTracker:
         self.metadata = MetaData()
         self.start_date = start_date or datetime.now()
         
-        # Determine dynamic bridge table name and columns
-        if self.event_table_name and self.resource_table_name:
+        # Use custom bridge table configuration if provided
+        if bridge_table_config:
+            self.bridge_table_name = bridge_table_config.get('name')
+            self.event_fk_column = bridge_table_config.get('event_fk_column')
+            self.resource_fk_column = bridge_table_config.get('resource_fk_column')
+            logger.info(f"EventTracker configured with custom bridge table: {self.bridge_table_name} "
+                        f"(event_fk: {self.event_fk_column}, resource_fk: {self.resource_fk_column})")
+        # Otherwise determine dynamic bridge table name and columns
+        elif self.event_table_name and self.resource_table_name:
             self.bridge_table_name = f"{self.event_table_name}_{self.resource_table_name}"
             # Construct foreign key column names (e.g., deliverable_id, consultant_id)
             self.event_fk_column = f"{self.event_table_name.lower()}_id"
             self.resource_fk_column = f"{self.resource_table_name.lower()}_id"
-            logger.info(f"EventTracker configured for bridge table: {self.bridge_table_name}")
+            logger.info(f"EventTracker configured for auto-generated bridge table: {self.bridge_table_name}")
         else:
             logger.warning("EventTracker: Event or resource table name not provided, bridge table will not be created.")
         

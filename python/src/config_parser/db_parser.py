@@ -39,7 +39,24 @@ class Attribute:
     
     @property
     def is_foreign_key(self) -> bool:
-        return self.type == 'fk'
+        return self.type == 'fk' or self.type == 'entity_id' or self.type == 'event_id' or self.type == 'resource_id'
+    
+    @property
+    def is_entity_id(self) -> bool:
+        return self.type == 'entity_id'
+    
+    @property
+    def is_event_id(self) -> bool:
+        return self.type == 'event_id'
+    
+    @property
+    def is_resource_id(self) -> bool:
+        return self.type == 'resource_id'
+    
+    @property
+    def is_simulation_foreign_key(self) -> bool:
+        """Check if this is a foreign key that will be handled by the simulation"""
+        return self.type == 'entity_id' or self.type == 'event_id' or self.type == 'resource_id'
 
 @dataclass
 class Entity:

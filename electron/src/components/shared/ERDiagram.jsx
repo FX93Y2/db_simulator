@@ -123,8 +123,12 @@ const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, them
                       <option value="float">float</option>
                       <option value="boolean">boolean</option>
                       <option value="date">date</option>
+                      <option value="datetime">datetime</option>
                       <option value="pk">Primary Key</option>
                       <option value="fk">Foreign Key</option>
+                      <option value="event_id">Event ID (FK)</option>
+                      <option value="entity_id">Entity ID (FK)</option>
+                      <option value="resource_id">Resource ID (FK)</option>
                     </Form.Select>
                     <Button
                       variant="link"
@@ -178,9 +182,11 @@ const EntityNode = ({ data, theme }) => {
       <div className="entity-node__title">{data.label}</div>
       <div className="entity-node__attributes">
         {data.attributes.map((attr, index) => (
-          <div 
-            key={index} 
-            className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${attr.type === 'fk' ? 'foreign-key' : ''}`}
+          <div
+            key={index}
+            className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${
+              attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
+            }`}
           >
             {attr.name}: {attr.type}
           </div>
@@ -299,7 +305,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           // Create edges for relationships
           if (entity.attributes) {
             entity.attributes.forEach(attr => {
-              if (attr.type === 'fk' && attr.ref) {
+              // Check for standard foreign keys or custom types (event_id, entity_id, resource_id)
+              if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
                 const [targetEntity] = attr.ref.split('.');
                 relationEdges.push({
                   id: `${entity.name}-${targetEntity}`,
