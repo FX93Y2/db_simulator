@@ -52,12 +52,6 @@ def run_simulation(sim_config_path_or_content: Union[str, Path],
     else:
         raise ValueError("Invalid db_config_path_or_content provided.")
     
-    # Ensure entity and event tables exist
-    # This might need refinement if ensure_simulation_tables relies only on sim_config
-    # For now, assume it's okay or handled separately.
-    # ensure_simulation_tables(sim_config, db_path) 
-    # Commenting out for now as it might conflict or be redundant if db_generator runs first.
-    
     # Create and run simulator
     logger.info("Initializing EventSimulator...")
     simulator = EventSimulator(config=sim_config, db_config=db_config, db_path=db_path)

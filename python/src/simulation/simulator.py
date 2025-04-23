@@ -79,7 +79,6 @@ class EventSimulator:
         if config.event_simulation and config.event_simulation.table_specification:
             spec = config.event_simulation.table_specification
             event_table_name = spec.event_table
-            # Assuming single resource table for bridging for now based on demo_sim
             # TODO: Handle multiple resource tables if needed
             resource_table_name = spec.resource_table
             logger.info(f"Passing event_table='{event_table_name}', resource_table='{resource_table_name}' to EventTracker")
@@ -146,6 +145,7 @@ class EventSimulator:
         else:
             # Fallback to dynamic generation if pre-generation fails
             self.env.process(self.entity_manager.generate_entities(self._process_entity_events))
+            logger.warning("Failed to pre-generate entity arrivals. No entities will be processed.")
         
         # Run simulation for specified duration
         duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
@@ -160,12 +160,7 @@ class EventSimulator:
             'entity_count': self.entity_manager.entity_count,
             'processed_events': self.processed_events
         }
-    
-    
-    
-    
-    
-    
+
 
     def _process_entity_events(self, entity_id: int):
         """
@@ -176,6 +171,7 @@ class EventSimulator:
         """
         event_sim = self.config.event_simulation
         if not event_sim:
+            logger.warning(f"No event simulation configuration found for entity {entity_id}")
             yield self.env.timeout(0)  # Make it a generator by yielding
             return
             
@@ -252,10 +248,14 @@ class EventSimulator:
             
         Returns:
             Duration in minutes
+            
+        Raises:
+            ValueError: If no duration is found for the event type
         """
         event_sim = self.config.event_simulation
         if not event_sim:
-            return 0
+            logger.warning("No event simulation configuration found")
+            raise ValueError("No event simulation configuration found")
         
         # Check if event sequence is configured and has a specific duration for this event type
         if event_sim.event_sequence and event_type:
@@ -266,10 +266,9 @@ class EventSimulator:
                     duration_days = generate_from_distribution(et.duration.get('distribution', {}))
                     return duration_days * 24 * 60  # Convert days to minutes
         
-        # Fall back to default values if specific duration not found
-        # This is a fallback for backward compatibility or if event type not found
-        default_duration_days = 3  # Default to 3 days if no duration found
-        return default_duration_days * 24 * 60  # Convert days to minutes
+        # Instead of falling back to default values, raise a warning and error
+        logger.warning(f"No duration found for event type '{event_type}'")
+        raise ValueError(f"No duration found for event type '{event_type}'")
 
     def _get_next_event_type(self, current_event_type: str) -> Optional[str]:
         """
@@ -283,7 +282,14 @@ class EventSimulator:
         """
         try:
             event_sim = self.config.event_simulation
-            if not event_sim or not event_sim.event_sequence or not event_sim.event_sequence.transitions:
+            if not event_sim:
+                logger.warning("No event simulation configuration found")
+                return None
+            if not event_sim.event_sequence:
+                logger.warning("No event sequence configuration found")
+                return None
+            if not event_sim.event_sequence.transitions:
+                logger.warning(f"No transitions defined for event type '{current_event_type}'")
                 return None
             
             # Find the transition for this event type
@@ -291,6 +297,7 @@ class EventSimulator:
                 if transition.from_event == current_event_type:
                     # Found the transition, determine the next event type based on probabilities
                     if not transition.to_events:
+                        logger.warning(f"No destination events defined for transition from '{current_event_type}'")
                         return None
                     
                     # If there's only one destination, return it
@@ -308,6 +315,7 @@ class EventSimulator:
                             return event_transition.event_type
             
             # No transition found for this event type
+            logger.warning(f"No transition found for event type '{current_event_type}'")
             return None
         except Exception as e:
             logger.error(f"Error determining next event type: {str(e)}", exc_info=True)
@@ -372,7 +380,7 @@ class EventSimulator:
                             break
                     
                     if not event_config:
-                        logger.error(f"No configuration found for event type {event_type}")
+                        logger.error(f"No configuration found for event type '{event_type}'. Event processing will be skipped.")
                         return
                     
                     # Get the event duration
@@ -453,9 +461,8 @@ class EventSimulator:
                         # --- Start: Logic copied and adapted from _create_events --- 
                         event_entity_config = self.entity_manager.get_entity_config(event_table)
                         if not event_entity_config:
-                            logger.error(f"Database configuration not found for event entity: {event_table} when creating next event")
-                            # Decide how to handle this - maybe stop processing for this entity?
-                            return 
+                            logger.error(f"Database configuration not found for event entity: {event_table} when creating next event. Cannot proceed with event creation.")
+                            return
 
                         # Get the next ID for the new event
                         sql_query = text(f"SELECT MAX(id) FROM {event_table}")
@@ -492,8 +499,8 @@ class EventSimulator:
                                 # Use next_id - 1 for 0-based row_index context
                                 row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
                             else:
-                                # Handle attributes without generators if needed (e.g., let DB handle defaults)
-                                pass
+                                # Instead of silently letting DB handle defaults, log a warning
+                                logger.warning(f"No generator defined for attribute '{attr.name}' in table '{event_table}'. Database defaults will be used if available.")
 
                         # Build INSERT statement dynamically
                         columns = ", ".join(row_data.keys())
@@ -516,7 +523,7 @@ class EventSimulator:
                     else:
                         logger.info(f"Entity {entity_id} has completed all events in the sequence")
                 else:
-                    logger.debug("No event sequence configured")
+                    logger.warning("No event sequence configured. Cannot process events properly.")
         except Exception as e:
             logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
         finally:
