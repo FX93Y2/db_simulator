@@ -8,7 +8,7 @@ import Header from './components/layout/Header';
 import ProjectSidebar from './components/layout/Sidebar';
 
 // Pages
-import WelcomePage from './components/pages/WelcomePage';
+import ConfigurationGuide from './components/pages/ConfigurationGuide';
 import ProjectPage from './components/pages/ProjectPage';
 import DbConfigEditor from './components/pages/DbConfigEditor';
 import SimConfigEditor from './components/pages/SimConfigEditor';
@@ -87,7 +87,7 @@ const App = () => {
                 <Container fluid>
                   <Routes>
                     {/* Welcome and dashboard */}
-                    <Route path="/" element={<WelcomePage />} />
+                    <Route path="/" element={<ConfigurationGuide />} />
                     
                     {/* Project routes */}
                     <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />

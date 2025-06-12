@@ -7,13 +7,17 @@ import {
   Button,
   Modal,
   Spinner,
-  InputGroup
+  InputGroup,
+  Tabs,
+  Tab
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
-import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
+import ResourceEditor from '../shared/ResourceEditor';
+import SimulationEditor from '../shared/SimulationEditor';
+import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new simulation configuration
@@ -83,6 +87,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   const [saveAsNew, setSaveAsNew] = useState(false);
   const [dbConfigs, setDbConfigs] = useState([]);
   const [selectedDbConfig, setSelectedDbConfig] = useState('');
+  const [activeVisualizationTab, setActiveVisualizationTab] = useState('event-flow');
   
   // Load existing configuration if editing
   useEffect(() => {
@@ -195,6 +200,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       setYamlError(error);
     }
   }, []);
+  
+  // Check if both simulation and event_simulation sections exist
+  const hasSimulationSections = () => {
+    if (!parsedYamlObject) return false;
+    return parsedYamlObject.simulation && parsedYamlObject.event_simulation;
+  };
   
   // Handle adding a new event - operates on object if possible
   const handleAddEvent = () => {
@@ -517,31 +528,92 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
         <PanelResizeHandle className="editor-resize-handle" />
         <Panel defaultSize={60} minSize={30} order={2}>
           <div className="editor-canvas-panel">
-            <div className="canvas-header d-flex justify-content-between align-items-center">
-              <div>Event Flow</div>
-              <Button 
-                size="sm"
-                className="btn-custom-toolbar"
-                onClick={handleAddEvent}
-                disabled={loading}
+            <div className="canvas-header">
+              <Tabs
+                activeKey={activeVisualizationTab}
+                onSelect={(k) => setActiveVisualizationTab(k)}
+                className="mb-0"
               >
-                <FiPlus /> Add Event
-              </Button>
+                <Tab
+                  eventKey="event-flow"
+                  title={
+                    <span>
+                      <FiGitBranch className="me-2" />
+                      Event Flow
+                    </span>
+                  }
+                />
+                <Tab
+                  eventKey="resources"
+                  title={
+                    <span>
+                      <FiSettings className="me-2" />
+                      Resources
+                    </span>
+                  }
+                />
+                {hasSimulationSections() && (
+                  <Tab
+                    eventKey="simulation"
+                    title={
+                      <span>
+                        <FiClock className="me-2" />
+                        Simulation
+                      </span>
+                    }
+                  />
+                )}
+              </Tabs>
+              
+              {activeVisualizationTab === 'event-flow' && (
+                <div className="tab-actions">
+                  <Button
+                    size="sm"
+                    className="btn-custom-toolbar"
+                    onClick={handleAddEvent}
+                    disabled={loading}
+                  >
+                    <FiPlus /> Add Event
+                  </Button>
+                </div>
+              )}
             </div>
             
-            {loading ? (
-              <div className="text-center py-5">
-                <Spinner animation="border" />
-                <div className="mt-2">Loading event flow...</div>
-              </div>
-            ) : (
-              <EventFlow 
-                yamlContent={yamlContent} 
-                parsedSchema={parsedYamlObject}
-                onDiagramChange={handleDiagramChange} 
-                theme={theme}
-              />
-            )}
+            <div className="canvas-content">
+              {loading ? (
+                <div className="text-center py-5">
+                  <Spinner animation="border" />
+                  <div className="mt-2">Loading...</div>
+                </div>
+              ) : (
+                <>
+                  {activeVisualizationTab === 'event-flow' && (
+                    <EventFlow
+                      yamlContent={yamlContent}
+                      parsedSchema={parsedYamlObject}
+                      onDiagramChange={handleDiagramChange}
+                      theme={theme}
+                    />
+                  )}
+                  
+                  {activeVisualizationTab === 'resources' && (
+                    <ResourceEditor
+                      yamlContent={yamlContent}
+                      onResourceChange={handleDiagramChange}
+                      theme={theme}
+                    />
+                  )}
+                  
+                  {activeVisualizationTab === 'simulation' && hasSimulationSections() && (
+                    <SimulationEditor
+                      yamlContent={yamlContent}
+                      onSimulationChange={handleDiagramChange}
+                      theme={theme}
+                    />
+                  )}
+                </>
+              )}
+            </div>
           </div>
         </Panel>
       </PanelGroup>

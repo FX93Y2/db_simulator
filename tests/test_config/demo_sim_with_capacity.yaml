@@ -1,49 +1,20 @@
-# Demo simulation configuration with resource capacity management
-
+# Simulation Configuration with Resource Capacities
 simulation:
   duration_days: 60
   start_date: 2024-06-01
   random_seed: 42
 
-# Event simulation configuration with resource capacities
 event_simulation:
   # Entity arrival configuration
   entity_arrival:
     interarrival_time:
       distribution:
         type: exponential
-        scale: 5  # Average 5 days between entity arrivals
-    max_entities: n/a  # n/a means the simulation will keep generating entities following the distribution
-  
-  resource_capacities:
-    Consultant:
-      # Define capacity rules based on resource type
-      capacity_rules:
-        - resource_type: "Tech Lead"
-          capacity:
-            distribution:
-              type: normal
-              mean: 3
-              stddev: 0.5
-              min: 2
-              max: 5
-        
-        - resource_type: "Developer"
-          capacity:
-            distribution:
-              type: choice
-              values: [1, 2, 3]
-              weights: [0.6, 0.3, 0.1]  # 60% have capacity 1, 30% have 2, 10% have 3
-        
-        - resource_type: "Tester"
-          capacity: 2  # Fixed capacity for all testers
-        
-        - resource_type: "Business Analyst"
-          capacity: 1  # Fixed capacity
+        scale: 5
+    max_entities: n/a
   
   # Event sequence configuration
   event_sequence:
-    # Define all event types with their specific durations and resource requirements
     event_types:
       - name: Requirements
         duration:
@@ -53,9 +24,8 @@ event_simulation:
             stddev: 0.5
         resource_requirements:
           - resource_table: Consultant
-            value: Business Analyst
+            value: Developer
             count: 1
-            capacity_per_resource: 1  # Standard requirement
       
       - name: Design
         duration:
@@ -66,12 +36,7 @@ event_simulation:
         resource_requirements:
           - resource_table: Consultant
             value: Developer
-            count: 1
-            capacity_per_resource: 2  # Design requires more focus
-          - resource_table: Consultant
-            value: Tech Lead
-            count: 1
-            capacity_per_resource: 1  # Tech lead oversight
+            count: 2
       
       - name: Implementation
         duration:
@@ -83,7 +48,6 @@ event_simulation:
           - resource_table: Consultant
             value: Developer
             count: 2
-            capacity_per_resource: 2  # High-intensity coding work
       
       - name: Testing
         duration:
@@ -95,7 +59,6 @@ event_simulation:
           - resource_table: Consultant
             value: Tester
             count: 1
-            capacity_per_resource: 2  # Thorough testing requires focus
       
       - name: Deployment
         duration:
@@ -107,13 +70,10 @@ event_simulation:
           - resource_table: Consultant
             value: Developer
             count: 1
-            capacity_per_resource: 1  # Deployment coordination
           - resource_table: Consultant
             value: Tester
             count: 1
-            capacity_per_resource: 1  # Final verification
     
-    # Define transitions between event types with probabilities
     transitions:
       - from: Requirements
         to:
@@ -129,12 +89,38 @@ event_simulation:
         to:
           - event_type: Testing
             probability: 0.9
-          - event_type: Design  # Possible rework
+          - event_type: Design
             probability: 0.1
       
       - from: Testing
         to:
           - event_type: Deployment
             probability: 0.8
-          - event_type: Implementation  # Failed testing, back to implementation
+          - event_type: Implementation
             probability: 0.2
+
+  # Resource capacity configuration
+  resource_capacities:
+    Consultant:
+      capacity_rules:
+        - resource_type: "Tech Lead"
+          capacity:
+            distribution:
+              type: normal
+              mean: 3
+              stddev: 0.5
+              min: 2
+              max: 5
+        
+        - resource_type: "Developer"
+          capacity:
+            distribution:
+              type: choice
+              values: [1, 2, 3]
+              weights: [0.6, 0.3, 0.1]
+        
+        - resource_type: "Tester"
+          capacity: 2
+        
+        - resource_type: "Business Analyst"
+          capacity: 1
