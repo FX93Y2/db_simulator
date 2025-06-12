@@ -168,13 +168,28 @@ class EventSimulator:
         logger.info(f"Starting simulation for {self.config.duration_days} days")
         self.env.run(until=duration_minutes)
         
+        # Clean up any remaining allocated resources
+        if hasattr(self.resource_manager, 'event_allocations'):
+            remaining_allocations = list(self.resource_manager.event_allocations.keys())
+            if remaining_allocations:
+                logger.info(f"Cleaning up {len(remaining_allocations)} remaining resource allocations")
+                for event_id in remaining_allocations:
+                    try:
+                        self.resource_manager.release_resources(event_id)
+                    except Exception as e:
+                        logger.debug(f"Error releasing resources for event {event_id}: {e}")
+        
         logger.info(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
+        
+        # Get final resource utilization stats
+        resource_stats = self.resource_manager.get_utilization_stats()
         
         # Return simulation results
         return {
             'duration_days': self.config.duration_days,
             'entity_count': self.entity_manager.entity_count,
-            'processed_events': self.processed_events
+            'processed_events': self.processed_events,
+            'resource_utilization': resource_stats
         }
 
 
@@ -344,14 +359,14 @@ class EventSimulator:
             event_table: Name of the event table
             entity_table: Name of the entity table
         """
-        try:
-            # Create a process-specific engine for isolation
-            process_engine = create_engine(
-                f"sqlite:///{self.db_path}?journal_mode=WAL",
-                poolclass=NullPool,
-                connect_args={"check_same_thread": False}
-            )
+        # Create a process-specific engine for isolation
+        process_engine = create_engine(
+            f"sqlite:///{self.db_path}?journal_mode=WAL",
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False}
+        )
         
+        try:
             with Session(process_engine) as session:
                 # Get event details
                 relationship_columns = self.entity_manager.find_relationship_columns(session, entity_table, event_table)
@@ -404,19 +419,25 @@ class EventSimulator:
                     # Get resource requirements
                     resource_requirements = event_config.resource_requirements
                     
-                    # Allocate resources
-                    allocated_resources = []
+                    # Allocate resources using the new FilterStore-based approach
                     if resource_requirements:
+                        # Convert resource requirements to the format expected by allocate_resources
+                        requirements_list = []
                         for req in resource_requirements:
-                            # Find resources matching the requirement
-                            resources = self.resource_manager.find_resources(session, req.resource_table, req.value, req.count)
-                            allocated_resources.extend(resources)
-                    
-                    # If we couldn't allocate all resources, wait and retry
-                    if len(allocated_resources) < sum(req.count for req in resource_requirements):
-                        logger.debug(f"Not enough resources available for event {event_id}, waiting...")
-                        yield self.env.timeout(60)  # Wait one hour
-                        return
+                            requirements_list.append({
+                                'resource_table': req.resource_table,
+                                'value': req.value,
+                                'count': req.count
+                            })
+                        
+                        # Allocate resources (this will yield until resources are available)
+                        try:
+                            yield self.env.process(
+                                self.resource_manager.allocate_resources(event_id, requirements_list)
+                            )
+                        except simpy.Interrupt:
+                            logger.warning(f"Resource allocation interrupted for event {event_id}")
+                            return
                     
                     # Record event processing start
                     start_time = self.env.now
@@ -430,21 +451,21 @@ class EventSimulator:
                     end_datetime = self.config.start_date + timedelta(minutes=end_time)
                     
                     # Record resource allocations in the tracker
-                    for resource in allocated_resources:
-                        resource_id, resource_table = resource
-                        # Record in the event tracker
-                        self.event_tracker.record_resource_allocation(
-                            event_id=event_id,
-                            resource_table=resource_table,
-                            resource_id=resource_id,
-                            allocation_time=start_time,
-                            release_time=end_time
-                        )
+                    # Get the allocated resources from the resource manager
+                    if event_id in self.resource_manager.event_allocations:
+                        allocated_resources = self.resource_manager.event_allocations[event_id]
+                        for resource in allocated_resources:
+                            # Record in the event tracker
+                            self.event_tracker.record_resource_allocation(
+                                event_id=event_id,
+                                resource_table=resource.table,
+                                resource_id=resource.id,
+                                allocation_time=start_time,
+                                release_time=end_time
+                            )
                     
-                    # Release resources
-                    for resource in allocated_resources:
-                        resource_id, resource_table = resource
-                        self.resource_manager.release_resource(resource_table, resource_id)
+                    # Release resources using the new method
+                    self.resource_manager.release_resources(event_id)
                     
                     # Record the event processing
                     with process_engine.connect() as conn:
@@ -537,8 +558,20 @@ class EventSimulator:
                         logger.info(f"Entity {entity_id} has completed all events in the sequence")
                 else:
                     logger.warning("No event sequence configured. Cannot process events properly.")
+        except GeneratorExit:
+            # This happens when the simulation ends and interrupts ongoing processes
+            logger.debug(f"Event {event_id} processing interrupted by simulation end")
+            # Clean up resources if allocated
+            if event_id in self.resource_manager.event_allocations:
+                self.resource_manager.release_resources(event_id)
         except Exception as e:
             logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
+            # Clean up resources if allocated
+            if event_id in self.resource_manager.event_allocations:
+                self.resource_manager.release_resources(event_id)
         finally:
             # Always dispose of the process-specific engine
-            process_engine.dispose()
+            try:
+                process_engine.dispose()
+            except Exception as e:
+                logger.debug(f"Error disposing engine for event {event_id}: {e}")

@@ -1,7 +1,8 @@
 """
 Resource management for DB Simulator.
 
-This module handles resource allocation and management for the simulation.
+This module handles resource allocation and management for the simulation
+using SimPy's FilterStore for efficient resource pooling and tracking.
 """
 
 import logging
@@ -9,16 +10,47 @@ import simpy
 from typing import Dict, List, Tuple, Any, Optional
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
+from dataclasses import dataclass
+from datetime import datetime
 
 from ..utils.distribution_utils import generate_from_distribution
 
 logger = logging.getLogger(__name__)
 
+
+@dataclass
+class Resource:
+    """Represents a resource with all its attributes"""
+    id: int
+    table: str
+    type: str
+    attributes: Dict[str, Any]
+    
+    def __getitem__(self, key):
+        """Allow dict-like access for compatibility"""
+        if key == 'id':
+            return self.id
+        elif key == 'table':
+            return self.table
+        elif key == 'type':
+            return self.type
+        else:
+            return self.attributes.get(key)
+    
+    def get(self, key, default=None):
+        """Dict-like get method"""
+        try:
+            return self[key]
+        except KeyError:
+            return default
+
+
 class ResourceManager:
     """
-    Manages resources for the event-based simulation.
+    Manages resources for the event-based simulation using FilterStore.
     
-    Handles resource initialization, allocation, and release during simulation.
+    Each resource in the database is represented as an object in the FilterStore,
+    allowing for individual tracking and flexible filtering.
     """
     
     def __init__(self, env, engine, db_path, db_config=None):
@@ -36,13 +68,16 @@ class ResourceManager:
         self.db_path = db_path
         self.db_config = db_config
         
-        # Initialize resources
-        self.resources = {}
-        self.resource_types = {}
+        # Main resource store
+        self.resource_store = simpy.FilterStore(env)
         
-        # Dictionary to track allocated resources
-        self.allocated_resources = {}
-    
+        # Track resource allocations for statistics
+        self.allocation_history = []
+        self.resource_utilization = {}
+        
+        # Track current allocations by event
+        self.event_allocations = {}  # event_id -> List[Resource]
+        
     def get_resource_table(self, event_sim):
         """
         Get the resource table name from event simulation configuration or database config
@@ -70,7 +105,7 @@ class ResourceManager:
     
     def setup_resources(self, event_sim):
         """
-        Set up resources based on configuration
+        Set up resources by loading them from the database into the FilterStore
         
         Args:
             event_sim: Event simulation configuration
@@ -83,290 +118,302 @@ class ResourceManager:
             logger.error("Could not determine resource table name. Resources will not be set up.")
             return
         
-        # First find the resource_type column
         with Session(self.engine) as session:
-            # Get all resources from the database
-            # Find the resource_type column first
-            inspector = inspect(self.engine)
-            columns = inspector.get_columns(resource_table)
-            
-            # Look for a column with type 'resource_type' or a column named 'role' (default fallback)
-            resource_type_column = None
-            for column in columns:
-                # Check if this is a resource_type column
-                table_query = text(f"PRAGMA table_info({resource_table})")
-                columns_info = session.execute(table_query).fetchall()
+            try:
+                # Get table columns to find the resource type column
+                inspector = inspect(self.engine)
+                columns = inspector.get_columns(resource_table)
+                column_names = [col['name'] for col in columns]
                 
-                for col_info in columns_info:
-                    # SQLite pragmas return column name at index 1
-                    if col_info[1] == column['name']:
-                        resource_type_column = column['name']
-                        break
+                # Find the resource type column
+                resource_type_column = self._find_resource_type_column(column_names)
+                if not resource_type_column:
+                    logger.error(f"Could not find resource type column in table {resource_table}")
+                    return
                 
-                if resource_type_column:
-                    break
-            
-            if not resource_type_column:
-                logger.error(f"Could not find resource type column in table {resource_table}")
-                return
+                logger.info(f"Using '{resource_type_column}' as resource type column")
                 
-            # Get all resources from the database
-            sql_query = text(f"SELECT id, {resource_type_column} FROM {resource_table}")
-            result = session.execute(sql_query)
-            resources_by_type = {}
-            
-            for row in result:
-                resource_type = row[1]
-                if resource_type not in resources_by_type:
-                    resources_by_type[resource_type] = []
-                resources_by_type[resource_type].append(row[0])
-            
-            # Create SimPy resources for each resource ID
-            for resource_type, resource_ids in resources_by_type.items():
-                for resource_id in resource_ids:
-                    resource_key = f"{resource_table}_{resource_id}"
-                    self.resources[resource_key] = simpy.Resource(self.env, capacity=1)
-                    self.resource_types[resource_key] = resource_type
-            
-            logger.info(f"Set up {len(self.resources)} resources of {len(resources_by_type)} types")
-    
-    def determine_required_resources(self, event_id: int, event_sim) -> List[str]:
-        """
-        Determine the required resources for an event
-        
-        Args:
-            event_id: Event ID
-            event_sim: Event simulation configuration
-            
-        Returns:
-            List of resource keys
-        """
-        if not event_sim:
-            return []
-            
-        required_resources = []
-        
-        # Create a process-specific engine to avoid connection sharing issues
-        process_engine = create_engine(
-            f"sqlite:///{self.db_path}?journal_mode=WAL",
-            connect_args={"check_same_thread": False}
-        )
-        
-        try:
-            with Session(process_engine) as session:
-                # Get the event type to determine specific resource requirements
-                # Get the event table name
-                event_table = None
-                if event_sim.table_specification and event_sim.table_specification.event_table:
-                    event_table = event_sim.table_specification.event_table
-                elif self.db_config:
-                    for entity in self.db_config.entities:
-                        if entity.type == 'event':
-                            event_table = entity.name
-                            break
-                
-                if not event_table:
-                    logger.error("Could not determine event table name. Cannot determine required resources.")
-                    return []
-                sql_query = text(f"SELECT type FROM {event_table} WHERE id = {event_id}")
+                # Get all resources from the database
+                sql_query = text(f"SELECT * FROM {resource_table}")
                 result = session.execute(sql_query)
-                event_type = None
+                
+                # Add each resource to the FilterStore
+                resource_count = 0
+                resource_types = set()
+                
                 for row in result:
-                    event_type = row[0]
-                    break
+                    row_dict = dict(row._mapping)
                     
-                # Check if event sequence has specific resource requirements for this event type
-                if event_sim.event_sequence and event_type:
+                    # Create a Resource object
+                    resource = Resource(
+                        id=row_dict.get('id'),
+                        table=resource_table,
+                        type=row_dict.get(resource_type_column, 'unknown'),
+                        attributes=row_dict
+                    )
                     
-                    # Find the event type definition in the event sequence configuration
-                    event_type_def = None
-                    for et in event_sim.event_sequence.event_types:
-                        if et.name == event_type:
-                            event_type_def = et
-                            break
+                    # Add to the store
+                    self.resource_store.put(resource)
+                    resource_count += 1
+                    resource_types.add(resource.type)
                     
-                    if event_type_def and event_type_def.resource_requirements:
-                        # Use event type-specific resource requirements
-                        for req in event_type_def.resource_requirements:
-                            resource_table = req.resource_table
-                            resource_value = req.value
-                            
-                            # Determine how many resources of this type are needed
-                            count = req.count
-                            if isinstance(count, dict) and 'distribution' in count:
-                                count = int(round(generate_from_distribution(count['distribution'])))
-                            else:
-                                count = int(count)
-                            
-                            # Skip if no resources needed
-                            if count <= 0:
-                                continue
-                            
-                            # Get all resources of this type
-                            # First get the resource_type column
-                            resource_type_column = None
-                            inspector = inspect(self.engine)
-                            columns = inspector.get_columns(resource_table)
-                            
-                            # Look for a resource_type column
-                            for column in columns:
-                                table_query = text(f"PRAGMA table_info({resource_table})")
-                                columns_info = session.execute(table_query).fetchall()
-                                
-                                for col_info in columns_info:
-                                    if col_info[1] == column['name']:
-                                        resource_type_column = column['name']
-                                        break
-                                
-                                if resource_type_column:
-                                    break
-                            
-                            # If we still haven't found it, use 'type' or 'role' as fallback
-                            if not resource_type_column:
-                                for fallback in ['type', 'role', 'resource_type', 'category']:
-                                    if fallback in [col['name'] for col in columns]:
-                                        resource_type_column = fallback
-                                        break
-                            
-                            if not resource_type_column:
-                                logger.error(f"Could not find resource type column in table {resource_table}")
-                                continue
-                            
-                            # Get all resources with the matching value
-                            sql_query = text(f"""
-                                SELECT id FROM {resource_table} 
-                                WHERE {resource_type_column} = '{resource_value}'
-                            """)
-                            result = session.execute(sql_query)
-                            matching_resources = [f"{resource_table}_{row[0]}" for row in result]
-                            
-                            # Add up to count resources of this type
-                            added = 0
-                            for resource_key in matching_resources:
-                                if resource_key in self.resources and added < count:
-                                    required_resources.append(resource_key)
-                                    added += 1
-                                    
-                            if added < count:
-                                logger.warning(f"Only found {added} of {count} required resources of type {resource_value}")
+                    # Initialize utilization tracking
+                    resource_key = f"{resource_table}_{resource.id}"
+                    self.resource_utilization[resource_key] = {
+                        'total_busy_time': 0,
+                        'allocation_count': 0,
+                        'last_allocated': None,
+                        'last_released': None
+                    }
                 
-                # If no specific requirements, show an error
-                if not required_resources:
-                    logger.error(f"Could not determine resource requirements for event {event_id}")
-        except Exception as e:
-            logger.error(f"Error determining required resources for event {event_id}: {str(e)}")
-        finally:
-            process_engine.dispose()
-        
-        return required_resources
+                logger.info(f"Loaded {resource_count} resources of {len(resource_types)} types into FilterStore")
+                logger.info(f"Resource types: {', '.join(sorted(resource_types))}")
+                
+            except Exception as e:
+                logger.error(f"Error setting up resources from table {resource_table}: {e}")
+                import traceback
+                logger.error(traceback.format_exc())
     
-    def find_resources(self, session, resource_table: str, resource_type: str, count: int) -> List[Tuple[int, str]]:
+    def _find_resource_type_column(self, column_names: List[str]) -> Optional[str]:
         """
-        Find available resources matching the given type
+        Find the column that represents resource type
         
         Args:
-            session: SQLAlchemy session
-            resource_table: Name of the resource table
-            resource_type: Type of resource to find
-            count: Number of resources to allocate
+            column_names: List of column names in the resource table
             
         Returns:
-            List of tuples (resource_id, resource_table)
+            Name of the resource type column or None
         """
-        try:
-            # Find the resource type column
-            resource_type_column = self.find_resource_type_column(session, resource_table)
-            if not resource_type_column:
-                logger.error(f"Could not find resource type column in {resource_table}")
-                return []
-                
-            logger.debug(f"Using resource type column: {resource_type_column}")
-            
-            # Get resources of the specified type that aren't already allocated
-            resources = []
-            
-            # Check which resources are already allocated
-            allocated_resources = set(self.allocated_resources.keys())
-            
-            # Query for resources of the specified type
-            sql_query = text(f"SELECT id FROM {resource_table} WHERE {resource_type_column} = '{resource_type}'")
-            result = session.execute(sql_query).fetchall()
-            
-            if not result:
-                logger.warning(f"No resources found of type {resource_type} in {resource_table}")
-                return []
-                
-            # Filter out already allocated resources
-            available_resources = []
-            for row in result:
-                resource_id = row[0]
-                resource_key = f"{resource_table}_{resource_id}"
-                if resource_key not in allocated_resources:
-                    available_resources.append(resource_id)
-                    
-            # Check if we have enough resources
-            if len(available_resources) < count:
-                logger.warning(f"Not enough resources available of type {resource_type}. Needed: {count}, Available: {len(available_resources)}")
-                return []
-                
-            # Allocate the resources
-            for i in range(count):
-                resource_id = available_resources[i]
-                resource_key = f"{resource_table}_{resource_id}"
-                self.allocated_resources[resource_key] = resource_type
-                resources.append((resource_id, resource_table))
-                
-            logger.debug(f"Allocated {count} resources of type {resource_type} from {resource_table}")
-            return resources
-            
-        except Exception as e:
-            logger.error(f"Error finding resources: {str(e)}")
-            return []
-            
-    def release_resource(self, resource_table: str, resource_id: int):
-        """
-        Release an allocated resource
+        # Common names for resource type columns
+        common_names = ['role', 'type', 'resource_type', 'category', 'skill', 'position']
         
-        Args:
-            resource_table: Name of the resource table
-            resource_id: ID of the resource to release
-        """
-        try:
-            resource_key = f"{resource_table}_{resource_id}"
-            if resource_key in self.allocated_resources:
-                del self.allocated_resources[resource_key]
-                logger.debug(f"Released resource {resource_key}")
-            else:
-                logger.warning(f"Attempted to release resource {resource_key} that wasn't allocated")
-        except Exception as e:
-            logger.error(f"Error releasing resource: {str(e)}")
-            
-    def find_resource_type_column(self, session, resource_table: str) -> str:
-        """
-        Find the column used for resource types in the resource table
+        # First, look for exact matches
+        for name in common_names:
+            if name in column_names:
+                return name
         
-        Args:
-            session: SQLAlchemy session
-            resource_table: Name of the resource table
-            
-        Returns:
-            Name of the column used for resource types
-        """
-        try:
-            # Common column names for resource types
-            common_names = ['role', 'type', 'resource_type', 'category']
-            
-            # Get all column names for this table
-            inspector = inspect(session.get_bind())
-            columns = [col['name'] for col in inspector.get_columns(resource_table)]
-            
-            # Try to find a matching column
+        # Then look for columns containing these words
+        for col in column_names:
+            col_lower = col.lower()
             for name in common_names:
-                if name in columns:
-                    return name
+                if name in col_lower:
+                    return col
+        
+        # Default fallback
+        logger.warning("Could not find resource type column, using 'role' as default")
+        return 'role' if 'role' in column_names else None
+    
+    def allocate_resources(self, event_id: int, requirements: List[Dict[str, Any]]):
+        """
+        Allocate resources for an event based on requirements
+        
+        Args:
+            event_id: ID of the event requesting resources
+            requirements: List of resource requirements
+            
+        Yields:
+            When all required resources are allocated
+        """
+        allocated_resources = []
+        allocation_start_time = self.env.now
+        
+        try:
+            for req in requirements:
+                resource_table = req.get('resource_table')
+                resource_value = req.get('value')
+                count = req.get('count', 1)
+                
+                # Handle dynamic count
+                if isinstance(count, dict) and 'distribution' in count:
+                    count = int(round(generate_from_distribution(count['distribution'])))
+                else:
+                    count = int(count)
+                
+                if count <= 0:
+                    continue
+                
+                logger.debug(f"Event {event_id} requesting {count} resources of type {resource_table}.{resource_value}")
+                
+                # Request resources from the FilterStore
+                for i in range(count):
+                    # Define filter function for this resource type
+                    def resource_filter(r, table=resource_table, value=resource_value):
+                        return r.table == table and r.type == value
                     
-            # If no match found, return the first one in our list that makes sense
-            return 'role'  # Default fallback
-        except Exception as e:
-            logger.error(f"Error finding resource type column: {str(e)}")
-            return 'role'  # Default fallback
+                    # Get a resource matching the criteria
+                    resource = yield self.resource_store.get(resource_filter)
+                    allocated_resources.append(resource)
+                    
+                    # Track allocation
+                    resource_key = f"{resource.table}_{resource.id}"
+                    self.resource_utilization[resource_key]['allocation_count'] += 1
+                    self.resource_utilization[resource_key]['last_allocated'] = allocation_start_time
+                    
+                    logger.debug(f"Allocated resource {resource_key} (type: {resource.type}) to event {event_id}")
+            
+            # Store the allocation for this event
+            self.event_allocations[event_id] = allocated_resources
+            
+            # Record allocation in history
+            self.allocation_history.append({
+                'event_id': event_id,
+                'timestamp': allocation_start_time,
+                'resources': [(r.table, r.id, r.type) for r in allocated_resources],
+                'action': 'allocate'
+            })
+            
+            logger.info(f"Successfully allocated {len(allocated_resources)} resources to event {event_id}")
+            
+        except simpy.Interrupt:
+            # If interrupted, release any resources we managed to allocate
+            logger.warning(f"Resource allocation interrupted for event {event_id}")
+            for resource in allocated_resources:
+                self.resource_store.put(resource)
+            raise
+    
+    def release_resources(self, event_id: int):
+        """
+        Release all resources allocated to an event
+        
+        Args:
+            event_id: ID of the event releasing resources
+        """
+        if event_id not in self.event_allocations:
+            logger.warning(f"No resources found for event {event_id} to release")
+            return
+        
+        resources = self.event_allocations[event_id]
+        release_time = self.env.now
+        
+        for resource in resources:
+            # Update utilization tracking
+            resource_key = f"{resource.table}_{resource.id}"
+            util = self.resource_utilization[resource_key]
+            
+            if util['last_allocated'] is not None:
+                busy_duration = release_time - util['last_allocated']
+                util['total_busy_time'] += busy_duration
+                util['last_released'] = release_time
+            
+            # Return resource to the store
+            self.resource_store.put(resource)
+            
+            logger.debug(f"Released resource {resource_key} from event {event_id}")
+        
+        # Record release in history
+        self.allocation_history.append({
+            'event_id': event_id,
+            'timestamp': release_time,
+            'resources': [(r.table, r.id, r.type) for r in resources],
+            'action': 'release'
+        })
+        
+        # Remove from current allocations
+        del self.event_allocations[event_id]
+        
+        logger.info(f"Released {len(resources)} resources from event {event_id}")
+    
+    def get_available_resources(self, resource_type: Optional[str] = None) -> List[Resource]:
+        """
+        Get list of currently available resources
+        
+        Args:
+            resource_type: Optional filter by resource type
+            
+        Returns:
+            List of available resources
+        """
+        # Note: This is a snapshot and may change immediately after calling
+        available = list(self.resource_store.items)
+        
+        if resource_type:
+            available = [r for r in available if r.type == resource_type]
+        
+        return available
+    
+    def get_utilization_stats(self) -> Dict[str, Any]:
+        """
+        Get resource utilization statistics
+        
+        Returns:
+            Dictionary of utilization statistics
+        """
+        stats = {
+            'total_resources': len(self.resource_utilization),
+            'currently_allocated': sum(len(resources) for resources in self.event_allocations.values()),
+            'total_allocations': len([h for h in self.allocation_history if h['action'] == 'allocate']),
+            'by_resource': {},
+            'by_type': {}
+        }
+        
+        # Calculate per-resource statistics
+        type_stats = {}
+        
+        for resource_key, util in self.resource_utilization.items():
+            # Calculate utilization percentage
+            if self.env.now > 0:
+                # Add current busy time if resource is still allocated
+                current_busy = 0
+                if util['last_allocated'] and (not util['last_released'] or 
+                                              util['last_allocated'] > util['last_released']):
+                    current_busy = self.env.now - util['last_allocated']
+                
+                total_busy = util['total_busy_time'] + current_busy
+                utilization_pct = (total_busy / self.env.now) * 100
+            else:
+                utilization_pct = 0
+            
+            stats['by_resource'][resource_key] = {
+                'allocation_count': util['allocation_count'],
+                'total_busy_time': util['total_busy_time'],
+                'utilization_percentage': round(utilization_pct, 2)
+            }
+            
+            # Aggregate by type
+            # Extract type from any current allocation or history
+            resource_type = 'unknown'
+            for event_id, resources in self.event_allocations.items():
+                for r in resources:
+                    if f"{r.table}_{r.id}" == resource_key:
+                        resource_type = r.type
+                        break
+            
+            if resource_type not in type_stats:
+                type_stats[resource_type] = {
+                    'count': 0,
+                    'total_allocations': 0,
+                    'total_busy_time': 0
+                }
+            
+            type_stats[resource_type]['count'] += 1
+            type_stats[resource_type]['total_allocations'] += util['allocation_count']
+            type_stats[resource_type]['total_busy_time'] += util['total_busy_time']
+        
+        # Calculate type-level statistics
+        for rtype, tstats in type_stats.items():
+            if self.env.now > 0 and tstats['count'] > 0:
+                avg_utilization = (tstats['total_busy_time'] / (self.env.now * tstats['count'])) * 100
+            else:
+                avg_utilization = 0
+            
+            stats['by_type'][rtype] = {
+                'count': tstats['count'],
+                'total_allocations': tstats['total_allocations'],
+                'average_utilization_percentage': round(avg_utilization, 2)
+            }
+        
+        return stats
+    
+    def get_allocation_history(self, event_id: Optional[int] = None) -> List[Dict[str, Any]]:
+        """
+        Get resource allocation history
+        
+        Args:
+            event_id: Optional filter by specific event
+            
+        Returns:
+            List of allocation history entries
+        """
+        if event_id is not None:
+            return [h for h in self.allocation_history if h['event_id'] == event_id]
+        return self.allocation_history.copy()
