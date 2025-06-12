@@ -1,0 +1,98 @@
+entities:
+  - name: Submitter
+    rows: 100
+    attributes:
+      - name: id
+        type: pk
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: email
+        type: string
+        generator:
+          type: faker
+          method: email
+
+  - name: Staff
+    type: resource
+    rows: 20
+    attributes:
+      - name: id
+        type: pk
+      - name: name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: role
+        type: resource_type
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values: ["Technical Support", "SRE", "SSA", "Security", "Developer"]
+            weights: [0.3, 0.2, 0.2, 0.1, 0.2]
+    resource_capacity:
+      - name: "Technical Support"
+        capacity: 10
+      - name: "SRE"
+        capacity: 5
+      - name: "SSA"
+        capacity: 4
+      - name: "Security"
+        capacity: 4
+      - name: "Developer"
+        capacity: 2
+
+  - name: Ticket
+    type: entity
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: submitter_id
+        type: fk
+        ref: Submitter.id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+      - name: title
+        type: string
+        generator:
+          type: template
+          template: "Ticket_{id}"
+      - name: description
+        type: string
+        generator:
+          type: faker
+          method: sentence
+
+  - name: Task
+    type: event
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: ticket_id
+        type: entity_id
+        ref: Ticket.id
+      - name: type
+        type: event_type
+
+  - name: Staff_Task
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: task_id
+        type: event_id
+        ref: Task.id
+      - name: staff_id
+        type: resource_id
+        ref: Staff.id
+      - name: start_date
+        type: datetime
+      - name: end_date
+        type: datetime

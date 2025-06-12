@@ -1,0 +1,110 @@
+# This file demonstrates the recommended approach for configuring simulations
+
+simulation:
+  duration_days: 60
+  start_date: 2024-06-01
+  random_seed: 42
+
+# Event simulation configuration
+event_simulation:
+  # Table specification is now derived from the database configuration
+  # based on the 'type' field of each table
+  
+  # Entity arrival configuration
+  entity_arrival:
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 5  # Average 5 days between entity arrivals
+    max_entities: n/a  # n/a means the simulation will keep generating entities following the distribution
+  
+  # Event sequence configuration
+  # This defines the flow of events and their specific durations and resource requirements
+  event_sequence:
+    # Define all event types with their specific durations and resource requirements
+    # Each event type MUST have both duration and resource_requirements defined
+    event_types:
+      - name: Requirements
+        duration:
+          distribution:
+            type: normal
+            mean: 3
+            stddev: 0.5
+        resource_requirements:
+          - resource_table: Consultant
+            value: Developer
+            count: 1
+      
+      - name: Design
+        duration:
+          distribution:
+            type: normal
+            mean: 5
+            stddev: 1
+        resource_requirements:
+          - resource_table: Consultant
+            value: Developer
+            count: 2
+      
+      - name: Implementation
+        duration:
+          distribution:
+            type: normal
+            mean: 10
+            stddev: 2
+        resource_requirements:
+          - resource_table: Consultant
+            value: Developer
+            count: 2
+      
+      - name: Testing
+        duration:
+          distribution:
+            type: normal
+            mean: 4
+            stddev: 1
+        resource_requirements:
+          - resource_table: Consultant
+            value: Tester
+            count: 1
+      
+      - name: Deployment
+        duration:
+          distribution:
+            type: normal
+            mean: 2
+            stddev: 0.5
+        resource_requirements:
+          - resource_table: Consultant
+            value: Developer
+            count: 1
+          - resource_table: Consultant
+            value: Tester
+            count: 1
+    
+    # Define transitions between event types with probabilities
+    # The first transition will be used as the initial event in the sequence
+    transitions:
+      - from: Requirements
+        to:
+          - event_type: Design
+            probability: 1.0
+      
+      - from: Design
+        to:
+          - event_type: Implementation
+            probability: 1.0
+      
+      - from: Implementation
+        to:
+          - event_type: Testing
+            probability: 0.9
+          - event_type: Design  # Possible rework
+            probability: 0.1
+      
+      - from: Testing
+        to:
+          - event_type: Deployment
+            probability: 0.8
+          - event_type: Implementation  # Failed testing, back to implementation
+            probability: 0.2

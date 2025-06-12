@@ -1,0 +1,114 @@
+simulation:
+  duration_days: 30
+  start_date: 2024-06-01
+  random_seed: 123
+
+event_simulation:
+  entity_arrival:
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 1.2  # ~20 tickets per day
+    max_entities: n/a
+
+  event_sequence:
+    event_types:
+      - name: Professional Assignment
+        duration:
+          distribution:
+            type: normal
+            mean: 0.5
+            stddev: 0.1
+        resource_requirements:
+          - resource_table: Staff
+            value: Technical Support
+            count: 1
+
+      - name: SRE Assist
+        duration:
+          distribution:
+            type: normal
+            mean: 1.0
+            stddev: 0.2
+        resource_requirements:
+          - resource_table: Staff
+            value: SRE
+            count: 1
+
+      - name: SSA Assist
+        duration:
+          distribution:
+            type: normal
+            mean: 1.0
+            stddev: 0.2
+        resource_requirements:
+          - resource_table: Staff
+            value: SSA
+            count: 1
+
+      - name: Security Assist
+        duration:
+          distribution:
+            type: normal
+            mean: 1.0
+            stddev: 0.2
+        resource_requirements:
+          - resource_table: Staff
+            value: Security
+            count: 1
+
+      - name: Developer Assist
+        duration:
+          distribution:
+            type: normal
+            mean: 2.0
+            stddev: 0.5
+        resource_requirements:
+          - resource_table: Staff
+            value: Developer
+            count: 1
+
+      - name: Resolve
+        duration:
+          distribution:
+            type: constant
+            value: 0
+        resource_requirements: []
+
+    transitions:
+      - from: Professional Assignment
+        to:
+          - event_type: SRE Assist
+            probability: 0.4
+          - event_type: SSA Assist
+            probability: 0.3
+          - event_type: Security Assist
+            probability: 0.1
+          - event_type: Resolve
+            probability: 0.2
+
+      - from: SRE Assist
+        to:
+          - event_type: Resolve
+            probability: 0.7
+          - event_type: Developer Assist
+            probability: 0.3
+
+      - from: SSA Assist
+        to:
+          - event_type: Resolve
+            probability: 0.7
+          - event_type: Developer Assist
+            probability: 0.3
+
+      - from: Security Assist
+        to:
+          - event_type: Resolve
+            probability: 0.7
+          - event_type: Developer Assist
+            probability: 0.3
+
+      - from: Developer Assist
+        to:
+          - event_type: Resolve
+            probability: 1.0
