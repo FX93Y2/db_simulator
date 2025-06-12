@@ -359,6 +359,12 @@ class EventSimulator:
             event_table: Name of the event table
             entity_table: Name of the entity table
         """
+        # Check if simulation is still running
+        duration_minutes = self.config.duration_days * 24 * 60
+        if self.env.now >= duration_minutes:
+            logger.debug(f"Skipping event {event_id} processing - simulation time exceeded")
+            return
+        
         # Create a process-specific engine for isolation
         process_engine = create_engine(
             f"sqlite:///{self.db_path}?journal_mode=WAL",
@@ -565,10 +571,17 @@ class EventSimulator:
             if event_id in self.resource_manager.event_allocations:
                 self.resource_manager.release_resources(event_id)
         except Exception as e:
-            logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
+            # Don't log full traceback for database connection errors during cleanup
+            if "Cannot operate on a closed database" in str(e):
+                logger.debug(f"Event {event_id} processing interrupted by database closure during simulation cleanup")
+            else:
+                logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
             # Clean up resources if allocated
             if event_id in self.resource_manager.event_allocations:
-                self.resource_manager.release_resources(event_id)
+                try:
+                    self.resource_manager.release_resources(event_id)
+                except Exception as cleanup_error:
+                    logger.debug(f"Error during resource cleanup for event {event_id}: {cleanup_error}")
         finally:
             # Always dispose of the process-specific engine
             try:

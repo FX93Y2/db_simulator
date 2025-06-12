@@ -78,6 +78,9 @@ class ResourceManager:
         # Track current allocations by event
         self.event_allocations = {}  # event_id -> List[Resource]
         
+        # Track all resources by ID for type lookup
+        self.all_resources = {}  # resource_key -> Resource
+        
     def get_resource_table(self, event_sim):
         """
         Get the resource table name from event simulation configuration or database config
@@ -157,8 +160,11 @@ class ResourceManager:
                     resource_count += 1
                     resource_types.add(resource.type)
                     
-                    # Initialize utilization tracking
+                    # Store resource for type lookup
                     resource_key = f"{resource_table}_{resource.id}"
+                    self.all_resources[resource_key] = resource
+                    
+                    # Initialize utilization tracking
                     self.resource_utilization[resource_key] = {
                         'total_busy_time': 0,
                         'allocation_count': 0,
@@ -370,13 +376,10 @@ class ResourceManager:
             }
             
             # Aggregate by type
-            # Extract type from any current allocation or history
+            # Get resource type from stored resource information
             resource_type = 'unknown'
-            for event_id, resources in self.event_allocations.items():
-                for r in resources:
-                    if f"{r.table}_{r.id}" == resource_key:
-                        resource_type = r.type
-                        break
+            if resource_key in self.all_resources:
+                resource_type = self.all_resources[resource_key].type
             
             if resource_type not in type_stats:
                 type_stats[resource_type] = {

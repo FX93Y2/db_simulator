@@ -18,6 +18,22 @@ class ResourceRequirement:
     resource_table: str
     value: str  # Corresponds to the value in the resource_type column
     count: int  # Number of resources required
+    capacity_per_resource: int = 1  # Capacity needed per resource
+
+@dataclass
+class CapacityRule:
+    """Defines capacity assignment rules for specific resource types"""
+    resource_type: str
+    capacity: Union[int, Dict[str, Any]]  # Fixed int or distribution config
+
+@dataclass
+class ResourceCapacityConfig:
+    """Configuration for resource capacities for a specific resource table"""
+    capacity_rules: List[CapacityRule] = field(default_factory=list)
+    default_capacity: int = 1
+    capacity_formula: Optional[str] = None  # For formula-based capacity calculation
+    min_capacity: int = 1
+    max_capacity: int = 100  # More reasonable default maximum
 
 @dataclass
 class TableSpecification:
@@ -76,6 +92,7 @@ class EventSimulation:
     entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
     event_sequence: Optional[EventSequence] = None
+    resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
 
 def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[str]:
     """
@@ -342,7 +359,8 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                     resource_reqs.append(ResourceRequirement(
                         resource_table=req_dict.get('resource_table', ''),
                         value=req_dict.get('value', ''),
-                        count=req_dict.get('count', 1)
+                        count=req_dict.get('count', 1),
+                        capacity_per_resource=req_dict.get('capacity_per_resource', 1)
                     ))
                 
                 event_types.append(EventTypeDefinition(
@@ -371,11 +389,33 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 transitions=transitions
             )
         
+        # Parse resource capacities configuration
+        resource_capacities = None
+        if 'resource_capacities' in event_dict:
+            resource_capacities = {}
+            for table_name, capacity_config_dict in event_dict['resource_capacities'].items():
+                # Parse capacity rules
+                capacity_rules = []
+                for rule_dict in capacity_config_dict.get('capacity_rules', []):
+                    capacity_rules.append(CapacityRule(
+                        resource_type=rule_dict.get('resource_type', ''),
+                        capacity=rule_dict.get('capacity', 1)
+                    ))
+                
+                resource_capacities[table_name] = ResourceCapacityConfig(
+                    capacity_rules=capacity_rules,
+                    default_capacity=capacity_config_dict.get('default_capacity', 1),
+                    capacity_formula=capacity_config_dict.get('capacity_formula'),
+                    min_capacity=capacity_config_dict.get('min_capacity', 1),
+                    max_capacity=capacity_config_dict.get('max_capacity', 100)  # More reasonable default
+                )
+        
         event_simulation = EventSimulation(
             table_specification=table_spec,
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
-            event_sequence=event_sequence
+            event_sequence=event_sequence,
+            resource_capacities=resource_capacities
         )
     
     return SimulationConfig(
@@ -493,7 +533,8 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                     resource_reqs.append(ResourceRequirement(
                         resource_table=req_dict.get('resource_table', ''),
                         value=req_dict.get('value', ''),
-                        count=req_dict.get('count', 1)
+                        count=req_dict.get('count', 1),
+                        capacity_per_resource=req_dict.get('capacity_per_resource', 1)
                     ))
                 
                 event_types.append(EventTypeDefinition(
@@ -522,11 +563,33 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 transitions=transitions
             )
         
+        # Parse resource capacities configuration
+        resource_capacities = None
+        if 'resource_capacities' in event_dict:
+            resource_capacities = {}
+            for table_name, capacity_config_dict in event_dict['resource_capacities'].items():
+                # Parse capacity rules
+                capacity_rules = []
+                for rule_dict in capacity_config_dict.get('capacity_rules', []):
+                    capacity_rules.append(CapacityRule(
+                        resource_type=rule_dict.get('resource_type', ''),
+                        capacity=rule_dict.get('capacity', 1)
+                    ))
+                
+                resource_capacities[table_name] = ResourceCapacityConfig(
+                    capacity_rules=capacity_rules,
+                    default_capacity=capacity_config_dict.get('default_capacity', 1),
+                    capacity_formula=capacity_config_dict.get('capacity_formula'),
+                    min_capacity=capacity_config_dict.get('min_capacity', 1),
+                    max_capacity=capacity_config_dict.get('max_capacity', 100)
+                )
+        
         event_simulation = EventSimulation(
             table_specification=table_spec,
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
-            event_sequence=event_sequence
+            event_sequence=event_sequence,
+            resource_capacities=resource_capacities
         )
     
     return SimulationConfig(
