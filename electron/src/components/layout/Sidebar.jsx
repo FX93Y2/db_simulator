@@ -4,8 +4,10 @@ import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } 
 import { Button, Spinner, Modal, Form } from 'react-bootstrap';
 import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject } from '../../utils/projectApi';
 import { FiEdit } from 'react-icons/fi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 const ProjectSidebar = () => {
+  const { showSuccess, showError } = useToastContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -226,7 +228,7 @@ const ProjectSidebar = () => {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
-      alert('Please enter a project name');
+      showError('Please enter a project name');
       return;
     }
 
@@ -247,11 +249,11 @@ const ProjectSidebar = () => {
         // Navigate to the new project
         navigate(`/project/${result.project.id}`);
       } else {
-        alert('Failed to create project: ' + (result.error || 'Unknown error'));
+        showError('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Error creating project');
+      showError('Error creating project');
     } finally {
       setCreatingProject(false);
     }
@@ -289,11 +291,11 @@ const ProjectSidebar = () => {
         
         handleCloseDeleteModal();
       } else {
-        alert('Failed to delete project: ' + (result.error || 'Unknown error'));
+        showError('Failed to delete project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting project:', error);
-      alert('Error deleting project');
+      showError('Error deleting project');
     } finally {
       setDeletingProject(false);
     }
@@ -405,11 +407,11 @@ const ProjectSidebar = () => {
         
         handleCloseDeleteResultModal();
       } else {
-        alert('Failed to delete result: ' + (deleteResponse.error || 'Unknown error'));
+        showError('Failed to delete result: ' + (deleteResponse.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error deleting result:', error);
-      alert('Error deleting result');
+      showError('Error deleting result');
     } finally {
       setDeletingResult(false);
     }
@@ -705,10 +707,10 @@ const ProjectSidebar = () => {
                   // Trigger sidebar refresh
                   window.dispatchEvent(new Event('refreshProjects'));
                 } else {
-                  alert('Failed to update project name');
+                  showError('Failed to update project name');
                 }
               } catch (error) {
-                alert('Error updating project name');
+                showError('Error updating project name');
               } finally {
                 setIsUpdating(false);
               }

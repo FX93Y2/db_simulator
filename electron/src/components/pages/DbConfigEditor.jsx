@@ -1,18 +1,19 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
-  Row, 
-  Col, 
-  Form, 
-  Button, 
+import {
+  Row,
+  Col,
+  Form,
+  Button,
   Modal,
-  Spinner 
+  Spinner
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus } from 'react-icons/fi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new database configuration
 const DEFAULT_DB_CONFIG = `# Database Configuration Template
@@ -32,6 +33,7 @@ entities:
 // Accept theme as a prop
 const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
   const { configId } = useParams();
+  const { showSuccess, showError, showWarning } = useToastContext();
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
   const [name, setName] = useState('');
@@ -159,10 +161,10 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
         
         if (result.success) {
           setConfig(result.config);
-          alert('Database configuration saved successfully');
+          showSuccess('Database configuration saved successfully');
         } else {
           console.error("DbConfigEditor: Error saving configuration:", result);
-          alert('Error saving configuration');
+          showError('Error saving configuration');
         }
       } else if (config && !saveAsNew) {
         // Update existing configuration
@@ -188,13 +190,13 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       
       if (!result.success) {
         console.error("DbConfigEditor: Error: result.success is false", result);
-        alert('Error saving configuration');
+        showError('Error saving configuration');
       }
       
       return result;
     } catch (error) {
       console.error('DbConfigEditor: Error in saveConfigWithContent:', error);
-      alert('Error saving configuration');
+      showError('Error saving configuration');
       throw error;
     } finally {
       setLoading(false);
@@ -248,7 +250,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       
     } catch (error) {
       console.error('Error adding table:', error);
-      alert('Failed to add table. Please check that your YAML is valid.');
+      showError('Failed to add table. Please check that your YAML is valid.');
     }
   };
   
@@ -283,7 +285,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       setLoading(true);
       
       if (!name) {
-        alert('Please enter a name for the configuration');
+        showError('Please enter a name for the configuration');
         setLoading(false);
         return;
       }
@@ -292,7 +294,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       const validationResult = validateYaml(yamlContent);
       if (!validationResult.parsed) {
         console.error("DbConfigEditor: YAML validation failed:", validationResult.error);
-        alert('The YAML content appears to be invalid. Please check your configuration.');
+        showError('The YAML content appears to be invalid. Please check your configuration.');
         setLoading(false);
         return;
       }
@@ -311,7 +313,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       await saveConfigWithContent(configData);
     } catch (error) {
       console.error('DbConfigEditor: Error saving configuration:', error);
-      alert('Error saving configuration');
+      showError('Error saving configuration');
     } finally {
       setLoading(false);
     }

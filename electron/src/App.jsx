@@ -14,6 +14,9 @@ import DbConfigEditor from './components/pages/DbConfigEditor';
 import SimConfigEditor from './components/pages/SimConfigEditor';
 import ResultsViewer from './components/pages/ResultsViewer';
 
+// Toast Context
+import { ToastProvider } from './contexts/ToastContext';
+
 const App = () => {
   // Theme state management - initialize from localStorage or default to 'dark'
   const [theme, setTheme] = useState(() => {
@@ -62,52 +65,54 @@ const App = () => {
   };
 
   return (
-    <div className="app-container">
-      <Header currentTheme={theme} onToggleTheme={toggleTheme} />
-      <div className="main-content">
-        <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
-          <Panel
-            defaultSize={sidebarSizePercentage}
-            minSize={10}
-            maxSize={50}
-            order={1}
-          >
-            <ProjectSidebar />
-          </Panel>
-          <PanelResizeHandle className="main-resize-handle" />
-          <Panel
-            minSize={50}
-            order={2}
-          >
-            <div className="content-area">
-              <Container fluid>
-                <Routes>
-                  {/* Welcome and dashboard */}
-                  <Route path="/" element={<WelcomePage />} />
-                  
-                  {/* Project routes */}
-                  <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />
-                  <Route path="/project/:projectId/:activeTab" element={<ProjectPage theme={theme} />} />
-                  <Route path="/project/:projectId/results/:resultId" element={<ProjectPage theme={theme} />} />
-                  
-                  {/* Standalone configuration routes */}
-                  <Route path="/db-config" element={<DbConfigEditor theme={theme} />} />
-                  <Route path="/db-config/:configId" element={<DbConfigEditor theme={theme} />} />
-                  <Route path="/sim-config" element={<SimConfigEditor theme={theme} />} />
-                  <Route path="/sim-config/:configId" element={<SimConfigEditor theme={theme} />} />
-                  
-                  {/* Results routes */}
-                  <Route path="/results/:databasePath" element={<ResultsViewer />} />
-                  
-                  {/* Default catch-all route */}
-                  <Route path="*" element={<Navigate to="/" replace />} />
-                </Routes>
-              </Container>
-            </div>
-          </Panel>
-        </PanelGroup>
+    <ToastProvider>
+      <div className="app-container">
+        <Header currentTheme={theme} onToggleTheme={toggleTheme} />
+        <div className="main-content">
+          <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
+            <Panel
+              defaultSize={sidebarSizePercentage}
+              minSize={10}
+              maxSize={50}
+              order={1}
+            >
+              <ProjectSidebar />
+            </Panel>
+            <PanelResizeHandle className="main-resize-handle" />
+            <Panel
+              minSize={50}
+              order={2}
+            >
+              <div className="content-area">
+                <Container fluid>
+                  <Routes>
+                    {/* Welcome and dashboard */}
+                    <Route path="/" element={<WelcomePage />} />
+                    
+                    {/* Project routes */}
+                    <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />
+                    <Route path="/project/:projectId/:activeTab" element={<ProjectPage theme={theme} />} />
+                    <Route path="/project/:projectId/results/:resultId" element={<ProjectPage theme={theme} />} />
+                    
+                    {/* Standalone configuration routes */}
+                    <Route path="/db-config" element={<DbConfigEditor theme={theme} />} />
+                    <Route path="/db-config/:configId" element={<DbConfigEditor theme={theme} />} />
+                    <Route path="/sim-config" element={<SimConfigEditor theme={theme} />} />
+                    <Route path="/sim-config/:configId" element={<SimConfigEditor theme={theme} />} />
+                    
+                    {/* Results routes */}
+                    <Route path="/results/:databasePath" element={<ResultsViewer />} />
+                    
+                    {/* Default catch-all route */}
+                    <Route path="*" element={<Navigate to="/" replace />} />
+                  </Routes>
+                </Container>
+              </div>
+            </Panel>
+          </PanelGroup>
+        </div>
       </div>
-    </div>
+    </ToastProvider>
   );
 };
 

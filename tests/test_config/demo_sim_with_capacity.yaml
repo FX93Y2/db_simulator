@@ -15,7 +15,6 @@ event_simulation:
         scale: 5  # Average 5 days between entity arrivals
     max_entities: n/a  # n/a means the simulation will keep generating entities following the distribution
   
-  # Resource capacity configuration (hidden from database)
   resource_capacities:
     Consultant:
       # Define capacity rules based on resource type
@@ -41,11 +40,6 @@ event_simulation:
         
         - resource_type: "Business Analyst"
           capacity: 1  # Fixed capacity
-      
-      # Default capacity for any unspecified types
-      default_capacity: 1
-      min_capacity: 1
-      max_capacity: 5
   
   # Event sequence configuration
   event_sequence:

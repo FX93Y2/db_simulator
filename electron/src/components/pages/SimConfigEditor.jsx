@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { 
+import {
   Row,
   Col,
-  Form, 
-  Button, 
+  Form,
+  Button,
   Modal,
   Spinner,
   InputGroup
@@ -14,6 +14,7 @@ import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus } from 'react-icons/fi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new simulation configuration
 const DEFAULT_SIM_CONFIG = `# Simulation Configuration Template
@@ -69,6 +70,7 @@ event_simulation:
 const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
+  const { showSuccess, showError, showWarning } = useToastContext();
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
   const [parsedYamlObject, setParsedYamlObject] = useState(null);
@@ -196,10 +198,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
   
   // Handle adding a new event - operates on object if possible
   const handleAddEvent = () => {
-     if (yamlError || !parsedYamlObject) {
-         alert('Cannot add event: Current YAML has errors or is empty.');
-         return;
-     }
+    if (yamlError || !parsedYamlObject) {
+        showError('Cannot add event: Current YAML has errors or is empty.');
+        return;
+    }
 
     try {
       // Work on a deep copy of the parsed object
@@ -233,7 +235,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
 
     } catch (error) {
       console.error('Error adding event:', error);
-      alert('Failed to add event.');
+      showError('Failed to add event.');
       setYamlError(error);
     }
   };
@@ -280,7 +282,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       setLoading(true);
       
       if (!name && !projectId) {
-        alert('Please enter a name for the configuration');
+        showError('Please enter a name for the configuration');
         setLoading(false);
         return;
       }
@@ -288,7 +290,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       // Check for YAML errors before saving
       if (yamlError) {
           console.error("SimConfigEditor: Cannot save due to YAML errors:", yamlError);
-          alert(`Cannot save configuration. Please fix the YAML errors first.\nError: ${yamlError.message || 'Invalid YAML'}`);
+          showError(`Cannot save configuration. Please fix the YAML errors first.\nError: ${yamlError.message || 'Invalid YAML'}`);
           setLoading(false);
           return;
       }
@@ -307,7 +309,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       
     } catch (error) {
       console.error('SimConfigEditor: Error saving configuration:', error);
-      alert('Error saving configuration');
+      showError('Error saving configuration');
     } finally {
       setLoading(false);
     }
@@ -331,10 +333,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           setConfig(result.config);
           
           // Add success message
-          alert('Simulation configuration saved successfully');
+          showSuccess('Simulation configuration saved successfully');
         } else {
           console.error("SimConfigEditor: Error saving configuration:", result);
-          alert('Error saving configuration');
+          showError('Error saving configuration');
         }
       } else if (configId && !saveAsNew) {
         // Update existing standalone configuration
@@ -364,13 +366,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       
       if (!result.success) {
         console.error("SimConfigEditor: Error: result.success is false", result);
-        alert('Error saving configuration');
+        showError('Error saving configuration');
       }
       
       return result;
     } catch (error) {
       console.error('SimConfigEditor: Error in saveConfigWithContent:', error);
-      alert('Error saving configuration');
+      showError('Error saving configuration');
       throw error;
     } finally {
       setLoading(false);
@@ -383,7 +385,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
       setLoading(true);
       
       if (!selectedDbConfig) {
-        alert('Please select a database configuration');
+        showError('Please select a database configuration');
         setLoading(false);
         return;
       }
@@ -403,7 +405,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
         const saveResult = await saveConfigWithContent(configData);
         
         if (!saveResult || !saveResult.success) {
-          alert('Error saving simulation configuration');
+          showError('Error saving simulation configuration');
           setLoading(false);
           return;
         }
@@ -411,7 +413,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
         simConfigId = saveResult.config_id;
       } else if (!simConfigId || saveAsNew) {
         if (!name) {
-          alert('Please enter a name for the configuration');
+          showError('Please enter a name for the configuration');
           setLoading(false);
           return;
         }
@@ -426,7 +428,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
         const saveResult = await saveConfigWithContent(configData);
         
         if (!saveResult || !saveResult.success) {
-          alert('Error saving simulation configuration');
+          showError('Error saving simulation configuration');
           setLoading(false);
           return;
         }
@@ -452,11 +454,11 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           navigate(`/results/${encodeURIComponent(result.database_path)}`);
         }
       } else {
-        alert('Error running simulation');
+        showError('Error running simulation');
       }
     } catch (error) {
       console.error('Error running simulation:', error);
-      alert('Error running simulation');
+      showError('Error running simulation');
     } finally {
       setLoading(false);
     }

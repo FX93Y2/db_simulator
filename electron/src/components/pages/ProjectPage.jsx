@@ -7,6 +7,7 @@ import DbConfigEditor from './DbConfigEditor';
 import SimConfigEditor from './SimConfigEditor';
 import ResultsViewer from './ResultsViewer';
 import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSimConfig } from '../../utils/projectApi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 // Cache for project data to reduce loading flicker
 const projectCache = {};
@@ -15,6 +16,7 @@ const ProjectPage = ({ theme }) => {
   const { projectId, resultId, activeTab } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showSuccess, showError } = useToastContext();
   const [loading, setLoading] = useState(true);
   const [initialLoad, setInitialLoad] = useState(true);
   const [project, setProject] = useState(null);
@@ -192,11 +194,11 @@ const ProjectPage = ({ theme }) => {
         // Trigger sidebar refresh by dispatching a custom event
         window.dispatchEvent(new Event('refreshProjects'));
       } else {
-        alert('Failed to update project name');
+        showError('Failed to update project name');
       }
     } catch (error) {
       console.error('Error updating project name:', error);
-      alert('Error updating project name');
+      showError('Error updating project name');
     } finally {
       setIsUpdating(false);
     }
@@ -214,13 +216,13 @@ const ProjectPage = ({ theme }) => {
       const simConfigResult = await getProjectSimConfig(projectId);
       
       if (!dbConfigResult.success || !dbConfigResult.config) {
-        alert('Database configuration not found. Please create and save a database configuration first.');
+        showError('Database configuration not found. Please create and save a database configuration first.');
         setRunningSimulation(false);
         return;
       }
       
       if (!simConfigResult.success || !simConfigResult.config) {
-        alert('Simulation configuration not found. Please create and save a simulation configuration first.');
+        showError('Simulation configuration not found. Please create and save a simulation configuration first.');
         setRunningSimulation(false);
         return;
       }
@@ -243,7 +245,7 @@ const ProjectPage = ({ theme }) => {
       if (result.success) {
         setSimulationResult(result);
         console.log("Simulation completed with result:", result);
-        alert('Simulation completed successfully!');
+        showSuccess('Simulation completed successfully!');
         
         // Refresh the existing results list
         await loadExistingResults();
@@ -266,11 +268,11 @@ const ProjectPage = ({ theme }) => {
         }
       } else {
         console.error("Simulation failed:", result.error);
-        alert(`Error running simulation: ${result.error || 'Unknown error'}`);
+        showError(`Error running simulation: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('Error running simulation:', error);
-      alert('Error running simulation. Check console for details.');
+      showError('Error running simulation. Check console for details.');
     } finally {
       setRunningSimulation(false);
     }

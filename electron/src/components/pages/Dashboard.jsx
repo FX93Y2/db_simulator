@@ -4,8 +4,10 @@ import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import ProjectCard from '../shared/ProjectCard';
 import { clearAllConfigurations } from '../../utils/projectApi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 const Dashboard = () => {
+  const { showSuccess, showError } = useToastContext();
   const [dbConfigs, setDbConfigs] = useState([]);
   const [simConfigs, setSimConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -60,13 +62,13 @@ const Dashboard = () => {
         // Reload configurations
         setDbConfigs([]);
         setSimConfigs([]);
-        alert(`Successfully cleared ${result.deleted_count} configurations.`);
+        showSuccess(`Successfully cleared ${result.deleted_count} configurations.`);
       } else {
-        alert('Failed to clear configurations: ' + (result.error || 'Unknown error'));
+        showError('Failed to clear configurations: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error clearing configurations:', error);
-      alert('Error clearing configurations');
+      showError('Error clearing configurations');
     } finally {
       setClearing(false);
       setShowClearModal(false);

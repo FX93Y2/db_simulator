@@ -22,7 +22,7 @@ const WelcomePage = () => {
 
   const handleCreateProject = async () => {
     if (!newProjectName.trim()) {
-      alert('Please enter a project name');
+      showError('Please enter a project name');
       return;
     }
 
@@ -35,11 +35,11 @@ const WelcomePage = () => {
         // Navigate to the new project
         navigate(`/project/${result.project.id}`);
       } else {
-        alert('Failed to create project: ' + (result.error || 'Unknown error'));
+        showError('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
       console.error('Error creating project:', error);
-      alert('Error creating project');
+      showError('Error creating project');
     } finally {
       setLoading(false);
     }

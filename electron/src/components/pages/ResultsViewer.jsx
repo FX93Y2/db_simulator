@@ -1,23 +1,23 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Row, 
-  Col, 
-  Card, 
-  Button, 
-  Spinner, 
-  Form, 
-  Tabs, 
-  Tab, 
+import {
+  Row,
+  Col,
+  Card,
+  Button,
+  Spinner,
+  Form,
+  Tabs,
+  Tab,
   Table,
   Modal,
   InputGroup
 } from 'react-bootstrap';
-import { 
-  FiArrowLeft, 
-  FiDatabase, 
-  FiList, 
-  FiBarChart2, 
+import {
+  FiArrowLeft,
+  FiDatabase,
+  FiList,
+  FiBarChart2,
   FiDownload,
   FiFolder
 } from 'react-icons/fi';
@@ -28,11 +28,13 @@ import {
   getTableData,
   exportDatabaseToCSV
 } from '../../utils/resultsApi';
+import { useToastContext } from '../../contexts/ToastContext';
 
 const ResultsViewer = ({ projectId, isProjectTab }) => {
   const { resultId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showSuccess, showError } = useToastContext();
   
   const [loading, setLoading] = useState(true);
   const [results, setResults] = useState(null);
@@ -144,7 +146,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           console.log("Loaded simulation results:", resultInfo.data);
         } else {
           console.error("Failed to load simulation results:", resultInfo.error);
-          alert(`Error loading simulation results: ${resultInfo.error}`);
+          showError(`Error loading simulation results: ${resultInfo.error}`);
         }
         
         // Get list of tables in the database
@@ -167,12 +169,12 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
         } else {
           console.error("Failed to load database tables:", tablesResult.error || "No tables found");
           if (tablesResult.error) {
-            alert(`Error loading database tables: ${tablesResult.error}`);
+            showError(`Error loading database tables: ${tablesResult.error}`);
           }
         }
       } catch (error) {
         console.error('Error loading database info:', error);
-        alert(`Error loading database info: ${error.message}`);
+        showError(`Error loading database info: ${error.message}`);
       } finally {
         setLoading(false);
       }
@@ -251,11 +253,11 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       if (result.success) {
         setExportPath(result.path);
       } else if (!result.canceled && result.error) {
-        alert(`Error selecting directory: ${result.error}`);
+        showError(`Error selecting directory: ${result.error}`);
       }
     } catch (error) {
       console.error('Error showing directory picker:', error);
-      alert(`Error selecting directory: ${error.message}`);
+      showError(`Error selecting directory: ${error.message}`);
     }
   };
   
@@ -269,7 +271,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       
       if (result.success) {
         handleCloseExportModal();
-        alert(
+        showSuccess(
           `Export completed successfully!\n\n` +
           `Location: ${result.path}\n` +
           `Tables exported: ${result.tables}\n` +
@@ -277,11 +279,11 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           `The data has been saved to a folder named after the database.`
         );
       } else {
-        alert(`Error exporting database: ${result.error}`);
+        showError(`Error exporting database: ${result.error}`);
       }
     } catch (error) {
       console.error('Error exporting database:', error);
-      alert(`Error exporting database: ${error.message}`);
+      showError(`Error exporting database: ${error.message}`);
     } finally {
       setExportLoading(false);
     }
@@ -297,7 +299,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       
       if (result.success) {
         handleCloseExportModal();
-        alert(
+        showSuccess(
           `Export completed successfully!\n\n` +
           `Location: ${result.path}\n` +
           `Tables exported: ${result.tables}\n` +
@@ -305,11 +307,11 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           `The data has been saved to a folder named after the database.`
         );
       } else {
-        alert(`Error exporting database: ${result.error}`);
+        showError(`Error exporting database: ${result.error}`);
       }
     } catch (error) {
       console.error('Error exporting database:', error);
-      alert(`Error exporting database: ${error.message}`);
+      showError(`Error exporting database: ${error.message}`);
     } finally {
       setLoading(false);
     }
