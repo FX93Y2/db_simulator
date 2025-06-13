@@ -26,6 +26,7 @@ const ProjectPage = ({ theme }) => {
   const [runningSimulation, setRunningSimulation] = useState(false);
   const [simulationResult, setSimulationResult] = useState(null);
   const [existingResults, setExistingResults] = useState([]);
+  const [dbConfigContent, setDbConfigContent] = useState('');
   
   // Set default active tab based on URL or parameter
   const determineActiveTab = useCallback(() => {
@@ -128,10 +129,30 @@ const ProjectPage = ({ theme }) => {
     }
   }, [projectId, resultId]);
 
+  // Load database configuration content
+  const loadDbConfigContent = useCallback(async () => {
+    if (!projectId) return;
+    
+    try {
+      const result = await getProjectDbConfig(projectId);
+      if (result.success && result.config) {
+        setDbConfigContent(result.config.content || '');
+      }
+    } catch (error) {
+      console.error('Error loading database configuration content:', error);
+    }
+  }, [projectId]);
+
+  // Handle database configuration changes
+  const handleDbConfigChange = useCallback((newContent) => {
+    setDbConfigContent(newContent);
+  }, []);
+
   // Effect to load project data
   useEffect(() => {
     setInitialLoad(true);
     loadProject();
+    loadDbConfigContent();
     // Update active tab based on URL changes
     setCurrentTab(determineActiveTab());
     // Only run when projectId changes
@@ -333,10 +354,20 @@ const ProjectPage = ({ theme }) => {
 
             <Tab.Content className="project-tab-content">
               <Tab.Pane eventKey="database">
-                <DbConfigEditor projectId={projectId} isProjectTab={true} theme={theme} />
+                <DbConfigEditor
+                  projectId={projectId}
+                  isProjectTab={true}
+                  theme={theme}
+                  onConfigChange={handleDbConfigChange}
+                />
               </Tab.Pane>
               <Tab.Pane eventKey="simulation">
-                <SimConfigEditor projectId={projectId} isProjectTab={true} theme={theme} />
+                <SimConfigEditor
+                  projectId={projectId}
+                  isProjectTab={true}
+                  theme={theme}
+                  dbConfigContent={dbConfigContent}
+                />
               </Tab.Pane>
             </Tab.Content>
           </div>

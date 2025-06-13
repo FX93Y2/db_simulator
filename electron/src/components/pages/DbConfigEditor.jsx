@@ -31,7 +31,7 @@ entities:
 `;
 
 // Accept theme as a prop
-const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
+const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange }) => {
   const { configId } = useParams();
   const { showSuccess, showError, showWarning } = useToastContext();
   const [config, setConfig] = useState(null);
@@ -121,6 +121,10 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
   // Handle YAML content changes
   const handleYamlChange = (content) => {
     setYamlContent(content);
+    // Notify parent component of the change for real-time reactivity
+    if (onConfigChange) {
+      onConfigChange(content);
+    }
   };
   
   // Handle diagram changes - parse and update state
@@ -130,11 +134,15 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme }) => {
       // Stringify using the 'yaml' library to preserve comments/formatting as much as possible
       const updatedYaml = yaml.stringify(updatedDiagramData);
       setYamlContent(updatedYaml);
+      // Notify parent component of the change for real-time reactivity
+      if (onConfigChange) {
+        onConfigChange(updatedYaml);
+      }
     } catch (error) {
       console.error('Error stringifying diagram changes:', error);
       // Optionally show an error to the user
     }
-  }, []); // Add dependencies if needed, e.g. [] if it doesn't depend on component state/props
+  }, [onConfigChange]); // Add onConfigChange as dependency
   
   // Validation function using the new library
   const validateYaml = (content) => {

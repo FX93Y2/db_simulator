@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Card, Button, Modal, Form, Row, Col, Badge, ListGroup } from 'react-bootstrap';
+import { Card, Button, Modal, Form, Row, Col, Badge, ListGroup, Alert } from 'react-bootstrap';
 import { FiPlus, FiEdit2, FiTrash2, FiSettings } from 'react-icons/fi';
 import yaml from 'yaml';
 
-const ResourceEditor = ({ yamlContent, onResourceChange, theme }) => {
+const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
   const [parsedData, setParsedData] = useState(null);
+  const [dbParsedData, setDbParsedData] = useState(null);
+  const [resourceDefinitions, setResourceDefinitions] = useState({});
+  const [previousResourceDefinitions, setPreviousResourceDefinitions] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedResourceType, setSelectedResourceType] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -23,7 +26,279 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme }) => {
     }
   }, [yamlContent]);
 
+  // Parse database configuration when it changes
+  useEffect(() => {
+    try {
+      if (dbConfigContent) {
+        const parsed = yaml.parse(dbConfigContent);
+        setDbParsedData(parsed);
+      } else {
+        setDbParsedData(null);
+      }
+    } catch (error) {
+      console.error('Error parsing database YAML for resource editor:', error);
+      setDbParsedData(null);
+    }
+  }, [dbConfigContent]);
+
+  // Extract resource definitions from database configuration
+  useEffect(() => {
+    if (!dbParsedData?.entities) {
+      setResourceDefinitions({});
+      return;
+    }
+
+    const definitions = {};
+    
+    // Find entities with type: resource
+    const resourceEntities = dbParsedData.entities.filter(entity => entity.type === 'resource');
+    
+    resourceEntities.forEach(entity => {
+      // Find attributes with type: resource_type
+      const resourceTypeAttributes = entity.attributes?.filter(attr => attr.type === 'resource_type') || [];
+      
+      if (resourceTypeAttributes.length > 0) {
+        // Take the first resource_type attribute (should be only one)
+        const resourceTypeAttr = resourceTypeAttributes[0];
+        
+        if (resourceTypeAttr.generator?.distribution?.type === 'choice' && resourceTypeAttr.generator.distribution.values) {
+          // Extract the possible values from the choice distribution
+          const values = resourceTypeAttr.generator.distribution.values;
+          if (Array.isArray(values) && values.length > 0) {
+            definitions[entity.name] = {
+              resourceTypes: values,
+              attributeName: resourceTypeAttr.name
+            };
+          }
+        }
+      }
+    });
+    
+    // Detect resource renames and resource type renames, then update simulation configuration
+    if (Object.keys(previousResourceDefinitions).length > 0 && parsedData) {
+      const renamedResources = detectResourceRenames(previousResourceDefinitions, definitions);
+      const renamedResourceTypes = detectResourceTypeRenames(previousResourceDefinitions, definitions);
+      
+      if (renamedResources.length > 0) {
+        handleResourceRenames(renamedResources);
+      }
+      
+      if (renamedResourceTypes.length > 0) {
+        handleResourceTypeRenames(renamedResourceTypes);
+      }
+    }
+    
+    setPreviousResourceDefinitions(definitions);
+    setResourceDefinitions(definitions);
+  }, [dbParsedData, previousResourceDefinitions, parsedData]);
+
+  // Function to detect resource renames by comparing old and new resource definitions
+  const detectResourceRenames = (oldDefinitions, newDefinitions) => {
+    const renames = [];
+    const oldNames = Object.keys(oldDefinitions);
+    const newNames = Object.keys(newDefinitions);
+    
+    // Find resources that were removed from old definitions
+    const removedNames = oldNames.filter(name => !newNames.includes(name));
+    // Find resources that were added to new definitions
+    const addedNames = newNames.filter(name => !oldNames.includes(name));
+    
+    // Match removed and added resources based on their resource types
+    removedNames.forEach(oldName => {
+      const oldResourceTypes = oldDefinitions[oldName].resourceTypes.sort();
+      
+      // Find a matching new resource with the same resource types
+      const matchingNewName = addedNames.find(newName => {
+        const newResourceTypes = newDefinitions[newName].resourceTypes.sort();
+        return JSON.stringify(oldResourceTypes) === JSON.stringify(newResourceTypes);
+      });
+      
+      if (matchingNewName) {
+        renames.push({
+          oldName,
+          newName: matchingNewName
+        });
+        // Remove from added names to avoid duplicate matches
+        const index = addedNames.indexOf(matchingNewName);
+        if (index > -1) {
+          addedNames.splice(index, 1);
+        }
+      }
+    });
+    
+    return renames;
+  };
+
+  // Function to handle resource renames in the simulation configuration
+  const handleResourceRenames = (renamedResources) => {
+    if (!parsedData) return;
+
+    const updatedData = JSON.parse(JSON.stringify(parsedData));
+    
+    // Ensure the structure exists
+    if (!updatedData.event_simulation) {
+      updatedData.event_simulation = {};
+    }
+    if (!updatedData.event_simulation.resource_capacities) {
+      updatedData.event_simulation.resource_capacities = {};
+    }
+
+    const resourceCapacities = updatedData.event_simulation.resource_capacities;
+    
+    renamedResources.forEach(({ oldName, newName }) => {
+      // If the old resource exists in the simulation configuration
+      if (resourceCapacities[oldName]) {
+        // Move the entire configuration from old name to new name
+        resourceCapacities[newName] = resourceCapacities[oldName];
+        // Remove the old entry
+        delete resourceCapacities[oldName];
+        
+        console.log(`ResourceEditor: Renamed resource capacity configuration from "${oldName}" to "${newName}"`);
+      }
+      
+      // Also update resource_table references in event sequence
+      if (updatedData.event_simulation.event_sequence?.event_types) {
+        updatedData.event_simulation.event_sequence.event_types.forEach(eventType => {
+          if (eventType.resource_requirements) {
+            eventType.resource_requirements.forEach(requirement => {
+              if (requirement.resource_table === oldName) {
+                requirement.resource_table = newName;
+                console.log(`ResourceEditor: Updated resource_table reference from "${oldName}" to "${newName}" in event "${eventType.name}"`);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Update the simulation configuration
+    onResourceChange(updatedData);
+  };
+
+  // Function to detect resource type renames within the same resource entity
+  const detectResourceTypeRenames = (oldDefinitions, newDefinitions) => {
+    const renames = [];
+    
+    // Check each resource entity that exists in both old and new definitions
+    Object.keys(oldDefinitions).forEach(resourceName => {
+      if (newDefinitions[resourceName]) {
+        const oldResourceTypes = oldDefinitions[resourceName].resourceTypes;
+        const newResourceTypes = newDefinitions[resourceName].resourceTypes;
+        
+        // Find resource types that were removed from old definitions
+        const removedTypes = oldResourceTypes.filter(type => !newResourceTypes.includes(type));
+        // Find resource types that were added to new definitions
+        const addedTypes = newResourceTypes.filter(type => !oldResourceTypes.includes(type));
+        
+        // If we have the same number of removed and added types, assume they are renames
+        if (removedTypes.length === addedTypes.length && removedTypes.length > 0) {
+          // For simplicity, match them by position (first removed -> first added, etc.)
+          // This works well for single renames, which is the most common case
+          for (let i = 0; i < removedTypes.length; i++) {
+            renames.push({
+              resourceName,
+              oldType: removedTypes[i],
+              newType: addedTypes[i]
+            });
+          }
+        }
+      }
+    });
+    
+    return renames;
+  };
+
+  // Function to handle resource type renames in the simulation configuration
+  const handleResourceTypeRenames = (renamedResourceTypes) => {
+    if (!parsedData) return;
+
+    const updatedData = JSON.parse(JSON.stringify(parsedData));
+    
+    // Ensure the structure exists
+    if (!updatedData.event_simulation) {
+      updatedData.event_simulation = {};
+    }
+    if (!updatedData.event_simulation.resource_capacities) {
+      updatedData.event_simulation.resource_capacities = {};
+    }
+
+    const resourceCapacities = updatedData.event_simulation.resource_capacities;
+    
+    renamedResourceTypes.forEach(({ resourceName, oldType, newType }) => {
+      // Update capacity rules for the resource type
+      if (resourceCapacities[resourceName]?.capacity_rules) {
+        const capacityRules = resourceCapacities[resourceName].capacity_rules;
+        const ruleIndex = capacityRules.findIndex(rule => rule.resource_type === oldType);
+        
+        if (ruleIndex >= 0) {
+          capacityRules[ruleIndex].resource_type = newType;
+          console.log(`ResourceEditor: Renamed resource type from "${oldType}" to "${newType}" in resource "${resourceName}"`);
+        }
+      }
+      
+      // Also update resource type references in event sequence
+      if (updatedData.event_simulation.event_sequence?.event_types) {
+        updatedData.event_simulation.event_sequence.event_types.forEach(eventType => {
+          if (eventType.resource_requirements) {
+            eventType.resource_requirements.forEach(requirement => {
+              if (requirement.resource_table === resourceName && requirement.value === oldType) {
+                requirement.value = newType;
+                console.log(`ResourceEditor: Updated resource type reference from "${oldType}" to "${newType}" in event "${eventType.name}"`);
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Update the simulation configuration
+    onResourceChange(updatedData);
+  };
+
   const resourceCapacities = parsedData?.event_simulation?.resource_capacities || {};
+
+  // Handle immediate capacity changes with two-way binding
+  const handleCapacityChange = (resourceName, resourceType, newCapacity) => {
+    if (!parsedData) return;
+
+    const updatedData = JSON.parse(JSON.stringify(parsedData));
+    
+    // Ensure the structure exists
+    if (!updatedData.event_simulation) {
+      updatedData.event_simulation = {};
+    }
+    if (!updatedData.event_simulation.resource_capacities) {
+      updatedData.event_simulation.resource_capacities = {};
+    }
+    if (!updatedData.event_simulation.resource_capacities[resourceName]) {
+      updatedData.event_simulation.resource_capacities[resourceName] = {
+        capacity_rules: []
+      };
+    }
+
+    const capacityRules = updatedData.event_simulation.resource_capacities[resourceName].capacity_rules;
+    const ruleIndex = capacityRules.findIndex(rule => rule.resource_type === resourceType);
+    
+    if (ruleIndex >= 0) {
+      capacityRules[ruleIndex].capacity = newCapacity;
+    } else {
+      // Add new rule if it doesn't exist
+      capacityRules.push({
+        resource_type: resourceType,
+        capacity: newCapacity
+      });
+    }
+
+    // Immediately update the simulation configuration
+    onResourceChange(updatedData);
+  };
+
+  // Get current capacity value for a resource type
+  const getCurrentCapacity = (resourceName, resourceType) => {
+    const capacityRules = resourceCapacities[resourceName]?.capacity_rules || [];
+    const rule = capacityRules.find(rule => rule.resource_type === resourceType);
+    return rule?.capacity || 1; // Default to 1 if not found
+  };
 
   const handleEditCapacity = (category, resourceType, capacity) => {
     setSelectedCategory(category);
@@ -67,35 +342,12 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme }) => {
     }
 
     // Convert back to YAML and update
-    const updatedYaml = yaml.stringify(updatedData);
     onResourceChange(updatedData);
     
     setShowEditModal(false);
     setSelectedCategory(null);
     setSelectedResourceType(null);
     setEditingCapacity(null);
-  };
-
-  const handleAddResourceType = (category) => {
-    setSelectedCategory(category);
-    setSelectedResourceType('New Resource Type');
-    setEditingCapacity(1); // Default fixed capacity
-    setShowEditModal(true);
-  };
-
-  const handleDeleteResourceType = (category, resourceType) => {
-    if (!parsedData) return;
-
-    const updatedData = JSON.parse(JSON.stringify(parsedData));
-    const capacityRules = updatedData.event_simulation?.resource_capacities?.[category]?.capacity_rules;
-    
-    if (capacityRules) {
-      const filteredRules = capacityRules.filter(rule => rule.resource_type !== resourceType);
-      updatedData.event_simulation.resource_capacities[category].capacity_rules = filteredRules;
-      
-      const updatedYaml = yaml.stringify(updatedData);
-      onResourceChange(updatedData);
-    }
   };
 
   const renderCapacityBadge = (capacity) => {
@@ -112,94 +364,128 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme }) => {
     return <Badge bg="secondary">Unknown</Badge>;
   };
 
+  // Render input fields for each resource type with immediate two-way binding
+  const renderResourceTypeInputs = (resourceName, definition) => {
+    return (
+      <div className="resource-type-inputs">
+        {definition.resourceTypes.map(resourceType => {
+          const currentCapacity = getCurrentCapacity(resourceName, resourceType);
+          const isDistribution = typeof currentCapacity === 'object' && currentCapacity.distribution;
+          
+          return (
+            <div key={resourceType} className="mb-3 p-3 border rounded">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+                <h6 className="mb-0 fw-bold">{resourceType}</h6>
+                <div className="d-flex align-items-center gap-2">
+                  {renderCapacityBadge(currentCapacity)}
+                  <Button
+                    variant="outline-secondary"
+                    size="sm"
+                    onClick={() => handleEditCapacity(resourceName, resourceType, currentCapacity)}
+                    title="Edit advanced capacity settings"
+                  >
+                    <FiEdit2 />
+                  </Button>
+                </div>
+              </div>
+              
+              {/* Simple capacity input for fixed values */}
+              {!isDistribution && (
+                <Row>
+                  <Col md={6}>
+                    <Form.Group className="mb-0">
+                      <Form.Label className="small fw-semibold">Capacity</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        value={currentCapacity}
+                        onChange={(e) => {
+                          const newValue = parseInt(e.target.value) || 1;
+                          handleCapacityChange(resourceName, resourceType, newValue);
+                        }}
+                        placeholder="Enter capacity"
+                        size="sm"
+                      />
+                      <Form.Text className="text-muted small">
+                        Fixed capacity for {resourceType}
+                      </Form.Text>
+                    </Form.Group>
+                  </Col>
+                </Row>
+              )}
+              
+              {/* Compact distribution summary for complex values */}
+              {isDistribution && (
+                <div className="alert alert-info py-2 px-3 mb-0 small">
+                  <strong>Distribution Configuration:</strong> This resource type uses a {currentCapacity.distribution.type} distribution.
+                  Click the edit button above to modify the distribution parameters.
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
   const renderResourceCategories = () => {
-    const categories = Object.keys(resourceCapacities);
+    const resourceNames = Object.keys(resourceDefinitions);
     
-    if (categories.length === 0) {
+    if (resourceNames.length === 0) {
       return (
         <div className="text-center py-4">
-          <p className="text-muted">No resource capacities configured</p>
-          <Button variant="outline-primary" size="sm">
-            <FiPlus className="me-2" />
-            Add Resource Category
-          </Button>
+          <p className="text-muted">No resource entities found in database configuration</p>
+          {!dbConfigContent && (
+            <p className="text-muted small">
+              Database configuration not available. Please ensure a database configuration is loaded.
+            </p>
+          )}
         </div>
       );
     }
 
-    return categories.map(category => (
-      <Card key={category} className="mb-3">
-        <Card.Header className="d-flex justify-content-between align-items-center">
-          <h6 className="mb-0">
-            <FiSettings className="me-2" />
-            {category}
-          </h6>
-          <Button 
-            variant="outline-primary" 
-            size="sm"
-            onClick={() => handleAddResourceType(category)}
-          >
-            <FiPlus className="me-1" />
-            Add Resource Type
-          </Button>
-        </Card.Header>
-        <Card.Body>
-          {renderResourceTypes(category)}
-        </Card.Body>
-      </Card>
-    ));
-  };
-
-  const renderResourceTypes = (category) => {
-    const capacityRules = resourceCapacities[category]?.capacity_rules || [];
-    
-    if (capacityRules.length === 0) {
+    return resourceNames.map(resourceName => {
+      const definition = resourceDefinitions[resourceName];
       return (
-        <p className="text-muted mb-0">No resource types configured</p>
+        <Card key={resourceName} className="mb-3">
+          <Card.Header className="d-flex justify-content-between align-items-center">
+            <div>
+              <h6 className="mb-0">
+                <FiSettings className="me-2" />
+                {resourceName}
+              </h6>
+              <small className="text-muted">
+                Resource types: {definition.resourceTypes.join(', ')}
+              </small>
+            </div>
+          </Card.Header>
+          <Card.Body>
+            {renderResourceTypeInputs(resourceName, definition)}
+          </Card.Body>
+        </Card>
       );
-    }
-
-    return (
-      <ListGroup variant="flush">
-        {capacityRules.map((rule, index) => (
-          <ListGroup.Item 
-            key={index}
-            className="d-flex justify-content-between align-items-center px-0"
-          >
-            <div>
-              <strong>{rule.resource_type}</strong>
-              <div className="mt-1">
-                {renderCapacityBadge(rule.capacity)}
-              </div>
-            </div>
-            <div>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                className="me-2"
-                onClick={() => handleEditCapacity(category, rule.resource_type, rule.capacity)}
-              >
-                <FiEdit2 />
-              </Button>
-              <Button
-                variant="outline-danger"
-                size="sm"
-                onClick={() => handleDeleteResourceType(category, rule.resource_type)}
-              >
-                <FiTrash2 />
-              </Button>
-            </div>
-          </ListGroup.Item>
-        ))}
-      </ListGroup>
-    );
+    });
   };
 
   return (
     <div className="resource-editor">
       <div className="d-flex justify-content-between align-items-center mb-3">
-        <h5 className="mb-0">Resource Capacities</h5>
+        <div>
+          <h5 className="mb-0">Resource Capacities</h5>
+          {Object.keys(resourceDefinitions).length > 0 && (
+            <small className="text-muted">
+              Dynamically generated from database configuration
+            </small>
+          )}
+        </div>
       </div>
+      
+      {!dbConfigContent && (
+        <Alert variant="warning" className="mb-3">
+          <strong>Database configuration not available.</strong> 
+          Resource types cannot be auto-detected. Please ensure a database configuration is loaded.
+        </Alert>
+      )}
       
       {renderResourceCategories()}
 
@@ -314,7 +600,11 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
               type="text"
               value={editedResourceType}
               onChange={(e) => setEditedResourceType(e.target.value)}
+              disabled
             />
+            <Form.Text className="text-muted">
+              Resource type is defined by the database configuration and cannot be changed.
+            </Form.Text>
           </Form.Group>
 
           <Form.Group className="mb-3">

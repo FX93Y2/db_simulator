@@ -13,178 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import yaml from 'yaml';
-import { Modal, Button, Form, Spinner } from 'react-bootstrap';
-import { FiTrash2, FiEdit, FiX } from 'react-icons/fi';
-
-// Node Details Modal Component
-const NodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
-  const [name, setName] = useState('');
-  const [attributes, setAttributes] = useState([]);
-  const [tableType, setTableType] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-
-  // Initialize form when node changes
-  useEffect(() => {
-    if (node) {
-      setName(node.id || '');
-      setAttributes(node.data?.attributes || []);
-      setTableType(node.data?.tableType || '');
-    }
-  }, [node]);
-
-  const handleSubmit = () => {
-    setIsLoading(true);
-    try {
-      // Update node data
-      const updatedNode = {
-        ...node,
-        id: name,
-        data: {
-          ...node.data,
-          label: name,
-          tableType: tableType,
-          attributes: attributes
-        }
-      };
-      
-      onNodeUpdate(updatedNode);
-      setIsLoading(false);
-      onHide();
-    } catch (error) {
-      console.error('Error updating node:', error);
-      setIsLoading(false);
-    }
-  };
-
-  const handleDelete = () => {
-    setIsLoading(true);
-    try {
-      onNodeDelete(node);
-      setIsLoading(false);
-      onHide();
-    } catch (error) {
-      console.error('Error deleting node:', error);
-      setIsLoading(false);
-    }
-  };
-
-  return (
-    <Modal
-      show={show}
-      onHide={onHide}
-      centered
-      size="lg"
-      backdrop="static"
-      className="node-details-modal"
-    >
-      <Modal.Header closeButton>
-        <Modal.Title>Entity Details</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        {!node ? (
-          <div className="text-center">
-            <Spinner animation="border" />
-          </div>
-        ) : (
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Entity Name</Form.Label>
-              <Form.Control
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Enter entity name"
-              />
-            </Form.Group>
-
-            <Form.Group className="mb-3">
-              <Form.Label>Table Type</Form.Label>
-              <Form.Select
-                value={tableType}
-                onChange={(e) => setTableType(e.target.value)}
-              >
-                <option value="">n/a</option>
-                <option value="entity">Entity</option>
-                <option value="event">Event</option>
-                <option value="resource">Resource</option>
-              </Form.Select>
-            </Form.Group>
-            
-            <Form.Group className="mb-3">
-              <Form.Label>Attributes</Form.Label>
-              <div className="attribute-list">
-                {attributes.map((attr, index) => (
-                  <div key={index} className="attribute-item d-flex align-items-center mb-2">
-                    <Form.Control
-                      className="me-2"
-                      type="text"
-                      value={attr.name}
-                      onChange={(e) => {
-                        const newAttrs = [...attributes];
-                        newAttrs[index] = { ...attr, name: e.target.value };
-                        setAttributes(newAttrs);
-                      }}
-                      placeholder="Attribute name"
-                    />
-                    <Form.Select
-                      value={attr.type}
-                      onChange={(e) => {
-                        const newAttrs = [...attributes];
-                        newAttrs[index] = { ...attr, type: e.target.value };
-                        setAttributes(newAttrs);
-                      }}
-                    >
-                      <option value="string">string</option>
-                      <option value="integer">integer</option>
-                      <option value="float">float</option>
-                      <option value="boolean">boolean</option>
-                      <option value="date">date</option>
-                      <option value="datetime">datetime</option>
-                      <option value="pk">Primary Key</option>
-                      <option value="fk">Foreign Key</option>
-                      <option value="event_id">Event ID (FK)</option>
-                      <option value="entity_id">Entity ID (FK)</option>
-                      <option value="resource_id">Resource ID (FK)</option>
-                    </Form.Select>
-                    <Button
-                      variant="link"
-                      className="text-danger"
-                      onClick={() => {
-                        const newAttrs = attributes.filter((_, i) => i !== index);
-                        setAttributes(newAttrs);
-                      }}
-                    >
-                      <FiX />
-                    </Button>
-                  </div>
-                ))}
-                <Button
-                  variant="outline-primary"
-                  size="sm"
-                  onClick={() => setAttributes([...attributes, { name: '', type: 'string' }])}
-                >
-                  Add Attribute
-                </Button>
-              </div>
-            </Form.Group>
-          </Form>
-        )}
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-danger" onClick={handleDelete} disabled={isLoading}>
-          <FiTrash2 className="me-2" /> Delete Entity
-        </Button>
-        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
-          {isLoading ? <Spinner size="sm" animation="border" className="me-2" /> : <FiEdit className="me-2" />}
-          Save Changes
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-};
+import EntityEditor from './EntityEditor';
 
 // Custom Entity Node component
 const EntityNode = ({ data, theme }) => {
@@ -247,6 +76,48 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
   const [schemaId, setSchemaId] = useState(null);
+  const currentNodesRef = useRef([]);
+  const [layoutMap, setLayoutMap] = useState({});
+
+  // Utility: Extract layout map from nodes
+  const extractLayoutMap = useCallback((nodesArr) => {
+    const map = {};
+    nodesArr.forEach(node => {
+      if (node.position) {
+        map[node.id] = { ...node.position };
+      }
+    });
+    return map;
+  }, []);
+
+  // Utility: Apply layout map to nodes
+  const applyLayoutToNodes = useCallback((nodesArr, layout) => {
+    return nodesArr.map(node => {
+      if (layout && layout[node.id]) {
+        return { ...node, position: { ...layout[node.id] } };
+      }
+      return node;
+    });
+  }, []);
+
+  // Debounced save to localStorage
+  const debounceRef = useRef();
+  const saveLayoutToLocalStorage = useCallback((layout, key) => {
+    if (!key) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(key, JSON.stringify(layout));
+        // console.log('[ERDiagram] Debounced save to localStorage:', layout);
+      } catch (err) {
+        console.error('[ERDiagram] Error saving layout to localStorage:', err);
+      }
+    }, 300);
+  }, []);
+  // Update the ref whenever nodes change
+  useEffect(() => {
+    currentNodesRef.current = nodes;
+  }, [nodes]);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -283,9 +154,27 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     }
   }, [yamlContent]);
 
-  // Parse YAML to extract entities
+  // Load layout map from localStorage on mount or schemaId change
   useEffect(() => {
-    console.log(`[ERDiagram] useEffect triggered by yamlContent change: ${yamlContent ? yamlContent.substring(0, 50) : 'null'}...`);
+    if (schemaId) {
+      try {
+        const saved = localStorage.getItem(schemaId);
+        setLayoutMap(saved ? JSON.parse(saved) : {});
+      } catch (err) {
+        setLayoutMap({});
+      }
+    }
+  }, [schemaId]);
+
+  // Save layout to localStorage whenever layoutMap changes
+  useEffect(() => {
+    if (schemaId) {
+      saveLayoutToLocalStorage(layoutMap, schemaId);
+    }
+  }, [layoutMap, schemaId, saveLayoutToLocalStorage]);
+
+  // Parse YAML to extract entities and hydrate positions
+  useEffect(() => {
     try {
       if (!yamlContent) {
         setDbSchema(null);
@@ -293,40 +182,20 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         setEdges([]);
         return;
       }
-      console.log('[ERDiagram] Parsing YAML content...');
       const parsedDoc = yaml.parseDocument(yamlContent);
       const parsedYaml = parsedDoc.toJSON();
-      console.log('[ERDiagram] Parsed YAML:', parsedYaml);
 
       setDbSchema(parsedYaml);
-      
+
       if (parsedYaml && parsedYaml.entities) {
-        console.log("[ERDiagram] Processing entities and relationships...");
         const entityNodes = [];
         const relationEdges = [];
-        
-        // Try to load saved positions from localStorage
-        let savedPositions = {};
-        if (schemaId) {
-          try {
-            const savedData = localStorage.getItem(schemaId);
-            if (savedData) {
-              savedPositions = JSON.parse(savedData);
-              console.log("[ERDiagram] Loaded saved positions:", savedPositions);
-            }
-          } catch (err) {
-            console.error("[ERDiagram] Error loading saved positions:", err);
-            savedPositions = {};
-          }
-        }
-        
+
         // Create nodes for each entity
         parsedYaml.entities.forEach((entity, index) => {
-          // Use saved position if available, otherwise use default positioning
-          const position = savedPositions[entity.name] 
-            ? savedPositions[entity.name] 
-            : { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
-          
+          // Default position if not in layoutMap
+          let position = layoutMap[entity.name] || { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
+
           entityNodes.push({
             id: entity.name,
             type: 'entity',
@@ -334,16 +203,16 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             data: {
               label: entity.name,
               tableType: entity.type || '',
+              rows: entity.rows,
               attributes: entity.attributes || []
             },
             width: 200,
             height: 100 + (entity.attributes?.length || 0) * 25,
           });
-          
+
           // Create edges for relationships
           if (entity.attributes) {
             entity.attributes.forEach(attr => {
-              // Check for standard foreign keys or custom types (event_id, entity_id, resource_id)
               if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
                 const [targetEntity] = attr.ref.split('.');
                 relationEdges.push({
@@ -367,22 +236,22 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             });
           }
         });
-        
-        console.log("[ERDiagram] Setting nodes:", entityNodes);
-        console.log("[ERDiagram] Setting edges:", relationEdges);
-        setNodes(entityNodes);
+
+        // Hydrate positions from layoutMap
+        const hydratedNodes = applyLayoutToNodes(entityNodes, layoutMap);
+
+        setNodes(hydratedNodes);
         setEdges(relationEdges);
-        console.log("[ERDiagram] Nodes and Edges state updated.");
       } else {
-        console.warn("[ERDiagram] Parsed YAML missing expected structure (entities).");
+        setNodes([]);
+        setEdges([]);
       }
     } catch (error) {
-      console.error('[ERDiagram] Error parsing YAML for ER diagram:', error);
       setDbSchema(null);
       setNodes([]);
       setEdges([]);
     }
-  }, [yamlContent, theme, schemaId]);
+  }, [yamlContent, theme, schemaId, layoutMap, applyLayoutToNodes]);
   
   // Handle connecting nodes
   const onConnect = useCallback(
@@ -425,38 +294,38 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Handle node movement
   const onNodeDragStop = useCallback(
     (event, node) => {
-      // Update the position in our node state
-      setNodes(nds => 
-        nds.map(n => {
-          if (n.id === node.id) {
-            n.position = node.position;
-          }
-          return n;
-        })
+      setNodes(nds =>
+        nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
       );
-      
-      console.log('Node moved:', node);
-      
-      // Save positions to localStorage
-      if (schemaId) {
-        try {
-          // Get existing positions or initialize empty object
-          const savedData = localStorage.getItem(schemaId);
-          let positions = savedData ? JSON.parse(savedData) : {};
-          
-          // Update position for the dragged node
-          positions[node.id] = node.position;
-          
-          // Save back to localStorage
-          localStorage.setItem(schemaId, JSON.stringify(positions));
-          console.log(`[ERDiagram] Saved positions to localStorage with key: ${schemaId}`);
-        } catch (err) {
-          console.error('[ERDiagram] Error saving positions to localStorage:', err);
-        }
-      }
+      // Update layoutMap in state (triggers debounced save)
+      setLayoutMap(prev => ({
+        ...prev,
+        [node.id]: { ...node.position }
+      }));
     },
-    [setNodes, schemaId]
+    [setNodes]
   );
+  
+  // Helper function to save node position to localStorage
+  const saveNodePosition = useCallback((nodeId, position) => {
+    if (!schemaId) return;
+    
+    try {
+      const savedData = localStorage.getItem(schemaId);
+      let positions = savedData ? JSON.parse(savedData) : {};
+      
+      positions[nodeId] = position;
+      localStorage.setItem(schemaId, JSON.stringify(positions));
+      console.log(`[ERDiagram] Saved position for ${nodeId}:`, position);
+    } catch (err) {
+      console.error('[ERDiagram] Error saving position to localStorage:', err);
+    }
+  }, [schemaId]);
+  
+  // Save all current node positions to layoutMap (e.g., before YAML changes)
+  const saveAllNodePositions = useCallback(() => {
+    setLayoutMap(extractLayoutMap(currentNodesRef.current));
+  }, [extractLayoutMap]);
 
   // Handle node deletion
   const onNodesDelete = useCallback(
@@ -524,7 +393,44 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     []
   );
 
-  // Handle node update from modal
+  // Handle entity update from EntityEditor
+  const handleEntityUpdate = useCallback((updatedEntity) => {
+      if (dbSchema && selectedNode) {
+         // Create a deep copy
+        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
+
+        // Find and update the entity in the schema
+        const entityIndex = updatedSchema.entities.findIndex(e => e.name === selectedNode.id);
+        if (entityIndex !== -1) {
+            // Update the entity with the new data from EntityEditor
+            updatedSchema.entities[entityIndex] = {
+                name: updatedEntity.name,
+                ...(updatedEntity.type && { type: updatedEntity.type }),
+                rows: updatedEntity.rows,
+                attributes: updatedEntity.attributes
+            };
+        }
+
+        // Update internal state
+        setDbSchema(updatedSchema);
+
+        // Call the callback with the updated OBJECT
+        if (onDiagramChange) {
+          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after entity update:", updatedSchema);
+          onDiagramChange(updatedSchema);
+        }
+      }
+  }, [dbSchema, onDiagramChange, selectedNode]);
+
+  // Handle entity deletion from EntityEditor
+  const handleEntityDelete = useCallback((entity) => {
+    if (selectedNode) {
+      console.log("[ERDiagram] Deleting entity from EntityEditor:", selectedNode);
+      onNodesDelete([selectedNode]);
+    }
+  }, [onNodesDelete, selectedNode]);
+
+  // Legacy function for backward compatibility
   const handleNodeUpdate = useCallback((updatedNodeData) => {
       if (dbSchema) {
          // Create a deep copy
@@ -607,12 +513,17 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           </ReactFlow>
         </>
       )}
-      <NodeDetailsModal 
-        show={showNodeModal} 
-        onHide={() => setShowNodeModal(false)} 
-        node={selectedNode}
-        onNodeUpdate={handleNodeUpdate}
-        onNodeDelete={handleNodeDelete}
+      <EntityEditor
+        show={showNodeModal}
+        onHide={() => setShowNodeModal(false)}
+        entity={selectedNode ? {
+          name: selectedNode.id,
+          type: selectedNode.data?.tableType,
+          rows: selectedNode.data?.rows,
+          attributes: selectedNode.data?.attributes || []
+        } : null}
+        onEntityUpdate={handleEntityUpdate}
+        onEntityDelete={handleEntityDelete}
         theme={theme}
       />
     </div>

@@ -71,7 +71,7 @@ event_simulation:
             probability: 1.0
 `;
 
-const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
+const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
@@ -143,6 +143,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
           const result = await window.api.getConfigs('database');
           if (result.success) {
             setDbConfigs(result.configs || []);
+            // If there's only one config, auto-select it
+            if (result.configs && result.configs.length === 1) {
+              setSelectedDbConfig(result.configs[0].id);
+            }
           }
         }
       } catch (error) {
@@ -601,6 +605,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme }) => {
                       yamlContent={yamlContent}
                       onResourceChange={handleDiagramChange}
                       theme={theme}
+                      dbConfigContent={dbConfigContent}
                     />
                   )}
                   
