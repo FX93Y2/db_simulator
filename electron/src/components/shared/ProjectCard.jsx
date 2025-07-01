@@ -2,6 +2,7 @@ import React from 'react';
 import { Button } from 'react-bootstrap';
 import { FiEdit2, FiPlay, FiTrash2 } from 'react-icons/fi';
 import { useNavigate } from 'react-router-dom';
+import styles from './ProjectCard.module.css';
 
 const ProjectCard = ({ 
   id, 
@@ -34,10 +35,10 @@ const ProjectCard = ({
   };
   
   return (
-    <div className="project-card">
-      <div className="project-card__header">
+    <div className={styles.projectCard}>
+      <div className={styles.header}>
         <h4>{name}</h4>
-        <div className="project-card__actions">
+        <div className={styles.actions}>
           <Button 
             variant="outline-primary" 
             size="sm" 
@@ -62,10 +63,10 @@ const ProjectCard = ({
           </Button>
         </div>
       </div>
-      <div className="project-card__info mb-2">
+      <div className={`${styles.info} mb-2`}>
         {description || `A ${type} configuration`}
       </div>
-      <div className="project-card__info text-muted">
+      <div className={`${styles.info} text-muted`}>
         <small>Last updated: {formatDate(lastUpdated)}</small>
       </div>
     </div>

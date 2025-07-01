@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Form, Button, Card, Row, Col, InputGroup } from 'react-bootstrap';
 import { FiPlus, FiTrash2, FiSettings } from 'react-icons/fi';
 
+import styles from './AttributeEditor.module.css';
+
 const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, availableEntities = [] }) => {
   const [localAttribute, setLocalAttribute] = useState({
     name: '',
@@ -433,9 +435,9 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
   };
 
   return (
-    <Card className="mb-3 attribute-editor-card">
-      <Card.Header className="attribute-header">
-        <span className="attribute-name">
+    <Card className={`mb-3 ${styles.attributeEditorCard}`}>
+      <Card.Header className={styles.attributeHeader}>
+        <span className={styles.attributeName}>
           {localAttribute.name || 'New Attribute'}
         </span>
         <Button

@@ -1,0 +1,70 @@
+.toastNotification {
+  min-width: 300px;
+  max-width: 400px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid var(--theme-border);
+  margin-bottom: 10px;
+}
+.toastHeader {
+  border-bottom: 1px solid var(--theme-border);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+}
+.toastHeader :global(.bg-success) {
+  background-color: #28a745 !important;
+  border-color: #28a745;
+}
+.toastHeader :global(.bg-danger) {
+  background-color: #dc3545 !important;
+  border-color: #dc3545;
+}
+.toastHeader :global(.bg-warning) {
+  background-color: #ffc107 !important;
+  border-color: #ffc107;
+}
+.toastHeader :global(.bg-info) {
+  background-color: #17a2b8 !important;
+  border-color: #17a2b8;
+}
+.toastHeader .btnCloseWhite {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 4px;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+.toastHeader .btnCloseWhite:hover {
+  opacity: 0.8;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+.toastHeader .btnCloseWhite:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+.toastBody {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  padding: 12px;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+.toastContainer {
+  z-index: 9999 !important;
+}
+.toastContainer:global([style*="top-center"]) {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* Dark theme overrides */
+:global(body.theme-dark) .toastNotification .toastBody {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+}

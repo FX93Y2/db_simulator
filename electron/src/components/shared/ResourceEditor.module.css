@@ -1,0 +1,72 @@
+.resourceEditor {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--theme-bg);
+}
+.resourceEditor h5 {
+  color: var(--theme-primary);
+}
+.resourceEditor :global(.card) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+}
+.resourceEditor :global(.card-header) {
+  background-color: var(--theme-card-bg);
+  border-bottom-color: var(--theme-border);
+  color: var(--theme-text);
+}
+.resourceEditor :global(.card-body) {
+  color: var(--theme-text);
+}
+.resourceEditor :global(.list-group-item) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+.resourceEditor :global(.list-group-item:hover) {
+  background-color: var(--theme-hover-bg);
+}
+.resourceEditor :global(.badge.bg-primary) {
+  background-color: var(--theme-primary) !important;
+}
+.resourceEditor :global(.badge.bg-info) {
+  background-color: #17a2b8 !important;
+}
+.resourceEditor :global(.badge.bg-warning) {
+  background-color: #ffc107 !important;
+  color: #000 !important;
+}
+.resourceEditor :global(.badge.bg-secondary) {
+  background-color: #6c757d !important;
+}
+.resourceTypeInputs > div {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+.resourceTypeInputs > div h6 {
+  color: var(--theme-text);
+}
+.resourceTypeInputs > div :global(.form-label) {
+  color: var(--theme-text);
+}
+.resourceTypeInputs > div :global(.form-control) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+.resourceTypeInputs > div :global(.form-control:focus) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-primary);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+}
+.resourceTypeInputs > div :global(.text-muted) {
+  color: var(--theme-muted-text) !important;
+}
+.resourceTypeInputs > div :global(.alert-info) {
+  background-color: rgba(var(--theme-primary-rgb), 0.1);
+  border-color: rgba(var(--theme-primary-rgb), 0.2);
+  color: var(--theme-text);
+}

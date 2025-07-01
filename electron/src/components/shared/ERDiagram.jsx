@@ -12,6 +12,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
+import styles from './ERDiagram.module.css';
 import yaml from 'yaml';
 import EntityEditor from './EntityEditor';
 
@@ -32,13 +33,13 @@ const EntityNode = ({ data, theme }) => {
   };
 
   return (
-    <div className={`entity-node ${getNodeTypeClass()}`}>
+    <div className={`${styles.entityNode} ${getNodeTypeClass()}`}>
       <Handle type="target" position={Position.Top} id="target-top" />
       <Handle type="source" position={Position.Right} id="source-right" />
       <Handle type="target" position={Position.Left} id="target-left" />
       <Handle type="source" position={Position.Bottom} id="source-bottom" />
       
-      <div className="entity-node__title">
+      <div className={styles.entityNodeTitle}>
         {data.label}
         {data.tableType && (
           <span className="entity-node__type-badge">
@@ -475,7 +476,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     return (
       <div 
         ref={containerRef} 
-        className="er-diagram-container" 
+        className={styles.erDiagramContainer}
         style={{ 
           width: '100%', 
           // height: '600px', // Let parent control height

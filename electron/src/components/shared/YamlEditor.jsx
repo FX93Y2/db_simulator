@@ -3,7 +3,9 @@ import { Button, Spinner } from 'react-bootstrap';
 import { FiSave, FiRefreshCw } from 'react-icons/fi';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
-const YamlEditor = ({ 
+import styles from './YamlEditor.module.css';
+
+const YamlEditor = ({
   initialValue, 
   onSave, 
   onChange,

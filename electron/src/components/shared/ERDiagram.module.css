@@ -1,0 +1,50 @@
+.erDiagramContainer {
+  background-color: var(--theme-editor-bg);
+  position: relative;
+}
+
+.entityNode {
+  padding: 10px;
+  border-radius: 4px;
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-border);
+  width: 180px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.entityNodeTitle {
+  font-weight: bold;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--theme-border);
+  margin-bottom: 5px;
+  color: var(--theme-text);
+}
+
+.entityNodeAttribute {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+  padding: 2px 5px;
+  margin: 1px 0;
+  border-radius: 3px;
+  color: var(--theme-text);
+}
+
+.entityNodeAttribute.primaryKey {
+  font-weight: bold;
+  background-color: rgba(var(--theme-primary-rgb, 52, 152, 219), 0.1);
+}
+.entityNodeAttribute.primaryKey::before {
+  content: '🔑';
+  margin-right: 5px;
+}
+
+.entityNodeAttribute.foreignKey {
+  font-style: italic;
+  background-color: rgba(var(--theme-secondary-rgb, 46, 204, 113), 0.1);
+}
+.entityNodeAttribute.foreignKey::before {
+  content: '🔗';
+  margin-right: 5px;
+}

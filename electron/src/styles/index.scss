@@ -466,19 +466,6 @@ body {
       gap: 5px;
     }
 
-    .yaml-editor {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: calc(100% - 46px); // Match the header height
-      
-      .monaco-editor-container {
-        flex: 1;
-        min-height: 200px;
-        background-color: var(--theme-editor-bg);
-        border: none !important; // Force remove any border
-      }
-    }
   }
   
   .editor-canvas-panel {
@@ -564,128 +551,10 @@ body {
 }
 
 // Project Card
-.project-card {
-  border: 1px solid $border-color;
-  border-radius: 8px;
-  padding: 15px;
-  margin-bottom: 15px;
-  background-color: white;
-  transition: transform 0.2s, box-shadow 0.2s;
-  
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-  }
-  
-  &__header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 10px;
-    
-    h4 {
-      margin: 0;
-      font-size: 16px;
-    }
-  }
-  
-  &__actions {
-    display: flex;
-    gap: 8px;
-  }
-  
-  &__info {
-    color: #666;
-    font-size: 14px;
-  }
-}
 
 // ER Diagram
-.er-diagram-container {
-  background-color: var(--theme-editor-bg);
-  position: relative;
-  // Ensure the React Flow viewport inherits or gets the theme background
-  .react-flow__viewport {
-  }
-  
-  .entity-node {
-    padding: 10px;
-    border-radius: 4px;
-    // Use theme card background for nodes
-    background-color: var(--theme-card-bg); 
-    color: var(--theme-text);
-    border: 1px solid var(--theme-border); // Use theme border
-    width: 180px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    
-    &__title {
-      font-weight: bold;
-      padding-bottom: 5px;
-      // Use theme border for title separator
-      border-bottom: 1px solid var(--theme-border); 
-      margin-bottom: 5px;
-      color: var(--theme-text); // Ensure title uses theme text color
-    }
-    
-    &__attribute {
-      display: flex;
-      align-items: center;
-      font-size: 12px;
-      padding: 2px 5px; // Adjust padding
-      margin: 1px 0; // Adjust margin
-      border-radius: 3px; // Slightly round attribute backgrounds
-      color: var(--theme-text); // Ensure attribute text uses theme color
-
-      // Define themeable backgrounds for PK/FK
-      &.primary-key {
-        font-weight: bold;
-        // Use subtle background based on theme
-        background-color: rgba(var(--theme-primary-rgb, 52, 152, 219), 0.1);
-        &::before { content: '🔑'; margin-right: 5px; }
-      }
-      
-      &.foreign-key {
-        font-style: italic;
-        // Use subtle background based on theme
-        background-color: rgba(var(--theme-secondary-rgb, 46, 204, 113), 0.1);
-        &::before { content: '🔗'; margin-right: 5px; }
-      }
-    }
-  }
-}
 
 // Event Flow
-.event-flow-container {
-  height: 500px;
-  background-color: var(--theme-editor-bg);
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  // Ensure the React Flow viewport inherits or gets the theme background
-  .react-flow__viewport {
-  }
-  
-  .event-node {
-     // Update event node styles for theming
-     padding: 10px;
-     border-radius: 4px;
-     // Use theme card background or a secondary color accent
-     background-color: var(--theme-card-bg);
-     color: var(--theme-text);
-     border: 1px solid var(--theme-secondary, #2ecc71); // Use secondary color for border
-     width: 150px;
-     text-align: center;
-    
-    &__title {
-      font-weight: bold;
-    }
-    
-    &__info {
-      font-size: 12px;
-      margin-top: 5px;
-      color: var(--theme-muted-text);
-    }
-  }
-}
 
 // Form Styles
 .config-form {
@@ -894,189 +763,12 @@ body {
   color: #007bff;
 }
 // Toast Notification Styles
-.toast-notification {
-  min-width: 300px;
-  max-width: 400px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--theme-border);
-  margin-bottom: 10px;
-  
-  .toast-header {
-    border-bottom: 1px solid var(--theme-border);
-    padding: 8px 12px;
-    display: flex;
-    align-items: center;
-    
-    &.bg-success {
-      background-color: #28a745 !important;
-      border-color: #28a745;
-    }
-    
-    &.bg-danger {
-      background-color: #dc3545 !important;
-      border-color: #dc3545;
-    }
-    
-    &.bg-warning {
-      background-color: #ffc107 !important;
-      border-color: #ffc107;
-    }
-    
-    &.bg-info {
-      background-color: #17a2b8 !important;
-      border-color: #17a2b8;
-    }
-    
-    .btn-close-white {
-      background: none;
-      border: none;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-      padding: 4px;
-      margin: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 4px;
-      
-      &:hover {
-        opacity: 0.8;
-        background-color: rgba(255, 255, 255, 0.1);
-      }
-      
-      &:focus {
-        outline: 2px solid rgba(255, 255, 255, 0.5);
-        outline-offset: 2px;
-      }
-    }
-  }
-  
-  .toast-body {
-    background-color: var(--theme-card-bg);
-    color: var(--theme-text);
-    padding: 12px;
-    word-wrap: break-word;
-    white-space: pre-wrap;
-  }
-}
 
 // Toast container positioning
-.toast-container {
-  z-index: 9999 !important;
-  
-  // Center the container properly
-  &[style*="top-center"] {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-}
 
 // Dark theme specific toast adjustments
-body.theme-dark {
-  .toast-notification {
-    .toast-body {
-      background-color: var(--theme-card-bg);
-      color: var(--theme-text);
-    }
-  }
-}
 
 // Resource Editor Styles
-.resource-editor {
-  padding: 20px;
-  height: 100%;
-  overflow-y: auto;
-  background-color: var(--theme-bg);
-  
-  h5 {
-    color: var(--theme-primary);
-  }
-  
-  .card {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
-    
-    .card-header {
-      background-color: var(--theme-card-bg);
-      border-bottom-color: var(--theme-border);
-      color: var(--theme-text);
-    }
-    
-    .card-body {
-      color: var(--theme-text);
-    }
-  }
-  
-  .list-group-item {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
-    color: var(--theme-text);
-    
-    &:hover {
-      background-color: var(--theme-hover-bg);
-    }
-  }
-  
-  .badge {
-    &.bg-primary {
-      background-color: var(--theme-primary) !important;
-    }
-    
-    &.bg-info {
-      background-color: #17a2b8 !important;
-    }
-    
-    &.bg-warning {
-      background-color: #ffc107 !important;
-      color: #000 !important;
-    }
-    
-    &.bg-secondary {
-      background-color: #6c757d !important;
-    }
-  }
-  
-  .resource-type-inputs {
-    > div {
-      background-color: var(--theme-card-bg);
-      border-color: var(--theme-border);
-      color: var(--theme-text);
-      
-      h6 {
-        color: var(--theme-text);
-      }
-      
-      .form-label {
-        color: var(--theme-text);
-      }
-      
-      .form-control {
-        background-color: var(--theme-card-bg);
-        border-color: var(--theme-border);
-        color: var(--theme-text);
-        
-        &:focus {
-          background-color: var(--theme-card-bg);
-          border-color: var(--theme-primary);
-          color: var(--theme-text);
-          box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-        }
-      }
-      
-      .text-muted {
-        color: var(--theme-muted-text) !important;
-      }
-      
-      .alert-info {
-        background-color: rgba(var(--theme-primary-rgb), 0.1);
-        border-color: rgba(var(--theme-primary-rgb), 0.2);
-        color: var(--theme-text);
-      }
-    }
-  }
-}
 
 // Canvas Panel Updates for Tabs
 .editor-canvas-panel {
@@ -1470,68 +1162,6 @@ body:not(.theme-dark) {
 }
 // Simulation Editor Styles
 .simulation-editor {
-  height: 100%;
-  overflow-y: auto;
-  padding: 1rem;
-
-  .simulation-editor-content {
-    max-width: 100%;
-  }
-
-  .simulation-editor-empty {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .entity-arrival-section {
-    .card, .interarrival-time-card {
-      border: 1px solid var(--theme-border) !important;
-      background-color: var(--theme-card-bg) !important;
-      
-      .card-body {
-        background-color: var(--theme-editor-bg) !important;
-        color: var(--theme-text) !important;
-        border: 1px solid var(--theme-border);
-        border-radius: 0.375rem;
-      }
-    }
-  }
-  
-  .interarrival-time-card {
-    border: 1px solid var(--theme-border) !important;
-    background-color: var(--theme-editor-bg) !important;
-    
-    .card-body {
-      background-color: var(--theme-editor-bg) !important;
-      color: var(--theme-text) !important;
-    }
-  }
-
-  .card {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
-    
-    .card-header {
-      background-color: rgba(var(--theme-primary-rgb), 0.1);
-      border-bottom: 1px solid var(--theme-border);
-      
-      h5, h6 {
-        color: var(--theme-primary);
-      }
-    }
-    
-    .card-body {
-      color: var(--theme-text);
-    }
-  }
-
-  .form-label {
-    font-weight: 500;
-    color: var(--theme-text);
-    
-    svg {
       color: var(--theme-primary);
     }
   }
@@ -1635,29 +1265,6 @@ body.theme-dark {
   }
 }
 
-.attribute-editor-card {
-  border: 1px solid var(--theme-border);
-  background-color: var(--theme-card-bg);
-  
-  .card-header {
-    background-color: rgba(var(--theme-primary-rgb), 0.08);
-    border-bottom: 1px solid var(--theme-border);
-    color: var(--theme-text);
-    padding: 0.75rem 1rem;
-    
-    &.attribute-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      
-      .attribute-name {
-        font-weight: 500;
-        color: var(--theme-text);
-      }
-    }
-  }
-  
-  .card-body {
     color: var(--theme-text);
     padding: 1rem;
     
@@ -1734,47 +1341,7 @@ body.theme-dark {
   }
 }
 
-.entity-basic-info {
-  background-color: var(--theme-editor-bg);
-  border: 1px solid var(--theme-border);
-  border-radius: 0.375rem;
-  padding: 1rem;
-  
-  h5 {
-    color: var(--theme-primary);
-  }
-}
 
-.entity-attributes-section {
-  h5 {
-    color: var(--theme-primary);
-  }
-  
-  .attributes-list {
-    max-height: 60vh;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-    
-    // Custom scrollbar for webkit browsers
-    &::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background: var(--theme-editor-bg);
-      border-radius: 4px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: var(--theme-border);
-      border-radius: 4px;
-      
-      &:hover {
-        background: var(--theme-muted-text);
-      }
-    }
-  }
-}
 
 // Form styling improvements for dark theme
 .entity-editor-modal, .attribute-editor-card {
@@ -1909,26 +1476,6 @@ body.theme-dark {
 }
 
 // Chart view styling for dark theme
-.chart-container {
-  .form-select {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-card-bg);
-      border-color: var(--theme-primary);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    option {
-      background-color: var(--theme-card-bg);
-      color: var(--theme-text);
-    }
-  }
-  
-  .form-label {
     color: var(--theme-text);
     font-weight: 500;
   }

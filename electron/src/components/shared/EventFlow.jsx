@@ -13,6 +13,7 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
+import styles from './EventFlow.module.css';
 import yaml from 'yaml';
 import { Modal, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiX, FiPlus } from 'react-icons/fi';
@@ -506,20 +507,20 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
 const EventNode = ({ data }) => {
   const theme = data.theme; // Get theme from data
   return (
-    <div className="event-node">
+    <div className={styles.eventNode}>
       <Handle type="target" position={Position.Top} id="target-top" />
       <Handle type="source" position={Position.Right} id="source-right" />
       <Handle type="target" position={Position.Left} id="target-left" />
       <Handle type="source" position={Position.Bottom} id="source-bottom" />
       
-      <div className="event-node__title">{data.label}</div>
+      <div className={styles.eventNodeTitle}>{data.label}</div>
       {data.duration && (
-        <div className="event-node__info">
+        <div className={styles.eventNodeInfo}>
           Duration: {data.duration.distribution?.mean || 0} days
         </div>
       )}
       {data.resources && (
-        <div className="event-node__info">
+        <div className={styles.eventNodeInfo}>
           Resources: {data.resources}
         </div>
       )}
@@ -1262,7 +1263,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, dbConfig
     return (
       <div 
         ref={containerRef} 
-        className="event-flow-container" 
+        className={styles.eventFlowContainer}
         style={{ 
           width: '100%',
           borderRadius: '4px',
@@ -1273,7 +1274,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, dbConfig
   }
   
   return (
-    <div className="event-flow-container" ref={containerRef}>
+    <div className={styles.eventFlowContainer} ref={containerRef}>
       {initialized && (
         <>
           <ReactFlow

@@ -1,0 +1,78 @@
+.entityEditorModal {
+}
+.entityEditorModal .modalDialog {
+  max-width: 960px;
+  width: 90vw;
+}
+.entityEditorModal .modalBody {
+  padding: 1.5rem;
+}
+.generatorSection {
+  background-color: rgba(var(--theme-primary-rgb), 0.03);
+  border: 1px solid rgba(var(--theme-border), 0.5);
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+.sectionTitle {
+  color: var(--theme-primary);
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.generatorFields {
+  width: 100%;
+}
+.referenceSection {
+  background-color: rgba(var(--theme-secondary-rgb), 0.03);
+  border: 1px solid rgba(var(--theme-border), 0.5);
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-top: 1rem;
+}
+.choiceValuesEditor .row {
+  margin-bottom: 0.5rem;
+}
+.distributionOptionalCard {
+  border: 1px solid var(--theme-border);
+  background-color: var(--theme-editor-bg);
+}
+.distributionOptionalCard .cardHeader {
+  background-color: rgba(var(--theme-primary-rgb), 0.05);
+  border-bottom: 1px solid var(--theme-border);
+}
+.distributionOptionalCard .cardBody {
+  background-color: var(--theme-editor-bg);
+  color: var(--theme-text);
+}
+.entityBasicInfo {
+  background-color: var(--theme-editor-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 0.375rem;
+  padding: 1rem;
+}
+.entityBasicInfo h5 {
+  color: var(--theme-primary);
+}
+.entityAttributesSection h5 {
+  color: var(--theme-primary);
+}
+.attributesList {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+}
+.attributesList::-webkit-scrollbar {
+  width: 8px;
+}
+.attributesList::-webkit-scrollbar-track {
+  background: var(--theme-editor-bg);
+  border-radius: 4px;
+}
+.attributesList::-webkit-scrollbar-thumb {
+  background: var(--theme-border);
+  border-radius: 4px;
+}
+.attributesList::-webkit-scrollbar-thumb:hover {
+  background: var(--theme-muted-text);
+}

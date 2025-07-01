@@ -3,6 +3,8 @@ import { Card, Button, Modal, Form, Row, Col, Badge, ListGroup, Alert } from 're
 import { FiPlus, FiEdit2, FiTrash2, FiSettings } from 'react-icons/fi';
 import yaml from 'yaml';
 
+import styles from './ResourceEditor.module.css';
+
 const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
   const [parsedData, setParsedData] = useState(null);
   const [dbParsedData, setDbParsedData] = useState(null);
@@ -367,7 +369,7 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
   // Render input fields for each resource type with immediate two-way binding
   const renderResourceTypeInputs = (resourceName, definition) => {
     return (
-      <div className="resource-type-inputs">
+      <div className={styles.resourceTypeInputs}>
         {definition.resourceTypes.map(resourceType => {
           const currentCapacity = getCurrentCapacity(resourceName, resourceType);
           const isDistribution = typeof currentCapacity === 'object' && currentCapacity.distribution;

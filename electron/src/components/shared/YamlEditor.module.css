@@ -1,0 +1,12 @@
+.yamlEditor {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 46px); /* Match the header height */
+}
+.monacoEditorContainer {
+  flex: 1;
+  min-height: 200px;
+  background-color: var(--theme-editor-bg);
+  border: none !important;
+}

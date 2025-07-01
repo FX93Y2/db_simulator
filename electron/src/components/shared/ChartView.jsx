@@ -2,6 +2,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { prepareDataForChart, getChartOptions } from '../../utils/resultsApi';
 
+import styles from './ChartView.module.css';
+ 
 // Register all Chart.js components
 Chart.register(...registerables);
 
@@ -77,7 +79,7 @@ const ChartView = ({ data, config }) => {
   }, [config.chartType]);
   
   return (
-    <div className="chart-wrapper" style={{ width: '100%', height: '100%' }}>
+    <div className={styles.chartContainer} style={{ width: '100%', height: '100%' }}>
       <canvas ref={chartRef}></canvas>
     </div>
   );

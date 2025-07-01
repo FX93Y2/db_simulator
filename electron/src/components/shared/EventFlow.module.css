@@ -1,0 +1,26 @@
+.eventFlowContainer {
+  height: 500px;
+  background-color: var(--theme-editor-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 4px;
+}
+
+.eventNode {
+  padding: 10px;
+  border-radius: 4px;
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  border: 1px solid var(--theme-secondary, #2ecc71);
+  width: 150px;
+  text-align: center;
+}
+
+.eventNodeTitle {
+  font-weight: bold;
+}
+
+.eventNodeInfo {
+  font-size: 12px;
+  margin-top: 5px;
+  color: var(--theme-muted-text);
+}

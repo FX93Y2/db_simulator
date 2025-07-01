@@ -4,6 +4,8 @@ import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
 import AttributeEditor from './AttributeEditor';
 import ConfirmationModal from './ConfirmationModal';
 
+import styles from './EntityEditor.module.css';
+
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
   const [entityType, setEntityType] = useState('');
@@ -162,7 +164,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       onHide={onHide}
       centered
       backdrop="static"
-      className="entity-editor-modal"
+      className={styles.entityEditorModal}
     >
       <Modal.Header closeButton>
         <Modal.Title>
@@ -182,7 +184,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
         
         <Form>
           {/* Entity Basic Information */}
-          <div className="entity-basic-info mb-4">
+          <div className={`entity-basic-info mb-4 ${styles.entityBasicInfo}`}>
             <h5 className="mb-3">Entity Information</h5>
             
             <div className="row">
@@ -257,7 +259,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           </div>
 
           {/* Attributes Section */}
-          <div className="entity-attributes-section">
+          <div className={styles.entityAttributesSection}>
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="mb-0">Attributes</h5>
               <Button
@@ -274,7 +276,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                 No attributes defined. Click "Add Attribute" to create the first attribute.
               </Alert>
             ) : (
-              <div className="attributes-list">
+              <div className={styles.attributesList}>
                 {attributes.map((attribute, index) => (
                   <AttributeEditor
                     key={index}

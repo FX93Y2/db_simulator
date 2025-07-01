@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { Toast as BootstrapToast, ToastContainer } from 'react-bootstrap';
 import { FiCheckCircle, FiAlertCircle, FiInfo, FiX } from 'react-icons/fi';
 
+import styles from './Toast.module.css';
+
 const Toast = ({
   show,
   onClose,
@@ -43,21 +45,21 @@ const Toast = ({
       onClose={onClose}
       autohide={autoHide}
       delay={delay}
-      className="toast-notification"
+      className={styles.toastNotification}
     >
-      <BootstrapToast.Header className={getHeaderClass()} closeButton={false}>
+      <BootstrapToast.Header className={\`\${getHeaderClass()} \${styles.toastHeader}\`} closeButton={false}>
         {getIcon()}
         <strong className="me-auto">{title}</strong>
         <button
           type="button"
-          className="btn-close btn-close-white ms-2"
+          className={\`\${styles.btnCloseWhite} btn-close ms-2\`}
           aria-label="Close"
           onClick={onClose}
         >
           <FiX />
         </button>
       </BootstrapToast.Header>
-      <BootstrapToast.Body>
+      <BootstrapToast.Body className={styles.toastBody}>
         {message}
       </BootstrapToast.Body>
     </BootstrapToast>
@@ -69,7 +71,7 @@ export const ToastManager = ({ toasts, removeToast }) => {
   return (
     <ToastContainer
       position="top-center"
-      className="p-3"
+      className={['p-3', styles.toastContainer].join(' ')}
       style={{
         position: 'fixed',
         top: '20px',

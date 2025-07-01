@@ -3,6 +3,8 @@ import { Form, Card, Row, Col, InputGroup } from 'react-bootstrap';
 import { FiClock, FiCalendar, FiHash, FiUsers, FiSettings } from 'react-icons/fi';
 import yaml from 'yaml';
 
+import styles from './SimulationEditor.module.css';
+
 const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
   const [simulationData, setSimulationData] = useState({
     simulation: {
@@ -129,7 +131,7 @@ const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
 
   if (!hasSimulationSections()) {
     return (
-      <div className="simulation-editor-empty">
+      <div className={styles.simulationEditorEmpty}>
         <div className="text-center py-5">
           <FiSettings size={48} className="text-muted mb-3" />
           <h5 className="text-muted">Simulation Configuration Not Available</h5>
@@ -143,8 +145,8 @@ const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
   }
 
   return (
-    <div className="simulation-editor">
-      <div className="simulation-editor-content">
+    <div className={styles.simulationEditor}>
+      <div className={styles.simulationEditorContent}>
         {/* Simulation Settings Section */}
         <Card className="mb-4">
           <Card.Header className="d-flex align-items-center">

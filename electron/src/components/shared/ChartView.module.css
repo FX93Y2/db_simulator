@@ -1,0 +1,15 @@
+.chartContainer :global(.form-select) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+.chartContainer :global(.form-select:focus) {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-primary);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+}
+.chartContainer :global(.form-select) option {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+}
