@@ -17,8 +17,189 @@ import yaml from 'yaml';
 import { Modal, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiX, FiPlus } from 'react-icons/fi';
 
+// Transition Probability Editor Modal
+const TransitionProbabilityModal = ({ show, onHide, edge, onEdgeUpdate, theme }) => {
+  const [probability, setProbability] = useState(1.0);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize form when edge changes
+  useEffect(() => {
+    if (edge && edge.data && edge.data.probability !== undefined) {
+      setProbability(edge.data.probability);
+    } else {
+      setProbability(1.0);
+    }
+  }, [edge]);
+
+  const handleSubmit = () => {
+    setIsLoading(true);
+    try {
+      const updatedEdge = {
+        ...edge,
+        data: {
+          ...edge.data,
+          probability: probability
+        },
+        label: `${(probability * 100).toFixed(0)}%`
+      };
+      
+      onEdgeUpdate(updatedEdge);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error updating transition probability:', error);
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="sm"
+      backdrop="static"
+      className="transition-probability-modal"
+    >
+      <Modal.Header closeButton className={theme === 'dark' ? 'bg-dark text-light' : ''}>
+        <Modal.Title>Edit Transition Probability</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className={theme === 'dark' ? 'bg-dark text-light' : ''}>
+        <Form>
+          <Form.Group className="mb-3">
+            <Form.Label>Probability (0.0 - 1.0)</Form.Label>
+            <Form.Control
+              type="number"
+              min="0"
+              max="1"
+              step="0.01"
+              value={probability}
+              onChange={(e) => setProbability(parseFloat(e.target.value) || 0)}
+              className={theme === 'dark' ? 'bg-secondary text-light border-secondary' : ''}
+            />
+            <Form.Text className="text-muted">
+              {(probability * 100).toFixed(1)}%
+            </Form.Text>
+          </Form.Group>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer className={theme === 'dark' ? 'bg-dark' : ''}>
+        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button variant="primary" onClick={handleSubmit} disabled={isLoading}>
+          {isLoading ? <Spinner animation="border" size="sm" /> : 'Save'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
+// Decision Node Probabilities Editor Modal
+const DecisionNodeProbabilitiesModal = ({ show, onHide, node, outgoingEdges, onProbabilitiesUpdate, theme }) => {
+  const [probabilities, setProbabilities] = useState({});
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Initialize probabilities when modal opens
+  useEffect(() => {
+    if (show && outgoingEdges && outgoingEdges.length > 0) {
+      const initialProbs = {};
+      outgoingEdges.forEach(edge => {
+        initialProbs[edge.target] = edge.data?.probability || 0;
+      });
+      setProbabilities(initialProbs);
+    }
+  }, [show, outgoingEdges]);
+
+  const handleProbabilityChange = (targetId, value) => {
+    setProbabilities(prev => ({
+      ...prev,
+      [targetId]: parseFloat(value) || 0
+    }));
+  };
+
+  const getTotalProbability = () => {
+    return Object.values(probabilities).reduce((sum, prob) => sum + prob, 0);
+  };
+
+  const handleSubmit = () => {
+    const total = getTotalProbability();
+    if (Math.abs(total - 1.0) > 0.001) {
+      alert('Probabilities must sum to 100% (1.0)');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      onProbabilitiesUpdate(probabilities);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error updating decision probabilities:', error);
+      setIsLoading(false);
+    }
+  };
+
+  const total = getTotalProbability();
+  const isValidTotal = Math.abs(total - 1.0) <= 0.001;
+
+  return (
+    <Modal
+      show={show}
+      onHide={onHide}
+      centered
+      size="md"
+      backdrop="static"
+      className="decision-probabilities-modal"
+    >
+      <Modal.Header closeButton className={theme === 'dark' ? 'bg-dark text-light' : ''}>
+        <Modal.Title>Edit Decision Probabilities - {node?.data?.label}</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className={theme === 'dark' ? 'bg-dark text-light' : ''}>
+        <Form>
+          <div className="mb-3">
+            <h6>Outgoing Transitions:</h6>
+            {outgoingEdges && outgoingEdges.map((edge, index) => (
+              <div key={edge.target} className="mb-2">
+                <Form.Label>To: {edge.target}</Form.Label>
+                <Form.Control
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.01"
+                  value={probabilities[edge.target] || 0}
+                  onChange={(e) => handleProbabilityChange(edge.target, e.target.value)}
+                  className={theme === 'dark' ? 'bg-secondary text-light border-secondary' : ''}
+                />
+                <Form.Text className="text-muted">
+                  {((probabilities[edge.target] || 0) * 100).toFixed(1)}%
+                </Form.Text>
+              </div>
+            ))}
+          </div>
+          <div className={`alert ${isValidTotal ? 'alert-success' : 'alert-warning'}`}>
+            Total: {(total * 100).toFixed(1)}% {isValidTotal ? '✓' : '(Must equal 100%)'}
+          </div>
+        </Form>
+      </Modal.Body>
+      <Modal.Footer className={theme === 'dark' ? 'bg-dark' : ''}>
+        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
+          Cancel
+        </Button>
+        <Button
+          variant="primary"
+          onClick={handleSubmit}
+          disabled={isLoading || !isValidTotal}
+        >
+          {isLoading ? <Spinner animation="border" size="sm" /> : 'Save'}
+        </Button>
+      </Modal.Footer>
+    </Modal>
+  );
+};
+
 // Event Node Details Modal
-const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme }) => {
+const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, availableResourceTypes }) => {
   const [name, setName] = useState('');
   const [duration, setDuration] = useState({ distribution: { type: 'normal', mean: 1, stddev: 0.5 } });
   const [resources, setResources] = useState([]);
@@ -28,9 +209,10 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
   useEffect(() => {
     if (node && node.data) {
       setName(node.data.label || '');
-      setDuration(node.data.duration || { 
-        distribution: { type: 'normal', mean: 1, stddev: 0.5 } 
+      setDuration(node.data.duration || {
+        distribution: { type: 'normal', mean: 1, stddev: 0.5 }
       });
+      // Properly sync resources from the node data
       setResources(node.data.resource_requirements || []);
     }
   }, [node]);
@@ -81,7 +263,11 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
   };
 
   const handleAddResource = () => {
-    setResources([...resources, { resource_table: 'Consultant', value: '', count: 1 }]);
+    // Get the first available resource type as default
+    const defaultResourceType = availableResourceTypes && availableResourceTypes.length > 0
+      ? availableResourceTypes[0]
+      : '';
+    setResources([...resources, { resource_table: 'Consultant', value: defaultResourceType, count: 1 }]);
   };
 
   return (
@@ -210,17 +396,22 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
               <div className="resource-list">
                 {resources.map((resource, index) => (
                   <div key={index} className="resource-item d-flex align-items-center mb-2">
-                    <Form.Control
+                    <Form.Select
                       className="me-2"
-                      type="text"
                       value={resource.value}
                       onChange={(e) => {
                         const newResources = [...resources];
                         newResources[index] = { ...resource, value: e.target.value };
                         setResources(newResources);
                       }}
-                      placeholder="Resource value"
-                    />
+                    >
+                      <option value="">Select resource type</option>
+                      {availableResourceTypes && availableResourceTypes.map(resourceType => (
+                        <option key={resourceType} value={resourceType}>
+                          {resourceType}
+                        </option>
+                      ))}
+                    </Form.Select>
                     <InputGroup className="me-2" style={{ maxWidth: "150px" }}>
                       <InputGroup.Text>Count</InputGroup.Text>
                       <Form.Control
@@ -307,10 +498,11 @@ const EventNode = ({ data }) => {
 const DecisionNode = ({ data }) => {
   const theme = data.theme; // Get theme from data
   const style = {
-    width: '80px',
-    height: '80px',
+    width: '180px',
+    height: '90px',
     background: theme === 'dark' ? '#b38600' : '#f0ad4e',
-    transform: 'rotate(45deg)',
+    border: '2px solid ' + (theme === 'dark' ? '#d4a017' : '#d4a017'),
+    clipPath: 'polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)',
     position: 'relative',
     display: 'flex',
     justifyContent: 'center',
@@ -318,49 +510,43 @@ const DecisionNode = ({ data }) => {
   };
 
   const textStyle = {
-    transform: 'rotate(-45deg)',
-    fontSize: '14px',
+    fontSize: '12px',
     fontWeight: 'bold',
     textAlign: 'center',
     whiteSpace: 'nowrap',
-    position: 'absolute',
     color: theme === 'dark' ? '#e0e0e0' : '#333',
+    maxWidth: '140px',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
   };
 
   return (
     <div className="decision-node" style={{ position: 'relative' }}>
-      <Handle 
-        type="target" 
-        position={Position.Left} 
-        id="target-left" 
-        style={{ left: '-10px', top: '40px' }} 
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="target-left"
+        style={{ left: '-10px', top: '45px' }}
       />
       <div style={style}>
         <div style={textStyle}>{data.label}</div>
       </div>
       
+      {/* Single source handle on the right for ALL outgoing transitions */}
       <Handle
         type="source"
         position={Position.Right}
         id="source-right"
-        style={{ right: '-10px', top: '40px' }}
+        style={{ right: '-90px', top: '45px' }}
       />
       
+      {/* Reserved bottom handle for future "False" condition - not connected to regular outputs */}
       <Handle
         type="source"
-        position={Position.Top}
-        id="source-top"
-        style={{ top: '-10px', left: '40px' }}
+        position={Position.Bottom}
+        id="source-false"
+        style={{ bottom: '0px', left: '90px', opacity: 0.3 }}
       />
-      
-      {data.outputs && data.outputs.length > 2 && (
-        <Handle
-          type="source"
-          position={Position.Bottom}
-          id="source-bottom"
-          style={{ bottom: '-10px', left: '40px' }}
-        />
-      )}
     </div>
   );
 };
@@ -371,7 +557,7 @@ const nodeTypes = {
   decision: DecisionNode,
 };
 
-const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
+const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, dbConfigContent }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [simSchema, setSimSchema] = useState(null);
@@ -379,7 +565,12 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
+  const [selectedEdge, setSelectedEdge] = useState(null);
+  const [showTransitionModal, setShowTransitionModal] = useState(false);
+  const [selectedDecisionNode, setSelectedDecisionNode] = useState(null);
+  const [showDecisionModal, setShowDecisionModal] = useState(false);
   const [schemaId, setSchemaId] = useState(null);
+  const [availableResourceTypes, setAvailableResourceTypes] = useState([]);
   
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -410,6 +601,46 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
       }
     }
   }, [yamlContent]);
+  
+  // Extract available resource types from database configuration
+  useEffect(() => {
+    if (dbConfigContent) {
+      try {
+        const dbParsed = yaml.parse(dbConfigContent);
+        const resourceTypes = [];
+        
+        // Find entities with type: resource
+        if (dbParsed?.entities) {
+          const resourceEntities = dbParsed.entities.filter(entity => entity.type === 'resource');
+          
+          resourceEntities.forEach(entity => {
+            // Find attributes with type: resource_type
+            const resourceTypeAttributes = entity.attributes?.filter(attr => attr.type === 'resource_type') || [];
+            
+            if (resourceTypeAttributes.length > 0) {
+              const resourceTypeAttr = resourceTypeAttributes[0];
+              
+              if (resourceTypeAttr.generator?.distribution?.type === 'choice' && resourceTypeAttr.generator.distribution.values) {
+                // Extract the possible values from the choice distribution
+                const values = resourceTypeAttr.generator.distribution.values;
+                if (Array.isArray(values) && values.length > 0) {
+                  resourceTypes.push(...values);
+                }
+              }
+            }
+          });
+        }
+        
+        setAvailableResourceTypes(resourceTypes);
+        console.log('[EventFlow] Extracted resource types:', resourceTypes);
+      } catch (error) {
+        console.error('[EventFlow] Error parsing database config for resource types:', error);
+        setAvailableResourceTypes([]);
+      }
+    } else {
+      setAvailableResourceTypes([]);
+    }
+  }, [dbConfigContent]);
   
   // Effect to update internal state and generate graph when props change
   useEffect(() => {
@@ -474,7 +705,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
            let resourcesText = '';
            if (event.resource_requirements && event.resource_requirements.length > 0) {
              resourcesText = event.resource_requirements
-               .map(req => `${req.count || 1} ${req.resource_table || 'Resource'}`)
+               .map(req => `${req.count || 1} ${req.value || req.resource_table || 'Resource'}`)
                .join(', ');
            }
            
@@ -482,9 +713,10 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
              id: event.name,
              type: 'event',
              position: position,
-             data: { 
+             data: {
                label: event.name,
                duration: event.duration,
+               resource_requirements: event.resource_requirements || [], // Include the actual resource requirements
                resources: resourcesText,
                theme: theme
              },
@@ -531,8 +763,8 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
                  source: source,
                  theme: theme
                },
-               width: 80,
-               height: 80,
+               width: 180,
+               height: 90,
              };
              
              decisionNodes.push(decisionNode);
@@ -554,21 +786,13 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
                },
              });
              
-             // Create edges from decision to each destination
+             // Create edges from decision to each destination using "bus" style
              transition.to.forEach((dest, destIdx) => {
                const targetNode = eventNodes.find(node => node.id === dest.event_type);
                if (!targetNode) return;
                
-               // Determine which handle to use based on index
-               // First item always uses right handle (next event), others use top/bottom
-               let sourceHandle;
-               if (destIdx === 0) {
-                 sourceHandle = 'source-right'; // First item (next event) always uses right
-               } else if (destIdx === 1) {
-                 sourceHandle = 'source-top'; // Second item (fallback) uses top
-               } else {
-                 sourceHandle = 'source-bottom'; // Additional items use bottom
-               }
+               // ALL outgoing connections use the right handle for clean "bus" style
+               const sourceHandle = 'source-right';
                
                // Determine edge color based on probability
                let edgeColor;
@@ -580,17 +804,33 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
                  edgeColor = '#d9534f'; // Red for low probability
                }
                
-               // Create edge with label showing probability
+               // Create intermediate waypoint for "bus" style routing
+               // This creates the parallel lines effect before branching
+               const decisionPos = decisionPosition;
+               const targetPos = targetNode.position;
+               
+               // Calculate waypoint for bus-style routing
+               const busLength = 60; // Length of parallel bus section
+               const verticalSpacing = 30; // Vertical spacing between parallel lines
+               const busEndX = decisionPos.x + 80 + busLength; // End of bus section
+               const busY = decisionPos.y + 40 + (destIdx - (transition.to.length - 1) / 2) * verticalSpacing;
+               
+               // Create edge with waypoints for bus-style routing
                transitionEdges.push({
                  id: `${decisionId}-${dest.event_type}`,
                  source: decisionId,
                  sourceHandle,
                  target: dest.event_type,
-                 targetHandle: 'target-left', // Just use a consistent target handle
-                 type: 'step',
-                 label: `${(dest.probability * 100).toFixed(0)}%`,
-                 labelStyle: { fill: '#333', fontWeight: 'bold' },
-                 style: { stroke: edgeColor, strokeWidth: 2 },
+                 targetHandle: 'target-left',
+                 type: 'smoothstep', // Use smoothstep for better routing
+                 data: {
+                   probability: dest.probability,
+                   busStyle: true // Mark as bus-style edge
+                 },
+                 style: {
+                   stroke: edgeColor,
+                   strokeWidth: 2,
+                 },
                  markerEnd: {
                    type: MarkerType.ArrowClosed,
                    width: 20,
@@ -609,8 +849,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
                target: dest.event_type,
                targetHandle: 'target-left',
                type: 'step',
-               label: `${(dest.probability * 100).toFixed(0)}%`,
-               labelStyle: { fill: '#333', fontWeight: 'bold' },
+               data: { probability: dest.probability }, // Store probability in data
                style: { stroke: '#2ecc71', strokeWidth: 2 },
                markerEnd: {
                  type: MarkerType.ArrowClosed,
@@ -861,13 +1100,31 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
   // Handle node double click
   const onNodeDoubleClick = useCallback(
     (event, node) => {
-      // Only handle event nodes, not decision nodes
-      if (node.type !== 'decision') {
+      if (node.type === 'decision') {
+        // Handle decision nodes - open probabilities editor
+        const outgoingEdges = edges.filter(edge => edge.source === node.id);
+        setSelectedDecisionNode(node);
+        setShowDecisionModal(true);
+      } else {
+        // Handle event nodes - open event details editor
         setSelectedNode(node);
         setShowNodeModal(true);
       }
     },
-    []
+    [edges]
+  );
+
+  // Handle edge click for probability editing
+  const onEdgeClick = useCallback(
+    (event, edge) => {
+      // Only allow editing for non-decision node edges (regular transitions)
+      const sourceNode = nodes.find(n => n.id === edge.source);
+      if (sourceNode && sourceNode.type !== 'decision') {
+        setSelectedEdge(edge);
+        setShowTransitionModal(true);
+      }
+    },
+    [nodes]
   );
 
   // Handler for node updates from modal
@@ -900,11 +1157,67 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
      }
   }, [simSchema, onDiagramChange]);
 
-  // Handle node deletion from modal callback
-  const handleNodeDelete = useCallback((nodeToDelete) => {
-     // Trigger the main deletion logic
-     onNodesDelete([{ id: nodeToDelete.id }]); // Pass it in the expected array format
-  }, [onNodesDelete]);
+ // Handle edge probability update
+ const handleEdgeUpdate = useCallback((updatedEdge) => {
+   if (simSchema) {
+     const updatedSchema = JSON.parse(JSON.stringify(simSchema));
+     const transitions = updatedSchema.event_simulation?.event_sequence?.transitions;
+     
+     if (transitions) {
+       // Find the transition that corresponds to this edge
+       const transition = transitions.find(t =>
+         t.from === updatedEdge.source &&
+         t.to && t.to.some(dest => dest.event_type === updatedEdge.target)
+       );
+       
+       if (transition && transition.to) {
+         const destIndex = transition.to.findIndex(dest => dest.event_type === updatedEdge.target);
+         if (destIndex !== -1) {
+           transition.to[destIndex].probability = updatedEdge.data.probability;
+         }
+       }
+     }
+     
+     setSimSchema(updatedSchema);
+     if (onDiagramChange) {
+       onDiagramChange(updatedSchema);
+     }
+   }
+ }, [simSchema, onDiagramChange]);
+
+ // Handle decision node probabilities update
+ const handleDecisionProbabilitiesUpdate = useCallback((probabilities) => {
+   if (simSchema && selectedDecisionNode) {
+     const updatedSchema = JSON.parse(JSON.stringify(simSchema));
+     const transitions = updatedSchema.event_simulation?.event_sequence?.transitions;
+     
+     if (transitions) {
+       // Find the transition that corresponds to this decision node
+       const transition = transitions.find(t => t.from === selectedDecisionNode.data.source);
+       
+       if (transition && transition.to) {
+         // Update probabilities for each destination
+         Object.entries(probabilities).forEach(([targetId, probability]) => {
+           const destIndex = transition.to.findIndex(dest => dest.event_type === targetId);
+           if (destIndex !== -1) {
+             transition.to[destIndex].probability = probability;
+           }
+         });
+       }
+     }
+     
+     setSimSchema(updatedSchema);
+     if (onDiagramChange) {
+       onDiagramChange(updatedSchema);
+     }
+   }
+ }, [simSchema, selectedDecisionNode, onDiagramChange]);
+
+ // Handle node deletion from modal callback
+ const handleNodeDelete = useCallback((nodeToDelete) => {
+    // Trigger the main deletion logic
+    onNodesDelete([{ id: nodeToDelete.id }]); // Pass it in the expected array format
+ }, [onNodesDelete]);
 
   // Effect to populate the graph based on the schema
   useEffect(() => {
@@ -939,6 +1252,7 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
             onNodeDragStop={onNodeDragStop}
             onNodesDelete={onNodesDelete}
             onNodeDoubleClick={onNodeDoubleClick}
+            onEdgeClick={onEdgeClick}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -958,6 +1272,22 @@ const EventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme }) => {
         node={selectedNode}
         onNodeUpdate={handleNodeUpdate}
         onNodeDelete={handleNodeDelete}
+        theme={theme}
+        availableResourceTypes={availableResourceTypes}
+      />
+      <TransitionProbabilityModal
+        show={showTransitionModal}
+        onHide={() => setShowTransitionModal(false)}
+        edge={selectedEdge}
+        onEdgeUpdate={handleEdgeUpdate}
+        theme={theme}
+      />
+      <DecisionNodeProbabilitiesModal
+        show={showDecisionModal}
+        onHide={() => setShowDecisionModal(false)}
+        node={selectedDecisionNode}
+        outgoingEdges={selectedDecisionNode ? edges.filter(edge => edge.source === selectedDecisionNode.id) : []}
+        onProbabilitiesUpdate={handleDecisionProbabilitiesUpdate}
         theme={theme}
       />
     </div>

@@ -597,6 +597,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
                       parsedSchema={parsedYamlObject}
                       onDiagramChange={handleDiagramChange}
                       theme={theme}
+                      dbConfigContent={dbConfigContent}
                     />
                   )}
                   
