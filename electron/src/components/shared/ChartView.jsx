@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { prepareDataForChart, getChartOptions } from '../../utils/resultsApi';
 
@@ -8,8 +8,9 @@ Chart.register(...registerables);
 const ChartView = ({ data, config }) => {
   const chartRef = useRef(null);
   const chartInstance = useRef(null);
+  const [themeObserver, setThemeObserver] = useState(null);
 
-  // Effect to create or update chart when data or config changes
+  // Effect to create or update chart when data, config, or theme changes
   useEffect(() => {
     // Destroy previous chart instance if it exists
     if (chartInstance.current) {
@@ -17,7 +18,10 @@ const ChartView = ({ data, config }) => {
     }
     
     // Process data and create chart only if needed values are provided
-    if (data && data.length > 0 && config.xAxis && config.yAxis) {
+    const hasRequiredConfig = data && data.length > 0 && config.xAxis &&
+      (config.aggregation === 'count' || config.numericColumn);
+    
+    if (hasRequiredConfig) {
       // Prepare the data for the chart
       const chartData = prepareDataForChart(data, config);
       
@@ -41,6 +45,36 @@ const ChartView = ({ data, config }) => {
       }
     };
   }, [data, config]);
+
+  // Effect to watch for theme changes and re-render chart
+  useEffect(() => {
+    const observer = new MutationObserver((mutations) => {
+      mutations.forEach((mutation) => {
+        if (mutation.type === 'attributes' && mutation.attributeName === 'class') {
+          // Theme changed, re-render chart
+          if (chartInstance.current) {
+            const options = getChartOptions(config.chartType);
+            chartInstance.current.options = options;
+            chartInstance.current.update();
+          }
+        }
+      });
+    });
+
+    // Start observing theme changes on body element
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class']
+    });
+
+    setThemeObserver(observer);
+
+    return () => {
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [config.chartType]);
   
   return (
     <div className="chart-wrapper" style={{ width: '100%', height: '100%' }}>
@@ -49,4 +83,4 @@ const ChartView = ({ data, config }) => {
   );
 };
 
-export default ChartView; 
+export default ChartView;

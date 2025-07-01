@@ -52,130 +52,164 @@ export const exportDatabaseToCSV = async (databasePath, customExportPath = null)
 
 // Helper functions for data processing
 
-// Convert raw table data for charting purposes
+// Convert raw table data for charting purposes with aggregation
 export const prepareDataForChart = (rawData, config) => {
   if (!rawData || !rawData.length) return null;
   
-  const { chartType, xAxis, yAxis, groupBy } = config;
+  const { chartType, xAxis, aggregation, numericColumn } = config;
+  
+  // Aggregate data by x-axis categories
+  const aggregatedData = {};
+  
+  rawData.forEach(item => {
+    const xValue = String(item[xAxis] || 'Unknown');
+    
+    if (!aggregatedData[xValue]) {
+      aggregatedData[xValue] = {
+        count: 0,
+        values: []
+      };
+    }
+    
+    aggregatedData[xValue].count++;
+    
+    // If we need numeric values for aggregation
+    if (aggregation !== 'count' && numericColumn) {
+      const numValue = parseFloat(item[numericColumn]);
+      if (!isNaN(numValue)) {
+        aggregatedData[xValue].values.push(numValue);
+      }
+    }
+  });
+  
+  // Calculate final aggregated values
+  const labels = Object.keys(aggregatedData).sort();
+  const values = labels.map(label => {
+    const data = aggregatedData[label];
+    
+    switch (aggregation) {
+      case 'count':
+        return data.count;
+      case 'sum':
+        return data.values.reduce((sum, val) => sum + val, 0);
+      case 'average':
+        return data.values.length > 0 ? data.values.reduce((sum, val) => sum + val, 0) / data.values.length : 0;
+      case 'min':
+        return data.values.length > 0 ? Math.min(...data.values) : 0;
+      case 'max':
+        return data.values.length > 0 ? Math.max(...data.values) : 0;
+      default:
+        return data.count;
+    }
+  });
+  
+  // Generate colorblind-friendly colors
+  const colors = getColorblindFriendlyPalette(labels.length);
   
   // For pie charts
   if (chartType === 'pie') {
-    const aggregatedData = {};
-    
-    // If grouping is enabled
-    if (groupBy && groupBy !== xAxis) {
-      rawData.forEach(item => {
-        const groupValue = String(item[groupBy] || 'Unknown');
-        const numValue = parseFloat(item[yAxis]);
-        
-        if (!isNaN(numValue)) {
-          if (!aggregatedData[groupValue]) {
-            aggregatedData[groupValue] = 0;
-          }
-          aggregatedData[groupValue] += numValue;
-        }
-      });
-    } else {
-      // No grouping, aggregate by x-axis
-      rawData.forEach(item => {
-        const xValue = String(item[xAxis] || 'Unknown');
-        const numValue = parseFloat(item[yAxis]);
-        
-        if (!isNaN(numValue)) {
-          if (!aggregatedData[xValue]) {
-            aggregatedData[xValue] = 0;
-          }
-          aggregatedData[xValue] += numValue;
-        }
-      });
-    }
-    
-    const labels = Object.keys(aggregatedData);
-    const values = labels.map(label => aggregatedData[label]);
-    
     return {
       labels,
       datasets: [{
         data: values,
-        backgroundColor: labels.map(() => getRandomColor())
+        backgroundColor: colors,
+        borderColor: colors.map(color => color.replace('0.8', '1')),
+        borderWidth: 2
       }]
     };
   }
   
-  // For line, bar, scatter charts
-  if (groupBy && groupBy !== xAxis) {
-    // Group data by the groupBy field
-    const groupedData = {};
-    const xValues = new Set();
-    
-    rawData.forEach(item => {
-      const groupValue = String(item[groupBy] || 'Unknown');
-      const xValue = String(item[xAxis]);
-      const yValue = parseFloat(item[yAxis]);
-      
-      xValues.add(xValue);
-      
-      if (!groupedData[groupValue]) {
-        groupedData[groupValue] = {};
-      }
-      
-      groupedData[groupValue][xValue] = yValue;
-    });
-    
-    const sortedXValues = [...xValues].sort();
-    
-    return {
-      labels: sortedXValues,
-      datasets: Object.keys(groupedData).map(group => {
-        const color = getRandomColor();
-        return {
-          label: group,
-          data: sortedXValues.map(x => groupedData[group][x] || 0),
-          backgroundColor: chartType === 'line' ? color : `${color}88`,
-          borderColor: color,
-          borderWidth: 1,
-          fill: false
-        };
-      })
-    };
-  } else {
-    // No grouping
-    return {
-      labels: rawData.map(item => String(item[xAxis])),
-      datasets: [{
-        label: yAxis,
-        data: rawData.map(item => {
-          const value = parseFloat(item[yAxis]);
-          return isNaN(value) ? 0 : value;
-        }),
-        backgroundColor: getRandomColor(0.6),
-        borderColor: getRandomColor(),
-        borderWidth: 1,
-        fill: false
-      }]
-    };
+  // For bar and line charts
+  const datasetLabel = aggregation === 'count' ? 'Count' : `${aggregation.charAt(0).toUpperCase() + aggregation.slice(1)} of ${numericColumn}`;
+  
+  return {
+    labels,
+    datasets: [{
+      label: datasetLabel,
+      data: values,
+      backgroundColor: chartType === 'line' ? colors[0] : colors,
+      borderColor: chartType === 'line' ? colors[0] : colors.map(color => color.replace('0.8', '1')),
+      borderWidth: 2,
+      fill: false
+    }]
+  };
+};
+
+// Generate colorblind-friendly color palette
+export const getColorblindFriendlyPalette = (count) => {
+  const colors = [
+    'rgba(31, 119, 180, 0.8)',   // Blue
+    'rgba(255, 127, 14, 0.8)',   // Orange
+    'rgba(44, 160, 44, 0.8)',    // Green
+    'rgba(214, 39, 40, 0.8)',    // Red
+    'rgba(148, 103, 189, 0.8)',  // Purple
+    'rgba(140, 86, 75, 0.8)',    // Brown
+    'rgba(227, 119, 194, 0.8)',  // Pink
+    'rgba(127, 127, 127, 0.8)',  // Gray
+    'rgba(188, 189, 34, 0.8)',   // Olive
+    'rgba(23, 190, 207, 0.8)'    // Cyan
+  ];
+  
+  // If we need more colors than available, cycle through the palette
+  const result = [];
+  for (let i = 0; i < count; i++) {
+    result.push(colors[i % colors.length]);
   }
+  
+  return result;
 };
 
-// Generate a random color for charts
+// Legacy function for backward compatibility
 export const getRandomColor = (opacity = 1) => {
-  const r = Math.floor(Math.random() * 200);
-  const g = Math.floor(Math.random() * 200);
-  const b = Math.floor(Math.random() * 200);
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+  return getColorblindFriendlyPalette(1)[0];
 };
 
-// Get chart options based on chart type
+// Get chart options based on chart type with dark theme support
 export const getChartOptions = (chartType) => {
+  // Detect if we're in dark theme
+  const isDarkTheme = document.body.classList.contains('theme-dark');
+  const textColor = isDarkTheme ? '#e0e0e0' : '#333333';
+  const gridColor = isDarkTheme ? '#444444' : '#e0e0e0';
+  
   const commonOptions = {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
       legend: {
         display: true,
+        labels: {
+          color: textColor,
+          font: {
+            size: 12
+          }
+        }
       },
       tooltip: {
-        enabled: true
+        enabled: true,
+        backgroundColor: isDarkTheme ? '#383838' : '#ffffff',
+        titleColor: textColor,
+        bodyColor: textColor,
+        borderColor: gridColor,
+        borderWidth: 1
+      }
+    }
+  };
+  
+  const scaleOptions = {
+    ticks: {
+      color: textColor,
+      font: {
+        size: 11
+      }
+    },
+    grid: {
+      color: gridColor
+    },
+    title: {
+      color: textColor,
+      font: {
+        size: 12,
+        weight: 'bold'
       }
     }
   };
@@ -193,22 +227,22 @@ export const getChartOptions = (chartType) => {
       return {
         ...commonOptions,
         scales: {
-          y: {
-            beginAtZero: true
-          }
-        }
-      };
-      
-    case 'scatter':
-      return {
-        ...commonOptions,
-        scales: {
           x: {
-            type: 'linear',
-            position: 'bottom'
+            ...scaleOptions,
+            title: {
+              ...scaleOptions.title,
+              display: true,
+              text: 'Categories'
+            }
           },
           y: {
-            beginAtZero: true
+            ...scaleOptions,
+            beginAtZero: true,
+            title: {
+              ...scaleOptions.title,
+              display: true,
+              text: 'Values'
+            }
           }
         }
       };
@@ -218,10 +252,24 @@ export const getChartOptions = (chartType) => {
       return {
         ...commonOptions,
         scales: {
+          x: {
+            ...scaleOptions,
+            title: {
+              ...scaleOptions.title,
+              display: true,
+              text: 'Categories'
+            }
+          },
           y: {
-            beginAtZero: true
+            ...scaleOptions,
+            beginAtZero: true,
+            title: {
+              ...scaleOptions.title,
+              display: true,
+              text: 'Values'
+            }
           }
         }
       };
   }
-}; 
+};

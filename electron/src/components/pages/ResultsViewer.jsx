@@ -44,10 +44,10 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   const [tableColumns, setTableColumns] = useState([]);
   const [selectedView, setSelectedView] = useState('table'); // 'table' or 'chart'
   const [chartConfiguration, setChartConfiguration] = useState({
-    chartType: 'line',
+    chartType: 'bar',
     xAxis: '',
-    yAxis: '',
-    groupBy: ''
+    aggregation: 'count',
+    numericColumn: ''
   });
   const [databasePath, setDatabasePath] = useState('');
   
@@ -206,11 +206,10 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
             setTableColumns(Object.keys(dataResult.data[0]));
             
             // Set default chart configuration
-            if (Object.keys(dataResult.data[0]).length >= 2) {
+            if (Object.keys(dataResult.data[0]).length >= 1) {
               setChartConfiguration({
                 ...chartConfiguration,
-                xAxis: Object.keys(dataResult.data[0])[0],
-                yAxis: Object.keys(dataResult.data[0])[1]
+                xAxis: Object.keys(dataResult.data[0])[0]
               });
             }
           } else {
@@ -401,30 +400,30 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
               <Card.Body>
                 <div className="dashboard-card__header">
                   <h3>Simulation Summary</h3>
-                  {!isProjectTab && (
-                    <Button 
-                      className="btn-custom-toolbar" 
-                      onClick={handleShowExportModal}
-                      disabled={loading}
-                      title="Export Data"
-                    >
-                      <FiDownload />
-                    </Button>
-                  )}
                 </div>
                 <div className="dashboard-card__content">
                   <Row>
                     <Col md={6}>
                       <p><strong>Simulation ID:</strong> {results.simulationId || 'N/A'}</p>
                       <p><strong>Run Date:</strong> {results.runDate || 'N/A'}</p>
-                      <p><strong>Duration:</strong> {results.duration || 'N/A'} days</p>
                     </Col>
                     <Col md={6}>
-                      <p><strong>Entities Generated:</strong> {results.entitiesCount || 0}</p>
-                      <p><strong>Events Processed:</strong> {results.eventsCount || 0}</p>
                       <p><strong>Database:</strong> {databasePath ? databasePath.split('/').pop() : 'N/A'}</p>
                     </Col>
                   </Row>
+                  {!isProjectTab && (
+                    <div className="mt-3">
+                      <Button
+                        className="btn-custom-toolbar"
+                        onClick={handleShowExportModal}
+                        disabled={loading}
+                        title="Export Data"
+                      >
+                        <FiDownload className="me-2" />
+                        Download
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </Card.Body>
             </Card>
@@ -504,10 +503,9 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                       value={chartConfiguration.chartType}
                       onChange={(e) => handleChartConfigChange('chartType', e.target.value)}
                     >
-                      <option value="line">Line Chart</option>
                       <option value="bar">Bar Chart</option>
                       <option value="pie">Pie Chart</option>
-                      <option value="scatter">Scatter Plot</option>
+                      <option value="line">Line Chart</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
@@ -527,32 +525,40 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                 </Col>
                 <Col md={3}>
                   <Form.Group>
-                    <Form.Label>Y Axis</Form.Label>
+                    <Form.Label>Aggregation</Form.Label>
                     <Form.Select
-                      value={chartConfiguration.yAxis}
-                      onChange={(e) => handleChartConfigChange('yAxis', e.target.value)}
+                      value={chartConfiguration.aggregation}
+                      onChange={(e) => handleChartConfigChange('aggregation', e.target.value)}
                     >
-                      <option value="">Select Y Axis</option>
-                      {tableColumns.map(column => (
-                        <option key={column} value={column}>{column}</option>
-                      ))}
+                      <option value="count">Count</option>
+                      <option value="sum">Sum</option>
+                      <option value="average">Average</option>
+                      <option value="min">Min</option>
+                      <option value="max">Max</option>
                     </Form.Select>
                   </Form.Group>
                 </Col>
-                <Col md={3}>
-                  <Form.Group>
-                    <Form.Label>Group By</Form.Label>
-                    <Form.Select
-                      value={chartConfiguration.groupBy}
-                      onChange={(e) => handleChartConfigChange('groupBy', e.target.value)}
-                    >
-                      <option value="">No Grouping</option>
-                      {tableColumns.map(column => (
-                        <option key={column} value={column}>{column}</option>
-                      ))}
-                    </Form.Select>
-                  </Form.Group>
-                </Col>
+                {chartConfiguration.aggregation !== 'count' && (
+                  <Col md={3}>
+                    <Form.Group>
+                      <Form.Label>Numeric Column</Form.Label>
+                      <Form.Select
+                        value={chartConfiguration.numericColumn}
+                        onChange={(e) => handleChartConfigChange('numericColumn', e.target.value)}
+                      >
+                        <option value="">Select Numeric Column</option>
+                        {tableColumns.filter(column => {
+                          // Filter to only show numeric columns
+                          if (tableData.length === 0) return true;
+                          const sampleValue = tableData[0][column];
+                          return !isNaN(parseFloat(sampleValue)) && isFinite(sampleValue);
+                        }).map(column => (
+                          <option key={column} value={column}>{column}</option>
+                        ))}
+                      </Form.Select>
+                    </Form.Group>
+                  </Col>
+                )}
               </Row>
               
               <div className="chart-container" style={{ height: '400px' }}>
@@ -565,9 +571,9 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                   <div className="text-center py-4">
                     <p>No data available for chart</p>
                   </div>
-                ) : !chartConfiguration.xAxis || !chartConfiguration.yAxis ? (
+                ) : !chartConfiguration.xAxis || (chartConfiguration.aggregation !== 'count' && !chartConfiguration.numericColumn) ? (
                   <div className="text-center py-4">
-                    <p>Please select X and Y axis for the chart</p>
+                    <p>Please select X Axis{chartConfiguration.aggregation !== 'count' ? ' and Numeric Column' : ''} for the chart</p>
                   </div>
                 ) : (
                   <ChartView 
@@ -597,7 +603,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                   <p>
                     <strong>{tables.length}</strong> tables will be exported as CSV files:
                   </p>
-                  <div style={{ maxHeight: '100px', overflowY: 'auto', border: '1px solid #dee2e6', padding: '10px', borderRadius: '4px', backgroundColor: '#f8f9fa' }}>
+                  <div className="table-list-container" style={{ maxHeight: '100px', overflowY: 'auto', padding: '10px', borderRadius: '4px' }}>
                     {tables.map((tableName, index) => (
                       <div key={tableName} className="small">
                         {index + 1}. {tableName}
