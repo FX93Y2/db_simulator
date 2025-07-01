@@ -1,7 +1,9 @@
+:root {
   --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
   // Add other Bootstrap variable overrides here if needed (e.g., --bs-body-bg, --bs-body-color)
+}
 
-  // --- Component Specific Dark Theme Overrides ---
+// --- Component Specific Dark Theme Overrides ---
 
   // Table (Assuming a common structure, adjust selector if needed)
   .table > tbody > tr {
@@ -1229,7 +1231,7 @@ body.theme-dark {
   }
 }
 // Entity Editor and Attribute Editor Styles
-
+.entity-editor, .attribute-editor {
     color: var(--theme-text);
     padding: 1rem;
     
@@ -1319,7 +1321,7 @@ body.theme-dark {
 // Table list container for export modal
 
 // Chart view styling for dark theme
+.chart-view {
     color: var(--theme-text);
     font-weight: 500;
-  }
 }

@@ -6,6 +6,7 @@ import App from './App';
 // Import Bootstrap CSS
 import 'bootstrap/dist/css/bootstrap.min.css';
 import './styles/global.css';
+import './styles/index.scss';
 
 // Create root element and render the app
 const container = document.getElementById('root');

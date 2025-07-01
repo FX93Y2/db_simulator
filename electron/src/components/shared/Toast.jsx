@@ -47,12 +47,12 @@ const Toast = ({
       delay={delay}
       className={styles.toastNotification}
     >
-      <BootstrapToast.Header className={\`\${getHeaderClass()} \${styles.toastHeader}\`} closeButton={false}>
+      <BootstrapToast.Header className={`${getHeaderClass()} ${styles.toastHeader}`} closeButton={false}>
         {getIcon()}
         <strong className="me-auto">{title}</strong>
         <button
           type="button"
-          className={\`\${styles.btnCloseWhite} btn-close ms-2\`}
+          className={`${styles.btnCloseWhite} btn-close ms-2`}
           aria-label="Close"
           onClick={onClose}
         >
