@@ -5,7 +5,9 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "start-admin": "run-as-admin.bat",
     "dev": "concurrently \"cross-env NODE_ENV=development webpack --watch\" \"electron .\" \"cd ../python && python main.py api\"",
+    "dev-admin": "powershell -Command \"Start-Process cmd -ArgumentList '/c npm run dev' -Verb RunAs\"",
     "prebuild": "node build-scripts/package-python.js",
     "build": "cross-env NODE_ENV=production webpack && electron-builder",
     "clean": "rimraf dist",
@@ -66,60 +68,15 @@
     ],
     "extraResources": [
       {
-        "from": "../python/USE_COPIED_ENV",
-        "to": "python/USE_COPIED_ENV"
-      },
-      {
-        "from": "../python/main.py",
-        "to": "python/main.py"
-      },
-      {
-        "from": "../python/run.py",
-        "to": "python/run.py"
-      },
-      {
-        "from": "../python/requirements.txt",
-        "to": "python/requirements.txt"
-      },
-      {
-        "from": "../python/api",
-        "to": "python/api",
+        "from": "../python/dist/db_simulator_api",
+        "to": "python/dist/db_simulator_api",
         "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
+          "**/*"
         ]
       },
       {
-        "from": "../python/src",
-        "to": "python/src",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
-        ]
-      },
-      {
-        "from": "../python/config_storage",
-        "to": "python/config_storage",
-        "filter": [
-          "**/*",
-          "!**/__pycache__/**",
-          "!**/*.pyc"
-        ]
-      },
-      {
-        "from": "../python/venv",
-        "to": "python/venv",
-        "filter": [
-          "Scripts/**",
-          "Lib/**",
-          "Include/**",
-          "pyvenv.cfg",
-          "!**/__pycache__/**",
-          "!**/*.pyc",
-          "!**/*.git"
-        ]
+        "from": "../python/USE_EXECUTABLE",
+        "to": "python/USE_EXECUTABLE"
       }
     ],
     "directories": {
@@ -130,7 +87,14 @@
         "nsis",
         "portable"
       ],
-      "icon": "public/app-icon.ico"
+      "icon": "public/app-icon.ico",
+      "requestedExecutionLevel": "requireAdministrator",
+      "extraFiles": [
+        {
+          "from": "app.manifest",
+          "to": "app.manifest"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
