@@ -12,6 +12,8 @@ import { useToastContext } from '../../contexts/ToastContext';
 // Cache for project data to reduce loading flicker
 const projectCache = {};
 
+import styles from './ProjectPage.module.css';
+
 const ProjectPage = ({ theme }) => {
   const { projectId, resultId, activeTab } = useParams();
   const navigate = useNavigate();
@@ -309,7 +311,7 @@ const ProjectPage = ({ theme }) => {
   }
 
   return (
-    <Container fluid className="project-page p-0">
+    <Container fluid className={`${styles.projectPage} p-0`}>
       {/* Project header removed: project name and edit button now in sidebar */}
 
       {/* Show ResultsViewer if we're on a results page */}
@@ -320,9 +322,9 @@ const ProjectPage = ({ theme }) => {
           activeKey={currentTab}
           onSelect={handleTabChange}
         >
-          <div className="project-tabs-wrapper">
+          <div className={styles.projectTabsWrapper}>
             <div className="d-flex justify-content-between align-items-center border-bottom">
-              <Nav variant="tabs" className="project-tabs flex-grow-1">
+              <Nav variant="tabs" className={`${styles.projectTabs} flex-grow-1`}>
                 <Nav.Item>
                   <Nav.Link eventKey="database">
                     <FiDatabase className="me-2" /> Database Configuration
@@ -352,7 +354,7 @@ const ProjectPage = ({ theme }) => {
               </Button>
             </div>
 
-            <Tab.Content className="project-tab-content">
+            <Tab.Content className={styles.projectTabContent}>
               <Tab.Pane eventKey="database">
                 <DbConfigEditor
                   projectId={projectId}

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Form, Card, Nav } from 'react-bootstrap';
 import { FiSearch, FiBook, FiDatabase, FiSettings, FiUsers, FiClock, FiGitBranch, FiTarget } from 'react-icons/fi';
 
+import styles from './ConfigurationGuide.module.css';
+
 const ConfigurationGuide = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeSection, setActiveSection] = useState('introduction');
@@ -27,7 +29,7 @@ const ConfigurationGuide = () => {
 
   // Simple code block component without syntax highlighting for now
   const CodeBlock = ({ children }) => (
-    <div className="code-example">
+    <div className={styles.codeExample}>
       <pre>
         <code>{children}</code>
       </pre>
@@ -593,14 +595,14 @@ entity_arrival:
     return (
       <div key={item.id}>
         <Nav.Link
-          className={`nav-item-custom ${isActive ? 'active' : ''} level-${level}`}
+          className={`${styles.navItemCustom} ${isActive ? styles.active : ''} ${styles[`level${level}`]}`}
           onClick={() => handleNavClick(item.id)}
         >
           {Icon && <Icon className="me-2" />}
           {item.label}
         </Nav.Link>
         {hasChildren && (
-          <div className="nav-children">
+          <div className={styles.navChildren}>
             {item.children.map(child => renderNavItem(child, level + 1))}
           </div>
         )}
@@ -609,29 +611,29 @@ entity_arrival:
   };
 
   return (
-    <Container fluid className="configuration-guide">
+    <Container fluid className={styles.configurationGuide}>
       <Row>
         {/* Left Sidebar Navigation */}
-        <Col className="sidebar-nav">
-          <div className="sticky-nav">
+        <Col className={styles.sidebarNav}>
+          <div className={styles.stickyNav}>
             {/* Search Bar in Sidebar */}
-            <div className="search-section mb-3">
+            <div className={`${styles.searchSection} mb-3`}>
               <Form.Group>
-                <div className="search-input-wrapper">
-                  <FiSearch className="search-icon" />
+                <div className={styles.searchInputWrapper}>
+                  <FiSearch className={styles.searchIcon} />
                   <Form.Control
                     type="text"
                     placeholder="Search documentation..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="search-input"
+                    className={styles.searchInput}
                     size="sm"
                   />
                 </div>
               </Form.Group>
             </div>
 
-            <div className="nav-header">
+            <div className={styles.navHeader}>
               <h5><FiBook className="me-2" />Configuration Guide</h5>
             </div>
             <Nav className="flex-column">
@@ -641,15 +643,15 @@ entity_arrival:
         </Col>
 
         {/* Main Content Area */}
-        <Col className="main-content" ref={mainContentRef}>
+        <Col className={styles.mainContent} ref={mainContentRef}>
           {/* Documentation Content */}
-          <div className="documentation-content">
+          <div className={styles.documentationContent}>
             {filteredContent.length > 0 ? (
               filteredContent.map((section) => (
-                <Card 
-                  key={section.id} 
-                  id={section.id} 
-                  className="content-section mb-4"
+                <Card
+                  key={section.id}
+                  id={section.id}
+                  className={`content-section mb-4`}
                   ref={el => sectionRefs.current[section.id] = el}
                 >
                   <Card.Body>

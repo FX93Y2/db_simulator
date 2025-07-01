@@ -1,0 +1,54 @@
+/* Global CSS Variables (Light Theme) */
+:root {
+  --theme-bg: #f8f9fa;
+  --theme-text: #333;
+  --theme-muted-text: #6c757d;
+  --theme-border: #ddd;
+  --theme-navbar-bg: #3498db;
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #ffffff;
+  --theme-sidebar-text: #333;
+  --theme-card-bg: #ffffff;
+  --theme-hover-bg: rgba(52, 152, 219, 0.05);
+  --theme-active-bg: rgba(52, 152, 219, 0.1);
+  --theme-editor-bg: #ffffff;
+  --theme-primary: #3498db;
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #c7c7c7;
+  --theme-er-node-bg: #85c6f3;
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+}
+
+/* Dark Theme Variable Overrides */
+body.theme-dark {
+  --theme-bg: #2a2a2a;
+  --theme-text: #e0e0e0;
+  --theme-muted-text: #999999;
+  --theme-border: #444444;
+  --theme-navbar-bg: #1e1e1e;
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #333333;
+  --theme-sidebar-text: #e0e0e0;
+  --theme-card-bg: #383838;
+  --theme-hover-bg: rgba(255, 255, 255, 0.08);
+  --theme-active-bg: rgba(255, 255, 255, 0.12);
+  --theme-editor-bg: #383838;
+  --theme-primary: #3498db;
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #3a3a3a;
+  --theme-er-node-bg: #404040;
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+  --theme-text-rgb: 224, 224, 224;
+}
+
+/* Body Base Styles */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+  transition: background-color 0.2s, color 0.2s;
+}

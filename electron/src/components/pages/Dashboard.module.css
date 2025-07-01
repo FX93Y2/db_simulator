@@ -1,0 +1,21 @@
+.dashboardCard {
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.dashboardCard__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+.dashboardCard__header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+.dashboardCard__content {
+  position: relative;
+}

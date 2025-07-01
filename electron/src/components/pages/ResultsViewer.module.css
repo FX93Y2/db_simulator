@@ -1,0 +1,3 @@
+.simulationResultsTable :global(.data-table) thead tr {
+  border-bottom: 1px solid var(--theme-border);
+}

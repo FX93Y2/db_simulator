@@ -1,0 +1,50 @@
+.btnCustomToolbar {
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--theme-text);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+  transition: background-color 0.15s ease-in-out;
+}
+.btnCustomToolbar:hover,
+.btnCustomToolbar:focus-visible {
+  background-color: var(--theme-active-bg);
+  color: var(--theme-text);
+  outline: none;
+  border-color: transparent;
+  box-shadow: none;
+}
+.btnCustomToolbar:active,
+.btnCustomToolbar.active {
+  background-color: var(--theme-active-bg);
+  color: var(--theme-text);
+  border-color: transparent;
+  box-shadow: none;
+}
+.btnCustomToolbar:disabled {
+  color: var(--theme-muted-text);
+  background-color: transparent;
+  opacity: 0.65;
+}
+.btnCustomToolbar svg {
+  vertical-align: middle;
+}
+.panelHeaderActionsBtnCustomToolbar {
+  padding: 0.1rem 0.4rem;
+}
+.projectTabsWrapperBtnCustomToolbar {
+  align-self: center;
+}
+.runSimulationBtn {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--theme-primary);
+  background-color: transparent;
+  border: none;
+}
+.saveConfigBtn {
+  /* If there are specific styles for save-config-btn, add here. */
+}

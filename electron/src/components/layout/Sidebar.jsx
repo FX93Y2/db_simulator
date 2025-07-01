@@ -6,6 +6,8 @@ import { getProjects, formatDate, createDefaultProject, deleteProject, updatePro
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
+import styles from './Sidebar.module.css';
+
 const ProjectSidebar = () => {
   const { showSuccess, showError } = useToastContext();
   const [projects, setProjects] = useState([]);
@@ -418,42 +420,42 @@ const ProjectSidebar = () => {
   };
   
   return (
-    <div className="app-sidebar">
-      <div className="sidebar-header">
-        <h5 className={`m-0 ${isCompact ? 'text-truncate' : ''}`}>
+    <div className={styles.appSidebar}>
+      <div className={styles.sidebarHeader}>
+        <h5 className={`m-0 ${isCompact ? styles.textTruncate : ''}`}>
           {isCompact ? 'Explorer' : 'Database Explorer'}
         </h5>
         <div className="d-flex">
-          <div 
-            className="create-db-button"
+          <div
+            className={styles.createDbButton}
             onClick={handleOpenCreateModal}
             title="Create New Database"
           >
-            <FiDatabase className="db-icon" />
-            <FiPlus className="plus-icon" />
+            <FiDatabase className="dbIcon" />
+            <FiPlus className="plusIcon" />
           </div>
         </div>
       </div>
       
       {loading ? (
-        <div className="sidebar-loading">
+        <div className={styles.sidebarLoading}>
           <Spinner animation="border" size="sm" className="me-2" />
           {!isCompact && 'Loading projects...'}
         </div>
       ) : (
-        <div className="sidebar-projects">
+        <div className={styles.sidebarProjects}>
           {projects.length === 0 ? (
-            <div className="no-projects">
+            <div className={styles.noProjects}>
               {isCompact ? 'No projects' : 'No projects found. Create your first project!'}
             </div>
           ) : (
             projects.map((project) => (
               <div
                 key={project.id}
-                className="project-container"
+                className={styles.projectContainer}
               >
                 <div
-                  className={`project-item ${project.id === currentProjectId ? 'active' : ''}`}
+                  className={`${styles.projectItem} ${project.id === currentProjectId ? 'active' : ''}`}
                 >
                   <div className="project-item-expand-icon" onClick={() => toggleProjectExpansion(project.id)}>
                     {expandedProjects[project.id] ? <FiChevronDown /> : <FiChevronRight />}

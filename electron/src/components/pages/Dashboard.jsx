@@ -6,6 +6,8 @@ import ProjectCard from '../shared/ProjectCard';
 import { clearAllConfigurations } from '../../utils/projectApi';
 import { useToastContext } from '../../contexts/ToastContext';
 
+import styles from './Dashboard.module.css';
+
 const Dashboard = () => {
   const { showSuccess, showError } = useToastContext();
   const [dbConfigs, setDbConfigs] = useState([]);
@@ -90,18 +92,18 @@ const Dashboard = () => {
       </div>
       
       {/* Database Configurations */}
-      <div className="dashboard-card mb-4">
-        <div className="dashboard-card__header">
+      <div className={`${styles.dashboardCard} mb-4`}>
+        <div className={styles.dashboardCard__header}>
           <h3>Database Configurations</h3>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="sm"
             onClick={() => navigate('/db-config')}
           >
             <FiPlus /> New
           </Button>
         </div>
-        <div className="dashboard-card__content">
+        <div className={styles.dashboardCard__content}>
           {loading ? (
             <p>Loading configurations...</p>
           ) : dbConfigs.length === 0 ? (
@@ -110,7 +112,7 @@ const Dashboard = () => {
             <Row>
               {dbConfigs.map(config => (
                 <Col md={6} lg={4} key={config.id}>
-                  <ProjectCard 
+                  <ProjectCard
                     id={config.id}
                     name={config.name}
                     description={config.description}
@@ -126,18 +128,18 @@ const Dashboard = () => {
       </div>
       
       {/* Simulation Configurations */}
-      <div className="dashboard-card">
-        <div className="dashboard-card__header">
+      <div className={styles.dashboardCard}>
+        <div className={styles.dashboardCard__header}>
           <h3>Simulation Configurations</h3>
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             size="sm"
             onClick={() => navigate('/sim-config')}
           >
             <FiPlus /> New
           </Button>
         </div>
-        <div className="dashboard-card__content">
+        <div className={styles.dashboardCard__content}>
           {loading ? (
             <p>Loading configurations...</p>
           ) : simConfigs.length === 0 ? (
@@ -146,7 +148,7 @@ const Dashboard = () => {
             <Row>
               {simConfigs.map(config => (
                 <Col md={6} lg={4} key={config.id}>
-                  <ProjectCard 
+                  <ProjectCard
                     id={config.id}
                     name={config.name}
                     description={config.description}

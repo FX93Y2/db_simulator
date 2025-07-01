@@ -1,0 +1,102 @@
+.configurationGuide {
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+.searchIcon {
+  position: absolute;
+  left: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--theme-muted-text);
+  z-index: 2;
+  font-size: 0.875rem;
+}
+.searchInput {
+  padding-left: 2rem;
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+  font-size: 0.875rem;
+}
+.searchInput:focus {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-primary);
+  color: var(--theme-text);
+  box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+}
+.searchInput::placeholder {
+  color: var(--theme-muted-text);
+}
+.navHeader {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--theme-border);
+}
+.navHeader h5 {
+  color: var(--theme-text);
+  margin: 0;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.navItemCustom {
+  display: flex;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  color: var(--theme-text);
+  text-decoration: none;
+  border-radius: 0.375rem;
+  margin-bottom: 0.25rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.875rem;
+}
+.navItemCustom:hover {
+  background-color: var(--theme-hover-bg);
+  color: var(--theme-text);
+  text-decoration: none;
+}
+.navItemCustom.active {
+  background-color: var(--theme-primary);
+  color: white;
+  font-weight: 500;
+}
+.navItemCustom.active:hover {
+  background-color: var(--theme-primary);
+  color: white;
+}
+.navItemCustom.level1 {
+  padding-left: 2rem;
+  font-size: 0.8rem;
+}
+.navItemCustom svg {
+  flex-shrink: 0;
+  font-size: 0.875rem;
+}
+.navChildren {
+  margin-left: 0.5rem;
+}
+.mainContent {
+  flex: 1;
+  height: 100vh;
+  overflow-y: auto;
+}
+
+/* Theme overrides */
+:global(body.theme-dark) .configurationGuide .sidebarNav {
+  background-color: var(--theme-sidebar-bg);
+}
+:global(body.theme-dark) .configurationGuide .mainContent {
+  background-color: var(--theme-bg);
+}
+:global(body.theme-dark) .configurationGuide .codeExample pre {
+  background: #1e1e1e !important;
+  border-color: var(--theme-border) !important;
+}
+:global(body:not(.theme-dark)) .configurationGuide .codeExample pre {
+  background: #f8f8f8 !important;
+  border-color: var(--theme-border) !important;
+}
+:global(body:not(.theme-dark)) .configurationGuide .codeExample pre code {
+  color: #333 !important;
+}

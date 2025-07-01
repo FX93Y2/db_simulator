@@ -1,46 +1,3 @@
-// Theme Variables Definition
-:root { // Light theme defaults (can be refined later)
-  --theme-bg: #f8f9fa;
-  --theme-text: #333;
-  --theme-muted-text: #6c757d;
-  --theme-border: #ddd;
-  --theme-navbar-bg: #3498db; // Original primary blue
-  --theme-navbar-text: #ffffff;
-  --theme-sidebar-bg: #ffffff;
-  --theme-sidebar-text: #333;
-  --theme-card-bg: #ffffff;
-  --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
-  --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
-  --theme-editor-bg: #ffffff;
-  --theme-primary: #3498db;
-  --theme-primary-text: #ffffff;
-  --theme-resize-handle-hover-bg: #c7c7c7;
-  --theme-er-node-bg: #85c6f3; // lighten(#3498db, 30%)
-  --theme-primary-rgb: 52, 152, 219;
-  --theme-secondary-rgb: 46, 204, 113;
-}
-
-body.theme-dark { // Dark theme overrides
-  --theme-bg: #2a2a2a; // Dark grey background
-  --theme-text: #e0e0e0; // Light grey text
-  --theme-muted-text: #999999;
-  --theme-border: #444444; // Darker border
-  --theme-navbar-bg: #1e1e1e; // Very dark grey/black navbar
-  --theme-navbar-text: #ffffff;
-  --theme-sidebar-bg: #333333; // Dark sidebar
-  --theme-sidebar-text: #e0e0e0;
-  --theme-card-bg: #383838; // Dark card background
-  --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
-  --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
-  --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
-  --theme-primary: #3498db; // Keep primary blue for accents
-  --theme-primary-text: #ffffff;
-  --theme-resize-handle-hover-bg: #3a3a3a;
-  --theme-er-node-bg: #404040; // Dark greyish background for nodes
-  --theme-primary-rgb: 52, 152, 219;
-  --theme-secondary-rgb: 46, 204, 113;
-  --theme-text-rgb: 224, 224, 224; // Explicitly define for dark theme based on #e0e0e0
-
   // --- Bootstrap Variable Overrides for Dark Theme ---
   --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
   // Add other Bootstrap variable overrides here if needed (e.g., --bs-body-bg, --bs-body-color)
@@ -219,243 +176,8 @@ body {
 }
 
 // Header
-.app-header {
-  background-color: var(--theme-navbar-bg);
-  color: var(--theme-navbar-text);
-  padding: 0;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  
-  // Styles for the new icon brand
-  .app-icon-brand {
-    padding: 0 15px; // Adjust padding as needed
-    display: flex;
-    align-items: center;
-    height: $header-height;
-  }
-
-  .app-icon {
-    height: 40px;
-    width: 40px;
-    transition: transform 0.2s ease-in-out;
-  }
-  
-  // Theme toggle switch styles
-  .theme-toggle-switch {
-    position: relative;
-    width: 60px;
-    height: 28px;
-    background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
-    cursor: pointer;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
-    
-    .theme-icons {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0 6px;
-      z-index: 1;
-      pointer-events: none;
-      
-      .theme-icon {
-        color: white;
-        font-size: 16px;
-        opacity: 0.9;
-        
-        &.sun {
-          color: #f1c40f;
-        }
-        
-        &.moon {
-          color: #f1f1f1;
-        }
-      }
-    }
-    
-    .theme-toggle-slider {
-      position: absolute;
-      top: 4px;
-      left: 4px;
-      width: 20px;
-      height: 20px;
-      background-color: white;
-      border-radius: 50%;
-      transition: transform 0.3s ease;
-      z-index: 2;
-      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-      
-      &.active {
-        transform: translateX(32px);
-      }
-    }
-    
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.25);
-      
-      .theme-toggle-slider {
-        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-      }
-    }
-  }
-  
-  .app-navigation {
-    .nav-link {
-      color: var(--theme-navbar-text);
-      padding: 0 15px;
-      height: $header-height;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      
-      &:hover {
-        background-color: rgba(255, 255, 255, 0.1);
-      }
-      
-      &.active {
-        background-color: rgba(255, 255, 255, 0.2);
-        font-weight: bold;
-      }
-      
-      svg {
-        font-size: 16px;
-      }
-    }
-  }
-
-  // Added hover effect for the navbar icon
-  .app-icon-brand .app-icon:hover {
-    transform: scale(1.15);
-  }
-}
 
 // Sidebar
-.app-sidebar {
-  background-color: var(--theme-sidebar-bg);
-  color: var(--theme-sidebar-text);
-  border-right: 1px solid $border-color;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  
-  .sidebar-header {
-    height: $header-height;
-    padding: 0 10px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid $border-color;
-    color: var(--theme-sidebar-text);
-    
-    h5 {
-      max-width: calc(100% - 40px);
-    }
-
-    // Create database button with flat design
-    .create-db-button {
-      position: relative;
-      color: var(--theme-primary);
-      width: 32px;
-      height: 32px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s ease;
-
-      .db-icon {
-        font-size: 20px;
-      }
-
-      .plus-icon {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        font-size: 12px;
-        background-color: var(--theme-primary);
-        color: white;
-        border-radius: 50%;
-        width: 14px;
-        height: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      &:hover {
-        transform: scale(1.15);
-        color: var(--theme-primary);
-      }
-    }
-
-    // Style the Add Project button for better icon alignment (kept for backward compatibility)
-    .btn {
-      border-color: var(--theme-primary);
-      color: var(--theme-primary);
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-
-      svg {
-        font-size: 16px;
-      }
-
-      &:hover {
-        background-color: rgba(var(--theme-primary), 0.1);
-        color: var(--theme-primary);
-      }
-    }
-  }
-  
-  // Add text truncation utility
-  .text-truncate {
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 100%;
-  }
-  
-  .sidebar-loading {
-    padding: 20px;
-    color: var(--theme-muted-text);
-    text-align: center;
-  }
-  
-  .sidebar-projects {
-    flex: 1;
-    overflow-y: auto;
-  }
-  
-  .no-projects {
-    padding: 20px 15px;
-    color: var(--theme-muted-text);
-    font-size: 13px;
-    font-style: italic;
-    text-align: center;
-  }
-  
-  .project-container {
-    border-bottom: 1px solid $border-color;
-  }
-  
-  .project-item {
-    padding: 12px 15px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    color: var(--theme-sidebar-text);
-    
     &:hover {
       background-color: var(--theme-hover-bg);
     }
@@ -652,82 +374,6 @@ body {
   }
 }
 
-// Project Page
-.project-page {
-  height: calc(100vh - 120px);
-  display: flex;
-  flex-direction: column;
-  
-  .project-header {
-    padding: 0 0 10px 0;
-  }
-  
-  .project-tabs-wrapper {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    
-    .project-tabs {
-      border-bottom: none; // Remove bottom border from tabs container
-      
-      .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        
-        color: var(--theme-muted-text);
-        background-color: transparent;
-        border: none; // Remove all borders
-        border-bottom: 1px solid var(--theme-border); // Only keep bottom border for inactive tabs
-        border-radius: 0;
-        margin-bottom: 0;
-        padding: 0.75rem 1.25rem; // Slightly increased padding
-
-        &:hover {
-          color: var(--theme-text);
-          border-bottom-color: var(--theme-border);
-          background-color: rgba(var(--theme-primary-rgb), 0.03);
-        }
-        
-        &.active {
-          color: var(--theme-primary);
-          background-color: var(--theme-sidebar-bg); // Match editor header color
-          border: none; // Remove all borders
-          position: relative;
-          padding-bottom: calc(0.75rem + 1px); // Account for removed border
-          font-weight: 600;
-          
-          // Create seamless connection to content below
-          &::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background-color: var(--theme-primary); // Active tab indicator
-          }
-        }
-        
-        svg {
-          font-size: 16px;
-        }
-      }
-    }
-    
-    .project-tab-content {
-      flex: 1;
-      overflow: hidden;
-      background-color: var(--theme-bg);
-      border-top: 1px solid var(--theme-border); // Add top border to content
-      margin-top: -1px; // Pull up to overlap with tabs
-      
-      .tab-pane {
-        height: 100%;
-      }
-    }
-  }
-}
 
 // Editor Split Layout
 .editor-container-split {
@@ -889,37 +535,29 @@ body {
 
 // Project-specific editor adjustments
 .project-tab-content {
-  .db-config-editor,
-  .sim-config-editor {
-    height: 100%;
-    
-    .editor-container-split {
-      height: 100%;
-    }
-  }
 }
 
 // Cards
-.dashboard-card, .project-card {
+.project-card {
   background-color: var(--theme-card-bg);
   color: var(--theme-text);
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
   padding: 20px;
   margin-bottom: 20px;
-  
+
   &__header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     margin-bottom: 15px;
-    
+
     h3 {
       margin: 0;
       font-size: 18px;
     }
   }
-  
+
   &__content {
     position: relative;
   }
@@ -1132,88 +770,6 @@ body {
 .mt-4 { margin-top: 1.5rem; }
 .mt-5 { margin-top: 3rem; }
 
-// Custom Button Styles
-.btn-custom-toolbar {
-  background-color: transparent;
-  border: 1px solid transparent;
-  color: var(--theme-text);
-  padding: 0.25rem 0.5rem;
-  font-size: 0.875rem;
-  line-height: 1.5;
-  border-radius: 0.2rem;
-  transition: background-color 0.15s ease-in-out;
-
-  &:hover,
-  &:focus-visible {
-    background-color: var(--theme-active-bg);
-    color: var(--theme-text);
-    outline: none;
-    border-color: transparent;
-    box-shadow: none;
-  }
-
-  &:active,
-  &.active {
-    background-color: var(--theme-active-bg);
-    color: var(--theme-text);
-    border-color: transparent;
-    box-shadow: none;
-  }
-
-  &:disabled {
-    color: var(--theme-muted-text);
-    background-color: transparent;
-    opacity: 0.65;
-  }
-  
-  svg {
-    vertical-align: middle;
-  }
-}
-
-// Adjust specific button instances if needed
-.panel-header-actions .btn-custom-toolbar {
-  padding: 0.1rem 0.4rem;
-}
-
-.project-tabs-wrapper .btn-custom-toolbar {
-  align-self: center;
-}
-
-// Run Simulation button styled like tabs
-.run-simulation-btn {
-  display: flex;
-  align-items: center;
-  font-size: 0.875rem;
-  color: var(--theme-primary);
-  background-color: transparent;
-  border: none;
-  border-radius: 4px;
-  margin: 0.25rem 0 0.25rem auto;
-  padding: 0.5rem 1rem;
-  font-weight: 600;
-  transition: color 0.15s, background-color 0.15s;
-  
-  &:hover, &:focus {
-    color: var(--theme-primary);
-    background-color: rgba(var(--theme-primary-rgb), 0.08);
-    border-color: transparent;
-    box-shadow: none;
-  }
-  
-  &:active, &.active {
-    color: var(--theme-primary);
-    background-color: rgba(var(--theme-primary-rgb), 0.12);
-    border-color: transparent;
-    box-shadow: none;
-  }
-  
-  &:disabled {
-    color: var(--theme-muted-text);
-    background-color: transparent;
-    opacity: 0.65;
-  }
-}
 
 .data-table {
   border-collapse: separate;
@@ -1267,14 +823,6 @@ body {
 }
 
 // Specific overrides for simulation results table
-.simulation-results-table {
-  .data-table {
-    thead tr {
-      // border-bottom: 1px solid var(--theme-secondary, #2ecc71); // REMOVED OLD
-      border-bottom: 1px solid var(--theme-border); // ADDED
-    }
-  }
-}
 
 .database-tables-list {
   padding-left: 40px; // Indent tables under results
@@ -1663,26 +1211,6 @@ body.theme-dark {
   height: 100vh;
   overflow: hidden;
   
-  .sidebar-nav {
-    width: 240px;
-    min-width: 240px;
-    max-width: 240px;
-    height: 100vh;
-    overflow-y: auto;
-    background-color: var(--theme-sidebar-bg);
-    border-right: 1px solid var(--theme-border);
-    padding: 0;
-    
-    .sticky-nav {
-      position: sticky;
-      top: 0;
-      height: 100vh;
-      overflow-y: auto;
-      padding: 1rem;
-    }
-    
-    .search-section {
-      .search-input-wrapper {
         position: relative;
         
         .search-icon {
@@ -1935,34 +1463,10 @@ body.theme-dark {
 
 // Dark theme specific adjustments for configuration guide
 body.theme-dark {
-  .configuration-guide {
-    .sidebar-nav {
-      background-color: var(--theme-sidebar-bg);
-    }
-    
-    .main-content {
-      background-color: var(--theme-bg);
-    }
-    
-    .code-example pre {
-      background: #1e1e1e !important;
-      border-color: var(--theme-border) !important;
-    }
-  }
 }
 
 // Light theme specific adjustments for configuration guide
 body:not(.theme-dark) {
-  .configuration-guide {
-    .code-example pre {
-      background: #f8f8f8 !important;
-      border-color: var(--theme-border) !important;
-      
-      code {
-        color: #333 !important;
-      }
-    }
-  }
 }
 // Simulation Editor Styles
 .simulation-editor {

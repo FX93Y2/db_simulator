@@ -1,0 +1,135 @@
+.projectPage {
+  height: calc(100vh - 120px);
+  display: flex;
+  flex-direction: column;
+}
+.projectHeader {
+  padding: 0 0 10px 0;
+}
+.projectTabsWrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.projectTabs {
+  border-bottom: none;
+}
+.projectTabContent {
+  flex: 1;
+}
+.projectItemExpandIcon {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+  cursor: pointer;
+  color: var(--theme-muted-text);
+}
+.projectItemExpandIcon:hover {
+  color: var(--theme-primary);
+}
+.projectItemContent {
+  flex: 1;
+  cursor: pointer;
+  min-width: 0;
+}
+.projectItemName {
+  font-weight: 500;
+  margin-bottom: 3px;
+  min-width: 0;
+}
+.projectItemDate {
+  font-size: 12px;
+  color: var(--theme-muted-text);
+}
+.projectDeleteBtn {
+  visibility: hidden;
+  padding: 2px 6px;
+  margin-left: 8px;
+  opacity: 0.7;
+  color: #dc3545;
+  background-color: transparent;
+  border: none;
+}
+.projectDeleteBtn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+.projectItem:hover .projectDeleteBtn {
+  visibility: visible;
+}
+.projectResultsList {
+  background-color: rgba(0,0,0,0.1);
+}
+:global(.theme-dark) .projectResultsList {
+  background-color: rgba(0,0,0,0.2);
+}
+.noResults {
+  padding: 10px 15px;
+  color: var(--theme-muted-text);
+  font-size: 12px;
+  font-style: italic;
+  text-align: center;
+}
+.projectResultItem {
+  padding: 8px 10px 8px 40px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  border-top: 1px solid rgba(0,0,0,0.05);
+  color: var(--theme-sidebar-text);
+}
+.projectResultItem:hover {
+  background-color: var(--theme-hover-bg);
+}
+.projectResultItem.active {
+  background-color: var(--theme-active-bg);
+  font-weight: 500;
+}
+.resultItemIcon {
+  color: var(--theme-muted-text);
+  margin-right: 10px;
+}
+.resultItemContent {
+  flex: 1;
+  min-width: 0;
+}
+.resultItemName {
+  font-size: 12px;
+  min-width: 0;
+}
+.resultDeleteBtn {
+  visibility: hidden;
+  padding: 1px 4px;
+  margin-left: 8px;
+  opacity: 0.7;
+  font-size: 0.7rem;
+  color: #dc3545;
+  background-color: transparent;
+  border: none;
+}
+.resultDeleteBtn:hover {
+  background-color: rgba(220, 53, 69, 0.1);
+}
+.projectResultItem:hover .resultDeleteBtn {
+  visibility: visible;
+}
+.databaseExplorerContainer {}
+.databaseTablesList {
+  background-color: rgba(0,0,0,0.15);
+  padding-left: 40px;
+}
+:global(.theme-dark) .databaseTablesList {
+  background-color: rgba(0,0,0,0.25);
+}
+.noTables {
+  padding: 10px 15px 10px 70px;
+  color: var(--theme-muted-text);
+  font-size: 12px;
+  font-style: italic;
+}
+.databaseTableItem {
+  padding: 6px 10px 6px 70px;
+  display: flex;
+}
+.noTablesAlt {
+  font-size: 0.8rem;
+}

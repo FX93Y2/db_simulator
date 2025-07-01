@@ -1,0 +1,120 @@
+.appSidebar {
+  background-color: var(--theme-sidebar-bg);
+  color: var(--theme-sidebar-text);
+  border-right: 1px solid var(--theme-border);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+.sidebarHeader {
+  height: 48px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--theme-border);
+  color: var(--theme-sidebar-text);
+}
+.sidebarHeader h5 {
+  max-width: calc(100% - 40px);
+}
+.createDbButton {
+  position: relative;
+  color: var(--theme-primary);
+  width: 32px;
+  height: 32px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+}
+.createDbButton .dbIcon {
+  font-size: 20px;
+}
+.createDbButton .plusIcon {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  font-size: 12px;
+  background-color: var(--theme-primary);
+  color: white;
+  border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.createDbButton:hover {
+  transform: scale(1.15);
+  color: var(--theme-primary);
+}
+.sidebarHeader .btn {
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sidebarHeader .btn svg {
+  font-size: 16px;
+}
+.sidebarHeader .btn:hover {
+  background-color: rgba(var(--theme-primary), 0.1);
+  color: var(--theme-primary);
+}
+.textTruncate {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.sidebarLoading {
+  padding: 20px;
+  color: var(--theme-muted-text);
+  text-align: center;
+}
+.sidebarProjects {
+  flex: 1;
+  overflow-y: auto;
+}
+.noProjects {
+  padding: 20px 15px;
+  color: var(--theme-muted-text);
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+}
+.projectContainer {
+  border-bottom: 1px solid var(--theme-border);
+}
+.projectItem {
+  padding: 12px 15px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: var(--theme-sidebar-text);
+}
+.sidebarNav {
+  width: 240px;
+  min-width: 240px;
+  max-width: 240px;
+  height: 100vh;
+  overflow-y: auto;
+  background-color: var(--theme-sidebar-bg);
+  border-right: 1px solid var(--theme-border);
+  padding: 0;
+}
+.stickyNav {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 1rem;
+}

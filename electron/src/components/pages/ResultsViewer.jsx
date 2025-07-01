@@ -30,6 +30,8 @@ import {
 } from '../../utils/resultsApi';
 import { useToastContext } from '../../contexts/ToastContext';
 
+import styles from './ResultsViewer.module.css';
+
 const ResultsViewer = ({ projectId, isProjectTab }) => {
   const { resultId } = useParams();
   const navigate = useNavigate();
@@ -387,7 +389,7 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   };
   
   return (
-    <div className="results-viewer">
+    <div className={styles.simulationResultsTable}>
       {loading && !results ? (
         <div className="text-center py-5">
           <Spinner animation="border" />

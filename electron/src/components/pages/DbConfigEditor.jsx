@@ -31,6 +31,8 @@ entities:
 `;
 
 // Accept theme as a prop
+import styles from './DbConfigEditor.module.css';
+
 const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange }) => {
   const { configId } = useParams();
   const { showSuccess, showError, showWarning } = useToastContext();
@@ -329,7 +331,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   
   // In project tab mode, we don't show the header and back button
   const renderEditor = () => (
-    <div className="editor-container-split" onClick={() => console.log("Editor container clicked")}>
+    <div className={styles.editorContainerSplit} onClick={() => console.log("Editor container clicked")}>
       <PanelGroup direction="horizontal">
         <Panel defaultSize={40} minSize={20} order={1}>
           <div className="editor-yaml-panel">

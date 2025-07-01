@@ -19,6 +19,8 @@ import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
+import buttonStyles from '../shared/Button.module.css';
+import styles from './SimConfigEditor.module.css';
 
 // Default template for a new simulation configuration
 const DEFAULT_SIM_CONFIG = `# Simulation Configuration Template
@@ -495,7 +497,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
   };
   
   const renderEditor = () => (
-    <div className="editor-container-split">
+    <div className={styles.editorContainerSplit}>
       <PanelGroup direction="horizontal">
         <Panel defaultSize={40} minSize={20} order={1}>
           <div className="editor-yaml-panel">
@@ -504,7 +506,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
               <div className="panel-header-actions">
                 <Button 
                   size="sm" 
-                  className="action-button btn-custom-toolbar save-config-btn"
+                  className={`action-button ${buttonStyles.btnCustomToolbar} ${buttonStyles.saveConfigBtn}`}
                   onClick={handleSave} 
                   disabled={loading}
                   title="Save Configuration"
@@ -573,7 +575,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
                 <div className="tab-actions">
                   <Button
                     size="sm"
-                    className="btn-custom-toolbar"
+                    className={buttonStyles.btnCustomToolbar}
                     onClick={handleAddEvent}
                     disabled={loading}
                   >
@@ -627,7 +629,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
   );
   
   return (
-    <div className="sim-config-editor">
+    <div className={styles.simConfigEditor}>
       {!isProjectTab && (
         <div className="mb-4 d-flex justify-content-between align-items-center">
           <div className="d-flex align-items-center">
@@ -643,7 +645,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
           </div>
           <div>
             <Button 
-              className="run-simulation-btn"
+              className={buttonStyles.runSimulationBtn}
               onClick={handleRun}
               disabled={loading}
             >
@@ -704,7 +706,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
             Cancel
           </Button>
           <Button 
-            className="btn-custom-toolbar"
+            className={styles.btnCustomToolbar}
             onClick={handleSaveConfig}
             disabled={loading}
           >
