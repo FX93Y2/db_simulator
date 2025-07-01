@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
 import AttributeEditor from './AttributeEditor';
+import ConfirmationModal from './ConfirmationModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
@@ -10,6 +11,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [attributes, setAttributes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Initialize form when entity changes
   useEffect(() => {
@@ -138,20 +140,23 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Handle entity deletion
   const handleDelete = () => {
-    if (window.confirm(`Are you sure you want to delete the entity "${name}"?`)) {
-      setIsLoading(true);
-      try {
-        onEntityDelete(entity);
-        setIsLoading(false);
-        onHide();
-      } catch (error) {
-        console.error('Error deleting entity:', error);
-        setIsLoading(false);
-      }
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    setIsLoading(true);
+    try {
+      onEntityDelete(entity);
+      setIsLoading(false);
+      onHide();
+    } catch (error) {
+      console.error('Error deleting entity:', error);
+      setIsLoading(false);
     }
   };
 
   return (
+    <>
     <Modal
       show={show}
       onHide={onHide}
@@ -311,7 +316,19 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
         </Button>
       </Modal.Footer>
     </Modal>
+
+    <ConfirmationModal
+      show={showDeleteConfirm}
+      onHide={() => setShowDeleteConfirm(false)}
+      onConfirm={confirmDelete}
+      title="Delete Entity"
+      message={`Are you sure you want to delete the entity "${name}"? This action cannot be undone.`}
+      confirmText="Delete Entity"
+      cancelText="Cancel"
+      variant="danger"
+      theme={theme}
+    />
+  </>
   );
 };
-
 export default EntityEditor;

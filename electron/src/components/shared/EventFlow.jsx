@@ -16,6 +16,7 @@ import '../../styles/diagrams.css';
 import yaml from 'yaml';
 import { Modal, Button, Form, Spinner, InputGroup } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiX, FiPlus } from 'react-icons/fi';
+import ConfirmationModal from './ConfirmationModal';
 
 // Transition Probability Editor Modal
 const TransitionProbabilityModal = ({ show, onHide, edge, onEdgeUpdate, theme }) => {
@@ -99,6 +100,7 @@ const TransitionProbabilityModal = ({ show, onHide, edge, onEdgeUpdate, theme })
 const DecisionNodeProbabilitiesModal = ({ show, onHide, node, outgoingEdges, onProbabilitiesUpdate, theme }) => {
   const [probabilities, setProbabilities] = useState({});
   const [isLoading, setIsLoading] = useState(false);
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
 
   // Initialize probabilities when modal opens
   useEffect(() => {
@@ -125,7 +127,7 @@ const DecisionNodeProbabilitiesModal = ({ show, onHide, node, outgoingEdges, onP
   const handleSubmit = () => {
     const total = getTotalProbability();
     if (Math.abs(total - 1.0) > 0.001) {
-      alert('Probabilities must sum to 100% (1.0)');
+      setShowValidationAlert(true);
       return;
     }
 
@@ -144,6 +146,7 @@ const DecisionNodeProbabilitiesModal = ({ show, onHide, node, outgoingEdges, onP
   const isValidTotal = Math.abs(total - 1.0) <= 0.001;
 
   return (
+    <>
     <Modal
       show={show}
       onHide={onHide}
@@ -195,15 +198,28 @@ const DecisionNodeProbabilitiesModal = ({ show, onHide, node, outgoingEdges, onP
         </Button>
       </Modal.Footer>
     </Modal>
+
+    <ConfirmationModal
+      show={showValidationAlert}
+      onHide={() => setShowValidationAlert(false)}
+      onConfirm={() => setShowValidationAlert(false)}
+      title="Invalid Probabilities"
+      message="Probabilities must sum to exactly 100% (1.0). Please adjust the values and try again."
+      confirmText="OK"
+      cancelText=""
+      variant="warning"
+      theme={theme}
+    />
+  </>
   );
 };
-
 // Event Node Details Modal
 const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, availableResourceTypes }) => {
   const [name, setName] = useState('');
   const [duration, setDuration] = useState({ distribution: { type: 'normal', mean: 1, stddev: 0.5 } });
   const [resources, setResources] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Initialize form when node changes
   useEffect(() => {
@@ -241,6 +257,10 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
   };
 
   const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
     setIsLoading(true);
     try {
       onNodeDelete(node);
@@ -271,6 +291,7 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
   };
 
   return (
+    <>
     <Modal
       show={show}
       onHide={onHide}
@@ -466,9 +487,21 @@ const EventNodeDetailsModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete,
         </Button>
       </Modal.Footer>
     </Modal>
+
+    <ConfirmationModal
+      show={showDeleteConfirm}
+      onHide={() => setShowDeleteConfirm(false)}
+      onConfirm={confirmDelete}
+      title="Delete Event"
+      message={`Are you sure you want to delete the event "${name}"? This action cannot be undone and will remove all associated transitions.`}
+      confirmText="Delete Event"
+      cancelText="Cancel"
+      variant="danger"
+      theme={theme}
+    />
+  </>
   );
 };
-
 // Custom Event Node component
 const EventNode = ({ data }) => {
   const theme = data.theme; // Get theme from data
