@@ -139,6 +139,10 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
         setLoading(true);
         console.log("Loading database info from path:", databasePath);
         
+        // Add a small delay to ensure backend has released database connections
+        // This prevents EBUSY errors on Windows when accessing database immediately after simulation
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Get basic info about the simulation results
         const resultInfo = await getSimulationSummary(databasePath);
         if (resultInfo.success) {
@@ -148,6 +152,9 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           console.error("Failed to load simulation results:", resultInfo.error);
           showError(`Error loading simulation results: ${resultInfo.error}`);
         }
+        
+        // Add another small delay before accessing tables
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         // Get list of tables in the database
         const tablesResult = await getDatabaseTables(databasePath);
@@ -193,6 +200,10 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
       try {
         setLoading(true);
         console.log("Loading data for table:", selectedTable, "from path:", databasePath);
+        
+        // Add a small delay to ensure any previous database connections are closed
+        // This prevents EBUSY errors on Windows when accessing database
+        await new Promise(resolve => setTimeout(resolve, 200));
         
         // Get data for the selected table
         const dataResult = await getTableData(databasePath, selectedTable);
