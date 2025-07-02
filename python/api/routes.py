@@ -591,6 +591,7 @@ def generate_and_simulate():
             logger.info(f"Database file exists after simulation: {db_path}, size: {file_size} bytes")
             
             # Verify database has tables and content
+            conn = None
             try:
                 import sqlite3
                 conn = sqlite3.connect(db_path)
@@ -608,9 +609,16 @@ def generate_and_simulate():
                     except Exception as e:
                         logger.error(f"Error counting rows in table '{table_name}': {e}")
                 
-                conn.close()
             except Exception as e:
                 logger.error(f"Error verifying database content: {e}")
+            finally:
+                # ALWAYS close the database connection to prevent EBUSY errors on Windows
+                if conn:
+                    try:
+                        conn.close()
+                        logger.debug(f"Database verification connection closed for: {db_path}")
+                    except Exception as close_err:
+                        logger.warning(f"Error closing verification connection: {close_err}")
             
             # Create a relative path for the frontend to use
             db_filename = os.path.basename(db_path)
@@ -804,4 +812,26 @@ def export_database_to_csv():
         })
     except Exception as e:
         logger.error(f"Error exporting database to CSV: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500 
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api.route('/force-cleanup', methods=['POST'])
+def force_cleanup():
+    """
+    Force cleanup of database connections and resources.
+    This is a workaround for EBUSY errors on Windows caused by persistent connections.
+    """
+    try:
+        # Force garbage collection to clean up any lingering objects
+        import gc
+        gc.collect()
+        
+        # Give a small delay for OS to release handles
+        import time
+        time.sleep(0.1)
+        
+        logger.info("Forced cleanup completed")
+        return jsonify({'message': 'Cleanup completed successfully'})
+        
+    except Exception as e:
+        logger.error(f"Error during forced cleanup: {e}")
+        return jsonify({'error': str(e)}), 500 
