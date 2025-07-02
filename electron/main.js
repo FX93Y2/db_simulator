@@ -745,8 +745,9 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
     let tableCount = 0;
     let recordCount = 0;
     
+    let db = null;
     try {
-      const db = new Database(resolvedPath, { readonly: true });
+      db = new Database(resolvedPath, { readonly: true });
       
       // Count tables
       const tablesResult = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
@@ -765,9 +766,18 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
         }
       }
       
-      db.close();
     } catch (dbError) {
       console.error(`[getSimulationResults] Error opening database: ${dbError.message}`);
+    } finally {
+      // ALWAYS close the database connection to prevent EBUSY errors on Windows
+      if (db) {
+        try {
+          db.close();
+          console.log(`[getSimulationResults] Database connection closed for: ${resolvedPath}`);
+        } catch (closeError) {
+          console.error(`[getSimulationResults] Error closing database: ${closeError.message}`);
+        }
+      }
     }
     
     return {
@@ -1129,15 +1139,15 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath, customExportPa
     
     // Get all tables using better-sqlite3
     const Database = require('better-sqlite3');
-    const db = new Database(resolvedPath, { readonly: true });
+    let db = null;
     
     try {
+      db = new Database(resolvedPath, { readonly: true });
       // Get all tables in the database
       const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
       
       if (tables.length === 0) {
         console.error('No tables found in database');
-        db.close();
         return { success: false, error: 'No tables found in database' };
       }
       
@@ -1212,8 +1222,6 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath, customExportPa
         });
       }
       
-      db.close();
-      
       // Create a summary file with metadata
       const summaryPath = path.join(exportDir, '_summary.json');
       const summary = {
@@ -1242,8 +1250,17 @@ ipcMain.handle('api:exportDatabaseToCSV', async (_, databasePath, customExportPa
       };
     } catch (err) {
       console.error(`Error exporting database: ${err.message}`);
-      db.close();
       return { success: false, error: err.message };
+    } finally {
+      // ALWAYS close the database connection to prevent EBUSY errors on Windows
+      if (db) {
+        try {
+          db.close();
+          console.log(`[exportDatabaseToCSV] Database connection closed for: ${resolvedPath}`);
+        } catch (closeError) {
+          console.error(`[exportDatabaseToCSV] Error closing database: ${closeError.message}`);
+        }
+      }
     }
   } catch (error) {
     console.error(`Error exporting database: ${error.message}`);
