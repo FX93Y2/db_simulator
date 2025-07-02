@@ -36,6 +36,7 @@ package-lock.json
 .env.test.local
 .env.production.local
 .cursor/
+.claude/
 
 # PyInstaller generated files
 python/USE_EXECUTABLE
