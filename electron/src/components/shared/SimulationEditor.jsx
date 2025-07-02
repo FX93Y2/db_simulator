@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Card, Row, Col, InputGroup } from 'react-bootstrap';
-import { FiClock, FiCalendar, FiHash, FiUsers, FiSettings } from 'react-icons/fi';
+import { FiClock, FiCalendar, FiHash, FiUsers } from 'react-icons/fi';
 import yaml from 'yaml';
 
 const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
@@ -116,31 +116,6 @@ const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
     onSimulationChange(updatedData);
   };
 
-  // Check if both simulation and event_simulation sections exist
-  const hasSimulationSections = () => {
-    if (!yamlContent) return false;
-    try {
-      const parsed = yaml.parse(yamlContent);
-      return parsed && parsed.simulation && parsed.event_simulation;
-    } catch {
-      return false;
-    }
-  };
-
-  if (!hasSimulationSections()) {
-    return (
-      <div className="simulation-editor-empty">
-        <div className="text-center py-5">
-          <FiSettings size={48} className="text-muted mb-3" />
-          <h5 className="text-muted">Simulation Configuration Not Available</h5>
-          <p className="text-muted">
-            Both 'simulation' and 'event_simulation' sections are required in the YAML configuration
-            to display this tab.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="simulation-editor">

@@ -205,11 +205,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
     }
   }, []);
   
-  // Check if both simulation and event_simulation sections exist
-  const hasSimulationSections = () => {
-    if (!parsedYamlObject) return false;
-    return parsedYamlObject.simulation && parsedYamlObject.event_simulation;
-  };
   
   // Handle adding a new event - operates on object if possible
   const handleAddEvent = () => {
@@ -556,17 +551,15 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
                     </span>
                   }
                 />
-                {hasSimulationSections() && (
-                  <Tab
-                    eventKey="simulation"
-                    title={
-                      <span>
-                        <FiClock className="me-2" />
-                        Simulation
-                      </span>
-                    }
-                  />
-                )}
+                <Tab
+                  eventKey="simulation"
+                  title={
+                    <span>
+                      <FiClock className="me-2" />
+                      Simulation
+                    </span>
+                  }
+                />
               </Tabs>
               
               {activeVisualizationTab === 'event-flow' && (
@@ -610,7 +603,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
                     />
                   )}
                   
-                  {activeVisualizationTab === 'simulation' && hasSimulationSections() && (
+                  {activeVisualizationTab === 'simulation' && (
                     <SimulationEditor
                       yamlContent={yamlContent}
                       onSimulationChange={handleDiagramChange}
