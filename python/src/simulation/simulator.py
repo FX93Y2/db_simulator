@@ -203,40 +203,47 @@ class EventSimulator:
         This method is called in a finally block to ensure cleanup happens even if simulation fails.
         """
         try:
-            logger.info("Starting simulator cleanup to prevent EBUSY errors...")
+            import time
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            logger.info(f"[{timestamp}] [PYTHON] Starting simulator cleanup to prevent EBUSY errors for: {self.db_path}")
             
             # Dispose EventTracker engine first
             if hasattr(self, 'event_tracker') and self.event_tracker:
-                logger.info("Disposing EventTracker engine...")
+                logger.info(f"[{timestamp}] [PYTHON] Disposing EventTracker engine for: {self.db_path}")
                 self.event_tracker.dispose()
+                logger.info(f"[{timestamp}] [PYTHON] EventTracker engine disposed for: {self.db_path}")
             
             # Dispose main simulator engine
             if hasattr(self, 'engine') and self.engine:
-                logger.info("Disposing main simulator engine...")
+                logger.info(f"[{timestamp}] [PYTHON] Disposing main simulator engine for: {self.db_path}")
                 self.engine.dispose()
-                logger.info("Main simulator engine disposed successfully")
+                logger.info(f"[{timestamp}] [PYTHON] Main simulator engine disposed successfully for: {self.db_path}")
             
             # Force SQLite to close all connections and cleanup WAL files
             import sqlite3
-            import time
             try:
+                logger.info(f"[{timestamp}] [PYTHON] Opening connection for WAL checkpoint: {self.db_path}")
                 # Connect briefly to force WAL checkpoint and close
                 conn = sqlite3.connect(self.db_path, timeout=1.0)
+                logger.info(f"[{timestamp}] [PYTHON] Connection opened for WAL checkpoint: {self.db_path}")
                 conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
                 conn.commit()
+                logger.info(f"[{timestamp}] [PYTHON] WAL checkpoint executed for: {self.db_path}")
                 conn.close()
-                logger.info("Forced SQLite WAL checkpoint completed")
+                logger.info(f"[{timestamp}] [PYTHON] WAL checkpoint connection closed for: {self.db_path}")
                 
                 # Small delay to ensure OS releases file handles
-                time.sleep(0.1)
+                time.sleep(0.2)
+                logger.info(f"[{timestamp}] [PYTHON] File handle release delay completed for: {self.db_path}")
                 
             except Exception as sqlite_err:
-                logger.warning(f"Could not force SQLite cleanup: {sqlite_err}")
+                logger.warning(f"[{timestamp}] [PYTHON] Could not force SQLite cleanup for {self.db_path}: {sqlite_err}")
                 
-            logger.info("Simulator cleanup completed")
+            logger.info(f"[{timestamp}] [PYTHON] Simulator cleanup completed for: {self.db_path}")
             
         except Exception as e:
-            logger.warning(f"Error during simulator cleanup: {e}")
+            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+            logger.warning(f"[{timestamp}] [PYTHON] Error during simulator cleanup for {self.db_path}: {e}")
 
 
     def _process_entity_events(self, entity_id: int):

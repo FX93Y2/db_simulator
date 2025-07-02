@@ -747,7 +747,11 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
     
     let db = null;
     try {
+      const timestamp = new Date().toISOString();
+      console.log(`[${timestamp}] [ELECTRON] Opening database connection for getSimulationResults: ${resolvedPath}`);
+      
       db = new Database(resolvedPath, { readonly: true });
+      console.log(`[${timestamp}] [ELECTRON] Database connection opened successfully for: ${resolvedPath}`);
       
       // Count tables
       const tablesResult = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
@@ -772,10 +776,12 @@ ipcMain.handle('api:getSimulationResults', async (_, databasePath) => {
       // ALWAYS close the database connection to prevent EBUSY errors on Windows
       if (db) {
         try {
+          const timestamp = new Date().toISOString();
+          console.log(`[${timestamp}] [ELECTRON] Closing database connection for getSimulationResults: ${resolvedPath}`);
           db.close();
-          console.log(`[getSimulationResults] Database connection closed for: ${resolvedPath}`);
+          console.log(`[${timestamp}] [ELECTRON] Database connection closed successfully for: ${resolvedPath}`);
         } catch (closeError) {
-          console.error(`[getSimulationResults] Error closing database: ${closeError.message}`);
+          console.error(`[${timestamp}] [ELECTRON] Error closing database for getSimulationResults: ${closeError.message}`);
         }
       }
     }
@@ -922,17 +928,25 @@ ipcMain.handle('api:getDatabaseTables', async (_, databasePath) => {
     
     // Query for all table names using better-sqlite3
     const Database = require('better-sqlite3');
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [ELECTRON] Opening database connection for getDatabaseTables: ${resolvedPath}`);
+    
     const db = new Database(resolvedPath, { readonly: true });
+    console.log(`[${timestamp}] [ELECTRON] Database connection opened successfully for getDatabaseTables: ${resolvedPath}`);
     
     try {
       const rows = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
       const tables = rows.map(row => row.name);
-      console.log(`[getDatabaseTables] Found ${tables.length} tables: ${tables.join(', ')}`);
+      console.log(`[${timestamp}] [ELECTRON] Found ${tables.length} tables: ${tables.join(', ')}`);
+      console.log(`[${timestamp}] [ELECTRON] Closing database connection for getDatabaseTables: ${resolvedPath}`);
       db.close();
+      console.log(`[${timestamp}] [ELECTRON] Database connection closed successfully for getDatabaseTables: ${resolvedPath}`);
       return { success: true, tables };
     } catch (err) {
-      console.error(`[getDatabaseTables] Error querying database tables: ${err.message}`);
+      console.error(`[${timestamp}] [ELECTRON] Error querying database tables: ${err.message}`);
+      console.log(`[${timestamp}] [ELECTRON] Closing database connection for getDatabaseTables (error case): ${resolvedPath}`);
       db.close();
+      console.log(`[${timestamp}] [ELECTRON] Database connection closed for getDatabaseTables (error case): ${resolvedPath}`);
       return { success: false, error: err.message };
     }
   } catch (error) {
@@ -1017,16 +1031,24 @@ ipcMain.handle('api:getTableData', async (_, params) => {
     
     // Query for table data using better-sqlite3
     const Database = require('better-sqlite3');
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [ELECTRON] Opening database connection for getTableData: ${resolvedPath}, table: ${tableName}`);
+    
     const db = new Database(resolvedPath, { readonly: true });
+    console.log(`[${timestamp}] [ELECTRON] Database connection opened successfully for getTableData: ${resolvedPath}`);
     
     try {
       const rows = db.prepare(`SELECT * FROM "${tableName}" LIMIT ${limit}`).all();
-      console.log(`[getTableData] Retrieved ${rows.length} rows from table ${tableName}`);
+      console.log(`[${timestamp}] [ELECTRON] Retrieved ${rows.length} rows from table ${tableName}`);
+      console.log(`[${timestamp}] [ELECTRON] Closing database connection for getTableData: ${resolvedPath}`);
       db.close();
+      console.log(`[${timestamp}] [ELECTRON] Database connection closed successfully for getTableData: ${resolvedPath}`);
       return { success: true, data: rows };
     } catch (err) {
-      console.error(`[getTableData] Error querying table data: ${err.message}`);
+      console.error(`[${timestamp}] [ELECTRON] Error querying table data: ${err.message}`);
+      console.log(`[${timestamp}] [ELECTRON] Closing database connection for getTableData (error case): ${resolvedPath}`);
       db.close();
+      console.log(`[${timestamp}] [ELECTRON] Database connection closed for getTableData (error case): ${resolvedPath}`);
       return { success: false, error: err.message };
     }
   } catch (error) {
@@ -1332,12 +1354,20 @@ ipcMain.handle('api:deleteResult', async (_, resultPath) => {
     }
     
     // Delete the file
+    const timestamp = new Date().toISOString();
+    console.log(`[${timestamp}] [ELECTRON] Attempting to delete file: ${resolvedPath}`);
+    
+    // Add a small delay before deletion to ensure any database connections are closed
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log(`[${timestamp}] [ELECTRON] Delay completed, proceeding with deletion: ${resolvedPath}`);
+    
     fs.unlinkSync(resolvedPath);
-    console.log(`Successfully deleted result file: ${resolvedPath}`);
+    console.log(`[${timestamp}] [ELECTRON] Successfully deleted result file: ${resolvedPath}`);
     
     return { success: true };
   } catch (error) {
-    console.error(`Error deleting result file: ${error.message}`);
+    const timestamp = new Date().toISOString();
+    console.error(`[${timestamp}] [ELECTRON] Error deleting result file: ${error.message}`);
     return { success: false, error: error.message };
   }
 });

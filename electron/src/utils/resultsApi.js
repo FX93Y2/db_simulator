@@ -4,37 +4,49 @@
 
 // Function to get a summary of simulation results
 export const getSimulationSummary = async (databasePath) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [FRONTEND] Starting getSimulationSummary for: ${databasePath}`);
+  
   try {
     const result = await window.api.getSimulationResults(databasePath);
+    console.log(`[${timestamp}] [FRONTEND] getSimulationSummary completed for: ${databasePath}, success: ${result.success}`);
     return result;
   } catch (error) {
-    console.error('Error getting simulation summary:', error);
+    console.error(`[${timestamp}] [FRONTEND] Error getting simulation summary for ${databasePath}:`, error);
     return { success: false, error: 'Failed to get simulation summary' };
   }
 };
 
 // Function to get available tables from a database
 export const getDatabaseTables = async (databasePath) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [FRONTEND] Starting getDatabaseTables for: ${databasePath}`);
+  
   try {
     const result = await window.api.getDatabaseTables(databasePath);
+    console.log(`[${timestamp}] [FRONTEND] getDatabaseTables completed for: ${databasePath}, success: ${result.success}, tables: ${result.tables?.length || 0}`);
     return result;
   } catch (error) {
-    console.error('Error getting database tables:', error);
+    console.error(`[${timestamp}] [FRONTEND] Error getting database tables for ${databasePath}:`, error);
     return { success: false, error: 'Failed to get database tables' };
   }
 };
 
 // Function to get data from a specific table
 export const getTableData = async (databasePath, tableName, limit = 1000) => {
+  const timestamp = new Date().toISOString();
+  console.log(`[${timestamp}] [FRONTEND] Starting getTableData for: ${databasePath}, table: ${tableName}, limit: ${limit}`);
+  
   try {
     const result = await window.api.getTableData({
       databasePath,
       tableName,
       limit
     });
+    console.log(`[${timestamp}] [FRONTEND] getTableData completed for: ${databasePath}, table: ${tableName}, success: ${result.success}, rows: ${result.data?.length || 0}`);
     return result;
   } catch (error) {
-    console.error('Error getting table data:', error);
+    console.error(`[${timestamp}] [FRONTEND] Error getting table data for ${databasePath}, table ${tableName}:`, error);
     return { success: false, error: 'Failed to get table data' };
   }
 };
