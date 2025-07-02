@@ -184,6 +184,16 @@ class EventSimulator:
         # Get final resource utilization stats
         resource_stats = self.resource_manager.get_utilization_stats()
         
+        # Clean up database connections to prevent EBUSY errors on Windows
+        try:
+            if hasattr(self, 'event_tracker') and self.event_tracker:
+                self.event_tracker.dispose()
+            if hasattr(self, 'engine') and self.engine:
+                self.engine.dispose()
+                logger.debug("Main simulator engine disposed successfully")
+        except Exception as e:
+            logger.warning(f"Error during simulator cleanup: {e}")
+        
         # Return simulation results
         return {
             'duration_days': self.config.duration_days,

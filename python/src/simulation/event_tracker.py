@@ -232,4 +232,18 @@ class EventTracker:
                 # Move the commit inside the with block to ensure the transaction is committed before the connection is closed
                 conn.commit()
         except Exception as e:
-            logger.error(f"Error recording resource allocation: {e}") 
+            logger.error(f"Error recording resource allocation: {e}")
+    
+    def dispose(self):
+        """
+        Properly dispose of the EventTracker engine to release database connections.
+        This is critical for preventing EBUSY errors on Windows when deleting database files.
+        """
+        try:
+            if hasattr(self, 'engine') and self.engine is not None:
+                self.engine.dispose()
+                logger.debug("EventTracker engine disposed successfully")
+            else:
+                logger.debug("EventTracker engine was already disposed or never created")
+        except Exception as e:
+            logger.warning(f"Error disposing EventTracker engine: {e}") 
