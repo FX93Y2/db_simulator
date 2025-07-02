@@ -1,0 +1,86 @@
+// ER Diagram
+.er-diagram-container {
+  background-color: var(--theme-editor-bg);
+  position: relative;
+  // Ensure the React Flow viewport inherits or gets the theme background
+  .react-flow__viewport {
+  }
+  
+  .entity-node {
+    padding: 10px;
+    border-radius: 4px;
+    // Use theme card background for nodes
+    background-color: var(--theme-card-bg); 
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border); // Use theme border
+    width: 180px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    
+    &__title {
+      font-weight: bold;
+      padding-bottom: 5px;
+      // Use theme border for title separator
+      border-bottom: 1px solid var(--theme-border); 
+      margin-bottom: 5px;
+      color: var(--theme-text); // Ensure title uses theme text color
+    }
+    
+    &__attribute {
+      display: flex;
+      align-items: center;
+      font-size: 12px;
+      padding: 2px 5px; // Adjust padding
+      margin: 1px 0; // Adjust margin
+      border-radius: 3px; // Slightly round attribute backgrounds
+      color: var(--theme-text); // Ensure attribute text uses theme color
+
+      // Define themeable backgrounds for PK/FK
+      &.primary-key {
+        font-weight: bold;
+        // Use subtle background based on theme
+        background-color: rgba(var(--theme-primary-rgb, 52, 152, 219), 0.1);
+        &::before { content: '🔑'; margin-right: 5px; }
+      }
+      
+      &.foreign-key {
+        font-style: italic;
+        // Use subtle background based on theme
+        background-color: rgba(var(--theme-secondary-rgb, 46, 204, 113), 0.1);
+        &::before { content: '🔗'; margin-right: 5px; }
+      }
+    }
+  }
+}
+
+// Event Flow
+.event-flow-container {
+  height: 500px;
+  background-color: var(--theme-editor-bg);
+  border: 1px solid $border-color;
+  border-radius: 4px;
+  // Ensure the React Flow viewport inherits or gets the theme background
+  .react-flow__viewport {
+  }
+  
+  .event-node {
+     // Update event node styles for theming
+     padding: 10px;
+     border-radius: 4px;
+     // Use theme card background or a secondary color accent
+     background-color: var(--theme-card-bg);
+     color: var(--theme-text);
+     border: 1px solid var(--theme-secondary, #2ecc71); // Use secondary color for border
+     width: 150px;
+     text-align: center;
+    
+    &__title {
+      font-weight: bold;
+    }
+    
+    &__info {
+      font-size: 12px;
+      margin-top: 5px;
+      color: var(--theme-muted-text);
+    }
+  }
+}

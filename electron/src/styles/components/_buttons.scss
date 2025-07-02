@@ -1,0 +1,139 @@
+// Custom Button Styles
+.btn-custom-toolbar {
+  background-color: transparent;
+  border: 1px solid transparent;
+  color: var(--theme-text);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  border-radius: 0.2rem;
+  transition: background-color 0.15s ease-in-out;
+
+  &:hover,
+  &:focus-visible {
+    background-color: var(--theme-active-bg);
+    color: var(--theme-text);
+    outline: none;
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &:active,
+  &.active {
+    background-color: var(--theme-active-bg);
+    color: var(--theme-text);
+    border-color: transparent;
+    box-shadow: none;
+  }
+
+  &:disabled {
+    color: var(--theme-muted-text);
+    background-color: transparent;
+    opacity: 0.65;
+  }
+  
+  svg {
+    vertical-align: middle;
+  }
+}
+
+// Adjust specific button instances if needed
+.panel-header-actions .btn-custom-toolbar {
+  padding: 0.1rem 0.4rem;
+}
+
+.project-tabs-wrapper .btn-custom-toolbar {
+  align-self: center;
+}
+
+// Run Simulation button styled like tabs
+.run-simulation-btn {
+  display: flex;
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--theme-primary);
+  background-color: transparent;
+  border: none;
+  border-radius: 4px;
+  margin: 0.25rem 0 0.25rem auto;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  transition: color 0.15s, background-color 0.15s;
+  
+  &:hover, &:focus {
+    color: var(--theme-primary);
+    background-color: rgba(var(--theme-primary-rgb), 0.08);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  
+  &:active, &.active {
+    color: var(--theme-primary);
+    background-color: rgba(var(--theme-primary-rgb), 0.12);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  
+  &:disabled {
+    color: var(--theme-muted-text);
+    background-color: transparent;
+    opacity: 0.65;
+  }
+}
+
+// Save configuration button styling
+.save-config-btn {
+  padding: 0.25rem 0.75rem;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  
+  .save-icon {
+    position: relative;
+    top: 1px; // Slight nudge downward for bottom alignment
+    font-size: 15px;
+  }
+}
+
+.editor-yaml-panel .panel-header .save-config-btn {
+  color: #007bff; // Standard blue color
+}
+
+.editor-canvas-panel .canvas-header > .btn-custom-toolbar {
+  color: #007bff;
+}
+
+// Button improvements
+.btn-outline-primary {
+  border-color: var(--theme-primary);
+  color: var(--theme-primary);
+  
+  &:hover {
+    background-color: var(--theme-primary);
+    border-color: var(--theme-primary);
+    color: white;
+  }
+}
+
+.btn-outline-secondary {
+  border-color: var(--theme-muted-text);
+  color: var(--theme-muted-text);
+  
+  &:hover {
+    background-color: var(--theme-muted-text);
+    border-color: var(--theme-muted-text);
+    color: white;
+  }
+}
+
+.btn-outline-danger {
+  border-color: #dc3545;
+  color: #dc3545;
+  
+  &:hover {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: white;
+  }
+}

@@ -1,0 +1,159 @@
+// Theme Variables Definition
+:root { // Light theme defaults (can be refined later)
+  --theme-bg: #f8f9fa;
+  --theme-text: #333;
+  --theme-muted-text: #6c757d;
+  --theme-border: #ddd;
+  --theme-navbar-bg: #3498db; // Original primary blue
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #ffffff;
+  --theme-sidebar-text: #333;
+  --theme-card-bg: #ffffff;
+  --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
+  --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
+  --theme-editor-bg: #ffffff;
+  --theme-primary: #3498db;
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #c7c7c7;
+  --theme-er-node-bg: #85c6f3; // lighten(#3498db, 30%)
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+}
+
+body.theme-dark { // Dark theme overrides
+  --theme-bg: #2a2a2a; // Dark grey background
+  --theme-text: #e0e0e0; // Light grey text
+  --theme-muted-text: #999999;
+  --theme-border: #444444; // Darker border
+  --theme-navbar-bg: #1e1e1e; // Very dark grey/black navbar
+  --theme-navbar-text: #ffffff;
+  --theme-sidebar-bg: #333333; // Dark sidebar
+  --theme-sidebar-text: #e0e0e0;
+  --theme-card-bg: #383838; // Dark card background
+  --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
+  --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
+  --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
+  --theme-primary: #3498db; // Keep primary blue for accents
+  --theme-primary-text: #ffffff;
+  --theme-resize-handle-hover-bg: #3a3a3a;
+  --theme-er-node-bg: #404040; // Dark greyish background for nodes
+  --theme-primary-rgb: 52, 152, 219;
+  --theme-secondary-rgb: 46, 204, 113;
+  --theme-text-rgb: 224, 224, 224; // Explicitly define for dark theme based on #e0e0e0
+
+  // --- Bootstrap Variable Overrides for Dark Theme ---
+  --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
+  // Add other Bootstrap variable overrides here if needed (e.g., --bs-body-bg, --bs-body-color)
+
+  // --- Component Specific Dark Theme Overrides ---
+
+  // Table (Assuming a common structure, adjust selector if needed)
+  .table > tbody > tr {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text);
+    border-color: var(--theme-border); // Ensure row borders match theme
+  }
+  .table > :not(caption) > * > * { // Target all table cells/headers
+     background-color: inherit; // Inherit from row
+     color: inherit;
+     border-color: var(--theme-border);
+  }
+  
+  // Optional: Table hover state
+  .table-hover > tbody > tr:hover > * {
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-text);
+  }
+
+  // Bootstrap Tabs (.nav-tabs)
+  /* // POTENTIALLY REDUNDANT with --bs-border-color
+  .nav-tabs {
+    border-bottom: 1px solid var(--theme-border); // Explicitly set border
+  }
+  */
+  .nav-tabs .nav-link {
+    color: var(--theme-muted-text); // Darker, inactive text
+    background-color: transparent; // No background for inactive
+    border-color: transparent transparent var(--theme-border); // Still needed for specific inactive style
+
+    &:hover, &:focus {
+      border-color: transparent transparent var(--theme-border); // Keep border consistent on hover
+      color: var(--theme-text); // Slightly lighter on hover
+      isolation: isolate; // Needed for hover state
+    }
+  }
+  .nav-tabs .nav-link.active,
+  .nav-tabs .nav-item.show .nav-link {
+    color: var(--theme-text); // Active text color
+    background-color: var(--theme-sidebar-bg); // Dark grey background like sidebar
+    border-color: var(--theme-border) var(--theme-border) var(--theme-sidebar-bg); // Match background - Still needed for active style
+  }
+
+  // React Flow
+  .react-flow__background {
+    background-color: var(--theme-bg); // Use main background
+  }
+  // Ensure viewport is transparent to see the background pattern
+  .react-flow__viewport {
+    background-color: transparent !important; 
+  }
+  .react-flow__panel { // Controls and Minimap panels
+    background-color: var(--theme-card-bg);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text); // Ensure text inside is visible
+  }
+  // React Flow Controls specific buttons
+  .react-flow__controls-button {
+     background: var(--theme-sidebar-bg);
+     border-bottom: 1px solid var(--theme-border);
+     fill: var(--theme-text); // Icon color
+     color: var(--theme-text); // Text color if any
+
+     &:hover {
+       background: var(--theme-hover-bg);
+     }
+  }
+  // React Flow Minimap node colors
+   .react-flow__minimap-node {
+     fill: var(--theme-er-node-bg); // Use node background color
+     stroke: none;
+   }
+  // React Flow Node background (already has a variable, but ensure it's applied)
+  .react-flow__node {
+    background-color: var(--theme-er-node-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+  // Ensure edges are visible
+  .react-flow__edge-path {
+    stroke: var(--theme-muted-text);
+  }
+
+  // --- Modal Overrides for Dark Theme ---
+  .modal-content {
+    background-color: var(--theme-card-bg); // Use dark card background
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+
+  .modal-header {
+    border-bottom-color: var(--theme-border);
+  }
+
+  .modal-footer {
+    border-top-color: var(--theme-border);
+  }
+
+  // Style the close button for dark background
+  .modal-header .btn-close {
+    // Bootstrap 5 uses filter for dark mode by default, 
+    // but overriding the color variable might be more direct if filter isn't working
+    // filter: invert(1) grayscale(100%) brightness(200%); 
+    --bs-btn-close-color: var(--theme-text);
+    
+    &:hover {
+      // Optional: Slightly change opacity or color on hover if needed
+      opacity: 0.8;
+    }
+  }
+}

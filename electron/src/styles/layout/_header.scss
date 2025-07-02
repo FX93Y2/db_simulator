@@ -1,0 +1,116 @@
+// Header
+.app-header {
+  background-color: var(--theme-navbar-bg);
+  color: var(--theme-navbar-text);
+  padding: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  
+  // Styles for the new icon brand
+  .app-icon-brand {
+    padding: 0 15px; // Adjust padding as needed
+    display: flex;
+    align-items: center;
+    height: $header-height;
+  }
+
+  .app-icon {
+    height: 40px;
+    width: 40px;
+    transition: transform 0.2s ease-in-out;
+  }
+  
+  // Theme toggle switch styles
+  .theme-toggle-switch {
+    position: relative;
+    width: 60px;
+    height: 28px;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 14px;
+    cursor: pointer;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.2);
+    
+    .theme-icons {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 6px;
+      z-index: 1;
+      pointer-events: none;
+      
+      .theme-icon {
+        color: white;
+        font-size: 16px;
+        opacity: 0.9;
+        
+        &.sun {
+          color: #f1c40f;
+        }
+        
+        &.moon {
+          color: #f1f1f1;
+        }
+      }
+    }
+    
+    .theme-toggle-slider {
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 20px;
+      height: 20px;
+      background-color: white;
+      border-radius: 50%;
+      transition: transform 0.3s ease;
+      z-index: 2;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      
+      &.active {
+        transform: translateX(32px);
+      }
+    }
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.25);
+      
+      .theme-toggle-slider {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+  
+  .app-navigation {
+    .nav-link {
+      color: var(--theme-navbar-text);
+      padding: 0 15px;
+      height: $header-height;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      &.active {
+        background-color: rgba(255, 255, 255, 0.2);
+        font-weight: bold;
+      }
+      
+      svg {
+        font-size: 16px;
+      }
+    }
+  }
+
+  // Added hover effect for the navbar icon
+  .app-icon-brand .app-icon:hover {
+    transform: scale(1.15);
+  }
+}

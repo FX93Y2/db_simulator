@@ -1,0 +1,111 @@
+// Modal improvements for resource editing
+.modal-content {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  
+  .modal-header {
+    border-bottom-color: var(--theme-border);
+    
+    .modal-title {
+      color: var(--theme-text);
+    }
+  }
+  
+  .modal-body {
+    color: var(--theme-text);
+    
+    .form-label {
+      color: var(--theme-text);
+    }
+    
+    .form-control, .form-select {
+      background-color: var(--theme-editor-bg);
+      border-color: var(--theme-border);
+      color: var(--theme-text);
+      
+      &:focus {
+        background-color: var(--theme-editor-bg);
+        border-color: var(--theme-primary);
+        color: var(--theme-text);
+        box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+      }
+      
+      &::placeholder {
+        color: var(--theme-muted-text);
+      }
+    }
+  }
+  
+  .modal-footer {
+    border-top-color: var(--theme-border);
+  }
+}
+
+// Dark theme modal overrides
+body.theme-dark {
+  // --- Modal Overrides for Dark Theme ---
+  .modal-content {
+    background-color: var(--theme-card-bg); // Use dark card background
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+
+  .modal-header {
+    border-bottom-color: var(--theme-border);
+  }
+
+  .modal-footer {
+    border-top-color: var(--theme-border);
+  }
+
+  // Style the close button for dark background
+  .modal-header .btn-close {
+    // Bootstrap 5 uses filter for dark mode by default, 
+    // but overriding the color variable might be more direct if filter isn't working
+    // filter: invert(1) grayscale(100%) brightness(200%); 
+    --bs-btn-close-color: var(--theme-text);
+    
+    &:hover {
+      // Optional: Slightly change opacity or color on hover if needed
+      opacity: 0.8;
+    }
+  }
+}
+
+// Entity Editor and Attribute Editor Modals
+.entity-editor-modal {
+  .modal-dialog {
+    max-width: 960px;
+    width: 90vw;
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+  }
+}
+
+// Dark theme specific adjustments
+body.theme-dark {
+  .entity-editor-modal, .attribute-editor-card {
+    .modal-content {
+      background-color: var(--theme-card-bg);
+      border-color: var(--theme-border);
+    }
+    
+    .modal-header {
+      border-bottom-color: var(--theme-border);
+      
+      .modal-title {
+        color: var(--theme-text);
+      }
+      
+      .btn-close {
+        filter: invert(1);
+      }
+    }
+    
+    .modal-footer {
+      border-top-color: var(--theme-border);
+    }
+  }
+}

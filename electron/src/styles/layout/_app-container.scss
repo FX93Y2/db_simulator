@@ -1,0 +1,38 @@
+// Layout
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  
+  // Styles for react-resizable-panels handles
+  .main-resize-handle {
+    width: 8px;
+    background-color: $border-color;
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+
+    &:hover,
+    &[data-resize-handle-state="drag"] {
+      background-color: var(--theme-resize-handle-hover-bg);
+    }
+
+    // Optional: Add visual indicators like dots or lines
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 20px;
+      background-color: var(--theme-muted-text);
+    }
+  }
+}

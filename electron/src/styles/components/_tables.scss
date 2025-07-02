@@ -1,0 +1,165 @@
+// Table Styles (Theming for Bootstrap Table)
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  margin-bottom: 1rem;
+
+  th, td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--theme-border);
+    vertical-align: top;
+  }
+  
+  thead {
+    th {
+      background-color: var(--theme-sidebar-bg);
+      color: var(--theme-text);
+      font-weight: 600;
+      border-bottom-width: 2px;
+    }
+  }
+  
+  tbody {
+    tr {
+      background-color: var(--theme-card-bg);
+      color: var(--theme-text);
+
+      &:hover {
+        background-color: var(--theme-hover-bg);
+      }
+    }
+  }
+  
+  &.table-striped {
+    tbody tr:nth-of-type(odd) {
+      background-color: rgba(0, 0, 0, 0.03);
+      body.theme-dark & {
+        background-color: rgba(255, 255, 255, 0.03);
+      }
+    }
+  }
+}
+
+// Ensure table within responsive container gets themed
+.table-responsive {
+   .table {
+      // Styles defined above will apply
+   }
+}
+
+.data-table {
+  border-collapse: separate;
+  border-spacing: 0;
+
+  thead {
+    position: sticky;
+    top: 0;
+    background-color: var(--theme-bg, white); // Ensure header stays above scrolling content
+    z-index: 1;
+
+    th {
+      border-bottom: 2px solid var(--theme-border);
+    }
+  }
+
+  tbody tr:hover {
+    background-color: var(--theme-hover-bg);
+  }
+
+  // Add some padding
+  th,
+  td {
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--theme-border); // Use theme border for row lines
+  }
+
+  // Remove bottom border from last row
+  tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  // Align numbers right
+  td.number-cell {
+    text-align: right;
+  }
+}
+
+.table-container {
+  overflow-x: auto;
+  border: 1px solid var(--theme-border); // Use theme border
+  border-radius: 4px;
+  max-height: 400px; 
+  margin-top: 1rem;
+
+  // Ensure the sticky header works correctly
+  thead {
+    // border-bottom: 1px solid $border-color; // REMOVED OLD
+    border-bottom: 1px solid var(--theme-border); // ADDED
+  }
+}
+
+// Specific overrides for simulation results table
+.simulation-results-table {
+  .data-table {
+    thead tr {
+      // border-bottom: 1px solid var(--theme-secondary, #2ecc71); // REMOVED OLD
+      border-bottom: 1px solid var(--theme-border); // ADDED
+    }
+  }
+}
+
+.database-tables-list {
+  padding-left: 40px; // Indent tables under results
+  
+  .database-table-item {
+    display: flex;
+    align-items: center;
+    padding: 6px 10px 6px 0; // Adjust padding
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--theme-muted-text); // Use muted text for non-active
+    font-family: inherit; // Ensure regular font is inherited
+    border-radius: var(--theme-border-radius);
+    
+    .table-item-icon {
+      margin-right: 8px;
+      color: var(--theme-icon-color);
+    }
+    
+    .table-item-name {
+      flex-grow: 1;
+    }
+
+    &:hover {
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-text);
+    }
+    
+    // Active state styling
+    &.active {
+      background-color: var(--theme-active-bg);
+      color: var(--theme-active-text);
+      font-weight: 500; // Slightly bolder for active
+      
+      .table-item-icon {
+         color: var(--theme-active-text); // Match icon color to text
+      }
+    }
+  }
+  
+  .no-tables {
+    font-size: 0.8rem;
+    color: var(--theme-muted-text);
+    padding: 6px 10px 6px 0;
+  }
+}
+
+// Table list container for export modal
+.table-list-container {
+  border: 1px solid var(--theme-border);
+  background-color: var(--theme-bg);
+  color: var(--theme-text);
+}

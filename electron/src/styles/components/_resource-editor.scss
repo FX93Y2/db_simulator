@@ -1,0 +1,94 @@
+// Resource Editor Styles
+.resource-editor {
+  padding: 20px;
+  height: 100%;
+  overflow-y: auto;
+  background-color: var(--theme-bg);
+  
+  h5 {
+    color: var(--theme-primary);
+  }
+  
+  .card {
+    background-color: var(--theme-card-bg);
+    border-color: var(--theme-border);
+    
+    .card-header {
+      background-color: var(--theme-card-bg);
+      border-bottom-color: var(--theme-border);
+      color: var(--theme-text);
+    }
+    
+    .card-body {
+      color: var(--theme-text);
+    }
+  }
+  
+  .list-group-item {
+    background-color: var(--theme-card-bg);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    
+    &:hover {
+      background-color: var(--theme-hover-bg);
+    }
+  }
+  
+  .badge {
+    &.bg-primary {
+      background-color: var(--theme-primary) !important;
+    }
+    
+    &.bg-info {
+      background-color: #17a2b8 !important;
+    }
+    
+    &.bg-warning {
+      background-color: #ffc107 !important;
+      color: #000 !important;
+    }
+    
+    &.bg-secondary {
+      background-color: #6c757d !important;
+    }
+  }
+  
+  .resource-type-inputs {
+    > div {
+      background-color: var(--theme-card-bg);
+      border-color: var(--theme-border);
+      color: var(--theme-text);
+      
+      h6 {
+        color: var(--theme-text);
+      }
+      
+      .form-label {
+        color: var(--theme-text);
+      }
+      
+      .form-control {
+        background-color: var(--theme-card-bg);
+        border-color: var(--theme-border);
+        color: var(--theme-text);
+        
+        &:focus {
+          background-color: var(--theme-card-bg);
+          border-color: var(--theme-primary);
+          color: var(--theme-text);
+          box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+        }
+      }
+      
+      .text-muted {
+        color: var(--theme-muted-text) !important;
+      }
+      
+      .alert-info {
+        background-color: rgba(var(--theme-primary-rgb), 0.1);
+        border-color: rgba(var(--theme-primary-rgb), 0.2);
+        color: var(--theme-text);
+      }
+    }
+  }
+}
