@@ -144,63 +144,99 @@ class EventSimulator:
         Returns:
             Dictionary with simulation results
         """
-        # Set random seed if specified
-        if self.config.random_seed is not None:
-            random.seed(self.config.random_seed)
-            np.random.seed(self.config.random_seed)
-        
-        # Setup resources
-        self.resource_manager.setup_resources(self.config.event_simulation)
-        
-        # Pre-generate entity arrivals
-        entity_arrivals = self.entity_manager.pre_generate_entity_arrivals()
-        
-        # Start entity generation process
-        if entity_arrivals:
-            self.env.process(self.entity_manager.process_pre_generated_arrivals(entity_arrivals, self._process_entity_events))
-        else:
-            # Fallback to dynamic generation if pre-generation fails
-            self.env.process(self.entity_manager.generate_entities(self._process_entity_events))
-            logger.warning("Failed to pre-generate entity arrivals. No entities will be processed.")
-        
-        # Run simulation for specified duration
-        duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
-        logger.info(f"Starting simulation for {self.config.duration_days} days")
-        self.env.run(until=duration_minutes)
-        
-        # Clean up any remaining allocated resources
-        if hasattr(self.resource_manager, 'event_allocations'):
-            remaining_allocations = list(self.resource_manager.event_allocations.keys())
-            if remaining_allocations:
-                logger.info(f"Cleaning up {len(remaining_allocations)} remaining resource allocations")
-                for event_id in remaining_allocations:
-                    try:
-                        self.resource_manager.release_resources(event_id)
-                    except Exception as e:
-                        logger.debug(f"Error releasing resources for event {event_id}: {e}")
-        
-        logger.info(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
-        
-        # Get final resource utilization stats
-        resource_stats = self.resource_manager.get_utilization_stats()
-        
-        # Clean up database connections to prevent EBUSY errors on Windows
         try:
+            # Set random seed if specified
+            if self.config.random_seed is not None:
+                random.seed(self.config.random_seed)
+                np.random.seed(self.config.random_seed)
+            
+            # Setup resources
+            self.resource_manager.setup_resources(self.config.event_simulation)
+            
+            # Pre-generate entity arrivals
+            entity_arrivals = self.entity_manager.pre_generate_entity_arrivals()
+            
+            # Start entity generation process
+            if entity_arrivals:
+                self.env.process(self.entity_manager.process_pre_generated_arrivals(entity_arrivals, self._process_entity_events))
+            else:
+                # Fallback to dynamic generation if pre-generation fails
+                self.env.process(self.entity_manager.generate_entities(self._process_entity_events))
+                logger.warning("Failed to pre-generate entity arrivals. No entities will be processed.")
+            
+            # Run simulation for specified duration
+            duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
+            logger.info(f"Starting simulation for {self.config.duration_days} days")
+            self.env.run(until=duration_minutes)
+            
+            # Clean up any remaining allocated resources
+            if hasattr(self.resource_manager, 'event_allocations'):
+                remaining_allocations = list(self.resource_manager.event_allocations.keys())
+                if remaining_allocations:
+                    logger.info(f"Cleaning up {len(remaining_allocations)} remaining resource allocations")
+                    for event_id in remaining_allocations:
+                        try:
+                            self.resource_manager.release_resources(event_id)
+                        except Exception as e:
+                            logger.debug(f"Error releasing resources for event {event_id}: {e}")
+            
+            logger.info(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
+            
+            # Get final resource utilization stats
+            resource_stats = self.resource_manager.get_utilization_stats()
+            
+            # Return simulation results
+            return {
+                'duration_days': self.config.duration_days,
+                'entity_count': self.entity_manager.entity_count,
+                'processed_events': self.processed_events,
+                'resource_utilization': resource_stats
+            }
+            
+        finally:
+            # ALWAYS clean up database connections to prevent EBUSY errors on Windows
+            self._cleanup_database_connections()
+
+    def _cleanup_database_connections(self):
+        """
+        Clean up all database connections to prevent EBUSY errors on Windows.
+        This method is called in a finally block to ensure cleanup happens even if simulation fails.
+        """
+        try:
+            logger.info("Starting simulator cleanup to prevent EBUSY errors...")
+            
+            # Dispose EventTracker engine first
             if hasattr(self, 'event_tracker') and self.event_tracker:
+                logger.info("Disposing EventTracker engine...")
                 self.event_tracker.dispose()
+            
+            # Dispose main simulator engine
             if hasattr(self, 'engine') and self.engine:
+                logger.info("Disposing main simulator engine...")
                 self.engine.dispose()
-                logger.debug("Main simulator engine disposed successfully")
+                logger.info("Main simulator engine disposed successfully")
+            
+            # Force SQLite to close all connections and cleanup WAL files
+            import sqlite3
+            import time
+            try:
+                # Connect briefly to force WAL checkpoint and close
+                conn = sqlite3.connect(self.db_path, timeout=1.0)
+                conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
+                conn.commit()
+                conn.close()
+                logger.info("Forced SQLite WAL checkpoint completed")
+                
+                # Small delay to ensure OS releases file handles
+                time.sleep(0.1)
+                
+            except Exception as sqlite_err:
+                logger.warning(f"Could not force SQLite cleanup: {sqlite_err}")
+                
+            logger.info("Simulator cleanup completed")
+            
         except Exception as e:
             logger.warning(f"Error during simulator cleanup: {e}")
-        
-        # Return simulation results
-        return {
-            'duration_days': self.config.duration_days,
-            'entity_count': self.entity_manager.entity_count,
-            'processed_events': self.processed_events,
-            'resource_utilization': resource_stats
-        }
 
 
     def _process_entity_events(self, entity_id: int):
