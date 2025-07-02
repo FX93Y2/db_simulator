@@ -13,6 +13,7 @@ from typing import Dict, List, Any, Optional, Union, Tuple
 from pathlib import Path
 from datetime import datetime
 from ..utils.faker_utils import generate_fake_data
+from ..utils.file_operations import safe_delete_sqlite_file, ensure_database_closed
 import sqlite3
 import dataclasses # Import dataclasses
 
@@ -82,12 +83,8 @@ class DatabaseGenerator:
         logger.info(f"Generating database at absolute path: {db_path}")
         
         # Delete the file if it already exists to ensure we start fresh
-        if os.path.exists(db_path):
-            try:
-                os.remove(db_path)
-                logger.info(f"Removed existing database file: {db_path}")
-            except Exception as e:
-                logger.error(f"Error removing existing database file: {e}")
+        if not safe_delete_sqlite_file(db_path):
+            logger.warning(f"Could not delete existing database file, continuing anyway: {db_path}")
         
         # Create SQLAlchemy engine with specific flags for better reliability
         connection_string = f"sqlite:///{db_path}"
@@ -106,6 +103,9 @@ class DatabaseGenerator:
         # Commit and close session
         self.session.commit()
         self.session.close()
+        
+        # Ensure database engine is properly closed for safe file operations
+        ensure_database_closed(self.engine)
         
         # Verify the database file exists and is not empty
         if not os.path.exists(db_path):

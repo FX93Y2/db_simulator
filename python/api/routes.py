@@ -13,6 +13,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.generator import generate_database, generate_database_for_simulation
 from src.simulation.runner import run_simulation, run_simulation_from_config_dir
+from src.utils.file_operations import safe_delete_sqlite_file
 from config_storage.config_db import ConfigManager
 
 # Create logger
@@ -523,15 +524,8 @@ def generate_and_simulate():
             preliminary_db_path = os.path.join(target_dir, preliminary_db_name)
             
             logger.info(f"Checking for existing database file at: {preliminary_db_path}")
-            if os.path.exists(preliminary_db_path):
-                logger.warning(f"Attempting to delete existing database file: {preliminary_db_path}")
-                os.remove(preliminary_db_path)
-                if not os.path.exists(preliminary_db_path):
-                    logger.info("Successfully deleted existing database file.")
-                else:
-                    logger.error("Failed to delete existing database file!")
-            else:
-                logger.info("No existing database file found at preliminary path.")
+            if not safe_delete_sqlite_file(preliminary_db_path):
+                logger.warning(f"Could not safely delete existing database file: {preliminary_db_path}")
         except Exception as del_err:
             logger.error(f"Error trying to delete existing database file: {del_err}")
         # --- Deletion attempt finished --- 
