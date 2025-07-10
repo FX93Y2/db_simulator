@@ -17,9 +17,21 @@ import { FiTrash2, FiEdit } from 'react-icons/fi';
 
 // Process (Event) Node Component - Rectangle
 const ProcessNode = ({ data, selected }) => {
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (data.onDelete) {
+      data.onDelete();
+    }
+  };
+
   return (
     <div className={`custom-node process-step-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Left} />
+      {selected && (
+        <button className="node-delete-btn" onClick={handleDelete} title="Delete node (or press Delete key)">
+          <FiTrash2 size={14} />
+        </button>
+      )}
       <div className="node-header">
         <span className="node-type">Process</span>
       </div>
@@ -38,7 +50,7 @@ const ProcessNode = ({ data, selected }) => {
           )}
         </div>
       </div>
-      <Handle type="source" position={Position.Bottom} />
+      <Handle type="source" position={Position.Right} />
     </div>
   );
 };
@@ -47,27 +59,31 @@ const ProcessNode = ({ data, selected }) => {
 const DecideNode = ({ data, selected }) => {
   const outcomes = data.stepConfig?.decide_config?.outcomes || [];
   
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (data.onDelete) {
+      data.onDelete();
+    }
+  };
+  
   return (
     <div className={`custom-node decide-step-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Left} style={{ left: '0%', top: '50%' }} />
+      {selected && (
+        <button className="node-delete-btn" onClick={handleDelete} title="Delete node (or press Delete key)">
+          <FiTrash2 size={14} />
+        </button>
+      )}
       <div className="diamond-shape">
         <div className="diamond-content">
-          <div className="node-title">{data.label}</div>
-          <div className="node-details">
-            <div className="detail-item">
-              <strong>Type:</strong> {data.stepConfig?.decide_config?.decision_type || 'probability'}
-            </div>
-            <div className="detail-item">
-              <strong>Outcomes:</strong> {outcomes.length}
-            </div>
-          </div>
+          <div className="node-title">Decision</div>
         </div>
       </div>
-      {/* Multiple source handles for different outcomes */}
-      <Handle type="source" position={Position.Right} id="outcome-0" style={{ top: '45%' }} />
-      <Handle type="source" position={Position.Left} id="outcome-1" style={{ top: '45%' }} />
+      {/* All source handles on the right point */}
+      <Handle type="source" position={Position.Right} id="outcome-0" style={{ right: '0%', top: '45%' }} />
+      <Handle type="source" position={Position.Right} id="outcome-1" style={{ right: '0%', top: '55%' }} />
       {outcomes.length > 2 && (
-        <Handle type="source" position={Position.Bottom} id="outcome-2" style={{ left: '50%' }} />
+        <Handle type="source" position={Position.Right} id="outcome-2" style={{ right: '0%', top: '50%' }} />
       )}
     </div>
   );
@@ -75,9 +91,21 @@ const DecideNode = ({ data, selected }) => {
 
 // Release Node Component - Dispose shape (rectangle with angled side)
 const ReleaseNode = ({ data, selected }) => {
+  const handleDelete = (e) => {
+    e.stopPropagation();
+    if (data.onDelete) {
+      data.onDelete();
+    }
+  };
+
   return (
     <div className={`custom-node release-step-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Top} />
+      <Handle type="target" position={Position.Left} />
+      {selected && (
+        <button className="node-delete-btn" onClick={handleDelete} title="Delete node (or press Delete key)">
+          <FiTrash2 size={14} />
+        </button>
+      )}
       <div className="dispose-shape">
         <div className="dispose-content">
           <div className="node-title">{data.label}</div>
@@ -91,7 +119,7 @@ const ReleaseNode = ({ data, selected }) => {
 };
 
 // Node Edit Modal
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, theme, parsedSchema }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, theme, parsedSchema, resourceDefinitions }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -435,56 +463,102 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, theme, parsedSchema }
             <Button size="sm" onClick={addResourceRequirement}>Add Resource</Button>
           </div>
 
-          {resourceRequirements.map((req, index) => (
-            <div key={index} className="border p-3 mb-3 rounded">
-              <Row>
-                <Col md={4}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Resource Table</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={req.resource_table || ''}
-                      onChange={(e) => updateResourceRequirement(index, 'resource_table', e.target.value)}
-                      placeholder="e.g., Consultant"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={4}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Resource Type</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={req.value || ''}
-                      onChange={(e) => updateResourceRequirement(index, 'value', e.target.value)}
-                      placeholder="e.g., Developer"
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Count</Form.Label>
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      value={req.count || 1}
-                      onChange={(e) => updateResourceRequirement(index, 'count', parseInt(e.target.value) || 1)}
-                    />
-                  </Form.Group>
-                </Col>
-                <Col md={1}>
-                  <div className="d-flex align-items-end h-100 pb-2">
-                    <Button 
-                      variant="outline-danger" 
-                      size="sm" 
-                      onClick={() => removeResourceRequirement(index)}
-                    >
-                      <FiTrash2 />
-                    </Button>
-                  </div>
-                </Col>
-              </Row>
-            </div>
-          ))}
+          {resourceRequirements.map((req, index) => {
+            const availableResourceTables = Object.keys(resourceDefinitions);
+            const selectedResourceTable = req.resource_table || '';
+            const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable] 
+              ? resourceDefinitions[selectedResourceTable].resourceTypes 
+              : [];
+
+            return (
+              <div key={index} className="border p-3 mb-3 rounded">
+                <Row>
+                  <Col md={4}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Resource Table</Form.Label>
+                      {availableResourceTables.length > 0 ? (
+                        <Form.Select
+                          value={selectedResourceTable}
+                          onChange={(e) => {
+                            updateResourceRequirement(index, 'resource_table', e.target.value);
+                            // Reset resource type when table changes
+                            updateResourceRequirement(index, 'value', '');
+                          }}
+                        >
+                          <option value="">Select resource table...</option>
+                          {availableResourceTables.map((tableName) => (
+                            <option key={tableName} value={tableName}>
+                              {tableName}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      ) : (
+                        <Form.Control
+                          type="text"
+                          value={selectedResourceTable}
+                          onChange={(e) => updateResourceRequirement(index, 'resource_table', e.target.value)}
+                          placeholder="e.g., Consultant"
+                        />
+                      )}
+                      {availableResourceTables.length === 0 && (
+                        <Form.Text className="text-muted">
+                          No resources found in database configuration. Using text input.
+                        </Form.Text>
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={4}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Resource Type</Form.Label>
+                      {availableResourceTypes.length > 0 ? (
+                        <Form.Select
+                          value={req.value || ''}
+                          onChange={(e) => updateResourceRequirement(index, 'value', e.target.value)}
+                        >
+                          <option value="">Select resource type...</option>
+                          {availableResourceTypes.map((typeName) => (
+                            <option key={typeName} value={typeName}>
+                              {typeName}
+                            </option>
+                          ))}
+                        </Form.Select>
+                      ) : (
+                        <Form.Control
+                          type="text"
+                          value={req.value || ''}
+                          onChange={(e) => updateResourceRequirement(index, 'value', e.target.value)}
+                          placeholder={selectedResourceTable ? "Select resource table first" : "e.g., Developer"}
+                          disabled={selectedResourceTable && availableResourceTypes.length === 0}
+                        />
+                      )}
+                    </Form.Group>
+                  </Col>
+                  <Col md={3}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Count</Form.Label>
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        value={req.count || 1}
+                        onChange={(e) => updateResourceRequirement(index, 'count', parseInt(e.target.value) || 1)}
+                      />
+                    </Form.Group>
+                  </Col>
+                  <Col md={1}>
+                    <div className="d-flex align-items-end h-100 pb-2">
+                      <Button 
+                        variant="outline-danger" 
+                        size="sm" 
+                        onClick={() => removeResourceRequirement(index)}
+                      >
+                        <FiTrash2 />
+                      </Button>
+                    </div>
+                  </Col>
+                </Row>
+              </div>
+            );
+          })}
         </>
       );
 
@@ -610,6 +684,95 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
   const [selectedNode, setSelectedNode] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [flowData, setFlowData] = useState(null);
+  const [resourceDefinitions, setResourceDefinitions] = useState({});
+  const [schemaId, setSchemaId] = useState(null);
+  const [layoutMap, setLayoutMap] = useState({});
+
+  // Generate a consistent ID for the schema based on flow content
+  useEffect(() => {
+    if (yamlContent) {
+      try {
+        // Generate a stable ID that doesn't change when positions are modified
+        const yamlPrefix = yamlContent.substring(0, 200).replace(/\s+/g, '');
+        let stableId = '';
+        
+        // Simple hash function to create a stable ID
+        for (let i = 0; i < yamlPrefix.length; i++) {
+          stableId += yamlPrefix.charCodeAt(i);
+        }
+        
+        const id = `modular_flow_positions_${stableId}`;
+        setSchemaId(id);
+      } catch (error) {
+        console.error('Error generating schema ID:', error);
+      }
+    }
+  }, [yamlContent]);
+
+  // Load layout map from localStorage on mount or schemaId change
+  useEffect(() => {
+    if (schemaId) {
+      try {
+        const saved = localStorage.getItem(schemaId);
+        setLayoutMap(saved ? JSON.parse(saved) : {});
+      } catch (err) {
+        setLayoutMap({});
+      }
+    }
+  }, [schemaId]);
+
+  // Debounced save to localStorage
+  const debounceRef = useRef();
+  const saveLayoutToLocalStorage = useCallback((layout, key) => {
+    if (!key) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(key, JSON.stringify(layout));
+      } catch (err) {
+        console.error('Error saving layout to localStorage:', err);
+      }
+    }, 300);
+  }, []);
+
+  // Save layout to localStorage whenever layoutMap changes
+  useEffect(() => {
+    if (schemaId) {
+      saveLayoutToLocalStorage(layoutMap, schemaId);
+    }
+  }, [layoutMap, schemaId, saveLayoutToLocalStorage]);
+
+  // Extract resource definitions from simulation configuration resource_capacities
+  useEffect(() => {
+    if (!parsedSchema?.event_simulation?.resource_capacities) {
+      setResourceDefinitions({});
+      return;
+    }
+
+    try {
+      const resourceCapacities = parsedSchema.event_simulation.resource_capacities;
+      const definitions = {};
+      
+      // Extract resource tables and their types from capacity rules
+      Object.keys(resourceCapacities).forEach(resourceTable => {
+        const capacityRules = resourceCapacities[resourceTable]?.capacity_rules || [];
+        
+        const resourceTypes = capacityRules.map(rule => rule.resource_type).filter(Boolean);
+        
+        if (resourceTypes.length > 0) {
+          definitions[resourceTable] = {
+            resourceTypes: resourceTypes,
+            attributeName: 'resource_type'
+          };
+        }
+      });
+      
+      setResourceDefinitions(definitions);
+    } catch (error) {
+      console.error('Error extracting resource definitions from simulation config:', error);
+      setResourceDefinitions({});
+    }
+  }, [parsedSchema]);
 
   // Parse event_flows from schema and build diagram
   useEffect(() => {
@@ -630,17 +793,28 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
     const flow = eventFlows[0];
     setFlowData(flow);
     
-    buildNodesAndEdges(flow);
+    // Store current node positions before rebuilding
+    const currentPositions = {};
+    nodes.forEach(node => {
+      currentPositions[node.id] = node.position;
+    });
+    
+    buildNodesAndEdges(flow, currentPositions);
   }, [parsedSchema]);
 
-  const buildNodesAndEdges = (flow) => {
+  const buildNodesAndEdges = useCallback((flow, currentPositions = {}) => {
     const newNodes = [];
     const newEdges = [];
 
     // Create nodes from steps
     flow.steps.forEach((step, index) => {
-      const x = 100 + (index % 3) * 300;
-      const y = 100 + Math.floor(index / 3) * 200;
+      // Use position from localStorage if available, then current positions, then default layout
+      const savedPosition = layoutMap[step.step_id];
+      const currentPosition = currentPositions[step.step_id];
+      const defaultX = 100 + (index % 3) * 300;
+      const defaultY = 100 + Math.floor(index / 3) * 200;
+      
+      const position = savedPosition || currentPosition || { x: defaultX, y: defaultY };
 
       let nodeType = 'process';
       if (step.step_type === 'decide') nodeType = 'decide';
@@ -649,11 +823,12 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
       const node = {
         id: step.step_id,
         type: nodeType,
-        position: { x, y },
+        position: position,
         data: {
           label: step.step_id,
           stepConfig: step,
-          theme: theme
+          theme: theme,
+          onDelete: () => onNodesDelete([{ id: step.step_id }])
         }
       };
 
@@ -666,13 +841,12 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
         // Handle decide step outcomes
         step.decide_config.outcomes.forEach((outcome, index) => {
           if (outcome.next_step_id) {
-            const probability = outcome.conditions?.[0]?.probability || 0;
             newEdges.push({
               id: `${step.step_id}-${outcome.next_step_id}`,
               source: step.step_id,
               target: outcome.next_step_id,
               sourceHandle: `outcome-${index}`,
-              label: `${(probability * 100).toFixed(0)}%`,
+              type: 'smoothstep',
               markerEnd: { type: MarkerType.ArrowClosed },
               style: { stroke: '#ed8936', strokeWidth: 2 }
             });
@@ -685,6 +859,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
             id: `${step.step_id}-${nextStepId}`,
             source: step.step_id,
             target: nextStepId,
+            type: 'smoothstep',
             markerEnd: { type: MarkerType.ArrowClosed },
             style: { stroke: '#38a169', strokeWidth: 2 }
           });
@@ -694,12 +869,13 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
 
     setNodes(newNodes);
     setEdges(newEdges);
-  };
+  }, [onNodesDelete, theme, layoutMap]);
 
   const onConnect = useCallback((params) => {
     // Add visual edge
     const newEdge = {
       ...params,
+      type: 'smoothstep',
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { stroke: '#38a169', strokeWidth: 2 }
     };
@@ -739,6 +915,22 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
     setSelectedNode(node);
     setShowEditModal(true);
   }, []);
+
+  // Handle keyboard shortcuts
+  const onKeyDown = useCallback((event) => {
+    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNode) {
+      onNodesDelete([selectedNode]);
+      setSelectedNode(null);
+    }
+  }, [selectedNode, onNodesDelete]);
+
+  // Add keyboard event listener
+  useEffect(() => {
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [onKeyDown]);
 
   const handleNodeUpdate = (updatedNode) => {
     const oldNodeId = selectedNode?.id;
@@ -801,6 +993,18 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
     }
   };
 
+  // Handle node drag end to save positions to localStorage
+  const onNodeDragStop = useCallback((event, node) => {
+    setNodes(nds =>
+      nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
+    );
+    // Update layoutMap in state (triggers debounced save)
+    setLayoutMap(prev => ({
+      ...prev,
+      [node.id]: { ...node.position }
+    }));
+  }, [setNodes]);
+
   const onNodesDelete = useCallback((deletedNodes) => {
     if (flowData && parsedSchema) {
       const updatedSchema = { ...parsedSchema };
@@ -844,6 +1048,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
         onConnect={onConnect}
         onNodeClick={onNodeClick}
         onNodeDoubleClick={onNodeDoubleClick}
+        onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
         fitView
@@ -862,6 +1067,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme })
         onNodeUpdate={handleNodeUpdate}
         theme={theme}
         parsedSchema={parsedSchema}
+        resourceDefinitions={resourceDefinitions}
       />
     </div>
   );

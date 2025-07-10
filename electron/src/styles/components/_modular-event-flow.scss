@@ -4,6 +4,21 @@
   width: 100%;
 }
 
+/* Override ReactFlow default node styling */
+.modular-event-flow .react-flow__node {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+.modular-event-flow .react-flow__node-default {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
 /* Process Step Node (Rectangle) */
 .process-step-node {
   background: var(--theme-card-bg);
@@ -45,34 +60,38 @@
 
 /* Decide Step Node (Diamond) */
 .decide-step-node {
-  background: transparent;
-  border: none;
-  padding: 0;
-  width: 180px;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 120px;
   height: 120px;
   position: relative;
+  box-shadow: none !important;
 }
 
 .diamond-shape {
-  width: 180px;
-  height: 90px;
+  width: 120px;
+  height: 80px;
   background: #ed8936;
   border: 2px solid #dd6b20;
-  transform: rotate(45deg);
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -40px;
+  margin-left: -60px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 15px 0;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
   transition: all 0.2s ease;
 }
 
 .diamond-content {
-  transform: rotate(-45deg);
   text-align: center;
   color: white;
   padding: 0.5rem;
-  max-width: 120px;
+  max-width: 100px;
   line-height: 1.2;
 }
 
@@ -83,31 +102,36 @@
 
 .decide-step-node:hover .diamond-shape {
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: rotate(45deg) translateY(-1px);
+  transform: translateY(-1px);
 }
 
 /* Release Step Node (Dispose shape) */
 .release-step-node {
-  background: transparent;
-  border: none;
-  padding: 0;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
   width: 180px;
-  height: 100px;
+  height: 80px;
   position: relative;
+  box-shadow: none !important;
 }
 
 .dispose-shape {
   width: 160px;
-  height: 80px;
+  height: 60px;
   background: #e53e3e;
   border: 2px solid #c53030;
   clip-path: polygon(0% 0%, 85% 0%, 100% 100%, 0% 100%);
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -30px;
+  margin-left: -80px;
   display: flex;
   align-items: center;
   justify-content: flex-start;
   padding-left: 1rem;
-  margin: 10px;
   transition: all 0.2s ease;
 }
 
@@ -177,6 +201,31 @@
   
   strong {
     color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* Node Delete Button */
+.node-delete-btn {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  background: #dc3545;
+  border: 2px solid white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  color: white;
+  font-size: 12px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background: #c82333;
+    transform: scale(1.1);
   }
 }
 
@@ -261,7 +310,7 @@
   }
   
   .diamond-shape {
-    transform: rotate(45deg) scale(1.02);
+    transform: scale(1.02);
   }
   
   .dispose-shape {
