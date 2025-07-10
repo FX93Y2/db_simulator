@@ -23,6 +23,7 @@ from ..utils.data_generation import generate_attribute_value
 from .event_tracker import EventTracker
 from .resource_manager import ResourceManager
 from .entity_manager import EntityManager
+from .step_processors import StepProcessorFactory
 import dataclasses
 
 logger = logging.getLogger(__name__)
@@ -135,6 +136,11 @@ class EventSimulator:
         
         # Initialize entity manager
         self.entity_manager = EntityManager(self.env, self.engine, self.db_path, config, db_config, self.event_tracker)
+        
+        # Initialize step processor factory
+        self.step_processor_factory = StepProcessorFactory(
+            self.env, self.engine, self.resource_manager, self.entity_manager, self.event_tracker, self.config
+        )
     
     
     def run(self) -> Dict[str, Any]:
@@ -262,16 +268,12 @@ class EventSimulator:
         # Get the adjusted entity ID (1-based indexing in the database)
         db_entity_id = entity_id + 1
         
-        # Check which architecture to use
+        # Use new event flows architecture
         event_sim = self.config.event_simulation
         if event_sim and event_sim.event_flows and event_sim.event_flows.flows:
-            # Use new event flows architecture
             yield from self._process_entity_with_flows(db_entity_id, entity_table, event_table)
-        elif event_sim and event_sim.event_sequence:
-            # Use old event sequence architecture
-            yield from self._process_entity_with_sequences(db_entity_id, entity_table, event_table)
         else:
-            logger.error("No event sequence or event flows configuration found")
+            logger.error("No event flows configuration found")
             yield self.env.timeout(0)
 
     def _process_entity_with_flows(self, entity_id: int, entity_table: str, event_table: str):
@@ -300,60 +302,6 @@ class EventSimulator:
         # Yield to make this a generator
         yield self.env.timeout(0)
 
-    def _process_entity_with_sequences(self, entity_id: int, entity_table: str, event_table: str):
-        """
-        Process entity using the old event sequence architecture
-        
-        Args:
-            entity_id: Entity ID (1-based for database)
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-        """
-        # Create a process-specific engine for isolation
-        process_engine = create_engine(
-            f"sqlite:///{self.db_path}?journal_mode=WAL",
-            poolclass=NullPool,
-            connect_args={"check_same_thread": False}
-        )
-        
-        try:
-            with Session(process_engine) as session:
-                # Find the relationship column
-                relationship_columns = self.entity_manager.find_relationship_columns(session, entity_table, event_table)
-                if not relationship_columns:
-                    logger.error(f"No relationship column found between {entity_table} and {event_table}")
-                    yield self.env.timeout(0)  # Make it a generator by yielding
-                    return
-                
-                relationship_column = relationship_columns[0]
-                
-                # Find initial events for this entity (those with the initial event type)
-                # Query for events with the entity ID in the relationship column
-                sql_query = text(f"""
-                    SELECT id FROM {event_table}
-                    WHERE {relationship_column} = {entity_id}
-                """)
-                result = session.execute(sql_query).fetchall()
-                
-                if result:
-                    event_ids = [row[0] for row in result]
-                    logger.debug(f"Found {len(event_ids)} events for entity {entity_id}: {event_ids}")
-                    
-                    # Process each event
-                    for event_id in event_ids:
-                        self.env.process(self._process_event(entity_id, event_id, event_table, entity_table))
-                        
-                    # Yield to make this a generator
-                    yield self.env.timeout(0)
-                else:
-                    logger.warning(f"No events found for entity {entity_id}")
-                    yield self.env.timeout(0)  # Make it a generator by yielding
-        except Exception as e:
-            logger.error(f"Error processing events for entity {entity_id}: {str(e)}", exc_info=True)
-            yield self.env.timeout(0)  # Make it a generator by yielding
-        finally:
-            # Always dispose of the process-specific engine
-            process_engine.dispose()
     
     def _determine_required_resources(self, event_id: int) -> List[str]:
         """
@@ -367,36 +315,6 @@ class EventSimulator:
         """
         return self.resource_manager.determine_required_resources(event_id, self.config.event_simulation)
     
-    def _get_event_duration(self, event_type: str) -> float:
-        """
-        Get the duration for an event type from the event sequence configuration
-        
-        Args:
-            event_type: Event type
-            
-        Returns:
-            Duration in minutes
-            
-        Raises:
-            ValueError: If no duration is found for the event type
-        """
-        event_sim = self.config.event_simulation
-        if not event_sim:
-            logger.warning("No event simulation configuration found")
-            raise ValueError("No event simulation configuration found")
-        
-        # Check if event sequence is configured and has a specific duration for this event type
-        if event_sim.event_sequence and event_type:
-            # Find the event type definition in the event sequence configuration
-            for et in event_sim.event_sequence.event_types:
-                if et.name == event_type:
-                    # Use event type-specific duration
-                    duration_days = generate_from_distribution(et.duration.get('distribution', {}))
-                    return duration_days * 24 * 60  # Convert days to minutes
-        
-        # Instead of falling back to default values, raise a warning and error
-        logger.warning(f"No duration found for event type '{event_type}'")
-        raise ValueError(f"No duration found for event type '{event_type}'")
 
     def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
         """
@@ -414,31 +332,7 @@ class EventSimulator:
                 return step
         return None
     
-    def _process_decide_step(self, step: 'Step') -> Optional[str]:
-        """
-        Process a decide step and return the next step ID
-        
-        Args:
-            step: Decide step configuration
-            
-        Returns:
-            Next step ID or None if no outcome is selected
-        """
-        if not step.decide_config or not step.decide_config.outcomes:
-            logger.warning(f"Decide step {step.step_id} has no outcomes configured")
-            return None
-        
-        # Evaluate outcomes in order
-        for outcome in step.decide_config.outcomes:
-            for condition in outcome.conditions:
-                if condition.condition_type == "probability":
-                    if random.random() <= condition.probability:
-                        logger.debug(f"Decide step {step.step_id} selected outcome {outcome.outcome_id} -> {outcome.next_step_id}")
-                        return outcome.next_step_id
-        
-        # No outcome was selected
-        logger.warning(f"No outcome selected for decide step {step.step_id}")
-        return None
+    # Legacy method removed - now handled by DecideStepProcessor
     
     def _get_step_event_duration(self, step: 'Step') -> float:
         """
@@ -459,7 +353,7 @@ class EventSimulator:
 
     def _process_step(self, entity_id: int, step_id: str, flow: 'EventFlow', entity_table: str, event_table: str):
         """
-        Process a step in the event flow
+        Process a step in the event flow using modular step processors.
         
         Args:
             entity_id: Entity ID
@@ -475,25 +369,23 @@ class EventSimulator:
         
         logger.debug(f"Processing step {step_id} of type {step.step_type} for entity {entity_id}")
         
-        if step.step_type == "event":
-            # Process event step
-            yield from self._process_event_step(entity_id, step, flow, entity_table, event_table)
+        try:
+            # Use the step processor factory to process the step
+            step_generator = self.step_processor_factory.process_step(
+                entity_id, step, flow, entity_table, event_table
+            )
             
-        elif step.step_type == "decide":
-            # Process decide step
-            next_step_id = self._process_decide_step(step)
+            # Process the step and get the next step ID
+            next_step_id = yield from step_generator
+            
+            # Continue to next step if applicable
             if next_step_id:
                 self.env.process(self._process_step(entity_id, next_step_id, flow, entity_table, event_table))
             else:
-                logger.warning(f"Entity {entity_id} stuck at decide step {step_id} - no outcome selected")
+                logger.debug(f"Entity {entity_id} flow ended at step {step_id}")
                 
-        elif step.step_type == "release":
-            # Process release step - entity completion
-            logger.info(f"Entity {entity_id} completed flow {flow.flow_id} at release step {step_id}")
-            # No further processing needed for release
-            
-        else:
-            logger.error(f"Unknown step type {step.step_type} for step {step_id}")
+        except Exception as e:
+            logger.error(f"Error processing step {step_id} for entity {entity_id}: {str(e)}", exc_info=True)
 
     def _process_event_step(self, entity_id: int, step: 'Step', flow: 'EventFlow', entity_table: str, event_table: str):
         """
@@ -680,293 +572,4 @@ class EventSimulator:
             logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
             return None
 
-    def _get_next_event_type(self, current_event_type: str) -> Optional[str]:
-        """
-        Determine the next event type based on transitions
-        
-        Args:
-            current_event_type: The current event type
-            
-        Returns:
-            The next event type or None if no transition is defined
-        """
-        try:
-            event_sim = self.config.event_simulation
-            if not event_sim:
-                logger.warning("No event simulation configuration found")
-                return None
-            if not event_sim.event_sequence:
-                logger.warning("No event sequence configuration found")
-                return None
-            if not event_sim.event_sequence.transitions:
-                logger.warning(f"No transitions defined for event type '{current_event_type}'")
-                return None
-            
-            # Find the transition for this event type
-            for transition in event_sim.event_sequence.transitions:
-                if transition.from_event == current_event_type:
-                    # Found the transition, determine the next event type based on probabilities
-                    if not transition.to_events:
-                        logger.warning(f"No destination events defined for transition from '{current_event_type}'")
-                        return None
-                    
-                    # If there's only one destination, return it
-                    if len(transition.to_events) == 1:
-                        return transition.to_events[0].event_type
-                        
-                    # Generate a random number to determine the next event
-                    import random
-                    r = random.random()
-                    cumulative_prob = 0.0
-                    
-                    for event_transition in transition.to_events:
-                        cumulative_prob += event_transition.probability
-                        if r <= cumulative_prob:
-                            return event_transition.event_type
-            
-            # No transition found for this event type
-            logger.warning(f"No transition found for event type '{current_event_type}'")
-            return None
-        except Exception as e:
-            logger.error(f"Error determining next event type: {str(e)}", exc_info=True)
-        return None
 
-    def _process_event(self, entity_id: int, event_id: int, event_table: str, entity_table: str):
-        """
-        Process an event for an entity
-        
-        Args:
-            entity_id: Entity ID
-            event_id: Event ID
-            event_table: Name of the event table
-            entity_table: Name of the entity table
-        """
-        # Check if simulation is still running
-        duration_minutes = self.config.duration_days * 24 * 60
-        if self.env.now >= duration_minutes:
-            logger.debug(f"Skipping event {event_id} processing - simulation time exceeded")
-            return
-        
-        # Create a process-specific engine for isolation
-        process_engine = create_engine(
-            f"sqlite:///{self.db_path}?journal_mode=WAL",
-            poolclass=NullPool,
-            connect_args={"check_same_thread": False}
-        )
-        
-        try:
-            with Session(process_engine) as session:
-                # Get event details
-                relationship_columns = self.entity_manager.find_relationship_columns(session, entity_table, event_table)
-                if not relationship_columns:
-                    logger.error(f"No relationship column found between {entity_table} and {event_table}")
-                    return
-                
-                relationship_column = relationship_columns[0]
-                
-                # Find the event type column
-                event_type_column = self.entity_manager.find_event_type_column(session, event_table)
-                if not event_type_column:
-                    logger.error(f"Could not find event type column in {event_table}")
-                    return
-                
-                # Get the event type
-                sql_query = text(f"SELECT {event_type_column} FROM {event_table} WHERE id = {event_id}")
-                logger.debug(f"Getting event type with query: {sql_query}")
-                result = session.execute(sql_query).fetchone()
-                
-                if not result:
-                    logger.error(f"Event {event_id} not found in {event_table}")
-                    return
-            
-                event_type = result[0]
-                logger.debug(f"Event {event_id} has type {event_type}")
-                
-                # Record the entity's current event
-                self.entity_manager.entity_current_event_types[entity_id] = event_type
-                
-                # Find the event configuration
-                event_sim = self.config.event_simulation
-                if event_sim and event_sim.event_sequence and event_sim.event_sequence.event_types:
-                    # Find event details for this type
-                    event_config = None
-                    for et in event_sim.event_sequence.event_types:
-                        if et.name == event_type:
-                            event_config = et
-                            break
-                    
-                    if not event_config:
-                        logger.error(f"No configuration found for event type '{event_type}'. Event processing will be skipped.")
-                        return
-                    
-                    # Get the event duration
-                    logger.debug(f"Getting duration for event type {event_type}")
-                    duration_days = generate_from_distribution(event_config.duration.get('distribution', {}))
-                    duration_minutes = duration_days * 24 * 60  # Convert to minutes
-                    
-                    # Get resource requirements
-                    resource_requirements = event_config.resource_requirements
-                    
-                    # Allocate resources using the new FilterStore-based approach
-                    if resource_requirements:
-                        # Convert resource requirements to the format expected by allocate_resources
-                        requirements_list = []
-                        for req in resource_requirements:
-                            requirements_list.append({
-                                'resource_table': req.resource_table,
-                                'value': req.value,
-                                'count': req.count
-                            })
-                        
-                        # Allocate resources (this will yield until resources are available)
-                        try:
-                            yield self.env.process(
-                                self.resource_manager.allocate_resources(event_id, requirements_list)
-                            )
-                        except simpy.Interrupt:
-                            logger.warning(f"Resource allocation interrupted for event {event_id}")
-                            return
-                    
-                    # Record event processing start
-                    start_time = self.env.now
-                    start_datetime = self.config.start_date + timedelta(minutes=start_time)
-                    
-                    # Wait for the event duration
-                    yield self.env.timeout(duration_minutes)
-                    
-                    # Record event processing end
-                    end_time = self.env.now
-                    end_datetime = self.config.start_date + timedelta(minutes=end_time)
-                    
-                    # Record resource allocations in the tracker
-                    # Get the allocated resources from the resource manager
-                    if event_id in self.resource_manager.event_allocations:
-                        allocated_resources = self.resource_manager.event_allocations[event_id]
-                        for resource in allocated_resources:
-                            # Record in the event tracker
-                            self.event_tracker.record_resource_allocation(
-                                event_id=event_id,
-                                resource_table=resource.table,
-                                resource_id=resource.id,
-                                allocation_time=start_time,
-                                release_time=end_time
-                            )
-                    
-                    # Release resources using the new method
-                    self.resource_manager.release_resources(event_id)
-                    
-                    # Record the event processing
-                    with process_engine.connect() as conn:
-                        stmt = insert(self.event_tracker.event_processing).values(
-                            event_table=event_table,
-                            event_id=event_id,
-                            entity_id=entity_id,
-                            start_time=start_time,
-                            end_time=end_time,
-                            duration=duration_minutes,
-                            start_datetime=start_datetime,
-                            end_datetime=end_datetime
-                        )
-                        conn.execute(stmt)
-                        conn.commit()
-                    
-                    # Increment the processed events counter
-                    self.processed_events += 1
-                            
-                    logger.info(f"Processed event {event_id} of type {event_type} for entity {entity_id} in {duration_minutes/60:.2f} hours")
-                    
-                    # Create the next event if needed
-                    # Determine the next event type based on transitions
-                    next_event_type = self._get_next_event_type(event_type)
-                    
-                    if next_event_type:
-                        # --- Start: Logic copied and adapted from _create_events --- 
-                        event_entity_config = self.entity_manager.get_entity_config(event_table)
-                        if not event_entity_config:
-                            logger.error(f"Database configuration not found for event entity: {event_table} when creating next event. Cannot proceed with event creation.")
-                            return
-
-                        # Get the next ID for the new event
-                        sql_query = text(f"SELECT MAX(id) FROM {event_table}")
-                        result = session.execute(sql_query).fetchone()
-                        next_id = (result[0] or 0) + 1
-                        
-                        # Prepare data for the new event row, including generated attributes
-                        row_data = {
-                            "id": next_id,
-                            relationship_column: entity_id,
-                            event_type_column: next_event_type
-                        }
-
-                        # Generate values for other attributes
-                        for attr in event_entity_config.attributes:
-                            # Skip PK, the FK to the entity, and the event type column
-                            if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
-                                continue
-                            
-                            # Skip other Foreign Keys for now
-                            if attr.is_foreign_key:
-                                continue
-
-                            if attr.generator:
-                                # Special handling for 'simulation_event' generator type - skip it
-                                if attr.generator.type == 'simulation_event':
-                                    continue 
-                                    
-                                gen_dict = dataclasses.asdict(attr.generator)
-                                attr_config_dict = {
-                                    'name': attr.name,
-                                    'generator': gen_dict
-                                }
-                                # Use next_id - 1 for 0-based row_index context
-                                row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
-                            else:
-                                # Instead of silently letting DB handle defaults, log a warning
-                                logger.warning(f"No generator defined for attribute '{attr.name}' in table '{event_table}'. Database defaults will be used if available.")
-
-                        # Build INSERT statement dynamically
-                        columns = ", ".join(row_data.keys())
-                        placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-                        sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
-
-                        logger.debug(f"Creating next event in {event_table} with data: {row_data}")
-                        session.execute(sql_query, row_data)
-                        # --- End: Logic copied and adapted from _create_events --- 
-                        
-                        # Commit the changes for the new event immediately?
-                        # Or commit might happen when the session context manager exits?
-                        # Let's rely on the session commit at the end of _generate_entities or similar process start point.
-                        # Re-evaluating: The original code committed here. Let's keep that.
-                        session.commit()
-                        
-                        # Process the new event
-                        logger.info(f"Created next event {next_id} of type {next_event_type} for entity {entity_id}")
-                        self.env.process(self._process_event(entity_id, next_id, event_table, entity_table))
-                    else:
-                        logger.info(f"Entity {entity_id} has completed all events in the sequence")
-                else:
-                    logger.warning("No event sequence configured. Cannot process events properly.")
-        except GeneratorExit:
-            # This happens when the simulation ends and interrupts ongoing processes
-            logger.debug(f"Event {event_id} processing interrupted by simulation end")
-            # Clean up resources if allocated
-            if event_id in self.resource_manager.event_allocations:
-                self.resource_manager.release_resources(event_id)
-        except Exception as e:
-            # Don't log full traceback for database connection errors during cleanup
-            if "Cannot operate on a closed database" in str(e):
-                logger.debug(f"Event {event_id} processing interrupted by database closure during simulation cleanup")
-            else:
-                logger.error(f"Error processing event {event_id}: {str(e)}", exc_info=True)
-            # Clean up resources if allocated
-            if event_id in self.resource_manager.event_allocations:
-                try:
-                    self.resource_manager.release_resources(event_id)
-                except Exception as cleanup_error:
-                    logger.debug(f"Error during resource cleanup for event {event_id}: {cleanup_error}")
-        finally:
-            # Always dispose of the process-specific engine
-            try:
-                process_engine.dispose()
-            except Exception as e:
-                logger.debug(f"Error disposing engine for event {event_id}: {e}")

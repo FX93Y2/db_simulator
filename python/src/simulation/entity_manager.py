@@ -206,8 +206,8 @@ class EntityManager:
                             relationship_column = relationship_columns[0]
                             logger.debug(f"Using relationship column: {relationship_column}")
                             
-                            # Create events for this entity
-                            event_ids = self.create_events(session, entity_id, event_table, relationship_column)
+                            # Events will be created dynamically by the event flows architecture
+                            event_ids = []  # No initial events needed for event flows
                             
                             # Commit the changes
                             session.commit()
@@ -295,8 +295,8 @@ class EntityManager:
                         
                         relationship_column = relationship_columns[0]
                         
-                        # Create events for this entity
-                        event_ids = self.create_events(session, entity_id, event_table, relationship_column)
+                        # Events will be created dynamically by the event flows architecture
+                        event_ids = []  # No initial events needed for event flows
                         
                         # Commit the changes
                         session.commit()
@@ -507,123 +507,6 @@ class EntityManager:
             logger.error(f"Error creating entity in {entity_table}: {str(e)}", exc_info=True)
             return None
     
-    def create_events(self, session, entity_id: int, event_table: str, relationship_column: str) -> List[int]:
-        """
-        Create initial events for an entity based on event sequence, populating attributes.
-        
-        Args:
-            session: SQLAlchemy session
-            entity_id: Entity ID
-            event_table: Name of the event table
-            relationship_column: Name of the column that references the entity
-            
-        Returns:
-            List of created event IDs
-        """
-        try:
-            event_entity_config = self.get_entity_config(event_table)
-            if not event_entity_config:
-                logger.error(f"Database configuration not found for event entity: {event_table}")
-                return []
-
-            # Get the next event ID
-            sql_query = text(f"SELECT MAX(id) FROM {event_table}")
-            result = session.execute(sql_query).fetchone()
-            next_id = (result[0] or 0) + 1
-            
-            event_ids = []
-            
-            event_sim = self.config.event_simulation
-            if event_sim and event_sim.event_sequence and event_sim.event_sequence.transitions:
-                initial_event_type = event_sim.event_sequence.transitions[0].from_event
-                event_type_column = self.find_event_type_column(session, event_table)
-                
-                if not event_type_column:
-                    logger.error(f"Could not find event type column in {event_table}")
-                    return []
-
-                row_data = {
-                    "id": next_id,
-                    relationship_column: entity_id,
-                    event_type_column: initial_event_type
-                }
-
-                # Generate values for other attributes
-                for attr in event_entity_config.attributes:
-                    # Skip PK, the FK to the entity, and the event type column
-                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
-                        continue
-                    
-                    # Handle foreign keys with a foreign_key generator type
-                    if attr.is_foreign_key:
-                        if attr.generator and attr.generator.type == "foreign_key":
-                            if not attr.ref:
-                                logger.error(f"Foreign key attribute '{attr.name}' in table '{event_table}' missing 'ref'. Assigning None.")
-                                row_data[attr.name] = None
-                            else:
-                                ref_table, ref_column = attr.ref.split('.')
-                                # Query the parent table for valid IDs
-                                sql_query = text(f"SELECT {ref_column} FROM {ref_table}")
-                                result = session.execute(sql_query).fetchall()
-                                parent_ids = [id[0] for id in result]
-                                
-                                if not parent_ids:
-                                    logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{event_table}'")
-                                    row_data[attr.name] = None
-                                else:
-                                    # Use user-defined distribution if present, else random
-                                    dist = getattr(attr.generator, "distribution", None)
-                                    if dist and isinstance(dist, dict) and dist.get("type") == "choice" and dist.get("values"):
-                                        # Weighted choice among parent_ids
-                                        weights = dist.get("values")
-                                        if len(weights) == len(parent_ids):
-                                            import numpy as np
-                                            row_data[attr.name] = np.random.choice(parent_ids, p=weights)
-                                        else:
-                                            logger.warning(f"Distribution weights length does not match number of parent_ids for FK '{attr.name}' in '{event_table}'. Using uniform random assignment.")
-                                            row_data[attr.name] = random.choice(parent_ids)
-                                    else:
-                                        # Uniform random assignment if no distribution is provided
-                                        row_data[attr.name] = random.choice(parent_ids)
-                        else:
-                            # Skip foreign keys without a foreign_key generator
-                            logger.debug(f"Skipping FK {attr.name} without foreign_key generator during event creation.")
-                            continue
-
-                    elif attr.generator:
-                        # Special handling for 'simulation_event' generator type - skip it
-                        if attr.generator.type == 'simulation_event':
-                            continue
-                            
-                        gen_dict = dataclasses.asdict(attr.generator)
-                        attr_config_dict = {
-                            'name': attr.name,
-                            'generator': gen_dict
-                        }
-                        # Use next_id - 1 for 0-based row_index context
-                        row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
-                    else:
-                        # Handle attributes without generators if needed
-                        pass
-
-                # Build INSERT statement dynamically
-                columns = ", ".join(row_data.keys())
-                placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-                sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
-
-                logger.debug(f"Creating initial event in {event_table} with data: {row_data}")
-                session.execute(sql_query, row_data)
-                event_ids.append(next_id)
-                
-                # Record the current event type for this entity
-                self.entity_current_event_types[entity_id] = initial_event_type
-            else:
-                logger.warning("No event sequence configured, cannot create initial event.")
-            
-            return event_ids
-        except Exception as e:
-            logger.error(f"Error creating events for entity {entity_id} in {event_table}: {str(e)}", exc_info=True)
-            return []
     
     def find_event_type_column(self, session, event_table: str) -> Optional[str]:
         """ Find the column used for event types in the event table (handle potential errors) """

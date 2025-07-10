@@ -65,26 +65,6 @@ class WorkShifts:
     shift_patterns: List[ShiftPattern]
     resource_shifts: List[ResourceShift]
 
-@dataclass
-class EventTypeDefinition:
-    name: str
-    duration: Dict
-    resource_requirements: List[ResourceRequirement] = field(default_factory=list)
-
-@dataclass
-class EventTransition:
-    event_type: str
-    probability: float
-
-@dataclass
-class EventSequenceTransition:
-    from_event: str
-    to_events: List[EventTransition]
-
-@dataclass
-class EventSequence:
-    event_types: List[EventTypeDefinition]
-    transitions: List[EventSequenceTransition]
 
 # New event flow dataclasses
 @dataclass
@@ -134,7 +114,6 @@ class EventSimulation:
     table_specification: TableSpecification
     entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
-    event_sequence: Optional[EventSequence] = None
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
 
@@ -165,44 +144,6 @@ class SimulationConfig:
     random_seed: Optional[int] = None
     event_simulation: Optional[EventSimulation] = None
 
-def find_relationship_keys(db_config: DatabaseConfig, event_table: str, entity_table: str) -> List[str]:
-    """
-    Find foreign key columns in the event table that reference the entity table.
-    
-    Args:
-        db_config: The database configuration
-        event_table: Name of the event table
-        entity_table: Name of the entity table
-        
-    Returns:
-        List of column names that are foreign keys to the entity table
-    """
-    relationship_keys = []
-    
-    # Find the event and entity table entities
-    event_entity = next((e for e in db_config.entities if e.name == event_table), None)
-    entity_entity = next((e for e in db_config.entities if e.name == entity_table), None)
-    
-    if not event_entity or not entity_entity:
-        logger.warning(f"Could not find event table '{event_table}' or entity table '{entity_table}' in database config")
-        return []
-    
-    # Find primary key of entity table
-    entity_pk = next((attr.name for attr in entity_entity.attributes if attr.is_primary_key), None)
-    
-    if not entity_pk:
-        logger.warning(f"Entity table '{entity_table}' has no primary key defined")
-        return []
-    
-    # Find foreign keys in event table that reference entity table's primary key
-    for attr in event_entity.attributes:
-        if attr.is_foreign_key and attr.ref:
-            # Reference format should be "TableName.column_name"
-            ref_parts = attr.ref.split('.')
-            if len(ref_parts) == 2 and ref_parts[0] == entity_table and ref_parts[1] == entity_pk:
-                relationship_keys.append(attr.name)
-    
-    return relationship_keys
 
 def find_event_type_column(db_config: DatabaseConfig, event_table: str) -> Optional[str]:
     """
@@ -254,49 +195,7 @@ def find_resource_type_column(db_config: DatabaseConfig, resource_table: str) ->
     
     return resource_type_col
 
-def get_event_values(db_config: DatabaseConfig, event_table: str) -> List[str]:
-    """
-    Get the list of possible event type values from the database configuration.
-    
-    Args:
-        db_config: The database configuration
-        event_table: Name of the event table
-        
-    Returns:
-        List of possible event type values or empty list if not found
-    """
-    event_entity = next((e for e in db_config.entities if e.name == event_table), None)
-    
-    if not event_entity:
-        logger.warning(f"Could not find event table '{event_table}' in database config")
-        return []
-    
-    # Find column with type 'event_type'
-    event_type_attr = next((attr for attr in event_entity.attributes if attr.type == 'event_type'), None)
-    
-    if not event_type_attr or not event_type_attr.generator or event_type_attr.generator.type != 'simulation_event':
-        logger.warning(f"Event table '{event_table}' has no valid event_type column with simulation_event generator")
-        return []
-    
-    return event_type_attr.generator.values or []
 
-def get_initial_event(event_sequence: EventSequence) -> Optional[str]:
-    """
-    Determine the initial event type from the transitions.
-    
-    The initial event is determined by finding the first transition in the list.
-    
-    Args:
-        event_sequence: The event sequence configuration
-        
-    Returns:
-        The name of the initial event type or None if not found
-    """
-    if not event_sequence or not event_sequence.transitions:
-        return None
-    
-    # The first transition's "from" event is the initial event
-    return event_sequence.transitions[0].from_event
 
 def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseConfig] = None) -> SimulationConfig:
     if isinstance(file_path, str):
@@ -389,49 +288,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 resource_shifts=resource_shifts
             )
         
-        # Parse event sequence configuration
-        event_sequence = None
-        if 'event_sequence' in event_dict:
-            seq_dict = event_dict['event_sequence']
-            
-            # Parse event types
-            event_types = []
-            for event_type_dict in seq_dict.get('event_types', []):
-                # Parse resource requirements for this event type
-                resource_reqs = []
-                for req_dict in event_type_dict.get('resource_requirements', []):
-                    resource_reqs.append(ResourceRequirement(
-                        resource_table=req_dict.get('resource_table', ''),
-                        value=req_dict.get('value', ''),
-                        count=req_dict.get('count', 1),
-                        capacity_per_resource=req_dict.get('capacity_per_resource', 1)
-                    ))
-                
-                event_types.append(EventTypeDefinition(
-                    name=event_type_dict.get('name', ''),
-                    duration=event_type_dict.get('duration', {}),
-                    resource_requirements=resource_reqs
-                ))
-            
-            # Parse transitions
-            transitions = []
-            for transition_dict in seq_dict.get('transitions', []):
-                to_events = []
-                for to_event_dict in transition_dict.get('to', []):
-                    to_events.append(EventTransition(
-                        event_type=to_event_dict.get('event_type', ''),
-                        probability=to_event_dict.get('probability', 1.0)
-                    ))
-                
-                transitions.append(EventSequenceTransition(
-                    from_event=transition_dict.get('from', ''),
-                    to_events=to_events
-                ))
-            
-            event_sequence = EventSequence(
-                event_types=event_types,
-                transitions=transitions
-            )
         
         # Parse event flows configuration
         event_flows = None
@@ -526,7 +382,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
             table_specification=table_spec,
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
-            event_sequence=event_sequence,
             event_flows=event_flows,
             resource_capacities=resource_capacities
         )
@@ -632,49 +487,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 resource_shifts=resource_shifts
             )
         
-        # Parse event sequence configuration
-        event_sequence = None
-        if 'event_sequence' in event_dict:
-            seq_dict = event_dict['event_sequence']
-            
-            # Parse event types
-            event_types = []
-            for event_type_dict in seq_dict.get('event_types', []):
-                # Parse resource requirements for this event type
-                resource_reqs = []
-                for req_dict in event_type_dict.get('resource_requirements', []):
-                    resource_reqs.append(ResourceRequirement(
-                        resource_table=req_dict.get('resource_table', ''),
-                        value=req_dict.get('value', ''),
-                        count=req_dict.get('count', 1),
-                        capacity_per_resource=req_dict.get('capacity_per_resource', 1)
-                    ))
-                
-                event_types.append(EventTypeDefinition(
-                    name=event_type_dict.get('name', ''),
-                    duration=event_type_dict.get('duration', {}),
-                    resource_requirements=resource_reqs
-                ))
-            
-            # Parse transitions
-            transitions = []
-            for transition_dict in seq_dict.get('transitions', []):
-                to_events = []
-                for to_event_dict in transition_dict.get('to', []):
-                    to_events.append(EventTransition(
-                        event_type=to_event_dict.get('event_type', ''),
-                        probability=to_event_dict.get('probability', 1.0)
-                    ))
-                
-                transitions.append(EventSequenceTransition(
-                    from_event=transition_dict.get('from', ''),
-                    to_events=to_events
-                ))
-            
-            event_sequence = EventSequence(
-                event_types=event_types,
-                transitions=transitions
-            )
         
         # Parse event flows configuration
         event_flows = None
@@ -769,7 +581,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
             table_specification=table_spec,
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
-            event_sequence=event_sequence,
             event_flows=event_flows,
             resource_capacities=resource_capacities
         )
