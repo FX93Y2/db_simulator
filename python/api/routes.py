@@ -25,6 +25,174 @@ api = Blueprint('api', __name__)
 # Initialize configuration manager
 config_manager = ConfigManager()
 
+def validate_event_flows_structure(config_data):
+    """
+    Validate event_flows configuration structure.
+    
+    Args:
+        config_data: Parsed YAML configuration data
+        
+    Returns:
+        dict: {"valid": bool, "error": str, "details": list}
+    """
+    try:
+        # Check if event_simulation section exists
+        if 'event_simulation' not in config_data:
+            return {"valid": False, "error": "Missing event_simulation section"}
+        
+        event_simulation = config_data['event_simulation']
+        
+        # Check if event_flows section exists
+        if 'event_flows' not in event_simulation:
+            # event_flows is optional, so this is valid
+            return {"valid": True}
+        
+        event_flows = event_simulation['event_flows']
+        
+        if not isinstance(event_flows, list):
+            return {"valid": False, "error": "event_flows must be a list"}
+        
+        details = []
+        
+        # Validate each flow
+        for i, flow in enumerate(event_flows):
+            if not isinstance(flow, dict):
+                return {"valid": False, "error": f"Flow {i} must be a dictionary"}
+            
+            # Check required flow fields
+            required_flow_fields = ['flow_id', 'initial_step', 'steps']
+            for field in required_flow_fields:
+                if field not in flow:
+                    return {"valid": False, "error": f"Flow {i} missing required field: {field}"}
+            
+            # Validate steps
+            steps = flow['steps']
+            if not isinstance(steps, list):
+                return {"valid": False, "error": f"Flow {i} steps must be a list"}
+            
+            step_ids = set()
+            for j, step in enumerate(steps):
+                if not isinstance(step, dict):
+                    return {"valid": False, "error": f"Flow {i} step {j} must be a dictionary"}
+                
+                # Check required step fields
+                required_step_fields = ['step_id', 'step_type']
+                for field in required_step_fields:
+                    if field not in step:
+                        return {"valid": False, "error": f"Flow {i} step {j} missing required field: {field}"}
+                
+                step_id = step['step_id']
+                step_type = step['step_type']
+                
+                # Check for duplicate step IDs
+                if step_id in step_ids:
+                    return {"valid": False, "error": f"Flow {i} has duplicate step_id: {step_id}"}
+                step_ids.add(step_id)
+                
+                # Validate step type
+                valid_step_types = ['event', 'decide', 'release']
+                if step_type not in valid_step_types:
+                    return {"valid": False, "error": f"Flow {i} step {step_id} has invalid step_type: {step_type}"}
+                
+                # Validate step configuration based on type
+                if step_type == 'event':
+                    if 'event_config' not in step:
+                        return {"valid": False, "error": f"Flow {i} event step {step_id} missing event_config"}
+                    
+                    event_config = step['event_config']
+                    if 'name' not in event_config:
+                        return {"valid": False, "error": f"Flow {i} event step {step_id} missing event_config.name"}
+                    
+                    if 'duration' not in event_config:
+                        return {"valid": False, "error": f"Flow {i} event step {step_id} missing event_config.duration"}
+                
+                elif step_type == 'decide':
+                    if 'decide_config' not in step:
+                        return {"valid": False, "error": f"Flow {i} decide step {step_id} missing decide_config"}
+                    
+                    decide_config = step['decide_config']
+                    required_decide_fields = ['module_id', 'decision_type', 'outcomes']
+                    for field in required_decide_fields:
+                        if field not in decide_config:
+                            return {"valid": False, "error": f"Flow {i} decide step {step_id} missing decide_config.{field}"}
+                    
+                    # Validate outcomes
+                    outcomes = decide_config['outcomes']
+                    if not isinstance(outcomes, list) or len(outcomes) < 2:
+                        return {"valid": False, "error": f"Flow {i} decide step {step_id} must have at least 2 outcomes"}
+                    
+                    for k, outcome in enumerate(outcomes):
+                        if 'outcome_id' not in outcome or 'next_step_id' not in outcome:
+                            return {"valid": False, "error": f"Flow {i} decide step {step_id} outcome {k} missing required fields"}
+                
+                elif step_type == 'release':
+                    # Release steps are typically minimal, just verify structure
+                    pass
+                
+                details.append(f"Flow {i} step {step_id} ({step_type}) validated successfully")
+            
+            # Validate initial_step exists
+            if flow['initial_step'] not in step_ids:
+                return {"valid": False, "error": f"Flow {i} initial_step '{flow['initial_step']}' not found in steps"}
+        
+        return {"valid": True, "details": details}
+        
+    except Exception as e:
+        return {"valid": False, "error": f"Validation error: {str(e)}"}
+
+def get_step_types_info():
+    """Get information about supported step types for frontend."""
+    return {
+        "event": {
+            "name": "Process/Event",
+            "description": "Process entities with resource requirements and duration",
+            "required_config": ["name", "duration"],
+            "optional_config": ["resource_requirements"],
+            "example": {
+                "name": "Requirements Analysis",
+                "duration": {
+                    "distribution": {"type": "normal", "mean": 3, "stddev": 0.5}
+                },
+                "resource_requirements": [{
+                    "resource_table": "Consultant",
+                    "value": "Developer",
+                    "count": 1
+                }]
+            }
+        },
+        "decide": {
+            "name": "Decide",
+            "description": "Make probability-based decisions with multiple outcomes",
+            "required_config": ["module_id", "decision_type", "outcomes"],
+            "optional_config": [],
+            "example": {
+                "module_id": "implementation_decision",
+                "decision_type": "probability",
+                "outcomes": [
+                    {
+                        "outcome_id": "to_testing",
+                        "next_step_id": "testing",
+                        "conditions": [{"condition_type": "probability", "probability": 0.8}]
+                    },
+                    {
+                        "outcome_id": "rework",
+                        "next_step_id": "design",
+                        "conditions": [{"condition_type": "probability", "probability": 0.2}]
+                    }
+                ]
+            }
+        },
+        "release": {
+            "name": "Release",
+            "description": "Final step to release entity resources and complete flow",
+            "required_config": [],
+            "optional_config": ["event_config"],
+            "example": {
+                "event_config": {"name": "Release"}
+            }
+        }
+    }
+
 # Project management routes
 @api.route('/projects', methods=['GET'])
 def get_projects():
@@ -249,6 +417,45 @@ def save_project_sim_config(project_id):
         if not project:
             logger.warning(f"Project not found: {project_id}")
             return jsonify({"success": False, "error": "Project not found"}), 404
+        
+        # Validate the simulation configuration structure
+        try:
+            import yaml
+            yaml_content = data.get('content', '')
+            logger.info(f"Attempting to parse and validate simulation YAML content")
+            parsed_yaml = yaml.safe_load(yaml_content)
+            
+            if parsed_yaml is None:
+                logger.warning("Simulation YAML content parsed to None - may be empty or invalid")
+                return jsonify({
+                    "success": False, 
+                    "error": "Invalid or empty simulation configuration"
+                }), 400
+            
+            # Validate event_flows structure if present
+            validation_result = validate_event_flows_structure(parsed_yaml)
+            if not validation_result['valid']:
+                logger.warning(f"Event flows validation failed: {validation_result['error']}")
+                return jsonify({
+                    "success": False, 
+                    "error": f"Invalid event flows configuration: {validation_result['error']}",
+                    "details": validation_result.get('details', [])
+                }), 400
+                
+            logger.info("Simulation configuration validation successful")
+            
+        except yaml.YAMLError as yaml_error:
+            logger.error(f"YAML parsing failed: {yaml_error}")
+            return jsonify({
+                "success": False, 
+                "error": f"Invalid YAML content: {str(yaml_error)}"
+            }), 400
+        except Exception as validation_error:
+            logger.error(f"Configuration validation failed: {validation_error}")
+            return jsonify({
+                "success": False, 
+                "error": f"Configuration validation error: {str(validation_error)}"
+            }), 400
             
         logger.info(f"Saving simulation config for project {project_id} ({project['name']})")
         config_id = config_manager.save_project_config(
@@ -834,4 +1041,199 @@ def force_cleanup():
         
     except Exception as e:
         logger.error(f"Error during forced cleanup: {e}")
-        return jsonify({'error': str(e)}), 500 
+        return jsonify({'error': str(e)}), 500
+
+# New endpoints for modular simulation frontend
+
+@api.route('/step-types', methods=['GET'])
+def get_step_types():
+    """Get information about supported step types for frontend UI."""
+    try:
+        step_types_info = get_step_types_info()
+        return jsonify({
+            "success": True,
+            "step_types": step_types_info
+        })
+    except Exception as e:
+        logger.error(f"Error getting step types: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api.route('/validate-simulation-config', methods=['POST'])
+def validate_simulation_config():
+    """Validate a simulation configuration without saving it."""
+    try:
+        data = request.json
+        if not data or not data.get('config'):
+            return jsonify({"success": False, "error": "Missing config data"}), 400
+        
+        config_content = data['config']
+        
+        # Parse and validate YAML
+        try:
+            import yaml
+            parsed_config = yaml.safe_load(config_content)
+            
+            if parsed_config is None:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid or empty configuration"
+                }), 400
+            
+            # Validate event_flows structure
+            validation_result = validate_event_flows_structure(parsed_config)
+            
+            if validation_result['valid']:
+                return jsonify({
+                    "success": True,
+                    "message": "Configuration is valid",
+                    "details": validation_result.get('details', [])
+                })
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": validation_result['error'],
+                    "details": validation_result.get('details', [])
+                }), 400
+                
+        except yaml.YAMLError as e:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid YAML: {str(e)}"
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error validating simulation config: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api.route('/generate-step-template', methods=['POST'])
+def generate_step_template():
+    """Generate a template for a specific step type."""
+    try:
+        data = request.json
+        if not data or not data.get('step_type'):
+            return jsonify({"success": False, "error": "Missing step_type"}), 400
+        
+        step_type = data['step_type']
+        step_id = data.get('step_id', f"new_{step_type}_step")
+        
+        step_types_info = get_step_types_info()
+        
+        if step_type not in step_types_info:
+            return jsonify({
+                "success": False, 
+                "error": f"Unknown step type: {step_type}"
+            }), 400
+        
+        # Generate template based on step type
+        template = {
+            "step_id": step_id,
+            "step_type": step_type
+        }
+        
+        if step_type == 'event':
+            template["event_config"] = step_types_info[step_type]["example"].copy()
+            template["next_steps"] = []
+            
+        elif step_type == 'decide':
+            template["decide_config"] = step_types_info[step_type]["example"].copy()
+            
+        elif step_type == 'release':
+            template["event_config"] = step_types_info[step_type]["example"].copy()
+        
+        return jsonify({
+            "success": True,
+            "template": template,
+            "info": step_types_info[step_type]
+        })
+        
+    except Exception as e:
+        logger.error(f"Error generating step template: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@api.route('/simulation-config/preview', methods=['POST'])
+def preview_simulation_config():
+    """Preview how a simulation configuration will be executed."""
+    try:
+        data = request.json
+        if not data or not data.get('config'):
+            return jsonify({"success": False, "error": "Missing config data"}), 400
+        
+        config_content = data['config']
+        
+        # Parse configuration
+        try:
+            import yaml
+            parsed_config = yaml.safe_load(config_content)
+            
+            if parsed_config is None:
+                return jsonify({
+                    "success": False,
+                    "error": "Invalid or empty configuration"
+                }), 400
+            
+            # Validate first
+            validation_result = validate_event_flows_structure(parsed_config)
+            if not validation_result['valid']:
+                return jsonify({
+                    "success": False,
+                    "error": f"Invalid configuration: {validation_result['error']}"
+                }), 400
+            
+            # Generate preview data
+            preview_data = {
+                "flows": [],
+                "total_steps": 0,
+                "step_types_count": {"event": 0, "decide": 0, "release": 0}
+            }
+            
+            if 'event_simulation' in parsed_config and 'event_flows' in parsed_config['event_simulation']:
+                for flow in parsed_config['event_simulation']['event_flows']:
+                    flow_preview = {
+                        "flow_id": flow['flow_id'],
+                        "initial_step": flow['initial_step'],
+                        "steps_count": len(flow['steps']),
+                        "steps": []
+                    }
+                    
+                    for step in flow['steps']:
+                        step_preview = {
+                            "step_id": step['step_id'],
+                            "step_type": step['step_type'],
+                            "description": ""
+                        }
+                        
+                        # Add type-specific information
+                        if step['step_type'] == 'event':
+                            if 'event_config' in step:
+                                step_preview["description"] = f"Event: {step['event_config'].get('name', 'Unnamed')}"
+                                if 'resource_requirements' in step['event_config']:
+                                    step_preview["resources"] = len(step['event_config']['resource_requirements'])
+                        
+                        elif step['step_type'] == 'decide':
+                            if 'decide_config' in step:
+                                outcomes_count = len(step['decide_config'].get('outcomes', []))
+                                step_preview["description"] = f"Decision: {outcomes_count} outcomes"
+                        
+                        elif step['step_type'] == 'release':
+                            step_preview["description"] = "Release resources"
+                        
+                        flow_preview["steps"].append(step_preview)
+                        preview_data["step_types_count"][step['step_type']] += 1
+                        preview_data["total_steps"] += 1
+                    
+                    preview_data["flows"].append(flow_preview)
+            
+            return jsonify({
+                "success": True,
+                "preview": preview_data
+            })
+            
+        except yaml.YAMLError as e:
+            return jsonify({
+                "success": False,
+                "error": f"Invalid YAML: {str(e)}"
+            }), 400
+            
+    except Exception as e:
+        logger.error(f"Error previewing simulation config: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500 

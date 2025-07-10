@@ -79,12 +79,12 @@ event_simulation:
                 next_step_id: testing
                 conditions:
                   - condition_type: probability
-                    probability: 0.9
+                    probability: 0.4
               - outcome_id: rework_design
                 next_step_id: design
                 conditions:
                   - condition_type: probability
-                    probability: 0.1
+                    probability: 0.6
         
         # Testing Event
         - step_id: testing
