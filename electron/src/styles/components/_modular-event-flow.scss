@@ -1,0 +1,343 @@
+/* Modular Event Flow Styles */
+.modular-event-flow {
+  height: 100%;
+  width: 100%;
+}
+
+/* Process Step Node (Rectangle) */
+.process-step-node {
+  background: var(--theme-card-bg);
+  border: 2px solid #38a169;
+  border-radius: 8px;
+  padding: 0;
+  min-width: 180px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  color: var(--theme-text);
+}
+
+.process-step-node:hover {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.process-step-node.selected {
+  border-color: #38a169;
+  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2);
+}
+
+.process-step-node .node-header {
+  background: #38a169;
+  color: white;
+  border-bottom: 1px solid #2f855a;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+}
+
+.process-step-node .node-type {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Decide Step Node (Diamond) */
+.decide-step-node {
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 180px;
+  height: 120px;
+  position: relative;
+}
+
+.diamond-shape {
+  width: 180px;
+  height: 90px;
+  background: #ed8936;
+  border: 2px solid #dd6b20;
+  transform: rotate(45deg);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 15px 0;
+  transition: all 0.2s ease;
+}
+
+.diamond-content {
+  transform: rotate(-45deg);
+  text-align: center;
+  color: white;
+  padding: 0.5rem;
+  max-width: 120px;
+  line-height: 1.2;
+}
+
+.decide-step-node.selected .diamond-shape {
+  border-color: #ed8936;
+  box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.3);
+}
+
+.decide-step-node:hover .diamond-shape {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: rotate(45deg) translateY(-1px);
+}
+
+/* Release Step Node (Dispose shape) */
+.release-step-node {
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 180px;
+  height: 100px;
+  position: relative;
+}
+
+.dispose-shape {
+  width: 160px;
+  height: 80px;
+  background: #e53e3e;
+  border: 2px solid #c53030;
+  clip-path: polygon(0% 0%, 85% 0%, 100% 100%, 0% 100%);
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 1rem;
+  margin: 10px;
+  transition: all 0.2s ease;
+}
+
+.dispose-content {
+  color: white;
+  text-align: left;
+  line-height: 1.2;
+}
+
+.release-step-node.selected .dispose-shape {
+  border-color: #e53e3e;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.3);
+}
+
+.release-step-node:hover .dispose-shape {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Common node content styles */
+.node-content {
+  padding: 0.75rem;
+}
+
+.node-title {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+  color: var(--theme-text);
+}
+
+.node-details {
+  font-size: 0.75rem;
+  color: var(--theme-text-muted);
+}
+
+.detail-item {
+  margin-bottom: 0.25rem;
+  
+  strong {
+    font-weight: 600;
+  }
+}
+
+.detail-item:last-child {
+  margin-bottom: 0;
+}
+
+/* For diamond and dispose shapes, adjust text colors */
+.diamond-content .node-title,
+.dispose-content .node-title {
+  color: white;
+  font-size: 0.8rem;
+  margin-bottom: 0.25rem;
+  font-weight: 700;
+}
+
+.diamond-content .node-details,
+.dispose-content .node-details {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.7rem;
+}
+
+.diamond-content .detail-item,
+.dispose-content .detail-item {
+  margin-bottom: 0.15rem;
+  
+  strong {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+/* React Flow Handle Styles for Modular Nodes */
+.modular-event-flow .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  background: var(--theme-primary);
+  border: 2px solid var(--theme-card-bg);
+  border-radius: 50%;
+  
+  &:hover {
+    background: var(--theme-primary-dark);
+    transform: scale(1.2);
+  }
+}
+
+/* Decide node handle positioning */
+.decide-step-node .react-flow__handle {
+  background: #ed8936;
+  border: 2px solid white;
+}
+
+.decide-step-node .react-flow__handle[data-handleid="outcome-0"] {
+  background: #38a169; /* Green for first outcome */
+}
+
+.decide-step-node .react-flow__handle[data-handleid="outcome-1"] {
+  background: #e53e3e; /* Red for second outcome */
+}
+
+.decide-step-node .react-flow__handle[data-handleid="outcome-2"] {
+  background: #3182ce; /* Blue for third outcome */
+}
+
+/* Edge Styles */
+.modular-event-flow .react-flow__edge {
+  stroke-width: 2;
+  
+  &.react-flow__edge-smoothstep {
+    stroke-width: 2;
+  }
+}
+
+.modular-event-flow .react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--theme-text);
+  background: var(--theme-card-bg);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--theme-border);
+}
+
+/* Node Selection Styles */
+.modular-event-flow .react-flow__node.selected {
+  .process-step-node,
+  .decide-step-node .diamond-shape,
+  .release-step-node .dispose-shape {
+    animation: nodeSelection 0.3s ease-out;
+  }
+}
+
+@keyframes nodeSelection {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Node Dragging States */
+.modular-event-flow .react-flow__node.dragging {
+  opacity: 0.8;
+  
+  .process-step-node {
+    transform: scale(1.02);
+  }
+  
+  .diamond-shape {
+    transform: rotate(45deg) scale(1.02);
+  }
+  
+  .dispose-shape {
+    transform: scale(1.02);
+  }
+}
+
+/* Controls and Background */
+.modular-event-flow .react-flow__controls {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  button {
+    background: var(--theme-card-bg);
+    border: none;
+    color: var(--theme-text);
+    
+    &:hover {
+      background: var(--theme-hover-bg);
+    }
+    
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+}
+
+.modular-event-flow .react-flow__minimap {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  border-radius: 6px;
+}
+
+/* Dark Theme Adjustments */
+.dark-theme {
+  .process-step-node {
+    background: var(--theme-card-bg);
+    border-color: #4a5568;
+    
+    .node-header {
+      border-bottom-color: #4a5568;
+    }
+  }
+  
+  .modular-event-flow .react-flow {
+    background: var(--theme-bg);
+  }
+  
+  .modular-event-flow .react-flow__edge {
+    stroke: var(--theme-text-muted);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .process-step-node,
+  .decide-step-node,
+  .release-step-node {
+    min-width: 140px;
+    font-size: 0.875rem;
+  }
+  
+  .diamond-shape {
+    width: 140px;
+    height: 70px;
+  }
+  
+  .dispose-shape {
+    width: 120px;
+    height: 60px;
+  }
+  
+  .diamond-content,
+  .dispose-content {
+    font-size: 0.75rem;
+  }
+}

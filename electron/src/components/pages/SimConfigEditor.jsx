@@ -9,18 +9,20 @@ import {
   Spinner,
   InputGroup,
   Tabs,
-  Tab
+  Tab,
+  Dropdown
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import EventFlow from '../shared/EventFlow';
+import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
-// Default template for a new simulation configuration
+// Default template for a new simulation configuration using event_flows
 const DEFAULT_SIM_CONFIG = `# Simulation Configuration Template
 simulation:
   duration_days: 30
@@ -40,35 +42,37 @@ event_simulation:
         scale: 5
     max_entities: 50
   
-  event_sequence:
-    event_types:
-      - name: Event1
-        duration:
-          distribution:
-            type: normal
-            mean: 3
-            stddev: 0.5
-        resource_requirements:
-          - resource_table: Consultant
-            value: Developer
-            count: 1
-      
-      - name: Event2
-        duration:
-          distribution:
-            type: normal
-            mean: 5
-            stddev: 1
-        resource_requirements:
-          - resource_table: Consultant
-            value: Developer
-            count: 2
-    
-    transitions:
-      - from: Event1
-        to:
-          - event_type: Event2
-            probability: 1.0
+  event_flows:
+    - flow_id: main_flow
+      initial_step: process_1
+      steps:
+        - step_id: process_1
+          step_type: event
+          event_config:
+            name: Initial Process
+            duration:
+              distribution:
+                type: normal
+                mean: 3
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Consultant
+                value: Developer
+                count: 1
+          next_steps: [release_1]
+        
+        - step_id: release_1
+          step_type: release
+          event_config:
+            name: Release
+  
+  resource_capacities:
+    Consultant:
+      capacity_rules:
+        - resource_type: "Developer"
+          capacity: 2
+        - resource_type: "Tester"
+          capacity: 1
 `;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) => {
@@ -206,10 +210,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
   }, []);
   
   
-  // Handle adding a new event - operates on object if possible
-  const handleAddEvent = () => {
+  // Handle adding a new module - uses event_flows structure only
+  const handleAddModule = (moduleType) => {
     if (yamlError || !parsedYamlObject) {
-        showError('Cannot add event: Current YAML has errors or is empty.');
+        showError('Cannot add module: Current YAML has errors or is empty.');
         return;
     }
 
@@ -217,35 +221,76 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
       // Work on a deep copy of the parsed object
       const updatedSchema = JSON.parse(JSON.stringify(parsedYamlObject));
 
-      // ... (logic to add new event to updatedSchema, similar to before but using the object) ...
+      // Ensure event_simulation exists
       if (!updatedSchema.event_simulation) updatedSchema.event_simulation = {};
-      if (!updatedSchema.event_simulation.event_sequence) updatedSchema.event_simulation.event_sequence = {};
-      if (!updatedSchema.event_simulation.event_sequence.event_types) updatedSchema.event_simulation.event_sequence.event_types = [];
-       // (Unique name generation logic)
-      const baseEventName = "NewEvent";
-      let eventName = baseEventName;
-      let counter = 1;
-      while (updatedSchema.event_simulation.event_sequence.event_types.some(
-        event => event.name === eventName)) {
-        eventName = `${baseEventName}${counter}`;
-        counter++;
-      }
-      // (Add event template)
-      updatedSchema.event_simulation.event_sequence.event_types.push({
-        name: eventName,
-        duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
-        resource_requirements: [{ resource_table: "Resource", value: "Type1", count: 1 }]
-      });
 
+      // Ensure event_flows exists
+      if (!updatedSchema.event_simulation.event_flows) {
+        updatedSchema.event_simulation.event_flows = [];
+      }
+
+      // If no flows exist, create a default one
+      if (updatedSchema.event_simulation.event_flows.length === 0) {
+        updatedSchema.event_simulation.event_flows.push({
+          flow_id: 'main_flow',
+          initial_step: '',
+          steps: []
+        });
+      }
+
+      const flow = updatedSchema.event_simulation.event_flows[0]; // Use first flow
+      const stepId = `${moduleType}_${Date.now()}`; // Generate unique ID
+
+      // Create step based on type
+      const newStep = {
+        step_id: stepId,
+        step_type: moduleType
+      };
+
+      if (moduleType === 'event') {
+        newStep.event_config = {
+          name: `New Process`,
+          duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
+          resource_requirements: [{ resource_table: "Consultant", value: "Developer", count: 1 }]
+        };
+        newStep.next_steps = [];
+      } else if (moduleType === 'decide') {
+        newStep.decide_config = {
+          module_id: stepId,
+          decision_type: "probability",
+          outcomes: [
+            {
+              outcome_id: "outcome_1",
+              next_step_id: "",
+              conditions: [{ condition_type: "probability", probability: 0.5 }]
+            },
+            {
+              outcome_id: "outcome_2", 
+              next_step_id: "",
+              conditions: [{ condition_type: "probability", probability: 0.5 }]
+            }
+          ]
+        };
+      } else if (moduleType === 'release') {
+        newStep.event_config = { name: "Release" };
+      }
+
+      // Add step to flow
+      flow.steps.push(newStep);
+
+      // If this is the first step, make it the initial step
+      if (flow.steps.length === 1) {
+        flow.initial_step = stepId;
+      }
 
       // Convert back to YAML and update state
       const updatedYaml = yaml.stringify(updatedSchema);
-      setYamlContent(updatedYaml); // Update string state, triggers re-parse
-      setParsedYamlObject(updatedSchema); // Optimistically update parsed state
+      setYamlContent(updatedYaml);
+      setParsedYamlObject(updatedSchema);
 
     } catch (error) {
-      console.error('Error adding event:', error);
-      showError('Failed to add event.');
+      console.error('Error adding module:', error);
+      showError('Failed to add module.');
       setYamlError(error);
     }
   };
@@ -564,14 +609,30 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
               
               {activeVisualizationTab === 'event-flow' && (
                 <div className="tab-actions">
-                  <Button
-                    size="sm"
-                    className="btn-custom-toolbar"
-                    onClick={handleAddEvent}
-                    disabled={loading}
-                  >
-                    <FiPlus /> Add Event
-                  </Button>
+                  <Dropdown>
+                    <Dropdown.Toggle 
+                      size="sm" 
+                      className="btn-custom-toolbar"
+                      disabled={loading}
+                      id="add-module-dropdown"
+                    >
+                      <FiPlus /> Add Module
+                    </Dropdown.Toggle>
+                    <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => handleAddModule('event')}>
+                        <FiSettings className="me-2" />
+                        Process (Event)
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => handleAddModule('decide')}>
+                        <FiGitBranch className="me-2" />
+                        Decide
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => handleAddModule('release')}>
+                        <FiPlay className="me-2" />
+                        Release (Dispose)
+                      </Dropdown.Item>
+                    </Dropdown.Menu>
+                  </Dropdown>
                 </div>
               )}
             </div>
@@ -585,13 +646,22 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
               ) : (
                 <>
                   {activeVisualizationTab === 'event-flow' && (
-                    <EventFlow
-                      yamlContent={yamlContent}
-                      parsedSchema={parsedYamlObject}
-                      onDiagramChange={handleDiagramChange}
-                      theme={theme}
-                      dbConfigContent={dbConfigContent}
-                    />
+                    parsedYamlObject?.event_simulation?.event_flows ? (
+                      <ModularEventFlow
+                        yamlContent={yamlContent}
+                        parsedSchema={parsedYamlObject}
+                        onDiagramChange={handleDiagramChange}
+                        theme={theme}
+                      />
+                    ) : (
+                      <EventFlow
+                        yamlContent={yamlContent}
+                        parsedSchema={parsedYamlObject}
+                        onDiagramChange={handleDiagramChange}
+                        theme={theme}
+                        dbConfigContent={dbConfigContent}
+                      />
+                    )
                   )}
                   
                   {activeVisualizationTab === 'resources' && (
