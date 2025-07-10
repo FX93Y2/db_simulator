@@ -86,12 +86,56 @@ class EventSequence:
     event_types: List[EventTypeDefinition]
     transitions: List[EventSequenceTransition]
 
+# New event flow dataclasses
+@dataclass
+class Condition:
+    condition_type: str
+    probability: Optional[float] = None
+    # Future: add other condition types like attribute_value, formula, etc.
+
+@dataclass
+class Outcome:
+    outcome_id: str
+    next_step_id: str
+    conditions: List[Condition] = field(default_factory=list)
+
+@dataclass
+class DecideConfig:
+    module_id: str
+    decision_type: str
+    outcomes: List[Outcome] = field(default_factory=list)
+
+@dataclass
+class EventStepConfig:
+    name: str
+    duration: Dict
+    resource_requirements: List[ResourceRequirement] = field(default_factory=list)
+
+@dataclass
+class Step:
+    step_id: str
+    step_type: str  # 'event', 'decide', 'release'
+    event_config: Optional[EventStepConfig] = None
+    decide_config: Optional[DecideConfig] = None
+    next_steps: List[str] = field(default_factory=list)
+
+@dataclass
+class EventFlow:
+    flow_id: str
+    initial_step: str
+    steps: List[Step] = field(default_factory=list)
+
+@dataclass
+class EventFlowsConfig:
+    flows: List[EventFlow] = field(default_factory=list)
+
 @dataclass
 class EventSimulation:
     table_specification: TableSpecification
     entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
     event_sequence: Optional[EventSequence] = None
+    event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
 
 def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[str]:
@@ -389,6 +433,74 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 transitions=transitions
             )
         
+        # Parse event flows configuration
+        event_flows = None
+        if 'event_flows' in event_dict:
+            flows = []
+            for flow_dict in event_dict['event_flows']:
+                steps = []
+                for step_dict in flow_dict.get('steps', []):
+                    # Parse step configuration
+                    event_config = None
+                    decide_config = None
+                    
+                    if step_dict.get('step_type') == 'event' and 'event_config' in step_dict:
+                        ec_dict = step_dict['event_config']
+                        # Parse resource requirements for this step
+                        resource_reqs = []
+                        for req_dict in ec_dict.get('resource_requirements', []):
+                            resource_reqs.append(ResourceRequirement(
+                                resource_table=req_dict.get('resource_table', ''),
+                                value=req_dict.get('value', ''),
+                                count=req_dict.get('count', 1),
+                                capacity_per_resource=req_dict.get('capacity_per_resource', 1)
+                            ))
+                        
+                        event_config = EventStepConfig(
+                            name=ec_dict.get('name', ''),
+                            duration=ec_dict.get('duration', {}),
+                            resource_requirements=resource_reqs
+                        )
+                    
+                    elif step_dict.get('step_type') == 'decide' and 'decide_config' in step_dict:
+                        dc_dict = step_dict['decide_config']
+                        outcomes = []
+                        for outcome_dict in dc_dict.get('outcomes', []):
+                            conditions = []
+                            for condition_dict in outcome_dict.get('conditions', []):
+                                conditions.append(Condition(
+                                    condition_type=condition_dict.get('condition_type', ''),
+                                    probability=condition_dict.get('probability')
+                                ))
+                            
+                            outcomes.append(Outcome(
+                                outcome_id=outcome_dict.get('outcome_id', ''),
+                                next_step_id=outcome_dict.get('next_step_id', ''),
+                                conditions=conditions
+                            ))
+                        
+                        decide_config = DecideConfig(
+                            module_id=dc_dict.get('module_id', ''),
+                            decision_type=dc_dict.get('decision_type', ''),
+                            outcomes=outcomes
+                        )
+                    
+                    steps.append(Step(
+                        step_id=step_dict.get('step_id', ''),
+                        step_type=step_dict.get('step_type', ''),
+                        event_config=event_config,
+                        decide_config=decide_config,
+                        next_steps=step_dict.get('next_steps', [])
+                    ))
+                
+                flows.append(EventFlow(
+                    flow_id=flow_dict.get('flow_id', ''),
+                    initial_step=flow_dict.get('initial_step', ''),
+                    steps=steps
+                ))
+            
+            event_flows = EventFlowsConfig(flows=flows)
+        
         # Parse resource capacities configuration
         resource_capacities = None
         if 'resource_capacities' in event_dict:
@@ -415,6 +527,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
             event_sequence=event_sequence,
+            event_flows=event_flows,
             resource_capacities=resource_capacities
         )
     
@@ -563,6 +676,74 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 transitions=transitions
             )
         
+        # Parse event flows configuration
+        event_flows = None
+        if 'event_flows' in event_dict:
+            flows = []
+            for flow_dict in event_dict['event_flows']:
+                steps = []
+                for step_dict in flow_dict.get('steps', []):
+                    # Parse step configuration
+                    event_config = None
+                    decide_config = None
+                    
+                    if step_dict.get('step_type') == 'event' and 'event_config' in step_dict:
+                        ec_dict = step_dict['event_config']
+                        # Parse resource requirements for this step
+                        resource_reqs = []
+                        for req_dict in ec_dict.get('resource_requirements', []):
+                            resource_reqs.append(ResourceRequirement(
+                                resource_table=req_dict.get('resource_table', ''),
+                                value=req_dict.get('value', ''),
+                                count=req_dict.get('count', 1),
+                                capacity_per_resource=req_dict.get('capacity_per_resource', 1)
+                            ))
+                        
+                        event_config = EventStepConfig(
+                            name=ec_dict.get('name', ''),
+                            duration=ec_dict.get('duration', {}),
+                            resource_requirements=resource_reqs
+                        )
+                    
+                    elif step_dict.get('step_type') == 'decide' and 'decide_config' in step_dict:
+                        dc_dict = step_dict['decide_config']
+                        outcomes = []
+                        for outcome_dict in dc_dict.get('outcomes', []):
+                            conditions = []
+                            for condition_dict in outcome_dict.get('conditions', []):
+                                conditions.append(Condition(
+                                    condition_type=condition_dict.get('condition_type', ''),
+                                    probability=condition_dict.get('probability')
+                                ))
+                            
+                            outcomes.append(Outcome(
+                                outcome_id=outcome_dict.get('outcome_id', ''),
+                                next_step_id=outcome_dict.get('next_step_id', ''),
+                                conditions=conditions
+                            ))
+                        
+                        decide_config = DecideConfig(
+                            module_id=dc_dict.get('module_id', ''),
+                            decision_type=dc_dict.get('decision_type', ''),
+                            outcomes=outcomes
+                        )
+                    
+                    steps.append(Step(
+                        step_id=step_dict.get('step_id', ''),
+                        step_type=step_dict.get('step_type', ''),
+                        event_config=event_config,
+                        decide_config=decide_config,
+                        next_steps=step_dict.get('next_steps', [])
+                    ))
+                
+                flows.append(EventFlow(
+                    flow_id=flow_dict.get('flow_id', ''),
+                    initial_step=flow_dict.get('initial_step', ''),
+                    steps=steps
+                ))
+            
+            event_flows = EventFlowsConfig(flows=flows)
+        
         # Parse resource capacities configuration
         resource_capacities = None
         if 'resource_capacities' in event_dict:
@@ -589,6 +770,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
             entity_arrival=entity_arrival,
             work_shifts=work_shifts,
             event_sequence=event_sequence,
+            event_flows=event_flows,
             resource_capacities=resource_capacities
         )
     

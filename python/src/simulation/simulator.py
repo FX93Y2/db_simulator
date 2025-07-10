@@ -16,7 +16,7 @@ from sqlalchemy import create_engine, inspect, select, func, text, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from ..config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig
+from ..config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig, EventFlow, Step
 from ..config_parser import Entity as DbEntity, Attribute as DbAttribute
 from ..utils.distribution_utils import generate_from_distribution
 from ..utils.data_generation import generate_attribute_value
@@ -248,7 +248,7 @@ class EventSimulator:
 
     def _process_entity_events(self, entity_id: int):
         """
-        Process all events for an entity
+        Process all events for an entity using either old or new architecture
         
         Args:
             entity_id: Entity ID (0-based index)
@@ -259,6 +259,56 @@ class EventSimulator:
             yield self.env.timeout(0)  # Make it a generator by yielding
             return
         
+        # Get the adjusted entity ID (1-based indexing in the database)
+        db_entity_id = entity_id + 1
+        
+        # Check which architecture to use
+        event_sim = self.config.event_simulation
+        if event_sim and event_sim.event_flows and event_sim.event_flows.flows:
+            # Use new event flows architecture
+            yield from self._process_entity_with_flows(db_entity_id, entity_table, event_table)
+        elif event_sim and event_sim.event_sequence:
+            # Use old event sequence architecture
+            yield from self._process_entity_with_sequences(db_entity_id, entity_table, event_table)
+        else:
+            logger.error("No event sequence or event flows configuration found")
+            yield self.env.timeout(0)
+
+    def _process_entity_with_flows(self, entity_id: int, entity_table: str, event_table: str):
+        """
+        Process entity using the new event flows architecture
+        
+        Args:
+            entity_id: Entity ID (1-based for database)
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+        """
+        event_sim = self.config.event_simulation
+        if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
+            logger.error("No event flows configuration found")
+            yield self.env.timeout(0)
+            return
+        
+        # For now, assume there's only one flow (first flow in the list)
+        flow = event_sim.event_flows.flows[0]
+        
+        logger.info(f"Starting entity {entity_id} in flow {flow.flow_id} at step {flow.initial_step}")
+        
+        # Start processing from the initial step
+        self.env.process(self._process_step(entity_id, flow.initial_step, flow, entity_table, event_table))
+        
+        # Yield to make this a generator
+        yield self.env.timeout(0)
+
+    def _process_entity_with_sequences(self, entity_id: int, entity_table: str, event_table: str):
+        """
+        Process entity using the old event sequence architecture
+        
+        Args:
+            entity_id: Entity ID (1-based for database)
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+        """
         # Create a process-specific engine for isolation
         process_engine = create_engine(
             f"sqlite:///{self.db_path}?journal_mode=WAL",
@@ -277,29 +327,26 @@ class EventSimulator:
                 
                 relationship_column = relationship_columns[0]
                 
-                # Get the adjusted entity ID (1-based indexing in the database)
-                db_entity_id = entity_id + 1
-                
                 # Find initial events for this entity (those with the initial event type)
                 # Query for events with the entity ID in the relationship column
                 sql_query = text(f"""
                     SELECT id FROM {event_table}
-                    WHERE {relationship_column} = {db_entity_id}
+                    WHERE {relationship_column} = {entity_id}
                 """)
                 result = session.execute(sql_query).fetchall()
                 
                 if result:
                     event_ids = [row[0] for row in result]
-                    logger.debug(f"Found {len(event_ids)} events for entity {db_entity_id}: {event_ids}")
+                    logger.debug(f"Found {len(event_ids)} events for entity {entity_id}: {event_ids}")
                     
                     # Process each event
                     for event_id in event_ids:
-                        self.env.process(self._process_event(db_entity_id, event_id, event_table, entity_table))
+                        self.env.process(self._process_event(entity_id, event_id, event_table, entity_table))
                         
                     # Yield to make this a generator
                     yield self.env.timeout(0)
                 else:
-                    logger.warning(f"No events found for entity {db_entity_id}")
+                    logger.warning(f"No events found for entity {entity_id}")
                     yield self.env.timeout(0)  # Make it a generator by yielding
         except Exception as e:
             logger.error(f"Error processing events for entity {entity_id}: {str(e)}", exc_info=True)
@@ -350,6 +397,288 @@ class EventSimulator:
         # Instead of falling back to default values, raise a warning and error
         logger.warning(f"No duration found for event type '{event_type}'")
         raise ValueError(f"No duration found for event type '{event_type}'")
+
+    def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
+        """
+        Find a step by its ID within a flow
+        
+        Args:
+            step_id: Step ID to find
+            flow: Event flow to search in
+            
+        Returns:
+            Step object or None if not found
+        """
+        for step in flow.steps:
+            if step.step_id == step_id:
+                return step
+        return None
+    
+    def _process_decide_step(self, step: 'Step') -> Optional[str]:
+        """
+        Process a decide step and return the next step ID
+        
+        Args:
+            step: Decide step configuration
+            
+        Returns:
+            Next step ID or None if no outcome is selected
+        """
+        if not step.decide_config or not step.decide_config.outcomes:
+            logger.warning(f"Decide step {step.step_id} has no outcomes configured")
+            return None
+        
+        # Evaluate outcomes in order
+        for outcome in step.decide_config.outcomes:
+            for condition in outcome.conditions:
+                if condition.condition_type == "probability":
+                    if random.random() <= condition.probability:
+                        logger.debug(f"Decide step {step.step_id} selected outcome {outcome.outcome_id} -> {outcome.next_step_id}")
+                        return outcome.next_step_id
+        
+        # No outcome was selected
+        logger.warning(f"No outcome selected for decide step {step.step_id}")
+        return None
+    
+    def _get_step_event_duration(self, step: 'Step') -> float:
+        """
+        Get the duration for an event step
+        
+        Args:
+            step: Event step configuration
+            
+        Returns:
+            Duration in minutes
+        """
+        if not step.event_config or not step.event_config.duration:
+            logger.warning(f"No duration configured for event step {step.step_id}")
+            return 0.0
+        
+        duration_days = generate_from_distribution(step.event_config.duration.get('distribution', {}))
+        return duration_days * 24 * 60  # Convert days to minutes
+
+    def _process_step(self, entity_id: int, step_id: str, flow: 'EventFlow', entity_table: str, event_table: str):
+        """
+        Process a step in the event flow
+        
+        Args:
+            entity_id: Entity ID
+            step_id: Current step ID
+            flow: Event flow configuration
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+        """
+        step = self._find_step_by_id(step_id, flow)
+        if not step:
+            logger.error(f"Step {step_id} not found in flow {flow.flow_id}")
+            return
+        
+        logger.debug(f"Processing step {step_id} of type {step.step_type} for entity {entity_id}")
+        
+        if step.step_type == "event":
+            # Process event step
+            yield from self._process_event_step(entity_id, step, flow, entity_table, event_table)
+            
+        elif step.step_type == "decide":
+            # Process decide step
+            next_step_id = self._process_decide_step(step)
+            if next_step_id:
+                self.env.process(self._process_step(entity_id, next_step_id, flow, entity_table, event_table))
+            else:
+                logger.warning(f"Entity {entity_id} stuck at decide step {step_id} - no outcome selected")
+                
+        elif step.step_type == "release":
+            # Process release step - entity completion
+            logger.info(f"Entity {entity_id} completed flow {flow.flow_id} at release step {step_id}")
+            # No further processing needed for release
+            
+        else:
+            logger.error(f"Unknown step type {step.step_type} for step {step_id}")
+
+    def _process_event_step(self, entity_id: int, step: 'Step', flow: 'EventFlow', entity_table: str, event_table: str):
+        """
+        Process an event step with resource allocation and duration
+        
+        Args:
+            entity_id: Entity ID
+            step: Event step configuration
+            flow: Event flow configuration
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+        """
+        if not step.event_config:
+            logger.error(f"Event step {step.step_id} has no event configuration")
+            return
+        
+        # Create a process-specific engine for isolation
+        process_engine = create_engine(
+            f"sqlite:///{self.db_path}?journal_mode=WAL",
+            poolclass=NullPool,
+            connect_args={"check_same_thread": False}
+        )
+        
+        try:
+            with Session(process_engine) as session:
+                # Create a new event in the database for this step
+                event_id = self._create_event_for_step(session, entity_id, step, entity_table, event_table)
+                if not event_id:
+                    logger.error(f"Failed to create event for step {step.step_id}")
+                    return
+                
+                # Get resource requirements and allocate resources
+                resource_requirements = step.event_config.resource_requirements
+                if resource_requirements:
+                    requirements_list = []
+                    for req in resource_requirements:
+                        requirements_list.append({
+                            'resource_table': req.resource_table,
+                            'value': req.value,
+                            'count': req.count
+                        })
+                    
+                    # Allocate resources
+                    try:
+                        yield self.env.process(
+                            self.resource_manager.allocate_resources(event_id, requirements_list)
+                        )
+                    except simpy.Interrupt:
+                        logger.warning(f"Resource allocation interrupted for event {event_id}")
+                        return
+                
+                # Record event processing start
+                start_time = self.env.now
+                start_datetime = self.config.start_date + timedelta(minutes=start_time)
+                
+                # Wait for the event duration
+                duration_minutes = self._get_step_event_duration(step)
+                yield self.env.timeout(duration_minutes)
+                
+                # Record event processing end
+                end_time = self.env.now
+                end_datetime = self.config.start_date + timedelta(minutes=end_time)
+                
+                # Record resource allocations in the tracker
+                if event_id in self.resource_manager.event_allocations:
+                    allocated_resources = self.resource_manager.event_allocations[event_id]
+                    for resource in allocated_resources:
+                        self.event_tracker.record_resource_allocation(
+                            event_id=event_id,
+                            resource_table=resource.table,
+                            resource_id=resource.id,
+                            allocation_time=start_time,
+                            release_time=end_time
+                        )
+                
+                # Release resources
+                self.resource_manager.release_resources(event_id)
+                
+                # Record the event processing
+                with process_engine.connect() as conn:
+                    stmt = insert(self.event_tracker.event_processing).values(
+                        event_table=event_table,
+                        event_id=event_id,
+                        entity_id=entity_id,
+                        start_time=start_time,
+                        end_time=end_time,
+                        duration=duration_minutes,
+                        start_datetime=start_datetime,
+                        end_datetime=end_datetime
+                    )
+                    conn.execute(stmt)
+                    conn.commit()
+                
+                # Increment the processed events counter
+                self.processed_events += 1
+                
+                logger.info(f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} in {duration_minutes/60:.2f} hours")
+                
+                # Process next steps
+                for next_step_id in step.next_steps:
+                    self.env.process(self._process_step(entity_id, next_step_id, flow, entity_table, event_table))
+                
+        except Exception as e:
+            logger.error(f"Error processing event step {step.step_id}: {str(e)}", exc_info=True)
+        finally:
+            process_engine.dispose()
+
+    def _create_event_for_step(self, session, entity_id: int, step: 'Step', entity_table: str, event_table: str):
+        """
+        Create a new event in the database for a step
+        
+        Args:
+            session: Database session
+            entity_id: Entity ID
+            step: Event step configuration
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+            
+        Returns:
+            Event ID of the created event
+        """
+        try:
+            # Find relationship column and event type column
+            relationship_columns = self.entity_manager.find_relationship_columns(session, entity_table, event_table)
+            if not relationship_columns:
+                logger.error(f"No relationship column found between {entity_table} and {event_table}")
+                return None
+            
+            relationship_column = relationship_columns[0]
+            event_type_column = self.entity_manager.find_event_type_column(session, event_table)
+            if not event_type_column:
+                logger.error(f"Could not find event type column in {event_table}")
+                return None
+            
+            # Get the next ID for the new event
+            sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+            result = session.execute(sql_query).fetchone()
+            next_id = (result[0] or 0) + 1
+            
+            # Prepare data for the new event row
+            row_data = {
+                "id": next_id,
+                relationship_column: entity_id,
+                event_type_column: step.event_config.name
+            }
+            
+            # Generate values for other attributes using database config
+            event_entity_config = self.entity_manager.get_entity_config(event_table)
+            if event_entity_config:
+                for attr in event_entity_config.attributes:
+                    # Skip PK, the FK to the entity, and the event type column
+                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
+                        continue
+                    
+                    # Skip other Foreign Keys for now
+                    if attr.is_foreign_key:
+                        continue
+
+                    if attr.generator:
+                        # Special handling for 'simulation_event' generator type - skip it
+                        if attr.generator.type == 'simulation_event':
+                            continue 
+                            
+                        gen_dict = dataclasses.asdict(attr.generator)
+                        attr_config_dict = {
+                            'name': attr.name,
+                            'generator': gen_dict
+                        }
+                        # Use next_id - 1 for 0-based row_index context
+                        row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
+            
+            # Build INSERT statement dynamically
+            columns = ", ".join(row_data.keys())
+            placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+            sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
+
+            logger.debug(f"Creating event in {event_table} with data: {row_data}")
+            session.execute(sql_query, row_data)
+            session.commit()
+            
+            return next_id
+            
+        except Exception as e:
+            logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
+            return None
 
     def _get_next_event_type(self, current_event_type: str) -> Optional[str]:
         """

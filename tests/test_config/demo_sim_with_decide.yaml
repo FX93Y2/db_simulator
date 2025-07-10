@@ -1,0 +1,171 @@
+# Simulation Configuration using new Decide modules
+# This maintains the exact same logical flow as demo_sim_with_capacity.yaml but uses the new modular system
+
+simulation:
+  duration_days: 60
+  start_date: 2024-06-01
+  random_seed: 42
+
+event_simulation:
+  # Entity arrival configuration - same as before
+  entity_arrival:
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 5
+    max_entities: n/a
+  
+  # Event flow configuration using new flow-based system
+  event_flows:
+    - flow_id: project_development
+      initial_step: requirements
+      steps:
+        # Requirements Event
+        - step_id: requirements # some unique id written by user or later can be a UUID generated in the frontend
+          step_type: event
+          event_config:
+            name: Requirements
+            duration:
+              distribution:
+                type: normal
+                mean: 3
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Consultant
+                value: Developer
+                count: 1
+          next_steps: [design] # direct transition to design step
+        
+        # Design Event
+        - step_id: design
+          step_type: event
+          event_config:
+            name: Design
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Consultant
+                value: Developer
+                count: 2
+          next_steps: [implementation] # direct transition to implementation step
+        
+        # Implementation Event
+        - step_id: implementation
+          step_type: event
+          event_config:
+            name: Implementation
+            duration:
+              distribution:
+                type: normal
+                mean: 10
+                stddev: 2
+            resource_requirements:
+              - resource_table: Consultant
+                value: Developer
+                count: 2
+          next_steps: [implementation_decision]
+        
+        # Decision: Implementation -> Testing (90%) or Design (10% rework)
+        - step_id: implementation_decision
+          step_type: decide
+          decide_config:
+            module_id: implementation_decision
+            decision_type: probability
+            outcomes:
+              - outcome_id: to_testing
+                next_step_id: testing
+                conditions:
+                  - condition_type: probability
+                    probability: 0.9
+              - outcome_id: rework_design
+                next_step_id: design
+                conditions:
+                  - condition_type: probability
+                    probability: 0.1
+        
+        # Testing Event
+        - step_id: testing
+          step_type: event
+          event_config:
+            name: Testing
+            duration:
+              distribution:
+                type: normal
+                mean: 4
+                stddev: 1
+            resource_requirements:
+              - resource_table: Consultant
+                value: Tester
+                count: 1
+          next_steps: [testing_decision]
+        
+        # Decision: Testing -> Deployment (80%) or Implementation (20% failed tests)
+        - step_id: testing_decision
+          step_type: decide
+          decide_config:
+            module_id: testing_decision
+            decision_type: probability
+            outcomes:
+              - outcome_id: to_deployment
+                next_step_id: deployment
+                conditions:
+                  - condition_type: probability
+                    probability: 0.8
+              - outcome_id: back_to_implementation
+                next_step_id: implementation
+                conditions:
+                  - condition_type: probability
+                    probability: 0.2
+        
+        # Deployment Event (Final step)
+        - step_id: deployment
+          step_type: event
+          event_config:
+            name: Deployment
+            duration:
+              distribution:
+                type: normal
+                mean: 2
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Consultant
+                value: Developer
+                count: 1
+              - resource_table: Consultant
+                value: Tester
+                count: 1
+          next_steps: [release]
+
+        - step_id: release
+          step_type: release
+          event_config:
+            name: Release # release module, only for the final release of all resources occupied by the entity
+
+  # Resource capacity configuration - same as before
+  resource_capacities:
+    Consultant:
+      capacity_rules:
+        - resource_type: "Tech Lead"
+          capacity:
+            distribution:
+              type: normal
+              mean: 3
+              stddev: 0.5
+              min: 2
+              max: 5
+        
+        - resource_type: "Developer"
+          capacity:
+            distribution:
+              type: choice
+              values: [1, 2, 3]
+              weights: [0.6, 0.3, 0.1]
+        
+        - resource_type: "Tester"
+          capacity: 2
+        
+        - resource_type: "Business Analyst"
+          capacity: 1
