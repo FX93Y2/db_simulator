@@ -66,7 +66,7 @@ event_simulation:
   resource_capacities: {}
 `;
 
-const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) => {
+const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
@@ -183,8 +183,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
   // Handle YAML content changes from editor
   const handleYamlChange = useCallback((content) => {
      setYamlContent(content);
+     // Notify parent of config changes
+     if (onConfigChange) {
+       onConfigChange(content);
+     }
      // Parsing happens in the useEffect above
-  }, []);
+  }, [onConfigChange]);
   
   // Handle diagram changes - expects object, stringifies it
   const handleDiagramChange = useCallback((updatedDiagramData) => {
@@ -194,11 +198,16 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
       setYamlContent(updatedYaml); // Update string state, triggers re-parse effect
       setParsedYamlObject(updatedDiagramData); // Optimistically update parsed state
       setYamlError(null); // Assume diagram changes produce valid structure
+      
+      // Notify parent of config changes
+      if (onConfigChange) {
+        onConfigChange(updatedYaml);
+      }
     } catch (error) {
       console.error('Error stringifying diagram changes:', error);
       setYamlError(error);
     }
-  }, []);
+  }, [onConfigChange]);
   
   
   // Handle adding a new module - uses event_flows structure only
@@ -380,6 +389,9 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
           
           // Add success message
           showSuccess('Simulation configuration saved successfully');
+          if (onSaveSuccess) {
+            onSaveSuccess();
+          }
         } else {
           console.error("SimConfigEditor: Error saving configuration:", result);
           showError('Error saving configuration');

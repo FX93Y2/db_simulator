@@ -27,6 +27,10 @@ const ProjectPage = ({ theme }) => {
   const [simulationResult, setSimulationResult] = useState(null);
   const [existingResults, setExistingResults] = useState([]);
   const [dbConfigContent, setDbConfigContent] = useState('');
+  const [simConfigContent, setSimConfigContent] = useState('');
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedDbConfig, setLastSavedDbConfig] = useState('');
+  const [lastSavedSimConfig, setLastSavedSimConfig] = useState('');
   
   // Set default active tab based on URL or parameter
   const determineActiveTab = useCallback(() => {
@@ -136,10 +140,28 @@ const ProjectPage = ({ theme }) => {
     try {
       const result = await getProjectDbConfig(projectId);
       if (result.success && result.config) {
-        setDbConfigContent(result.config.content || '');
+        const content = result.config.content || '';
+        setDbConfigContent(content);
+        setLastSavedDbConfig(content); // Set initial saved state
       }
     } catch (error) {
       console.error('Error loading database configuration content:', error);
+    }
+  }, [projectId]);
+
+  // Load simulation configuration content
+  const loadSimConfigContent = useCallback(async () => {
+    if (!projectId) return;
+    
+    try {
+      const result = await getProjectSimConfig(projectId);
+      if (result.success && result.config) {
+        const content = result.config.content || '';
+        setSimConfigContent(content);
+        setLastSavedSimConfig(content); // Set initial saved state
+      }
+    } catch (error) {
+      console.error('Error loading simulation configuration content:', error);
     }
   }, [projectId]);
 
@@ -148,11 +170,48 @@ const ProjectPage = ({ theme }) => {
     setDbConfigContent(newContent);
   }, []);
 
+  // Handle simulation configuration changes
+  const handleSimConfigChange = useCallback((newContent) => {
+    setSimConfigContent(newContent);
+  }, []);
+
+  // Handle successful database config save
+  const handleDbConfigSaveSuccess = useCallback(() => {
+    setLastSavedDbConfig(dbConfigContent);
+  }, [dbConfigContent]);
+
+  // Handle successful simulation config save
+  const handleSimConfigSaveSuccess = useCallback(() => {
+    setLastSavedSimConfig(simConfigContent);
+  }, [simConfigContent]);
+
+  // Track unsaved changes
+  useEffect(() => {
+    const hasDbChanges = dbConfigContent !== lastSavedDbConfig;
+    const hasSimChanges = simConfigContent !== lastSavedSimConfig;
+    setHasUnsavedChanges(hasDbChanges || hasSimChanges);
+  }, [dbConfigContent, simConfigContent, lastSavedDbConfig, lastSavedSimConfig]);
+
+  // Navigation warning for unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (hasUnsavedChanges) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
   // Effect to load project data
   useEffect(() => {
     setInitialLoad(true);
     loadProject();
     loadDbConfigContent();
+    loadSimConfigContent();
     // Update active tab based on URL changes
     setCurrentTab(determineActiveTab());
     // Only run when projectId changes
@@ -187,43 +246,46 @@ const ProjectPage = ({ theme }) => {
     setShowEditModal(false);
   };
   
-  const handleSaveProjectName = async () => {
-    if (!editingProjectName.trim() || editingProjectName === project.name) {
-      handleCloseEditModal();
+  // Auto-update project name with debouncing
+  useEffect(() => {
+    if (!editingProjectName.trim() || editingProjectName === project?.name || !showEditModal) {
       return;
     }
-    
-    try {
-      setIsUpdating(true);
-      // Update project name via API
-      const result = await updateProject(projectId, {
-        name: editingProjectName
-      });
-      
-      if (result.success) {
-        const updatedProject = {
-          ...project,
-          name: editingProjectName,
-          updated_at: new Date().toISOString()
-        };
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        setIsUpdating(true);
+        // Update project name via API
+        const result = await updateProject(projectId, {
+          name: editingProjectName
+        });
         
-        setProject(updatedProject);
-        // Update the cache
-        projectCache[projectId] = updatedProject;
-        
-        handleCloseEditModal();
-        // Trigger sidebar refresh by dispatching a custom event
-        window.dispatchEvent(new Event('refreshProjects'));
-      } else {
-        showError('Failed to update project name');
+        if (result.success) {
+          const updatedProject = {
+            ...project,
+            name: editingProjectName,
+            updated_at: new Date().toISOString()
+          };
+          
+          setProject(updatedProject);
+          // Update the cache
+          projectCache[projectId] = updatedProject;
+          
+          // Trigger sidebar refresh by dispatching a custom event
+          window.dispatchEvent(new Event('refreshProjects'));
+        } else {
+          showError('Failed to update project name');
+        }
+      } catch (error) {
+        console.error('Error updating project name:', error);
+        showError('Error updating project name');
+      } finally {
+        setIsUpdating(false);
       }
-    } catch (error) {
-      console.error('Error updating project name:', error);
-      showError('Error updating project name');
-    } finally {
-      setIsUpdating(false);
-    }
-  };
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [editingProjectName, project?.name, projectId, showEditModal]);
 
   // Add a function to run the simulation
   const handleRunSimulation = async () => {
@@ -359,6 +421,7 @@ const ProjectPage = ({ theme }) => {
                   isProjectTab={true}
                   theme={theme}
                   onConfigChange={handleDbConfigChange}
+                  onSaveSuccess={handleDbConfigSaveSuccess}
                 />
               </Tab.Pane>
               <Tab.Pane eventKey="simulation">
@@ -367,6 +430,8 @@ const ProjectPage = ({ theme }) => {
                   isProjectTab={true}
                   theme={theme}
                   dbConfigContent={dbConfigContent}
+                  onConfigChange={handleSimConfigChange}
+                  onSaveSuccess={handleSimConfigSaveSuccess}
                 />
               </Tab.Pane>
             </Tab.Content>
@@ -393,15 +458,7 @@ const ProjectPage = ({ theme }) => {
         </Modal.Body>
         <Modal.Footer>
           <Button variant="secondary" onClick={handleCloseEditModal}>
-            Cancel
-          </Button>
-          <Button 
-            className="btn-custom-toolbar"
-            onClick={handleSaveProjectName}
-            disabled={isUpdating}
-          >
-            {isUpdating ? <Spinner size="sm" animation="border" className="me-2" /> : null}
-            Save Changes
+            Close
           </Button>
         </Modal.Footer>
       </Modal>

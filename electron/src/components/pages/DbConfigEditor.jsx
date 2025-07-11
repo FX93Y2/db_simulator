@@ -31,7 +31,7 @@ entities:
 `;
 
 // Accept theme as a prop
-const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange }) => {
+const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
   const { showSuccess, showError, showWarning } = useToastContext();
   const [config, setConfig] = useState(null);
@@ -170,6 +170,9 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         if (result.success) {
           setConfig(result.config);
           showSuccess('Database configuration saved successfully');
+          if (onSaveSuccess) {
+            onSaveSuccess();
+          }
         } else {
           console.error("DbConfigEditor: Error saving configuration:", result);
           showError('Error saving configuration');

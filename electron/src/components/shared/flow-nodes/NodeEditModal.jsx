@@ -8,6 +8,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [lastNodeId, setLastNodeId] = useState(null);
 
   // Helper function to get event name from step ID
   const getEventNameFromStepId = (stepId) => {
@@ -34,7 +36,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   useEffect(() => {
-    if (node && node.data.stepConfig) {
+    // Only reset form data when node actually changes (new node opened), not during auto-updates
+    if (node && node.data.stepConfig && (!lastNodeId || node.id !== lastNodeId)) {
+      setLastNodeId(node.id);
+      setIsUserEditing(false);
       const stepConfig = node.data.stepConfig;
       
       if (stepConfig.step_type === 'event') {
@@ -89,88 +94,110 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         });
       }
     }
-  }, [node, parsedSchema]);
+  }, [node, parsedSchema, lastNodeId]);
 
-  const handleSubmit = () => {
-    if (!node) return;
+  // Auto-update node with debouncing
+  useEffect(() => {
+    if (!node || !formData.name || !isUserEditing) return;
 
-    // Generate step ID from name for simplicity (auto-generated)
-    const generateStepId = (name, stepType) => {
-      if (!name) return `${stepType}_${Date.now()}`;
-      return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    };
+    const timeoutId = setTimeout(() => {
+      // Generate step ID from name for simplicity (auto-generated)
+      const generateStepId = (name, stepType) => {
+        if (!name) return `${stepType}_${Date.now()}`;
+        return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      };
 
-    const stepId = generateStepId(formData.name, node.data.stepConfig.step_type);
-    const updatedStepConfig = { 
-      ...node.data.stepConfig,
-      step_id: stepId
-    };
-    
-    if (updatedStepConfig.step_type === 'event') {
-      const distributionConfig = {
-        type: formData.distribution_type
+      const stepId = generateStepId(formData.name, node.data.stepConfig.step_type);
+      const updatedStepConfig = { 
+        ...node.data.stepConfig,
+        step_id: stepId
       };
       
-      // Add distribution-specific parameters
-      if (formData.distribution_type === 'normal') {
-        distributionConfig.mean = parseFloat(formData.duration_mean) || 1;
-        distributionConfig.stddev = parseFloat(formData.duration_stddev) || 0.1;
-      } else if (formData.distribution_type === 'exponential') {
-        distributionConfig.scale = parseFloat(formData.duration_scale) || 1;
-      } else if (formData.distribution_type === 'uniform') {
-        distributionConfig.min = parseFloat(formData.duration_min) || 0;
-        distributionConfig.max = parseFloat(formData.duration_max) || 10;
-      } else if (formData.distribution_type === 'choice') {
-        try {
-          distributionConfig.values = formData.duration_values.split(',').map(v => parseFloat(v.trim()));
-          distributionConfig.weights = formData.duration_weights.split(',').map(w => parseFloat(w.trim()));
-        } catch (e) {
-          distributionConfig.values = [1, 2, 3];
-          distributionConfig.weights = [0.5, 0.3, 0.2];
+      if (updatedStepConfig.step_type === 'event') {
+        const distributionConfig = {
+          type: formData.distribution_type
+        };
+        
+        // Add distribution-specific parameters
+        if (formData.distribution_type === 'normal') {
+          distributionConfig.mean = parseFloat(formData.duration_mean) || 1;
+          distributionConfig.stddev = parseFloat(formData.duration_stddev) || 0.1;
+        } else if (formData.distribution_type === 'exponential') {
+          distributionConfig.scale = parseFloat(formData.duration_scale) || 1;
+        } else if (formData.distribution_type === 'uniform') {
+          distributionConfig.min = parseFloat(formData.duration_min) || 0;
+          distributionConfig.max = parseFloat(formData.duration_max) || 10;
+        } else if (formData.distribution_type === 'choice') {
+          try {
+            distributionConfig.values = formData.duration_values.split(',').map(v => parseFloat(v.trim()));
+            distributionConfig.weights = formData.duration_weights.split(',').map(w => parseFloat(w.trim()));
+          } catch (e) {
+            distributionConfig.values = [1, 2, 3];
+            distributionConfig.weights = [0.5, 0.3, 0.2];
+          }
         }
+        
+        updatedStepConfig.event_config = {
+          name: formData.name,
+          duration: { distribution: distributionConfig },
+          resource_requirements: resourceRequirements
+        };
+        
+      } else if (updatedStepConfig.step_type === 'decide') {
+        // Convert outcomes back to step IDs
+        const convertedOutcomes = outcomes.map((outcome, index) => ({
+          outcome_id: `outcome_${index + 1}`,
+          next_step_id: getStepIdFromEventName(outcome.next_event_name),
+          conditions: [{ 
+            condition_type: 'probability', 
+            probability: parseFloat(outcome.probability) || 0.5 
+          }]
+        }));
+
+        updatedStepConfig.decide_config = {
+          module_id: stepId, // Auto-generated same as step_id
+          decision_type: formData.decision_type,
+          outcomes: convertedOutcomes
+        };
+        
+      } else if (updatedStepConfig.step_type === 'release') {
+        updatedStepConfig.event_config = {
+          name: formData.name
+        };
       }
-      
-      updatedStepConfig.event_config = {
-        name: formData.name,
-        duration: { distribution: distributionConfig },
-        resource_requirements: resourceRequirements
-      };
-      
-    } else if (updatedStepConfig.step_type === 'decide') {
-      // Convert outcomes back to step IDs
-      const convertedOutcomes = outcomes.map((outcome, index) => ({
-        outcome_id: `outcome_${index + 1}`,
-        next_step_id: getStepIdFromEventName(outcome.next_event_name),
-        conditions: [{ 
-          condition_type: 'probability', 
-          probability: parseFloat(outcome.probability) || 0.5 
-        }]
-      }));
 
-      updatedStepConfig.decide_config = {
-        module_id: stepId, // Auto-generated same as step_id
-        decision_type: formData.decision_type,
-        outcomes: convertedOutcomes
+      const updatedNode = {
+        ...node,
+        id: stepId,
+        data: {
+          ...node.data,
+          stepConfig: updatedStepConfig,
+          label: formData.name || stepId
+        }
       };
-      
-    } else if (updatedStepConfig.step_type === 'release') {
-      updatedStepConfig.event_config = {
-        name: formData.name
-      };
-    }
 
-    const updatedNode = {
-      ...node,
-      id: stepId,
-      data: {
-        ...node.data,
-        stepConfig: updatedStepConfig,
-        label: formData.name || stepId
-      }
-    };
+      onNodeUpdate(updatedNode);
+    }, 500); // 500ms debounce
 
-    onNodeUpdate(updatedNode);
-    onHide();
+    return () => clearTimeout(timeoutId);
+  }, [formData, resourceRequirements, outcomes, node, onNodeUpdate, isUserEditing]);
+
+  // Helper function to handle form data changes and mark as user editing
+  const handleFormDataChange = (newData) => {
+    setIsUserEditing(true);
+    setFormData({ ...formData, ...newData });
+  };
+
+  // Helper function to handle resource requirement changes and mark as user editing
+  const handleResourceRequirementChange = (index, field, value) => {
+    setIsUserEditing(true);
+    updateResourceRequirement(index, field, value);
+  };
+
+  // Helper function to handle outcome changes and mark as user editing
+  const handleOutcomeChange = (index, field, value) => {
+    setIsUserEditing(true);
+    updateOutcome(index, field, value);
   };
 
   // Handle node deletion
@@ -190,6 +217,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const addResourceRequirement = () => {
+    setIsUserEditing(true);
     // Get the first available resource table and type from the database config
     const availableResourceTables = Object.keys(resourceDefinitions);
     const defaultResourceTable = availableResourceTables.length > 0 ? availableResourceTables[0] : 'Consultant';
@@ -211,10 +239,12 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const removeResourceRequirement = (index) => {
+    setIsUserEditing(true);
     setResourceRequirements(resourceRequirements.filter((_, i) => i !== index));
   };
 
   const addOutcome = () => {
+    setIsUserEditing(true);
     setOutcomes([...outcomes, {
       next_event_name: '',
       probability: 0.5
@@ -229,6 +259,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const removeOutcome = (index) => {
     if (outcomes.length > 1) {
+      setIsUserEditing(true);
       setOutcomes(outcomes.filter((_, i) => i !== index));
     }
   };
@@ -245,7 +276,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                   type="number"
                   step="0.1"
                   value={formData.duration_mean || 1}
-                  onChange={(e) => setFormData({ ...formData, duration_mean: e.target.value })}
+                  onChange={(e) => handleFormDataChange({ duration_mean: e.target.value })}
                 />
               </Form.Group>
             </Col>
@@ -256,7 +287,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                   type="number"
                   step="0.01"
                   value={formData.duration_stddev || 0.1}
-                  onChange={(e) => setFormData({ ...formData, duration_stddev: e.target.value })}
+                  onChange={(e) => handleFormDataChange({ duration_stddev: e.target.value })}
                 />
               </Form.Group>
             </Col>
@@ -270,7 +301,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               type="number"
               step="0.1"
               value={formData.duration_scale || 1}
-              onChange={(e) => setFormData({ ...formData, duration_scale: e.target.value })}
+              onChange={(e) => handleFormDataChange({ duration_scale: e.target.value })}
             />
           </Form.Group>
         );
@@ -284,7 +315,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                   type="number"
                   step="0.1"
                   value={formData.duration_min || 0}
-                  onChange={(e) => setFormData({ ...formData, duration_min: e.target.value })}
+                  onChange={(e) => handleFormDataChange({ duration_min: e.target.value })}
                 />
               </Form.Group>
             </Col>
@@ -295,7 +326,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                   type="number"
                   step="0.1"
                   value={formData.duration_max || 10}
-                  onChange={(e) => setFormData({ ...formData, duration_max: e.target.value })}
+                  onChange={(e) => handleFormDataChange({ duration_max: e.target.value })}
                 />
               </Form.Group>
             </Col>
@@ -309,7 +340,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               <Form.Control
                 type="text"
                 value={formData.duration_values || '1, 2, 3'}
-                onChange={(e) => setFormData({ ...formData, duration_values: e.target.value })}
+                onChange={(e) => handleFormDataChange({ duration_values: e.target.value })}
                 placeholder="1, 2, 3"
               />
             </Form.Group>
@@ -318,7 +349,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               <Form.Control
                 type="text"
                 value={formData.duration_weights || '0.5, 0.3, 0.2'}
-                onChange={(e) => setFormData({ ...formData, duration_weights: e.target.value })}
+                onChange={(e) => handleFormDataChange({ duration_weights: e.target.value })}
                 placeholder="0.5, 0.3, 0.2"
               />
             </Form.Group>
@@ -342,7 +373,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <Form.Control
               type="text"
               value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleFormDataChange({ name: e.target.value })}
               placeholder="Display name for this event"
             />
             <Form.Text className="text-muted">
@@ -354,7 +385,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <Form.Label>Duration Distribution Type</Form.Label>
             <Form.Select
               value={formData.distribution_type || 'normal'}
-              onChange={(e) => setFormData({ ...formData, distribution_type: e.target.value })}
+              onChange={(e) => handleFormDataChange({ distribution_type: e.target.value })}
             >
               <option value="normal">Normal</option>
               <option value="exponential">Exponential</option>
@@ -388,9 +419,9 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                         <Form.Select
                           value={selectedResourceTable}
                           onChange={(e) => {
-                            updateResourceRequirement(index, 'resource_table', e.target.value);
+                            handleResourceRequirementChange(index, 'resource_table', e.target.value);
                             // Reset resource type when table changes
-                            updateResourceRequirement(index, 'value', '');
+                            handleResourceRequirementChange(index, 'value', '');
                           }}
                         >
                           <option value="">Select resource table...</option>
@@ -404,7 +435,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                         <Form.Control
                           type="text"
                           value={selectedResourceTable}
-                          onChange={(e) => updateResourceRequirement(index, 'resource_table', e.target.value)}
+                          onChange={(e) => handleResourceRequirementChange(index, 'resource_table', e.target.value)}
                           placeholder="e.g., Consultant"
                         />
                       )}
@@ -421,7 +452,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                       {availableResourceTypes.length > 0 ? (
                         <Form.Select
                           value={req.value || ''}
-                          onChange={(e) => updateResourceRequirement(index, 'value', e.target.value)}
+                          onChange={(e) => handleResourceRequirementChange(index, 'value', e.target.value)}
                         >
                           <option value="">Select resource type...</option>
                           {availableResourceTypes.map((typeName) => (
@@ -434,7 +465,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                         <Form.Control
                           type="text"
                           value={req.value || ''}
-                          onChange={(e) => updateResourceRequirement(index, 'value', e.target.value)}
+                          onChange={(e) => handleResourceRequirementChange(index, 'value', e.target.value)}
                           placeholder={selectedResourceTable ? "Select resource table first" : "e.g., Developer"}
                           disabled={selectedResourceTable && availableResourceTypes.length === 0}
                         />
@@ -448,7 +479,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                         type="number"
                         min="1"
                         value={req.count || 1}
-                        onChange={(e) => updateResourceRequirement(index, 'count', parseInt(e.target.value) || 1)}
+                        onChange={(e) => handleResourceRequirementChange(index, 'count', parseInt(e.target.value) || 1)}
                       />
                     </Form.Group>
                   </Col>
@@ -479,7 +510,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <Form.Label>Decision Type</Form.Label>
             <Form.Select
               value={formData.decision_type || 'probability'}
-              onChange={(e) => setFormData({ ...formData, decision_type: e.target.value })}
+              onChange={(e) => handleFormDataChange({ decision_type: e.target.value })}
             >
               <option value="probability">Probability-based</option>
               <option value="condition">Condition-based (future)</option>
@@ -500,7 +531,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                     <Form.Label>Next Event</Form.Label>
                     <Form.Select
                       value={outcome.next_event_name || ''}
-                      onChange={(e) => updateOutcome(index, 'next_event_name', e.target.value)}
+                      onChange={(e) => handleOutcomeChange(index, 'next_event_name', e.target.value)}
                     >
                       <option value="">Select next event...</option>
                       {availableEvents.map((eventName, eventIndex) => (
@@ -520,7 +551,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                       min="0"
                       max="1"
                       value={outcome.probability || 0}
-                      onChange={(e) => updateOutcome(index, 'probability', e.target.value)}
+                      onChange={(e) => handleOutcomeChange(index, 'probability', e.target.value)}
                     />
                   </Form.Group>
                 </Col>
@@ -550,7 +581,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <Form.Control
               type="text"
               value={formData.name || ''}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleFormDataChange({ name: e.target.value })}
               placeholder="Display name for this release step"
             />
           </Form.Group>
@@ -582,8 +613,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <FiTrash2 className="me-2" /> Delete Step
           </Button>
         )}
-        <Button variant="secondary" onClick={onHide}>Cancel</Button>
-        <Button variant="primary" onClick={handleSubmit}>Save Changes</Button>
+        <Button variant="secondary" onClick={onHide}>Close</Button>
       </Modal.Footer>
     </Modal>
 

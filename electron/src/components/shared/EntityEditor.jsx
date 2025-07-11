@@ -12,16 +12,24 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [lastEntityName, setLastEntityName] = useState(null);
 
   // Initialize form when entity changes
   useEffect(() => {
-    if (entity) {
+    // Only reset form data when entity actually changes (new entity opened), not during auto-updates
+    if (entity && (!lastEntityName || entity.name !== lastEntityName)) {
+      setLastEntityName(entity.name);
+      setIsUserEditing(false);
       setName(entity.name || '');
       setEntityType(entity.type || '');
       setRows(entity.rows || 100);
       setAttributes(entity.attributes || []);
-    } else {
-      // Reset form for new entity
+      setValidationErrors([]);
+    } else if (!entity && lastEntityName !== null) {
+      // Reset form for new entity only if coming from an existing entity
+      setLastEntityName(null);
+      setIsUserEditing(false);
       setName('');
       setEntityType('');
       setRows(100);
@@ -29,9 +37,9 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
         name: 'id',
         type: 'pk'
       }]);
+      setValidationErrors([]);
     }
-    setValidationErrors([]);
-  }, [entity]);
+  }, [entity, lastEntityName]);
 
   // Validate entity data
   const validateEntity = () => {
@@ -72,6 +80,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Handle attribute changes
   const handleAttributeChange = (index, updatedAttribute) => {
+    setIsUserEditing(true);
     const newAttributes = [...attributes];
     newAttributes[index] = updatedAttribute;
     setAttributes(newAttributes);
@@ -79,6 +88,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Add new attribute
   const handleAddAttribute = () => {
+    setIsUserEditing(true);
     const newAttribute = {
       name: `attribute_${attributes.length + 1}`,
       type: 'string',
@@ -92,50 +102,65 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Delete attribute
   const handleDeleteAttribute = (index) => {
+    setIsUserEditing(true);
     const newAttributes = attributes.filter((_, i) => i !== index);
     setAttributes(newAttributes);
   };
 
-  // Handle form submission
-  const handleSubmit = () => {
-    if (!validateEntity()) {
-      return;
+  // Auto-update entity with debouncing
+  useEffect(() => {
+    if (!name.trim() || attributes.length === 0 || !isUserEditing) {
+      return; // Don't update if basic validation fails or user is not actively editing
     }
 
-    setIsLoading(true);
-    try {
-      const updatedEntity = {
-        name: name.trim(),
-        type: entityType || undefined,
-        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : rows,
-        attributes: attributes.map(attr => {
-          const cleanedAttr = {
-            name: attr.name.trim(),
-            type: attr.type
-          };
-          
-          // Add generator for non-primary key attributes
-          if (attr.type !== 'pk' && attr.generator) {
-            cleanedAttr.generator = { ...attr.generator };
-          }
-          
-          // Add reference for foreign key types
-          if ((attr.type === 'fk' || attr.type === 'event_id' || 
-               attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-            cleanedAttr.ref = attr.ref;
-          }
-          
-          return cleanedAttr;
-        })
-      };
-      
-      onEntityUpdate(updatedEntity);
-      setIsLoading(false);
-      onHide();
-    } catch (error) {
-      console.error('Error updating entity:', error);
-      setIsLoading(false);
-    }
+    const timeoutId = setTimeout(() => {
+      if (validateEntity()) {
+        const updatedEntity = {
+          name: name.trim(),
+          type: entityType || undefined,
+          rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : rows,
+          attributes: attributes.map(attr => {
+            const cleanedAttr = {
+              name: attr.name.trim(),
+              type: attr.type
+            };
+            
+            // Add generator for non-primary key attributes
+            if (attr.type !== 'pk' && attr.generator) {
+              cleanedAttr.generator = { ...attr.generator };
+            }
+            
+            // Add reference for foreign key types
+            if ((attr.type === 'fk' || attr.type === 'event_id' || 
+                 attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+              cleanedAttr.ref = attr.ref;
+            }
+            
+            return cleanedAttr;
+          })
+        };
+        
+        onEntityUpdate(updatedEntity);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [name, entityType, rows, attributes, onEntityUpdate, isUserEditing]);
+
+  // Helper functions to handle form changes and mark as user editing
+  const handleNameChange = (newName) => {
+    setIsUserEditing(true);
+    setName(newName);
+  };
+
+  const handleEntityTypeChange = (newType) => {
+    setIsUserEditing(true);
+    setEntityType(newType);
+  };
+
+  const handleRowsChange = (newRows) => {
+    setIsUserEditing(true);
+    setRows(newRows);
   };
 
   // Handle entity deletion
@@ -194,7 +219,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       <Form.Control
                         type="text"
                         value={name}
-                        onChange={(e) => setName(e.target.value)}
+                        onChange={(e) => handleNameChange(e.target.value)}
                         placeholder="Enter entity name"
                         isInvalid={validationErrors.some(error => error.includes('Entity name'))}
                       />
@@ -205,7 +230,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       <Form.Label>Entity Type</Form.Label>
                       <Form.Select
                         value={entityType}
-                        onChange={(e) => setEntityType(e.target.value)}
+                        onChange={(e) => handleEntityTypeChange(e.target.value)}
                       >
                         <option value="">Default</option>
                         <option value="entity">Entity</option>
@@ -226,7 +251,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                   {entityType === 'entity' || entityType === 'event' ? (
                     <Form.Select
                       value={rows}
-                      onChange={(e) => setRows(e.target.value)}
+                      onChange={(e) => handleRowsChange(e.target.value)}
                     >
                       <option value="n/a">n/a (Dynamic)</option>
                       <option value={100}>100</option>
@@ -240,7 +265,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       value={rows}
                       onChange={(e) => {
                         const value = e.target.value;
-                        setRows(value === '' ? '' : parseInt(value) || 100);
+                        handleRowsChange(value === '' ? '' : parseInt(value) || 100);
                       }}
                       placeholder="Number of rows"
                     />
@@ -300,19 +325,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           </Button>
         )}
         <Button variant="secondary" onClick={onHide} disabled={isLoading}>
-          Cancel
-        </Button>
-        <Button 
-          variant="primary" 
-          onClick={handleSubmit} 
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <Spinner size="sm" animation="border" className="me-2" />
-          ) : (
-            <FiEdit className="me-2" />
-          )}
-          {entity ? 'Save Changes' : 'Create Entity'}
+          Close
         </Button>
       </Modal.Footer>
     </Modal>

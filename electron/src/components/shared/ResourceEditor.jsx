@@ -264,7 +264,8 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
     setShowEditModal(true);
   };
 
-  const handleSaveCapacity = (newCapacity) => {
+  // Auto-update capacity with real-time changes
+  const handleCapacityUpdate = (newCapacity) => {
     if (!parsedData || !selectedCategory || !selectedResourceType) return;
 
     // Create a deep copy of the parsed data
@@ -298,13 +299,8 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
       });
     }
 
-    // Convert back to YAML and update
+    // Convert back to YAML and update immediately
     onResourceChange(updatedData);
-    
-    setShowEditModal(false);
-    setSelectedCategory(null);
-    setSelectedResourceType(null);
-    setEditingCapacity(null);
   };
 
   const renderCapacityBadge = (capacity) => {
@@ -451,14 +447,14 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
         onHide={() => setShowEditModal(false)}
         resourceType={selectedResourceType}
         capacity={editingCapacity}
-        onSave={handleSaveCapacity}
+        onUpdate={handleCapacityUpdate}
       />
     </div>
   );
 };
 
 // Modal component for editing capacity
-const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => {
+const CapacityEditModal = ({ show, onHide, resourceType, capacity, onUpdate }) => {
   const [editedResourceType, setEditedResourceType] = useState('');
   const [capacityType, setCapacityType] = useState('fixed');
   const [fixedValue, setFixedValue] = useState(1);
@@ -467,9 +463,14 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
   const [normalMin, setNormalMin] = useState(1);
   const [normalMax, setNormalMax] = useState(5);
   const [choiceValues, setChoiceValues] = useState([{ value: 1, weight: 1 }]);
+  const [isUserEditing, setIsUserEditing] = useState(false);
+  const [lastResourceType, setLastResourceType] = useState(null);
 
   useEffect(() => {
-    if (show && resourceType && capacity !== null) {
+    // Only reset form data when resourceType actually changes (new modal opened), not during auto-updates
+    if (show && resourceType && capacity !== null && (!lastResourceType || resourceType !== lastResourceType)) {
+      setLastResourceType(resourceType);
+      setIsUserEditing(false);
       setEditedResourceType(resourceType);
       
       if (typeof capacity === 'number') {
@@ -495,50 +496,91 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
         }
       }
     }
-  }, [show, resourceType, capacity]);
+  }, [show, resourceType, capacity, lastResourceType]);
 
-  const handleSave = () => {
-    let capacityValue;
+  // Auto-update capacity with debouncing
+  useEffect(() => {
+    if (!show || !editedResourceType || !isUserEditing) return;
     
-    if (capacityType === 'fixed') {
-      capacityValue = fixedValue;
-    } else if (capacityType === 'normal') {
-      capacityValue = {
-        distribution: {
-          type: 'normal',
-          mean: normalMean,
-          stddev: normalStddev,
-          min: normalMin,
-          max: normalMax
-        }
-      };
-    } else if (capacityType === 'choice') {
-      capacityValue = {
-        distribution: {
-          type: 'choice',
-          values: choiceValues.map(pair => pair.value),
-          weights: choiceValues.map(pair => pair.weight)
-        }
-      };
-    }
-    
-    onSave({
-      resource_type: editedResourceType,
-      capacity: capacityValue
-    });
+    const timeoutId = setTimeout(() => {
+      let capacityValue;
+      
+      if (capacityType === 'fixed') {
+        capacityValue = fixedValue;
+      } else if (capacityType === 'normal') {
+        capacityValue = {
+          distribution: {
+            type: 'normal',
+            mean: normalMean,
+            stddev: normalStddev,
+            min: normalMin,
+            max: normalMax
+          }
+        };
+      } else if (capacityType === 'choice') {
+        capacityValue = {
+          distribution: {
+            type: 'choice',
+            values: choiceValues.map(pair => pair.value),
+            weights: choiceValues.map(pair => pair.weight)
+          }
+        };
+      }
+      
+      onUpdate({
+        resource_type: editedResourceType,
+        capacity: capacityValue
+      });
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timeoutId);
+  }, [capacityType, fixedValue, normalMean, normalStddev, normalMin, normalMax, choiceValues, editedResourceType, onUpdate, show, isUserEditing]);
+
+  // Helper functions to handle form changes and mark as user editing
+  const handleCapacityTypeChange = (newType) => {
+    setIsUserEditing(true);
+    setCapacityType(newType);
+  };
+
+  const handleFixedValueChange = (newValue) => {
+    setIsUserEditing(true);
+    setFixedValue(newValue);
+  };
+
+  const handleNormalMeanChange = (newMean) => {
+    setIsUserEditing(true);
+    setNormalMean(newMean);
+  };
+
+  const handleNormalStddevChange = (newStddev) => {
+    setIsUserEditing(true);
+    setNormalStddev(newStddev);
+  };
+
+  const handleNormalMinChange = (newMin) => {
+    setIsUserEditing(true);
+    setNormalMin(newMin);
+  };
+
+  const handleNormalMaxChange = (newMax) => {
+    setIsUserEditing(true);
+    setNormalMax(newMax);
   };
 
   const addChoicePair = () => {
+    setIsUserEditing(true);
     setChoiceValues([...choiceValues, { value: 1, weight: 1 }]);
   };
 
   const removeChoicePair = (index) => {
     if (choiceValues.length > 1) {
+      setIsUserEditing(true);
       setChoiceValues(choiceValues.filter((_, i) => i !== index));
     }
   };
 
   const updateChoicePair = (index, field, value) => {
+    setIsUserEditing(true);
     const updated = [...choiceValues];
     updated[index][field] = parseFloat(value) || 0;
     setChoiceValues(updated);
@@ -568,7 +610,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
             <Form.Label>Capacity Type</Form.Label>
             <Form.Select
               value={capacityType}
-              onChange={(e) => setCapacityType(e.target.value)}
+              onChange={(e) => handleCapacityTypeChange(e.target.value)}
             >
               <option value="fixed">Fixed Capacity</option>
               <option value="normal">Normal Distribution</option>
@@ -583,7 +625,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
                 type="number"
                 min="1"
                 value={fixedValue}
-                onChange={(e) => setFixedValue(parseInt(e.target.value) || 1)}
+                onChange={(e) => handleFixedValueChange(parseInt(e.target.value) || 1)}
               />
             </Form.Group>
           )}
@@ -597,7 +639,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
                     type="number"
                     step="0.1"
                     value={normalMean}
-                    onChange={(e) => setNormalMean(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleNormalMeanChange(parseFloat(e.target.value) || 0)}
                   />
                 </Form.Group>
               </Col>
@@ -609,7 +651,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
                     step="0.1"
                     min="0"
                     value={normalStddev}
-                    onChange={(e) => setNormalStddev(parseFloat(e.target.value) || 0)}
+                    onChange={(e) => handleNormalStddevChange(parseFloat(e.target.value) || 0)}
                   />
                 </Form.Group>
               </Col>
@@ -619,7 +661,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
                   <Form.Control
                     type="number"
                     value={normalMin}
-                    onChange={(e) => setNormalMin(parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleNormalMinChange(parseInt(e.target.value) || 0)}
                   />
                 </Form.Group>
               </Col>
@@ -629,7 +671,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
                   <Form.Control
                     type="number"
                     value={normalMax}
-                    onChange={(e) => setNormalMax(parseInt(e.target.value) || 0)}
+                    onChange={(e) => handleNormalMaxChange(parseInt(e.target.value) || 0)}
                   />
                 </Form.Group>
               </Col>
@@ -682,10 +724,7 @@ const CapacityEditModal = ({ show, onHide, resourceType, capacity, onSave }) => 
       </Modal.Body>
       <Modal.Footer>
         <Button variant="secondary" onClick={onHide}>
-          Cancel
-        </Button>
-        <Button variant="primary" onClick={handleSave}>
-          Save Changes
+          Close
         </Button>
       </Modal.Footer>
     </Modal>
