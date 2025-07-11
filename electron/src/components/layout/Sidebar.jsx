@@ -5,6 +5,7 @@ import { Button, Spinner, Modal, Form } from 'react-bootstrap';
 import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject } from '../../utils/projectApi';
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
+import { createSafeNavigate } from '../../utils/navigationHelper';
 
 const ProjectSidebar = () => {
   const { showSuccess, showError } = useToastContext();
@@ -33,6 +34,7 @@ const ProjectSidebar = () => {
   const [isCompact, setIsCompact] = useState(false);
   
   const navigate = useNavigate();
+  const safeNavigate = createSafeNavigate(navigate);
   const location = useLocation();
   
   // Get currently selected project ID from the URL
@@ -214,7 +216,7 @@ const ProjectSidebar = () => {
   }, [resultsRefreshTrigger, currentProjectId]);
   
   const handleOpenProject = (projectId) => {
-    navigate(`/project/${projectId}`);
+    safeNavigate(`/project/${projectId}`);
   };
   
   const handleOpenCreateModal = () => {
@@ -247,7 +249,7 @@ const ProjectSidebar = () => {
         
         handleCloseCreateModal();
         // Navigate to the new project
-        navigate(`/project/${result.project.id}`);
+        safeNavigate(`/project/${result.project.id}`);
       } else {
         showError('Failed to create project: ' + (result.error || 'Unknown error'));
       }
@@ -283,7 +285,7 @@ const ProjectSidebar = () => {
         
         // If we're currently viewing this project, navigate to home
         if (projectToDelete.id === currentProjectId) {
-          navigate('/');
+          safeNavigate('/');
         }
         
         // Force a refresh of the projects list
@@ -357,13 +359,13 @@ const ProjectSidebar = () => {
   
   // Handle result click
   const handleResultClick = (projectId, resultId) => {
-    navigate(`/project/${projectId}/results/${resultId}`);
+    safeNavigate(`/project/${projectId}/results/${resultId}`);
   };
   
   // Handle table click
   const handleTableClick = (projectId, resultId, table) => {
     // Navigate to the result page but with a specific table selected
-    navigate(`/project/${projectId}/results/${resultId}?table=${table}`);
+    safeNavigate(`/project/${projectId}/results/${resultId}?table=${table}`);
   };
   
   // Handle delete result click
@@ -402,7 +404,7 @@ const ProjectSidebar = () => {
         
         // If we're currently viewing this result, navigate back to project
         if (currentResultId === result.id) {
-          navigate(`/project/${projectId}`);
+          safeNavigate(`/project/${projectId}`);
         }
         
         handleCloseDeleteResultModal();

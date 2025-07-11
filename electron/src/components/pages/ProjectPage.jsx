@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Container, Tab, Nav, Button, Spinner, Modal, Form } from 'react-bootstrap';
 import { FiDatabase, FiActivity, FiBarChart2, FiArrowLeft, FiEdit, FiPlay } from 'react-icons/fi';
@@ -6,8 +6,10 @@ import { FiDatabase, FiActivity, FiBarChart2, FiArrowLeft, FiEdit, FiPlay } from
 import DbConfigEditor from './DbConfigEditor';
 import SimConfigEditor from './SimConfigEditor';
 import ResultsViewer from './ResultsViewer';
-import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSimConfig } from '../../utils/projectApi';
+import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSimConfig, saveProjectDbConfig, saveProjectSimConfig } from '../../utils/projectApi';
 import { useToastContext } from '../../contexts/ToastContext';
+import { useNavigationBlocker } from '../../hooks/useNavigationBlocker';
+import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
 // Cache for project data to reduce loading flicker
 const projectCache = {};
@@ -185,6 +187,42 @@ const ProjectPage = ({ theme }) => {
     setLastSavedSimConfig(simConfigContent);
   }, [simConfigContent]);
 
+  // Handle saving all configurations
+  const handleSaveAll = useCallback(async () => {
+    try {
+      const savePromises = [];
+      
+      // Save database config if it has changes
+      const hasDbChanges = dbConfigContent !== lastSavedDbConfig;
+      if (hasDbChanges) {
+        savePromises.push(
+          saveProjectDbConfig(projectId, { content: dbConfigContent })
+            .then(() => setLastSavedDbConfig(dbConfigContent))
+        );
+      }
+      
+      // Save simulation config if it has changes
+      const hasSimChanges = simConfigContent !== lastSavedSimConfig;
+      if (hasSimChanges) {
+        savePromises.push(
+          saveProjectSimConfig(projectId, { content: simConfigContent })
+            .then(() => setLastSavedSimConfig(simConfigContent))
+        );
+      }
+      
+      // Wait for all saves to complete
+      if (savePromises.length > 0) {
+        await Promise.all(savePromises);
+        showSuccess('All changes saved successfully');
+      }
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error saving configurations:', error);
+      throw error; // Re-throw to be handled by the caller
+    }
+  }, [projectId, dbConfigContent, simConfigContent, lastSavedDbConfig, lastSavedSimConfig, showSuccess]);
+
   // Track unsaved changes
   useEffect(() => {
     const hasDbChanges = dbConfigContent !== lastSavedDbConfig;
@@ -205,6 +243,46 @@ const ProjectPage = ({ theme }) => {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [hasUnsavedChanges]);
+
+  // Navigation blocker state and modal
+  const [showUnsavedModal, setShowUnsavedModal] = useState(false);
+  const [pendingNavigation, setPendingNavigation] = useState(null);
+
+  // Handle navigation blocking when there are unsaved changes
+  const handleNavigationBlocked = useCallback((navigation) => {
+    setPendingNavigation(navigation);
+    setShowUnsavedModal(true);
+  }, []);
+
+  // Use navigation blocker hook
+  const blocker = useNavigationBlocker(hasUnsavedChanges, handleNavigationBlocked);
+
+  // Modal handlers
+  const handleSaveAndContinue = useCallback(async () => {
+    try {
+      await handleSaveAll();
+      setShowUnsavedModal(false);
+      if (blocker.state === 'blocked') {
+        blocker.proceed();
+      }
+    } catch (error) {
+      showError('Failed to save changes. Please try again.');
+    }
+  }, [handleSaveAll, blocker, showError]);
+
+  const handleDiscardAndContinue = useCallback(() => {
+    setShowUnsavedModal(false);
+    if (blocker.state === 'blocked') {
+      blocker.proceed();
+    }
+  }, [blocker]);
+
+  const handleCancelNavigation = useCallback(() => {
+    setShowUnsavedModal(false);
+    if (blocker.state === 'blocked') {
+      blocker.reset();
+    }
+  }, [blocker]);
 
   // Effect to load project data
   useEffect(() => {
@@ -462,6 +540,17 @@ const ProjectPage = ({ theme }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Unsaved Changes Modal */}
+      <UnsavedChangesModal
+        show={showUnsavedModal}
+        onHide={handleCancelNavigation}
+        onSave={handleSaveAndContinue}
+        onDiscard={handleDiscardAndContinue}
+        onCancel={handleCancelNavigation}
+        title="Unsaved Changes"
+        message="You have unsaved changes in your project configuration. What would you like to do?"
+      />
     </Container>
   );
 };
