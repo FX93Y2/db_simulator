@@ -29,24 +29,81 @@ export const ProcessNode = ({ data, selected }) => {
   );
 };
 
-// Decide Node Component - Diamond
+// Decide Node Component - Diamond with cascading handles like Arena
 export const DecideNode = ({ data, selected }) => {
-  const outcomes = data.stepConfig?.decide_config?.outcomes || [];
+  const allOutcomes = data.stepConfig?.decide_config?.outcomes || [];
+  // Filter out outcomes with empty next_step_id (orphaned connections)
+  const activeOutcomes = allOutcomes.filter(outcome => outcome.next_step_id && outcome.next_step_id.trim() !== "");
+  // Only show handles for active outcomes + 1 always-available handle for new connections
+  const actualOutcomes = activeOutcomes.length;
+  const totalHandles = actualOutcomes + 1; // +1 for the always-available handle
+  
+  // Fixed diamond position - always centered in a 120px height area
+  const fixedDiamondTop = 20; // Fixed top position for diamond (20px from top)
+  const diamondHeight = 80; // Diamond height
+  const diamondCenterY = fixedDiamondTop + (diamondHeight / 2); // Center of diamond
+  
+  // Start handles closer to diamond's right angle, not below it
+  const handleStartTop = diamondCenterY + 5; // Start 5px below diamond center (right angle area)
+  const handleSpacing = 15; // Closer spacing between handles
+  
+  const renderHandles = () => {
+    const handles = [];
+    
+    // Render handles for existing outcomes only
+    for (let i = 0; i < actualOutcomes; i++) {
+      const topPosition = handleStartTop + (i * handleSpacing);
+      handles.push(
+        <Handle
+          key={`outcome-${i}`}
+          type="source"
+          position={Position.Right}
+          id={`outcome-${i}`}
+          style={{ 
+            right: '-12px', 
+            top: `${topPosition}px`
+          }}
+          className="outcome-handle"
+        />
+      );
+    }
+    
+    // Always-available handle at the bottom for new connections
+    const newHandleTop = handleStartTop + (actualOutcomes * handleSpacing);
+    handles.push(
+      <Handle
+        key="new-outcome"
+        type="source"
+        position={Position.Right}
+        id={`outcome-${actualOutcomes}`}
+        style={{ 
+          right: '-12px', 
+          top: `${newHandleTop}px`
+        }}
+        className="new-outcome-handle"
+      />
+    );
+    
+    return handles;
+  };
+  
+  // Calculate total height needed for the node
+  const nodeHeight = Math.max(120, handleStartTop + ((totalHandles) * handleSpacing) + 20); // Min 120px, +20 for bottom padding
   
   return (
-    <div className={`custom-node decide-step-node ${selected ? 'selected' : ''}`}>
-      <Handle type="target" position={Position.Left} style={{ left: '0%', top: '50%' }} />
-      <div className="diamond-shape">
+    <div 
+      className={`custom-node decide-step-node ${selected ? 'selected' : ''}`}
+      style={{ height: `${nodeHeight}px` }}
+    >
+      <Handle type="target" position={Position.Left} style={{ left: '-12px', top: `${diamondCenterY}px` }} />
+      <div className="diamond-shape" style={{ top: `${fixedDiamondTop}px`, left: '50%', marginTop: '0px', marginLeft: '-60px' }}>
         <div className="diamond-content">
           <div className="node-title">Decision</div>
         </div>
       </div>
-      {/* All source handles on the right point */}
-      <Handle type="source" position={Position.Right} id="outcome-0" style={{ right: '0%', top: '45%' }} />
-      <Handle type="source" position={Position.Right} id="outcome-1" style={{ right: '0%', top: '55%' }} />
-      {outcomes.length > 2 && (
-        <Handle type="source" position={Position.Right} id="outcome-2" style={{ right: '0%', top: '50%' }} />
-      )}
+      
+      {/* Cascading handles on the right, similar to Arena */}
+      {renderHandles()}
     </div>
   );
 };

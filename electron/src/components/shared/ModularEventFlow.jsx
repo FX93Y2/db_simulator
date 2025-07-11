@@ -118,8 +118,43 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
         if (sourceStep.step_type === 'decide') {
           // Handle decide step connections through outcomes
           const outcomeIndex = parseInt(params.sourceHandle?.replace('outcome-', '') || '0');
-          if (sourceStep.decide_config?.outcomes?.[outcomeIndex]) {
+          
+          // Ensure decide_config exists
+          if (!sourceStep.decide_config) {
+            sourceStep.decide_config = {
+              module_id: sourceStep.step_id,
+              decision_type: 'probability',
+              outcomes: []
+            };
+          }
+          
+          // If connecting to an existing outcome, update it
+          if (sourceStep.decide_config.outcomes[outcomeIndex]) {
             sourceStep.decide_config.outcomes[outcomeIndex].next_step_id = params.target;
+          } else {
+            // If connecting to the always-available handle (beyond existing outcomes), create a new outcome
+            const newOutcome = {
+              outcome_id: `outcome_${outcomeIndex + 1}`,
+              next_step_id: params.target,
+              conditions: [{
+                condition_type: 'probability',
+                probability: 0.5 // Default probability, user can edit later
+              }]
+            };
+            
+            // Add the new outcome
+            sourceStep.decide_config.outcomes.push(newOutcome);
+            
+            // Normalize probabilities if needed (ensure they sum to 1)
+            const outcomes = sourceStep.decide_config.outcomes;
+            if (outcomes.length > 1) {
+              const equalProbability = 1 / outcomes.length;
+              outcomes.forEach(outcome => {
+                if (outcome.conditions && outcome.conditions[0]) {
+                  outcome.conditions[0].probability = equalProbability;
+                }
+              });
+            }
           }
         } else {
           // Handle regular next_steps
@@ -253,11 +288,22 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
           step.next_steps = step.next_steps.filter(id => !deletedIds.includes(id));
         }
         if (step.decide_config?.outcomes) {
-          step.decide_config.outcomes.forEach(outcome => {
-            if (deletedIds.includes(outcome.next_step_id)) {
-              outcome.next_step_id = "";
-            }
-          });
+          // Remove outcomes that reference deleted steps entirely
+          step.decide_config.outcomes = step.decide_config.outcomes.filter(outcome => 
+            !deletedIds.includes(outcome.next_step_id)
+          );
+          
+          // Rebalance probabilities for remaining outcomes
+          if (step.decide_config.outcomes.length > 0) {
+            const equalProbability = 1 / step.decide_config.outcomes.length;
+            step.decide_config.outcomes.forEach(outcome => {
+              outcome.conditions.forEach(condition => {
+                if (condition.condition_type === 'probability') {
+                  condition.probability = equalProbability;
+                }
+              });
+            });
+          }
         }
       });
 
