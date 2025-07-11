@@ -52,6 +52,7 @@
     "react-icons": "^4.11.0",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^6.16.0",
+    "react-syntax-highlighter": "^15.6.1",
     "reactflow": "^11.10.1",
     "sass": "^1.69.0",
     "sql.js": "^1.8.0",
