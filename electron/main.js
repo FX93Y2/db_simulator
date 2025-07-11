@@ -182,9 +182,28 @@ function createWindow() {
 
   // Replace direct DevTools opening with a context menu
   mainWindow.webContents.on('context-menu', (event, params) => {
-    // Only show menu in development
-    if (!app.isPackaged) {
-      const template = [
+    let template;
+    
+    if (app.isPackaged) {
+      // Production menu - essential options for end users
+      template = [
+        {
+          label: 'Reload',
+          click: () => {
+            mainWindow.webContents.reload();
+          }
+        },
+        { type: 'separator' },
+        {
+          label: 'Inspect Element',
+          click: () => {
+            mainWindow.webContents.openDevTools({ mode: 'detach' });
+          }
+        }
+      ];
+    } else {
+      // Development menu - full debugging options
+      template = [
         {
           label: 'Inspect Element',
           click: () => {
@@ -197,11 +216,18 @@ function createWindow() {
           click: () => {
             mainWindow.webContents.reload();
           }
+        },
+        {
+          label: 'Force Reload',
+          click: () => {
+            mainWindow.webContents.reloadIgnoringCache();
+          }
         }
       ];
-      const menu = Menu.buildFromTemplate(template);
-      menu.popup({ window: mainWindow, x: params.x, y: params.y });
     }
+    
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup({ window: mainWindow, x: params.x, y: params.y });
   });
 
   // Handle window closed event
