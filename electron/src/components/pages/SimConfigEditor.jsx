@@ -55,10 +55,7 @@ event_simulation:
                 type: normal
                 mean: 3
                 stddev: 0.5
-            resource_requirements:
-              - resource_table: Consultant
-                value: Developer
-                count: 1
+            resource_requirements: []
           next_steps: [release_1]
         
         - step_id: release_1
@@ -66,13 +63,7 @@ event_simulation:
           event_config:
             name: Release
   
-  resource_capacities:
-    Consultant:
-      capacity_rules:
-        - resource_type: "Developer"
-          capacity: 2
-        - resource_type: "Tester"
-          capacity: 1
+  resource_capacities: {}
 `;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) => {
@@ -251,7 +242,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
         newStep.event_config = {
           name: `New Process`,
           duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
-          resource_requirements: [{ resource_table: "Consultant", value: "Developer", count: 1 }]
+          resource_requirements: []
         };
         newStep.next_steps = [];
       } else if (moduleType === 'decide') {
@@ -652,6 +643,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent }) =>
                         parsedSchema={parsedYamlObject}
                         onDiagramChange={handleDiagramChange}
                         theme={theme}
+                        dbConfigContent={dbConfigContent}
                       />
                     ) : (
                       <EventFlow

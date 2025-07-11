@@ -2,16 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Form, Row, Col, Badge, ListGroup, Alert } from 'react-bootstrap';
 import { FiPlus, FiEdit2, FiTrash2, FiSettings } from 'react-icons/fi';
 import yaml from 'yaml';
+import useResourceDefinitions from '../../hooks/useResourceDefinitions';
 
 const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
   const [parsedData, setParsedData] = useState(null);
-  const [dbParsedData, setDbParsedData] = useState(null);
-  const [resourceDefinitions, setResourceDefinitions] = useState({});
   const [previousResourceDefinitions, setPreviousResourceDefinitions] = useState({});
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedResourceType, setSelectedResourceType] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingCapacity, setEditingCapacity] = useState(null);
+  
+  // Use the custom hook to get resource definitions from database config
+  const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
   // Parse YAML content when it changes
   useEffect(() => {
@@ -26,58 +28,14 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
     }
   }, [yamlContent]);
 
-  // Parse database configuration when it changes
-  useEffect(() => {
-    try {
-      if (dbConfigContent) {
-        const parsed = yaml.parse(dbConfigContent);
-        setDbParsedData(parsed);
-      } else {
-        setDbParsedData(null);
-      }
-    } catch (error) {
-      console.error('Error parsing database YAML for resource editor:', error);
-      setDbParsedData(null);
-    }
-  }, [dbConfigContent]);
+  // Database configuration parsing is now handled by the useResourceDefinitions hook
 
-  // Extract resource definitions from database configuration
+  // Handle resource definition changes for rename detection
   useEffect(() => {
-    if (!dbParsedData?.entities) {
-      setResourceDefinitions({});
-      return;
-    }
-
-    const definitions = {};
-    
-    // Find entities with type: resource
-    const resourceEntities = dbParsedData.entities.filter(entity => entity.type === 'resource');
-    
-    resourceEntities.forEach(entity => {
-      // Find attributes with type: resource_type
-      const resourceTypeAttributes = entity.attributes?.filter(attr => attr.type === 'resource_type') || [];
-      
-      if (resourceTypeAttributes.length > 0) {
-        // Take the first resource_type attribute (should be only one)
-        const resourceTypeAttr = resourceTypeAttributes[0];
-        
-        if (resourceTypeAttr.generator?.distribution?.type === 'choice' && resourceTypeAttr.generator.distribution.values) {
-          // Extract the possible values from the choice distribution
-          const values = resourceTypeAttr.generator.distribution.values;
-          if (Array.isArray(values) && values.length > 0) {
-            definitions[entity.name] = {
-              resourceTypes: values,
-              attributeName: resourceTypeAttr.name
-            };
-          }
-        }
-      }
-    });
-    
     // Detect resource renames and resource type renames, then update simulation configuration
-    if (Object.keys(previousResourceDefinitions).length > 0 && parsedData) {
-      const renamedResources = detectResourceRenames(previousResourceDefinitions, definitions);
-      const renamedResourceTypes = detectResourceTypeRenames(previousResourceDefinitions, definitions);
+    if (Object.keys(previousResourceDefinitions).length > 0 && parsedData && Object.keys(resourceDefinitions).length > 0) {
+      const renamedResources = detectResourceRenames(previousResourceDefinitions, resourceDefinitions);
+      const renamedResourceTypes = detectResourceTypeRenames(previousResourceDefinitions, resourceDefinitions);
       
       if (renamedResources.length > 0) {
         handleResourceRenames(renamedResources);
@@ -88,9 +46,8 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
       }
     }
     
-    setPreviousResourceDefinitions(definitions);
-    setResourceDefinitions(definitions);
-  }, [dbParsedData, previousResourceDefinitions, parsedData]);
+    setPreviousResourceDefinitions(resourceDefinitions);
+  }, [resourceDefinitions, previousResourceDefinitions, parsedData]);
 
   // Function to detect resource renames by comparing old and new resource definitions
   const detectResourceRenames = (oldDefinitions, newDefinitions) => {
@@ -474,7 +431,7 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
           <h5 className="mb-0">Resource Capacities</h5>
           {Object.keys(resourceDefinitions).length > 0 && (
             <small className="text-muted">
-              Dynamically generated from database configuration
+              Available resources in database configuration
             </small>
           )}
         </div>
