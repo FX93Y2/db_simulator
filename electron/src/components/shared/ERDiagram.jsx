@@ -120,19 +120,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [schemaId, setSchemaId] = useState(null);
   const currentNodesRef = useRef([]);
   const [layoutMap, setLayoutMap] = useState({});
-  const [isInternalUpdate, setIsInternalUpdate] = useState(false);
   const internalUpdateRef = useRef(false);
 
-  // Utility: Extract layout map from nodes
-  const extractLayoutMap = useCallback((nodesArr) => {
-    const map = {};
-    nodesArr.forEach(node => {
-      if (node.position) {
-        map[node.id] = { ...node.position };
-      }
-    });
-    return map;
-  }, []);
 
   // Utility: Apply layout map to nodes
   const applyLayoutToNodes = useCallback((nodesArr, layout) => {
@@ -277,7 +266,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
                   style: { stroke: '#3498db' },
                   label: attr.name,
                   markerEnd: {
-                    type: MarkerType.ArrowClosed,
+                    type: 'arrowclosed',
                     width: 20,
                     height: 20,
                     color: '#3498db',
@@ -362,7 +351,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
           type: 'smoothstep',
           style: { stroke: '#3498db' },
           markerEnd: {
-            type: MarkerType.ArrowClosed,
+            type: 'arrowclosed',
             width: 20,
             height: 20,
             color: '#3498db',
@@ -375,7 +364,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   
   // Handle node movement
   const onNodeDragStop = useCallback(
-    (event, node) => {
+    (_event, node) => {
       setNodes(nds =>
         nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
       );
@@ -388,26 +377,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     [setNodes]
   );
   
-  // Helper function to save node position to localStorage
-  const saveNodePosition = useCallback((nodeId, position) => {
-    if (!schemaId) return;
-    
-    try {
-      const savedData = localStorage.getItem(schemaId);
-      let positions = savedData ? JSON.parse(savedData) : {};
-      
-      positions[nodeId] = position;
-      localStorage.setItem(schemaId, JSON.stringify(positions));
-      console.log(`[ERDiagram] Saved position for ${nodeId}:`, position);
-    } catch (err) {
-      console.error('[ERDiagram] Error saving position to localStorage:', err);
-    }
-  }, [schemaId]);
   
-  // Save all current node positions to layoutMap (e.g., before YAML changes)
-  const saveAllNodePositions = useCallback(() => {
-    setLayoutMap(extractLayoutMap(currentNodesRef.current));
-  }, [extractLayoutMap]);
 
   // Handle node deletion with enhanced foreign key cleanup
   const onNodesDelete = useCallback(
@@ -541,7 +511,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
 
   // Handle node double click
   const onNodeDoubleClick = useCallback(
-    (event, node) => {
+    (_event, node) => {
       setSelectedNode(node);
       setShowNodeModal(true);
     },
@@ -581,52 +551,13 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   }, [dbSchema, onDiagramChange, selectedNode]);
 
   // Handle entity deletion from EntityEditor
-  const handleEntityDelete = useCallback((entity) => {
+  const handleEntityDelete = useCallback((_entity) => {
     if (selectedNode) {
       console.log("[ERDiagram] Deleting entity from EntityEditor:", selectedNode);
       onNodesDelete([selectedNode]);
     }
   }, [onNodesDelete, selectedNode]);
 
-  // Legacy function for backward compatibility
-  const handleNodeUpdate = useCallback((updatedNodeData) => {
-      if (dbSchema) {
-         // Create a deep copy
-        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
-
-        // Find and update the entity in the schema
-        const entityIndex = updatedSchema.entities.findIndex(e => e.name === updatedNodeData.id);
-        if (entityIndex !== -1) {
-            // Update attributes, name, etc. based on updatedNodeData.data
-            updatedSchema.entities[entityIndex] = {
-                // Reconstruct the entity based on modal data
-                // This needs careful mapping from node data back to schema structure
-                name: updatedNodeData.data.label,
-                type: updatedNodeData.data.tableType || undefined, // Include table type, but don't add if empty
-                attributes: updatedNodeData.data.attributes, // Assuming modal updates attributes directly
-                // ... other entity properties ...
-            };
-        }
-
-        // Update internal state
-        setDbSchema(updatedSchema);
-
-        // Call the callback with the updated OBJECT
-        if (onDiagramChange) {
-          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after node update:", updatedSchema);
-          onDiagramChange(updatedSchema);
-        }
-      }
-  }, [dbSchema, onDiagramChange]);
-
-  // Wrapper function to handle node deletion from the modal
-  const handleNodeDelete = useCallback((node) => {
-    // Convert single node to array before passing to onNodesDelete
-    if (node) {
-      console.log("[ERDiagram] Deleting node from modal:", node);
-      onNodesDelete([node]);
-    }
-  }, [onNodesDelete]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
@@ -636,8 +567,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
         className="er-diagram-container" 
         style={{ 
           width: '100%', 
-          // height: '600px', // Let parent control height
-          // border: '1px solid #ddd', // REMOVE inline border
+          height: '100%',
           borderRadius: '4px',
           overflow: 'hidden'
         }} 
@@ -646,7 +576,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   }
   
   return (
-    <div ref={containerRef} className="er-diagram-container">
+    <div ref={containerRef} className="er-diagram-container" style={{ width: '100%', height: '100%' }}>
       {initialized && (
         <>
           <ReactFlow

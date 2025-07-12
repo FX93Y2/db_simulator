@@ -113,14 +113,18 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
         console.log(`ResourceEditor: Renamed resource capacity configuration from "${oldName}" to "${newName}"`);
       }
       
-      // Also update resource_table references in event sequence
-      if (updatedData.event_simulation.event_sequence?.event_types) {
-        updatedData.event_simulation.event_sequence.event_types.forEach(eventType => {
-          if (eventType.resource_requirements) {
-            eventType.resource_requirements.forEach(requirement => {
-              if (requirement.resource_table === oldName) {
-                requirement.resource_table = newName;
-                console.log(`ResourceEditor: Updated resource_table reference from "${oldName}" to "${newName}" in event "${eventType.name}"`);
+      // Also update resource_table references in event flows
+      if (updatedData.event_simulation.event_flows) {
+        updatedData.event_simulation.event_flows.forEach(flow => {
+          if (flow.steps) {
+            flow.steps.forEach(step => {
+              if (step.event_config?.resource_requirements) {
+                step.event_config.resource_requirements.forEach(requirement => {
+                  if (requirement.resource_table === oldName) {
+                    requirement.resource_table = newName;
+                    console.log(`ResourceEditor: Updated resource_table reference from "${oldName}" to "${newName}" in step "${step.step_id}"`);
+                  }
+                });
               }
             });
           }
@@ -193,14 +197,18 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
         }
       }
       
-      // Also update resource type references in event sequence
-      if (updatedData.event_simulation.event_sequence?.event_types) {
-        updatedData.event_simulation.event_sequence.event_types.forEach(eventType => {
-          if (eventType.resource_requirements) {
-            eventType.resource_requirements.forEach(requirement => {
-              if (requirement.resource_table === resourceName && requirement.value === oldType) {
-                requirement.value = newType;
-                console.log(`ResourceEditor: Updated resource type reference from "${oldType}" to "${newType}" in event "${eventType.name}"`);
+      // Also update resource type references in event flows
+      if (updatedData.event_simulation.event_flows) {
+        updatedData.event_simulation.event_flows.forEach(flow => {
+          if (flow.steps) {
+            flow.steps.forEach(step => {
+              if (step.event_config?.resource_requirements) {
+                step.event_config.resource_requirements.forEach(requirement => {
+                  if (requirement.resource_table === resourceName && requirement.value === oldType) {
+                    requirement.value = newType;
+                    console.log(`ResourceEditor: Updated resource type reference from "${oldType}" to "${newType}" in step "${step.step_id}"`);
+                  }
+                });
               }
             });
           }

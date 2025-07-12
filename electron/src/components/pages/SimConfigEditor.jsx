@@ -15,7 +15,6 @@ import {
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
-import EventFlow from '../shared/EventFlow';
 import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
@@ -649,23 +648,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
               ) : (
                 <>
                   {activeVisualizationTab === 'event-flow' && (
-                    parsedYamlObject?.event_simulation?.event_flows ? (
-                      <ModularEventFlow
-                        yamlContent={yamlContent}
-                        parsedSchema={parsedYamlObject}
-                        onDiagramChange={handleDiagramChange}
-                        theme={theme}
-                        dbConfigContent={dbConfigContent}
-                      />
-                    ) : (
-                      <EventFlow
-                        yamlContent={yamlContent}
-                        parsedSchema={parsedYamlObject}
-                        onDiagramChange={handleDiagramChange}
-                        theme={theme}
-                        dbConfigContent={dbConfigContent}
-                      />
-                    )
+                    <ModularEventFlow
+                      yamlContent={yamlContent}
+                      parsedSchema={parsedYamlObject}
+                      onDiagramChange={handleDiagramChange}
+                      theme={theme}
+                      dbConfigContent={dbConfigContent}
+                    />
                   )}
                   
                   {activeVisualizationTab === 'resources' && (

@@ -129,7 +129,7 @@ const ConfigurationGuide = () => {
             <li><strong>pk:</strong> Primary Key - unique identifier for each row</li>
             <li><strong>fk:</strong> Foreign Key - references another table (requires <code>ref</code> property)</li>
             <li><strong>resource_type:</strong> Categorizes resources (used in resource_capacities)</li>
-            <li><strong>event_type:</strong> Categorizes events (used in event_sequence)</li>
+            <li><strong>event_type:</strong> Categorizes events (used in event_flows)</li>
             <li><strong>resource_id:</strong> References a resource table</li>
             <li><strong>entity_id:</strong> References an entity table</li>
             <li><strong>event_id:</strong> References an event table</li>

@@ -6,7 +6,6 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
-  MarkerType,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
@@ -103,7 +102,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
     const newEdge = {
       ...params,
       type: 'smoothstep',
-      markerEnd: { type: MarkerType.ArrowClosed },
+      markerEnd: { type: 'arrowclosed' },
       style: { stroke: '#38a169', strokeWidth: 2 }
     };
     setEdges((eds) => addEdge(newEdge, eds));
@@ -317,7 +316,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
   }, [flowData, parsedSchema, onDiagramChange]);
 
   return (
-    <div className="modular-event-flow">
+    <div className="modular-event-flow event-flow-container" style={{ width: '100%', height: '500px' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
