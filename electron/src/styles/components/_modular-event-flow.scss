@@ -348,6 +348,14 @@
 }
 
 /* Controls and Background */
+.modular-event-flow .react-flow__background {
+  opacity: 1 !important;
+  z-index: 0 !important;
+  background: transparent !important;
+  display: block !important;
+  pointer-events: none !important;
+}
+
 .modular-event-flow .react-flow__controls {
   background: var(--theme-card-bg);
   border: 1px solid var(--theme-border);

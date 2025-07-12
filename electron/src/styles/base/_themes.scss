@@ -151,9 +151,9 @@ body.theme-dark { // Dark theme overrides
 }
 
 // React Flow Global Styles (apply to both light and dark themes)
-.react-flow__background {
-  background-color: var(--theme-bg); // Use theme background
-}
+// .react-flow__background {
+//   background-color: var(--theme-bg); // Use theme background - COMMENTED OUT to allow dots pattern
+// }
 
 // Ensure viewport is transparent to see the background pattern
 .react-flow__viewport {

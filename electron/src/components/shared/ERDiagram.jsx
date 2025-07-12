@@ -157,6 +157,12 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
+      console.log('[ERDiagram] Container dimensions:', {
+        width: containerRef.current.offsetWidth,
+        height: containerRef.current.offsetHeight,
+        clientWidth: containerRef.current.clientWidth,
+        clientHeight: containerRef.current.clientHeight
+      });
       setInitialized(true);
     }
   }, []);

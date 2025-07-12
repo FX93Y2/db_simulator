@@ -175,8 +175,12 @@
   }
   
   .canvas-content {
+    width: 100%;
     height: calc(100% - 60px);
     overflow: hidden;
     background: transparent; /* Allow ReactFlow background pattern to show through */
+    flex: 1; /* Ensure it takes available space in flex container */
+    display: flex;
+    flex-direction: column;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import ReactFlow, {
   addEdge,
   MiniMap,
@@ -29,9 +29,24 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
   const [flowData, setFlowData] = useState(null);
   const [schemaId, setSchemaId] = useState(null);
   const [layoutMap, setLayoutMap] = useState({});
+  const [initialized, setInitialized] = useState(false);
+  const containerRef = useRef(null);
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
+
+  // Use layout effect to ensure container is measured before rendering (COPIED FROM ERDIAGRAM)
+  useLayoutEffect(() => {
+    if (containerRef.current) {
+      console.log('[ModularEventFlow] Container dimensions:', {
+        width: containerRef.current.offsetWidth,
+        height: containerRef.current.offsetHeight,
+        clientWidth: containerRef.current.clientWidth,
+        clientHeight: containerRef.current.clientHeight
+      });
+      setInitialized(true);
+    }
+  }, []);
 
   // Generate consistent ID for schema based on content
   useEffect(() => {
@@ -315,9 +330,26 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
     }
   }, [flowData, parsedSchema, onDiagramChange]);
 
+  // If not initialized, just show the container to get dimensions (COPIED FROM ERDIAGRAM)
+  if (!initialized) {
+    return (
+      <div 
+        ref={containerRef} 
+        className="modular-event-flow event-flow-container" 
+        style={{ 
+          width: '100%', 
+          height: '100%',
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }} 
+      />
+    );
+  }
+
   return (
-    <div className="modular-event-flow event-flow-container" style={{ width: '100%', height: '100%' }}>
-      <ReactFlow
+    <div ref={containerRef} className="modular-event-flow event-flow-container" style={{ width: '100%', height: '100%' }}>
+      {initialized && (
+        <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
@@ -331,12 +363,16 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
         snapToGrid={true}
         snapGrid={[20, 20]}
         fitView
+        attributionPosition="bottom-right"
+        nodesDraggable={true}
+        elementsSelectable={true}
         deleteKeyCode={['Backspace', 'Delete']}
       >
         <Controls />
-        <MiniMap />
         <Background variant="dots" gap={12} size={1} />
+        <MiniMap />
       </ReactFlow>
+      )}
 
       <NodeEditModal
         show={showEditModal}
