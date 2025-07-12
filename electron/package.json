@@ -63,6 +63,7 @@
     "productName": "DB Simulator",
     "files": [
       "dist/**/*",
+      "src/main/**/*",
       "main.js",
       "preload.js",
       "index.html"
@@ -113,6 +114,25 @@
     },
     "portable": {
       "artifactName": "${productName}-portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "icon": "public/app-icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "dmg": {
+      "artifactName": "${productName}-${version}.${ext}",
+      "title": "${productName} ${version}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "public/app-icon.png",
+      "category": "Development"
     }
   }
 }
