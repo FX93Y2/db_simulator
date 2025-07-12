@@ -14,8 +14,15 @@ import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import yaml from 'yaml';
 import EntityEditor from './EntityEditor';
+import { 
+  handleTableConnection, 
+  handleEdgeDeletion, 
+  handleTableDeletion,
+  validateConnection,
+  getSuggestedConnectionTypes 
+} from './ERDiagramConnectionHandler';
 
-// Custom Entity Node component
+// Custom Entity Node component with enhanced connection handles
 const EntityNode = ({ data, theme }) => {
   // Determine node class based on table type
   const getNodeTypeClass = () => {
@@ -31,12 +38,46 @@ const EntityNode = ({ data, theme }) => {
     }
   };
 
+  // Get handle tooltip based on table type and position
+  const getHandleTooltip = (position, type) => {
+    if (type === 'source') {
+      return `Connect from ${data.label} to another table (creates foreign key in ${data.label})`;
+    } else {
+      return `Connect to ${data.label} from another table (creates foreign key in source table)`;
+    }
+  };
+
   return (
     <div className={`entity-node ${getNodeTypeClass()}`}>
-      <Handle type="target" position={Position.Top} id="target-top" />
-      <Handle type="source" position={Position.Right} id="source-right" />
-      <Handle type="target" position={Position.Left} id="target-left" />
-      <Handle type="source" position={Position.Bottom} id="source-bottom" />
+      {/* Connection handles with enhanced styling and tooltips */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        id="target-top"
+        className="connection-handle connection-handle--target"
+        title={getHandleTooltip('top', 'target')}
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="source-right"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip('right', 'source')}
+      />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="target-left"
+        className="connection-handle connection-handle--target"
+        title={getHandleTooltip('left', 'target')}
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="source-bottom"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip('bottom', 'source')}
+      />
       
       <div className="entity-node__title">
         {data.label}
@@ -53,6 +94,7 @@ const EntityNode = ({ data, theme }) => {
             className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${
               attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
             }`}
+            title={attr.ref ? `References: ${attr.ref}` : ''}
           >
             {attr.name}: {attr.type}
           </div>
@@ -78,6 +120,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [schemaId, setSchemaId] = useState(null);
   const currentNodesRef = useRef([]);
   const [layoutMap, setLayoutMap] = useState({});
+  const [isInternalUpdate, setIsInternalUpdate] = useState(false);
+  const internalUpdateRef = useRef(false);
 
   // Utility: Extract layout map from nodes
   const extractLayoutMap = useCallback((nodesArr) => {
@@ -175,6 +219,13 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
 
   // Parse YAML to extract entities and hydrate positions
   useEffect(() => {
+    // Skip re-parsing if this update came from an internal diagram change
+    if (internalUpdateRef.current) {
+      console.log('[ERDiagram] Skipping YAML re-parse - internal update');
+      internalUpdateRef.current = false;
+      return;
+    }
+
     try {
       if (!yamlContent) {
         setDbSchema(null);
@@ -253,39 +304,70 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     }
   }, [yamlContent, theme, schemaId, layoutMap, applyLayoutToNodes]);
   
-  // Handle connecting nodes
+  // Handle connecting nodes with automatic foreign key generation
   const onConnect = useCallback(
     (params) => {
-      // Validate connection params
-      if (!params.source || !params.target) {
-        console.error('Invalid connection params:', params);
+      console.log('[ERDiagram] Connection attempt:', params);
+      
+      // Validate connection
+      if (!validateConnection(params, dbSchema)) {
+        console.warn('[ERDiagram] Invalid connection attempt');
         return;
       }
       
-      if (dbSchema) {
-        // Create a deep copy to avoid direct state mutation
-        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
-
-        // ... logic to modify updatedSchema based on new connection (params) ...
-        // Example: Add relationship
-
-        if (!updatedSchema.relationships) {
-            updatedSchema.relationships = [];
+      // Use the enhanced connection handler
+      const updatedSchema = handleTableConnection(
+        params, 
+        dbSchema, 
+        (newSchema) => {
+          // Update internal state
+          setDbSchema(newSchema);
+          
+          // Set flag to prevent circular update
+          internalUpdateRef.current = true;
+          
+          // Notify parent component
+          if (onDiagramChange) {
+            console.log("[ERDiagram] Calling onDiagramChange with updated schema after auto-FK creation");
+            onDiagramChange(newSchema);
+          }
         }
-        updatedSchema.relationships.push({
-            from: params.source,
-            to: params.target,
-            type: 'one-to-many' // Example type
+      );
+      
+      if (updatedSchema) {
+        // Update visual nodes to reflect the new foreign key immediately
+        setNodes((currentNodes) => {
+          return currentNodes.map(node => {
+            if (node.id === params.source) {
+              // Find the updated entity from the schema
+              const updatedEntity = updatedSchema.entities.find(e => e.name === params.source);
+              if (updatedEntity) {
+                return {
+                  ...node,
+                  data: {
+                    ...node.data,
+                    attributes: updatedEntity.attributes || []
+                  }
+                };
+              }
+            }
+            return node;
+          });
         });
 
-        // Update the internal state
-        setDbSchema(updatedSchema);
-
-        // Call the callback with the updated OBJECT
-        if (onDiagramChange) {
-          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after connect:", updatedSchema);
-          onDiagramChange(updatedSchema);
-        }
+        // Add the visual edge
+        setEdges((eds) => addEdge({
+          ...params,
+          animated: true,
+          type: 'smoothstep',
+          style: { stroke: '#3498db' },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            width: 20,
+            height: 20,
+            color: '#3498db',
+          }
+        }, eds));
       }
     },
     [dbSchema, onDiagramChange, setEdges]
@@ -327,35 +409,58 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     setLayoutMap(extractLayoutMap(currentNodesRef.current));
   }, [extractLayoutMap]);
 
-  // Handle node deletion
+  // Handle node deletion with enhanced foreign key cleanup
   const onNodesDelete = useCallback(
     (deletedNodes) => {
       if (dbSchema) {
-        // Create a deep copy
-        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
-
-        // Logic to remove entities/relationships from updatedSchema based on deletedNodes
         const deletedIds = deletedNodes.map(n => n.id);
-
-        if (updatedSchema.entities) {
-            updatedSchema.entities = updatedSchema.entities.filter(
-                entity => !deletedIds.includes(entity.name)
+        
+        // Use the enhanced table deletion handler
+        handleTableDeletion(
+          deletedIds,
+          dbSchema,
+          (newSchema) => {
+            // Update internal state
+            setDbSchema(newSchema);
+            
+            // Update visual nodes to remove deleted tables and update foreign keys immediately
+            setNodes(currentNodes => {
+              // First filter out deleted nodes
+              const remainingNodes = currentNodes.filter(node => !deletedIds.includes(node.id));
+              
+              // Then update remaining nodes to reflect foreign key cleanup
+              return remainingNodes.map(node => {
+                const updatedEntity = newSchema.entities.find(e => e.name === node.id);
+                if (updatedEntity) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      attributes: updatedEntity.attributes || []
+                    }
+                  };
+                }
+                return node;
+              });
+            });
+            
+            // Remove edges connected to deleted nodes
+            setEdges(currentEdges => 
+              currentEdges.filter(edge => 
+                !deletedIds.includes(edge.source) && !deletedIds.includes(edge.target)
+              )
             );
-        }
-        if (updatedSchema.relationships) {
-            updatedSchema.relationships = updatedSchema.relationships.filter(
-                rel => !deletedIds.includes(rel.from) && !deletedIds.includes(rel.to)
-            );
-        }
-
-        // Update internal state
-        setDbSchema(updatedSchema);
-
-        // Call the callback with the updated OBJECT
-        if (onDiagramChange) {
-          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after delete:", updatedSchema);
-          onDiagramChange(updatedSchema);
-        }
+            
+            // Set flag to prevent circular update
+            internalUpdateRef.current = true;
+            
+            // Notify parent component
+            if (onDiagramChange) {
+              console.log("[ERDiagram] Calling onDiagramChange with updated schema after table deletion");
+              onDiagramChange(newSchema);
+            }
+          }
+        );
         
         // Remove the deleted node positions from localStorage
         if (schemaId) {
@@ -382,6 +487,56 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       }
     },
     [dbSchema, onDiagramChange, schemaId]
+  );
+
+  // Handle edge deletion with automatic foreign key removal
+  const onEdgesDelete = useCallback(
+    (deletedEdges) => {
+      console.log('[ERDiagram] Edge deletion:', deletedEdges);
+      
+      if (dbSchema && deletedEdges.length > 0) {
+        handleEdgeDeletion(
+          deletedEdges,
+          dbSchema,
+          (newSchema) => {
+            // Update internal state
+            setDbSchema(newSchema);
+            
+            // Update visual nodes to reflect foreign key removal immediately
+            setNodes((currentNodes) => {
+              return currentNodes.map(node => {
+                // Check if this node was affected by the edge deletion
+                const wasSourceOfDeletedEdge = deletedEdges.some(edge => edge.source === node.id);
+                if (wasSourceOfDeletedEdge) {
+                  // Find the updated entity from the schema
+                  const updatedEntity = newSchema.entities.find(e => e.name === node.id);
+                  if (updatedEntity) {
+                    return {
+                      ...node,
+                      data: {
+                        ...node.data,
+                        attributes: updatedEntity.attributes || []
+                      }
+                    };
+                  }
+                }
+                return node;
+              });
+            });
+            
+            // Set flag to prevent circular update
+            internalUpdateRef.current = true;
+            
+            // Notify parent component
+            if (onDiagramChange) {
+              console.log("[ERDiagram] Calling onDiagramChange with updated schema after FK removal");
+              onDiagramChange(newSchema);
+            }
+          }
+        );
+      }
+    },
+    [dbSchema, onDiagramChange]
   );
 
   // Handle node double click
@@ -413,6 +568,9 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
 
         // Update internal state
         setDbSchema(updatedSchema);
+
+        // Set flag to prevent circular update
+        internalUpdateRef.current = true;
 
         // Call the callback with the updated OBJECT
         if (onDiagramChange) {
@@ -499,6 +657,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             onConnect={onConnect}
             onNodeDragStop={onNodeDragStop}
             onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
             onNodeDoubleClick={onNodeDoubleClick}
             nodeTypes={nodeTypes}
             snapToGrid={true}

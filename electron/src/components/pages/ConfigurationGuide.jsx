@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Container, Row, Col, Form, Card, Nav } from 'react-bootstrap';
-import { FiSearch, FiBook, FiDatabase, FiSettings, FiUsers, FiClock, FiGitBranch, FiTarget } from 'react-icons/fi';
+import { FiSearch, FiBook, FiDatabase, FiSettings, FiUsers, FiClock, FiGitBranch, FiTarget, FiMonitor, FiPlay, FiFolder, FiEdit3 } from 'react-icons/fi';
 
 const ConfigurationGuide = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -20,8 +20,9 @@ const ConfigurationGuide = () => {
     { id: 'event-simulation', label: 'Event Simulation', icon: FiSettings, children: [
       { id: 'entity-arrival', label: 'Entity Arrival' },
       { id: 'resource-capacities', label: 'Resource Capacities' },
-      { id: 'event-sequence', label: 'Event Sequence' },
-      { id: 'transitions', label: 'Transitions' }
+      { id: 'event-flows', label: 'Event Flows' },
+      { id: 'step-types', label: 'Step Types' },
+      { id: 'decide-modules', label: 'Decide Modules' }
     ]}
   ];
 
@@ -232,12 +233,13 @@ const ConfigurationGuide = () => {
           <p>
             The <code>event_simulation</code> section defines the core logic of your process simulation. It controls how entities arrive, how resources are allocated, and how events flow through your process.
           </p>
-          <p>This section contains four main subsections:</p>
+          <p>This section contains several main subsections:</p>
           <ul>
             <li><strong>Entity Arrival:</strong> Controls when new entities enter the system</li>
             <li><strong>Resource Capacities:</strong> Defines available work capacity for different resource types</li>
-            <li><strong>Event Sequence:</strong> Defines the types of events and their requirements</li>
-            <li><strong>Transitions:</strong> Maps the flow between different events</li>
+            <li><strong>Event Flows:</strong> Defines the process flow using step-based configuration</li>
+            <li><strong>Step Types:</strong> Different types of steps (event, decide, release)</li>
+            <li><strong>Decide Modules:</strong> Advanced decision logic with probability and conditions</li>
           </ul>
           
           <CodeBlock>{`event_simulation:
@@ -245,10 +247,12 @@ const ConfigurationGuide = () => {
     # Controls how often new projects arrive
   resource_capacities:
     # Defines consultant availability
-  event_sequence:
-    # Defines project phases and requirements
-  transitions:
-    # Maps the flow between phases`}</CodeBlock>
+  event_flows:
+    # Defines process flows using step-based configuration
+    - flow_id: project_development
+      initial_step: requirements
+      steps:
+        # Individual steps with event, decide, or release types`}</CodeBlock>
         </div>
       )
     },
@@ -342,37 +346,88 @@ entity_arrival:
       )
     },
     {
-      id: 'event-sequence',
-      title: 'Event Sequence',
+      id: 'event-flows',
+      title: 'Event Flows',
       content: (
         <div>
-          <h3>Event Sequence</h3>
-          <p>Defines the types of events in your process and their characteristics.</p>
+          <h3>Event Flows</h3>
+          <p>Defines the process flow using a modern step-based configuration system. Each flow contains a sequence of steps that entities follow through the simulation.</p>
           
-          <h4><code>event_types</code></h4>
-          <p>A list of all possible events, each with:</p>
-          
-          <h5><code>name</code></h5>
-          <p>The name of the event (e.g., "Requirements", "Design", "Testing")</p>
-          
-          <h5><code>duration</code></h5>
-          <p>How long the event takes, typically defined using distributions:</p>
-          <CodeBlock>{`duration:
-  distribution:
-    type: normal
-    mean: 5           # Average 5 days
-    stddev: 1         # Standard deviation of 1 day`}</CodeBlock>
-          
-          <h5><code>resource_requirements</code></h5>
-          <p>List of resources needed to perform the event:</p>
+          <h4>Flow Structure</h4>
+          <p>Each event flow has:</p>
           <ul>
-            <li><strong>resource_table:</strong> Which resource table to use</li>
-            <li><strong>value:</strong> The specific resource type needed</li>
-            <li><strong>count:</strong> How many resources are required</li>
+            <li><strong>flow_id:</strong> Unique identifier for the flow</li>
+            <li><strong>initial_step:</strong> The first step entities enter</li>
+            <li><strong>steps:</strong> List of all steps in the flow</li>
           </ul>
           
-          <CodeBlock>{`event_types:
-  - name: Design
+          <CodeBlock>{`event_flows:
+  - flow_id: project_development
+    initial_step: requirements
+    steps:
+      - step_id: requirements
+        step_type: event
+        event_config:
+          name: Requirements
+          duration:
+            distribution:
+              type: normal
+              mean: 3
+              stddev: 0.5
+          resource_requirements:
+            - resource_table: Consultant
+              value: Developer
+              count: 1
+        next_steps: [design]
+      
+      - step_id: design
+        step_type: event
+        event_config:
+          name: Design
+          duration:
+            distribution:
+              type: normal
+              mean: 5
+              stddev: 1
+          resource_requirements:
+            - resource_table: Consultant
+              value: Developer
+              count: 2
+        next_steps: [implementation]
+      
+      - step_id: implementation_decision
+        step_type: decide
+        decide_config:
+          module_id: implementation_decision
+          decision_type: probability
+          outcomes:
+            - outcome_id: to_testing
+              next_step_id: testing
+              conditions:
+                - condition_type: probability
+                  probability: 0.8
+            - outcome_id: rework
+              next_step_id: design
+              conditions:
+                - condition_type: probability
+                  probability: 0.2`}</CodeBlock>
+        </div>
+      )
+    },
+    {
+      id: 'step-types',
+      title: 'Step Types',
+      content: (
+        <div>
+          <h3>Step Types</h3>
+          <p>The modern event flow system supports three types of steps:</p>
+          
+          <h4>1. Event Steps</h4>
+          <p>Represent actual work or activities that consume time and resources:</p>
+          <CodeBlock>{`- step_id: design
+  step_type: event
+  event_config:
+    name: Design Phase
     duration:
       distribution:
         type: normal
@@ -380,71 +435,109 @@ entity_arrival:
         stddev: 1
     resource_requirements:
       - resource_table: Consultant
-        value: Developer        # Need a Developer
-        count: 2               # Need 2 developers
-      
-  - name: Testing
-    duration:
-      distribution:
-        type: normal
-        mean: 3
-        stddev: 0.5
-    resource_requirements:
-      - resource_table: Consultant
-        value: Tester          # Need a Tester
-        count: 1               # Need 1 tester`}</CodeBlock>
+        value: Developer
+        count: 2
+  next_steps: [implementation]`}</CodeBlock>
+          
+          <h4>2. Decide Steps</h4>
+          <p>Handle decision logic and probability-based routing:</p>
+          <CodeBlock>{`- step_id: quality_check
+  step_type: decide
+  decide_config:
+    module_id: quality_decision
+    decision_type: probability
+    outcomes:
+      - outcome_id: pass
+        next_step_id: deployment
+        conditions:
+          - condition_type: probability
+            probability: 0.85
+      - outcome_id: fail
+        next_step_id: rework
+        conditions:
+          - condition_type: probability
+            probability: 0.15`}</CodeBlock>
+          
+          <h4>3. Release Steps</h4>
+          <p>Mark the completion of an entity and release all allocated resources:</p>
+          <CodeBlock>{`- step_id: project_complete
+  step_type: release
+  event_config:
+    name: Project Completion`}</CodeBlock>
         </div>
       )
     },
     {
-      id: 'transitions',
-      title: 'Transitions',
+      id: 'decide-modules',
+      title: 'Decide Modules',
       content: (
         <div>
-          <h3>Transitions</h3>
-          <p>
-            Defines the process flow map, controlling which events can follow other events and with what probability.
-          </p>
+          <h3>Decide Modules</h3>
+          <p>Decide modules provide advanced decision logic for routing entities through different paths in your process flow.</p>
           
-          <h4>Structure</h4>
-          <p>Each transition defines:</p>
-          <ul>
-            <li><strong>from:</strong> The source event</li>
-            <li><strong>to:</strong> A list of possible destination events with their probabilities</li>
-          </ul>
+          <h4>Decision Types</h4>
           
-          <h4>Probability Rules</h4>
-          <ul>
-            <li>Probabilities for each "from" event must sum to 1.0</li>
-            <li>Use probability 1.0 for deterministic transitions</li>
-            <li>Use multiple destinations with different probabilities for branching logic</li>
-          </ul>
+          <h5>Probability Decisions</h5>
+          <p>Route entities based on probability distributions. Supports both binary (2-way) and N-way decisions:</p>
           
-          <CodeBlock>{`transitions:
-  # Linear flow: Requirements → Design
-  - from: Requirements
-    to:
-      - event_type: Design
-        probability: 1.0        # Always go to Design
-  
-  # Branching flow: Implementation can go to Testing or back to Design
-  - from: Implementation
-    to:
-      - event_type: Testing
-        probability: 0.9        # 90% chance to proceed to Testing
-      - event_type: Design
-        probability: 0.1        # 10% chance to go back to Design (rework)
-  
-  # Multiple outcomes: Testing can succeed, fail, or need rework
-  - from: Testing
-    to:
-      - event_type: Deployment
-        probability: 0.8        # 80% pass and deploy
-      - event_type: Implementation
-        probability: 0.2        # 20% fail and go back to implementation`}</CodeBlock>
+          <h6>2-way by chance</h6>
+          <CodeBlock>{`decide_config:
+  module_id: pass_fail_check
+  decision_type: probability
+  outcomes:
+    - outcome_id: pass
+      next_step_id: continue_process
+      conditions:
+        - condition_type: probability
+          probability: 0.8    # 80% pass rate
+    - outcome_id: fail
+      next_step_id: rework
+      conditions:
+        - condition_type: probability
+          probability: 0.2    # 20% fail rate`}</CodeBlock>
           
-          <div className="alert alert-warning">
-            <strong>Important:</strong> The first transition in your list determines the starting event for new entities entering the system.
+          <h6>N-way by chance</h6>
+          <CodeBlock>{`decide_config:
+  module_id: priority_routing
+  decision_type: probability
+  outcomes:
+    - outcome_id: high_priority
+      next_step_id: fast_track
+      conditions:
+        - condition_type: probability
+          probability: 0.2    # 20% high priority
+    - outcome_id: medium_priority
+      next_step_id: normal_track
+      conditions:
+        - condition_type: probability
+          probability: 0.6    # 60% medium priority
+    - outcome_id: low_priority
+      next_step_id: slow_track
+      conditions:
+        - condition_type: probability
+          probability: 0.2    # 20% low priority`}</CodeBlock>
+          
+          <h5>2-way by condition & n-way by condition (Future)</h5>
+          <p>Route entities based on attributes or system state (planned for future implementation):</p>
+          <CodeBlock>{`# Future feature - not yet implemented
+decide_config:
+  module_id: attribute_based_routing
+  decision_type: condition
+  outcomes:
+    - outcome_id: vip_customer
+      next_step_id: priority_service
+      conditions:
+        - condition_type: attribute_value
+          attribute: customer_type
+          operator: equals
+          value: VIP
+    - outcome_id: regular_customer
+      next_step_id: standard_service
+      conditions:
+        - condition_type: default`}</CodeBlock>
+          
+          <div className="alert alert-info">
+            <strong>Note:</strong> The system automatically normalizes probabilities to ensure they sum to 1.0, and uses proper cumulative distribution for accurate probability-based routing.
           </div>
         </div>
       )
