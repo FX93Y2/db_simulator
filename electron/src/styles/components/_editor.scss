@@ -177,5 +177,6 @@
   .canvas-content {
     height: calc(100% - 60px);
     overflow: hidden;
+    background: transparent; /* Allow ReactFlow background pattern to show through */
   }
 }
