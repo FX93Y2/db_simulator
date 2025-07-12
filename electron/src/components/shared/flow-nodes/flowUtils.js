@@ -109,7 +109,7 @@ export const buildEdgesFromFlow = (flow) => {
           source: step.step_id,
           target: nextStepId,
           type: 'smoothstep',
-          markerEnd: { type: 'ArrowClosed' },
+          markerEnd: { type: 'arrowclosed' },
           style: { stroke: '#38a169', strokeWidth: 2 }
         });
       });

@@ -39,14 +39,12 @@
         font-weight: bold;
         // Use subtle background based on theme
         background-color: rgba(var(--theme-primary-rgb, 52, 152, 219), 0.1);
-        &::before { content: '🔑'; margin-right: 5px; }
       }
       
       &.foreign-key {
         font-style: italic;
         // Use subtle background based on theme
         background-color: rgba(var(--theme-secondary-rgb, 46, 204, 113), 0.1);
-        &::before { content: '🔗'; margin-right: 5px; }
       }
     }
   }
@@ -55,7 +53,6 @@
 // Event Flow
 .event-flow-container {
   height: 500px;
-  background-color: var(--theme-editor-bg);
   border: 1px solid $border-color;
   border-radius: 4px;
   // Ensure the React Flow viewport inherits or gets the theme background

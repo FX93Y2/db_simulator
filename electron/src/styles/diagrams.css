@@ -155,6 +155,21 @@
   font-weight: bold;
 }
 
+/* Key icon styles */
+.key-icon {
+  margin-right: 6px;
+  vertical-align: middle;
+  font-size: 12px;
+}
+
+.primary-key .key-icon {
+  color: #f1c40f;
+}
+
+.foreign-key .key-icon {
+  color: #3498db;
+}
+
 /* Event node styles */
 .event-node {
   min-width: 180px;

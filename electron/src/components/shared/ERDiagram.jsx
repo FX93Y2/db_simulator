@@ -6,7 +6,6 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
-  MarkerType,
   Handle,
   Position,
 } from 'reactflow';
@@ -14,6 +13,7 @@ import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import yaml from 'yaml';
 import EntityEditor from './EntityEditor';
+import { FiKey, FiLink } from 'react-icons/fi';
 import { 
   handleTableConnection, 
   handleEdgeDeletion, 
@@ -96,6 +96,8 @@ const EntityNode = ({ data, theme }) => {
             }`}
             title={attr.ref ? `References: ${attr.ref}` : ''}
           >
+            {(attr.type === 'pk') && <FiKey className="key-icon" />}
+            {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && <FiLink className="key-icon" />}
             {attr.name}: {attr.type}
           </div>
         ))}

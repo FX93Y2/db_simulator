@@ -316,7 +316,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
   }, [flowData, parsedSchema, onDiagramChange]);
 
   return (
-    <div className="modular-event-flow event-flow-container" style={{ width: '100%', height: '500px' }}>
+    <div className="modular-event-flow event-flow-container" style={{ width: '100%', height: '100%' }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -328,9 +328,10 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
         onNodeDragStop={onNodeDragStop}
         onNodesDelete={onNodesDelete}
         nodeTypes={nodeTypes}
+        snapToGrid={true}
+        snapGrid={[20, 20]}
         fitView
         deleteKeyCode={['Backspace', 'Delete']}
-        className={theme === 'dark' ? 'dark-theme' : ''}
       >
         <Controls />
         <MiniMap />

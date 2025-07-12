@@ -89,14 +89,6 @@ body.theme-dark { // Dark theme overrides
     border-color: var(--theme-border) var(--theme-border) var(--theme-sidebar-bg); // Match background - Still needed for active style
   }
 
-  // React Flow
-  .react-flow__background {
-    background-color: var(--theme-bg); // Use main background
-  }
-  // Ensure viewport is transparent to see the background pattern
-  .react-flow__viewport {
-    background-color: transparent !important; 
-  }
   .react-flow__panel { // Controls and Minimap panels
     background-color: var(--theme-card-bg);
     border: 1px solid var(--theme-border);
@@ -156,4 +148,14 @@ body.theme-dark { // Dark theme overrides
       opacity: 0.8;
     }
   }
+}
+
+// React Flow Global Styles (apply to both light and dark themes)
+.react-flow__background {
+  background-color: var(--theme-bg); // Use theme background
+}
+
+// Ensure viewport is transparent to see the background pattern
+.react-flow__viewport {
+  background-color: transparent !important; 
 }
