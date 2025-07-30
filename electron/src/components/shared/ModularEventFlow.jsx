@@ -48,6 +48,7 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
     }
   }, []);
 
+
   // Generate consistent ID for schema based on content
   useEffect(() => {
     const id = generateSchemaId(yamlContent);
@@ -349,29 +350,37 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
   return (
     <div ref={containerRef} className="modular-event-flow event-flow-container" style={{ width: '100%', height: '100%' }}>
       {initialized && (
-        <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        onNodeClick={onNodeClick}
-        onNodeDoubleClick={onNodeDoubleClick}
-        onNodeDragStop={onNodeDragStop}
-        onNodesDelete={onNodesDelete}
-        nodeTypes={nodeTypes}
-        snapToGrid={true}
-        snapGrid={[20, 20]}
-        fitView
-        attributionPosition="bottom-right"
-        nodesDraggable={true}
-        elementsSelectable={true}
-        deleteKeyCode={['Backspace', 'Delete']}
-      >
-        <Controls />
-        <Background variant="dots" gap={12} size={1} />
-        <MiniMap />
-      </ReactFlow>
+        <div id="modular-event-flow-wrapper" style={{ width: '100%', height: '100%' }}>
+          <ReactFlow
+          id="modular-event-flow-instance" 
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          onNodeClick={onNodeClick}
+          onNodeDoubleClick={onNodeDoubleClick}
+          onNodeDragStop={onNodeDragStop}
+          onNodesDelete={onNodesDelete}
+          nodeTypes={nodeTypes}
+          snapToGrid={true}
+          snapGrid={[20, 20]}
+          fitView
+          attributionPosition="bottom-right"
+          nodesDraggable={true}
+          elementsSelectable={true}
+          deleteKeyCode={['Backspace', 'Delete']}
+        >
+          <Background 
+            key="modular-event-flow-background"
+            variant="dots" 
+            gap={12} 
+            size={1}
+          />
+          <Controls />
+          <MiniMap />
+        </ReactFlow>
+        </div>
       )}
 
       <NodeEditModal

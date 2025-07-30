@@ -381,18 +381,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
               </Button>
             </div>
             
-            {loading ? (
-              <div className="text-center py-5">
-                <Spinner animation="border" />
-                <div className="mt-2">Loading diagram...</div>
-              </div>
-            ) : (
-              <ERDiagram 
-                yamlContent={yamlContent} 
-                onDiagramChange={handleDiagramChange}
-                theme={theme}
-              />
-            )}
+            <div className="canvas-content">
+              {loading ? (
+                <div className="text-center py-5">
+                  <Spinner animation="border" />
+                  <div className="mt-2">Loading diagram...</div>
+                </div>
+              ) : (
+                <ERDiagram 
+                  yamlContent={yamlContent} 
+                  onDiagramChange={handleDiagramChange}
+                  theme={theme}
+                />
+              )}
+            </div>
           </div>
         </Panel>
       </PanelGroup>

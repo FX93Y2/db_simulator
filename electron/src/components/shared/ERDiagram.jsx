@@ -167,6 +167,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     }
   }, []);
 
+
   // Generate a consistent ID for the schema based on its entities
   useEffect(() => {
     if (yamlContent) {
@@ -606,7 +607,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
             elementsSelectable={true}
           >
             <Controls position="bottom-right" />
-            <Background variant="dots" gap={12} size={1} />
+            <Background key="er-diagram-background" variant="dots" gap={12} size={1} />
           </ReactFlow>
         </>
       )}
