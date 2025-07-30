@@ -31,6 +31,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+      - name: Install system dependencies (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          # Install required tools for native dependencies
+          brew install pkg-config cairo pango libpng jpeg giflib librsvg
+        shell: bash
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
@@ -54,8 +61,15 @@ jobs:
       - name: Install Node.js dependencies
         run: |
           cd electron
-          npm ci
+          # Clear npm cache if it exists
+          npm cache clean --force || true
+          # Install dependencies
+          npm ci --verbose
         shell: bash
+        env:
+          npm_config_cache: ~/.npm
+          ELECTRON_CACHE: ~/.cache/electron
+          ELECTRON_BUILDER_CACHE: ~/.cache/electron-builder
 
       - name: Build for testing (no packaging)
         run: |
