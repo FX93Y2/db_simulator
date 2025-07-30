@@ -23,7 +23,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
-          cache-dependency-path: electron/package-lock.json
+          cache-dependency-path: 'electron/package-lock.json'
 
       - name: Setup Python
         uses: actions/setup-python@v4
@@ -36,20 +36,25 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
           pip install pyinstaller
+        shell: bash
 
       - name: Build Python executable
         run: |
           cd python
           python -m PyInstaller main.spec
+          echo "" > USE_EXECUTABLE
+        shell: bash
 
       - name: Install Node.js dependencies
         run: |
           cd electron
           npm ci
+        shell: bash
 
       - name: Build for testing (no packaging)
         run: |
           cd electron
           npm run webpack
+        shell: bash
         env:
           NODE_ENV: production
