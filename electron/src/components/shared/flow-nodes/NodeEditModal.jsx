@@ -2,16 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 import ConfirmationModal from '../ConfirmationModal';
-import UnsavedChangesModal from '../../modals/UnsavedChangesModal';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
-  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
   // Helper function to get event name from step ID
   const getEventNameFromStepId = (stepId) => {
@@ -41,7 +38,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     // Only reset form data when node actually changes (new node opened), not during auto-updates
     if (node && node.data.stepConfig && (!lastNodeId || node.id !== lastNodeId)) {
       setLastNodeId(node.id);
-      setIsUserEditing(false);
       const stepConfig = node.data.stepConfig;
       
       if (stepConfig.step_type === 'event') {
@@ -98,22 +94,78 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   }, [node, parsedSchema, lastNodeId]);
 
+  // Reset form data whenever modal opens to ensure clean state
+  useEffect(() => {
+    if (show && node && node.data.stepConfig) {
+      const stepConfig = node.data.stepConfig;
+      
+      if (stepConfig.step_type === 'event') {
+        const eventConfig = stepConfig.event_config || {};
+        const duration = eventConfig.duration?.distribution || {};
+        
+        setFormData({
+          name: eventConfig.name || '',
+          distribution_type: duration.type || 'normal',
+          duration_mean: duration.mean || 1,
+          duration_stddev: duration.stddev || 0.1,
+          duration_scale: duration.scale || 1,
+          duration_min: duration.min || 0,
+          duration_max: duration.max || 10,
+          duration_values: duration.values ? duration.values.join(', ') : '1, 2, 3',
+          duration_weights: duration.weights ? duration.weights.join(', ') : '0.5, 0.3, 0.2'
+        });
+        
+        setResourceRequirements(eventConfig.resource_requirements || []);
+        
+      } else if (stepConfig.step_type === 'decide') {
+        const decideConfig = stepConfig.decide_config || {};
+        
+        setFormData({
+          decision_type: decideConfig.decision_type || 'probability'
+        });
+        
+        // Convert outcomes to use event names instead of step IDs
+        const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
+          const nextStepId = outcome.next_step_id;
+          const nextEventName = getEventNameFromStepId(nextStepId);
+          
+          return {
+            next_event_name: nextEventName,
+            probability: outcome.conditions?.[0]?.probability || 0.5
+          };
+        });
+        
+        // Ensure at least 2 outcomes
+        if (convertedOutcomes.length === 0) {
+          setOutcomes([
+            { next_event_name: '', probability: 0.5 },
+            { next_event_name: '', probability: 0.5 }
+          ]);
+        } else {
+          setOutcomes(convertedOutcomes);
+        }
+        
+      } else if (stepConfig.step_type === 'release') {
+        setFormData({
+          name: stepConfig.event_config?.name || 'Release'
+        });
+      }
+    }
+  }, [show, node, parsedSchema]);
 
-  // Helper function to handle form data changes and mark as user editing
+
+  // Helper function to handle form data changes
   const handleFormDataChange = (newData) => {
-    setIsUserEditing(true);
     setFormData({ ...formData, ...newData });
   };
 
-  // Helper function to handle resource requirement changes and mark as user editing
+  // Helper function to handle resource requirement changes
   const handleResourceRequirementChange = (index, field, value) => {
-    setIsUserEditing(true);
     updateResourceRequirement(index, field, value);
   };
 
-  // Helper function to handle outcome changes and mark as user editing
+  // Helper function to handle outcome changes
   const handleOutcomeChange = (index, field, value) => {
-    setIsUserEditing(true);
     updateOutcome(index, field, value);
   };
 
@@ -231,23 +283,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     // If save fails, modal stays open
   };
 
-  // Handle close button (X) - check for unsaved changes
-  const handleCloseButton = () => {
-    if (isUserEditing) {
-      setShowUnsavedChangesModal(true);
-    } else {
-      onHide();
-    }
-  };
-
-  // Confirm discard changes
-  const handleDiscardChanges = () => {
-    setShowUnsavedChangesModal(false);
-    onHide();
-  };
 
   const addResourceRequirement = () => {
-    setIsUserEditing(true);
     // Get the first available resource table and type from the database config
     const availableResourceTables = Object.keys(resourceDefinitions);
     const defaultResourceTable = availableResourceTables.length > 0 ? availableResourceTables[0] : 'Consultant';
@@ -269,12 +306,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const removeResourceRequirement = (index) => {
-    setIsUserEditing(true);
     setResourceRequirements(resourceRequirements.filter((_, i) => i !== index));
   };
 
   const addOutcome = () => {
-    setIsUserEditing(true);
     setOutcomes([...outcomes, {
       next_event_name: '',
       probability: 0.5
@@ -289,7 +324,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const removeOutcome = (index) => {
     if (outcomes.length > 1) {
-      setIsUserEditing(true);
       setOutcomes(outcomes.filter((_, i) => i !== index));
     }
   };
@@ -626,7 +660,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   return (
     <>
-    <Modal show={show} onHide={handleCloseButton} centered size="lg">
+    <Modal show={show} onHide={onHide} centered size="lg">
       <Modal.Header closeButton>
         <Modal.Title>Edit {node?.data.stepConfig?.step_type || 'Step'} Step</Modal.Title>
       </Modal.Header>
@@ -659,13 +693,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       theme={theme}
     />
 
-    <UnsavedChangesModal
-      show={showUnsavedChangesModal}
-      onHide={() => setShowUnsavedChangesModal(false)}
-      onSave={handleSaveAndClose}
-      onDiscard={handleDiscardChanges}
-      theme={theme}
-    />
   </>
   );
 };

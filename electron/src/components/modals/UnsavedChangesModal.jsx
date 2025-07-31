@@ -22,7 +22,7 @@ const UnsavedChangesModal = ({
         <p>{message}</p>
       </Modal.Body>
       <Modal.Footer>
-        <Button variant="outline-secondary" onClick={onCancel}>
+        <Button variant="outline-secondary" onClick={onCancel || onHide}>
           Cancel
         </Button>
         <Button variant="outline-danger" onClick={onDiscard}>

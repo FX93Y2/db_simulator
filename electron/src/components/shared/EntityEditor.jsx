@@ -3,7 +3,6 @@ import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
 import AttributeEditor from './AttributeEditor';
 import ConfirmationModal from './ConfirmationModal';
-import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
@@ -15,7 +14,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastEntityName, setLastEntityName] = useState(null);
-  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
   // Initialize form when entity changes
   useEffect(() => {
@@ -42,6 +40,30 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setValidationErrors([]);
     }
   }, [entity, lastEntityName]);
+
+  // Reset form data whenever modal opens to ensure clean state
+  useEffect(() => {
+    if (show && entity) {
+      // Reset form to entity values when modal opens
+      setName(entity.name || '');
+      setEntityType(entity.type || '');
+      setRows(entity.rows || 'n/a');
+      setAttributes(entity.attributes || []);
+      setValidationErrors([]);
+      setIsUserEditing(false);
+    } else if (show && !entity) {
+      // Reset for new entity when modal opens
+      setName('');
+      setEntityType('');
+      setRows('n/a');
+      setAttributes([{
+        name: 'id',
+        type: 'pk'
+      }]);
+      setValidationErrors([]);
+      setIsUserEditing(false);
+    }
+  }, [show, entity]);
 
   // Validate entity data
   const validateEntity = () => {
@@ -229,26 +251,13 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     // If save fails due to validation, modal stays open with errors visible
   };
 
-  // Handle close button (X) - check for unsaved changes
-  const handleCloseButton = () => {
-    if (isUserEditing) {
-      setShowUnsavedChangesModal(true);
-    } else {
-      onHide();
-    }
-  };
 
-  // Confirm discard changes
-  const handleDiscardChanges = () => {
-    setShowUnsavedChangesModal(false);
-    onHide();
-  };
 
   return (
     <>
     <Modal
       show={show}
-      onHide={handleCloseButton}
+      onHide={onHide}
       centered
       backdrop="static"
       className="entity-editor-modal"
@@ -424,13 +433,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       theme={theme}
     />
 
-    <UnsavedChangesModal
-      show={showUnsavedChangesModal}
-      onHide={() => setShowUnsavedChangesModal(false)}
-      onSave={handleSaveAndClose}
-      onDiscard={handleDiscardChanges}
-      theme={theme}
-    />
   </>
   );
 };
