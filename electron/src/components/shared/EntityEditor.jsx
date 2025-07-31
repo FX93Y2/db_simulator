@@ -7,7 +7,7 @@ import ConfirmationModal from './ConfirmationModal';
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
   const [entityType, setEntityType] = useState('');
-  const [rows, setRows] = useState(100);
+  const [rows, setRows] = useState('n/a');
   const [attributes, setAttributes] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
@@ -23,7 +23,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setIsUserEditing(false);
       setName(entity.name || '');
       setEntityType(entity.type || '');
-      setRows(entity.rows || 100);
+      setRows(entity.rows || 'n/a');
       setAttributes(entity.attributes || []);
       setValidationErrors([]);
     } else if (!entity && lastEntityName !== null) {
@@ -32,7 +32,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setIsUserEditing(false);
       setName('');
       setEntityType('');
-      setRows(100);
+      setRows('n/a');
       setAttributes([{
         name: 'id',
         type: 'pk'
@@ -102,6 +102,14 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Delete attribute
   const handleDeleteAttribute = (index) => {
+    const attributeToDelete = attributes[index];
+    
+    // Prevent deletion of protected auto-generated date columns
+    if (entityType === 'bridging' && 
+        (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) {
+      return; // Do nothing for protected columns
+    }
+    
     setIsUserEditing(true);
     const newAttributes = attributes.filter((_, i) => i !== index);
     setAttributes(newAttributes);
@@ -156,6 +164,52 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const handleEntityTypeChange = (newType) => {
     setIsUserEditing(true);
     setEntityType(newType);
+    
+    // Auto-set rows for dynamic table types
+    if (newType === 'bridging' || newType === 'entity' || newType === 'event') {
+      setRows('n/a');
+    }
+    
+    // Handle bridging table date columns
+    if (newType === 'bridging') {
+      // Auto-add start_date and end_date columns for bridging tables
+      const currentAttributes = [...attributes];
+      
+      // Check if start_date already exists
+      const hasStartDate = currentAttributes.some(attr => attr.name === 'start_date');
+      if (!hasStartDate) {
+        currentAttributes.push({
+          name: 'start_date',
+          type: 'datetime'
+          // No generator needed for datetime fields in bridging tables
+        });
+      }
+      
+      // Check if end_date already exists
+      const hasEndDate = currentAttributes.some(attr => attr.name === 'end_date');
+      if (!hasEndDate) {
+        currentAttributes.push({
+          name: 'end_date',
+          type: 'datetime'
+          // No generator needed for datetime fields in bridging tables
+        });
+      }
+      
+      // Update attributes if we added any
+      if (!hasStartDate || !hasEndDate) {
+        setAttributes(currentAttributes);
+      }
+    } else if (entityType === 'bridging' && newType !== 'bridging') {
+      // Clean up auto-generated date columns when switching away from bridging
+      const cleanedAttributes = attributes.filter(attr => 
+        !(attr.name === 'start_date' || attr.name === 'end_date')
+      );
+      
+      // Only update if we actually removed some columns
+      if (cleanedAttributes.length !== attributes.length) {
+        setAttributes(cleanedAttributes);
+      }
+    }
   };
 
   const handleRowsChange = (newRows) => {
@@ -236,6 +290,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                         <option value="entity">Entity</option>
                         <option value="event">Event</option>
                         <option value="resource">Resource</option>
+                        <option value="bridging">Bridging</option>
                       </Form.Select>
                       <Form.Text className="text-muted">
                         Specify the role of this entity in simulations
@@ -248,17 +303,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
               <div className="col-md-4">
                 <Form.Group className="mb-3">
                   <Form.Label>Number of Rows</Form.Label>
-                  {entityType === 'entity' || entityType === 'event' ? (
-                    <Form.Select
-                      value={rows}
-                      onChange={(e) => handleRowsChange(e.target.value)}
-                    >
-                      <option value="n/a">n/a (Dynamic)</option>
-                      <option value={100}>100</option>
-                      <option value={500}>500</option>
-                      <option value={1000}>1000</option>
-                    </Form.Select>
-                  ) : (
+                  {entityType === 'resource' ? (
                     <Form.Control
                       type="number"
                       min="1"
@@ -269,11 +314,36 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       }}
                       placeholder="Number of rows"
                     />
+                  ) : entityType === 'bridging' || entityType === 'entity' || entityType === 'event' ? (
+                    <Form.Select
+                      value={rows}
+                      onChange={(e) => handleRowsChange(e.target.value)}
+                      disabled
+                    >
+                      <option value="n/a">n/a (Dynamic)</option>
+                    </Form.Select>
+                  ) : (
+                    <Form.Control
+                      type="text"
+                      value={rows}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        // Allow 'n/a' or numbers for default tables
+                        if (value === 'n/a' || value === '' || !isNaN(parseInt(value))) {
+                          handleRowsChange(value === '' ? 'n/a' : value);
+                        }
+                      }}
+                      placeholder="Enter number of rows or 'n/a' for dynamic"
+                    />
                   )}
                   <Form.Text className="text-muted">
                     {entityType === 'resource' 
                       ? 'Resource tables must have a fixed number of rows'
-                      : 'Entity/Event tables can be dynamic (n/a) or fixed'
+                      : entityType === 'bridging'
+                      ? 'Bridging tables are always dynamic (n/a) as they depend on related entities'
+                      : entityType === 'entity' || entityType === 'event'
+                      ? 'Entity/Event tables are always dynamic (n/a) as they are generated during simulation'
+                      : 'Default tables are fully customizable - enter a number or "n/a" for dynamic'
                     }
                   </Form.Text>
                 </Form.Group>
@@ -306,6 +376,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                     attribute={attribute}
                     onAttributeChange={(updatedAttribute) => handleAttributeChange(index, updatedAttribute)}
                     onAttributeDelete={() => handleDeleteAttribute(index)}
+                    entityType={entityType}
+                    theme={theme}
                   />
                 ))}
               </div>

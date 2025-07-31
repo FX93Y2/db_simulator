@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Form, Button, Card, Row, Col, InputGroup } from 'react-bootstrap';
 import { FiPlus, FiTrash2, FiSettings } from 'react-icons/fi';
 
-const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, availableEntities = [] }) => {
+const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, availableEntities = [], entityType = '', theme = 'light' }) => {
   const [localAttribute, setLocalAttribute] = useState({
     name: '',
     type: 'string',
@@ -15,9 +15,15 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
 
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type', 'date', 'datetime'];
     return !typesWithoutGenerators.includes(type);
   };
+
+  // Helper function to check if an attribute is a protected auto-generated date column
+  const isProtectedDateColumn = (attributeName) => {
+    return entityType === 'bridging' && (attributeName === 'start_date' || attributeName === 'end_date');
+  };
+
 
   // Update local state when attribute prop changes
   useEffect(() => {
@@ -703,6 +709,11 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
           variant="outline-danger"
           size="sm"
           onClick={onAttributeDelete}
+          disabled={isProtectedDateColumn(localAttribute.name)}
+          title={isProtectedDateColumn(localAttribute.name) 
+            ? "Auto-generated columns cannot be deleted" 
+            : "Delete attribute"
+          }
         >
           <FiTrash2 />
         </Button>
@@ -717,30 +728,47 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                 value={localAttribute.name}
                 onChange={(e) => handleChange('name', e.target.value)}
                 placeholder="Enter attribute name"
+                readOnly={isProtectedDateColumn(localAttribute.name)}
+                className={isProtectedDateColumn(localAttribute.name) ? 'form-control-readonly' : ''}
               />
+              {isProtectedDateColumn(localAttribute.name) && (
+                <Form.Text className="text-muted">
+                </Form.Text>
+              )}
             </Form.Group>
           </Col>
           <Col md={6}>
             <Form.Group>
               <Form.Label>Data Type</Form.Label>
-              <Form.Select
-                value={localAttribute.type}
-                onChange={(e) => handleChange('type', e.target.value)}
-              >
-                <option value="string">String</option>
-                <option value="integer">Integer</option>
-                <option value="float">Float</option>
-                <option value="boolean">Boolean</option>
-                <option value="date">Date</option>
-                <option value="datetime">DateTime</option>
-                <option value="pk">Primary Key</option>
-                <option value="fk">Foreign Key</option>
-                <option value="event_id">Event ID (FK)</option>
-                <option value="entity_id">Entity ID (FK)</option>
-                <option value="resource_id">Resource ID (FK)</option>
-                <option value="event_type">Event Type</option>
-                <option value="resource_type">Resource Type</option>
-              </Form.Select>
+              {isProtectedDateColumn(localAttribute.name) ? (
+                <Form.Control
+                  type="text"
+                  value="DateTime"
+                  readOnly
+                  className="form-control-readonly"
+                />
+              ) : (
+                <Form.Select
+                  value={localAttribute.type}
+                  onChange={(e) => handleChange('type', e.target.value)}
+                >
+                  <option value="string">String</option>
+                  <option value="integer">Integer</option>
+                  <option value="float">Float</option>
+                  <option value="boolean">Boolean</option>
+                  <option value="pk">Primary Key</option>
+                  <option value="fk">Foreign Key</option>
+                  <option value="event_id">Event ID (FK)</option>
+                  <option value="entity_id">Entity ID (FK)</option>
+                  <option value="resource_id">Resource ID (FK)</option>
+                  <option value="event_type">Event Type</option>
+                  <option value="resource_type">Resource Type</option>
+                </Form.Select>
+              )}
+              {isProtectedDateColumn(localAttribute.name) && (
+                <Form.Text className="text-muted">
+                </Form.Text>
+              )}
             </Form.Group>
           </Col>
         </Row>
