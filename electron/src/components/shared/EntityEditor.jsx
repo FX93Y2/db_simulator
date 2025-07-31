@@ -3,6 +3,7 @@ import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
 import AttributeEditor from './AttributeEditor';
 import ConfirmationModal from './ConfirmationModal';
+import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
@@ -14,6 +15,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastEntityName, setLastEntityName] = useState(null);
+  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
   // Initialize form when entity changes
   useEffect(() => {
@@ -115,45 +117,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     setAttributes(newAttributes);
   };
 
-  // Auto-update entity with debouncing
-  useEffect(() => {
-    if (!name.trim() || attributes.length === 0 || !isUserEditing) {
-      return; // Don't update if basic validation fails or user is not actively editing
-    }
-
-    const timeoutId = setTimeout(() => {
-      if (validateEntity()) {
-        const updatedEntity = {
-          name: name.trim(),
-          type: entityType || undefined,
-          rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : rows,
-          attributes: attributes.map(attr => {
-            const cleanedAttr = {
-              name: attr.name.trim(),
-              type: attr.type
-            };
-            
-            // Add generator for non-primary key attributes
-            if (attr.type !== 'pk' && attr.generator) {
-              cleanedAttr.generator = { ...attr.generator };
-            }
-            
-            // Add reference for foreign key types
-            if ((attr.type === 'fk' || attr.type === 'event_id' || 
-                 attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-              cleanedAttr.ref = attr.ref;
-            }
-            
-            return cleanedAttr;
-          })
-        };
-        
-        onEntityUpdate(updatedEntity);
-      }
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [name, entityType, rows, attributes, onEntityUpdate, isUserEditing]);
 
   // Helper functions to handle form changes and mark as user editing
   const handleNameChange = (newName) => {
@@ -234,11 +197,72 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     }
   };
 
+  // Force immediate save without debounce
+  const forceSave = () => {
+    if (!name.trim() || attributes.length === 0) {
+      return false; // Don't save if basic validation fails
+    }
+
+    if (validateEntity()) {
+      const updatedEntity = {
+        name: name.trim(),
+        type: entityType || undefined,
+        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : rows,
+        attributes: attributes.map(attr => {
+          const cleanedAttr = {
+            name: attr.name.trim(),
+            type: attr.type
+          };
+          
+          // Add generator for non-primary key attributes
+          if (attr.type !== 'pk' && attr.generator) {
+            cleanedAttr.generator = { ...attr.generator };
+          }
+          
+          // Add reference for foreign key types
+          if ((attr.type === 'fk' || attr.type === 'event_id' || 
+               attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+            cleanedAttr.ref = attr.ref;
+          }
+          
+          return cleanedAttr;
+        })
+      };
+      
+      onEntityUpdate(updatedEntity);
+      return true;
+    }
+    return false;
+  };
+
+  // Handle save and close
+  const handleSaveAndClose = () => {
+    if (forceSave()) {
+      onHide();
+    }
+    // If save fails due to validation, modal stays open with errors visible
+  };
+
+  // Handle close button (X) - check for unsaved changes
+  const handleCloseButton = () => {
+    if (isUserEditing) {
+      setShowUnsavedChangesModal(true);
+    } else {
+      onHide();
+    }
+  };
+
+  // Confirm discard changes
+  const handleDiscardChanges = () => {
+    setShowUnsavedChangesModal(false);
+    onHide();
+  };
+
   return (
     <>
     <Modal
       show={show}
-      onHide={onHide}
+      onHide={handleCloseButton}
       centered
       backdrop="static"
       className="entity-editor-modal"
@@ -396,8 +420,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
             <FiTrash2 className="me-2" /> Delete Entity
           </Button>
         )}
-        <Button variant="secondary" onClick={onHide} disabled={isLoading}>
-          Close
+        <Button variant="primary" onClick={handleSaveAndClose} disabled={isLoading}>
+          Save & Close
         </Button>
       </Modal.Footer>
     </Modal>
@@ -411,6 +435,14 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       confirmText="Delete Entity"
       cancelText="Cancel"
       variant="danger"
+      theme={theme}
+    />
+
+    <UnsavedChangesModal
+      show={showUnsavedChangesModal}
+      onHide={() => setShowUnsavedChangesModal(false)}
+      onSave={handleSaveAndClose}
+      onDiscard={handleDiscardChanges}
       theme={theme}
     />
   </>

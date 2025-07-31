@@ -27,20 +27,13 @@ simulation:
   duration_days: 30
   start_date: 2024-01-01
   random_seed: 42
-
 event_simulation:
-  table_specification:
-    entity_table: Project
-    event_table: Deliverable
-    resource_table: Consultant
-  
   entity_arrival:
     interarrival_time:
       distribution:
         type: exponential
         scale: 5
     max_entities: 50
-  
   event_flows:
     - flow_id: main_flow
       initial_step: process_1

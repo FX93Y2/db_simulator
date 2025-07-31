@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 import ConfirmationModal from '../ConfirmationModal';
+import UnsavedChangesModal from '../../modals/UnsavedChangesModal';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions }) => {
   const [formData, setFormData] = useState({});
@@ -10,6 +11,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
+  const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
 
   // Helper function to get event name from step ID
   const getEventNameFromStepId = (stepId) => {
@@ -96,11 +98,48 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   }, [node, parsedSchema, lastNodeId]);
 
-  // Auto-update node with debouncing
-  useEffect(() => {
-    if (!node || !formData.name || !isUserEditing) return;
 
-    const timeoutId = setTimeout(() => {
+  // Helper function to handle form data changes and mark as user editing
+  const handleFormDataChange = (newData) => {
+    setIsUserEditing(true);
+    setFormData({ ...formData, ...newData });
+  };
+
+  // Helper function to handle resource requirement changes and mark as user editing
+  const handleResourceRequirementChange = (index, field, value) => {
+    setIsUserEditing(true);
+    updateResourceRequirement(index, field, value);
+  };
+
+  // Helper function to handle outcome changes and mark as user editing
+  const handleOutcomeChange = (index, field, value) => {
+    setIsUserEditing(true);
+    updateOutcome(index, field, value);
+  };
+
+  // Handle node deletion
+  const handleDelete = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDelete = () => {
+    try {
+      onNodeDelete([node]); // Pass as array since onNodesDelete expects array
+      setShowDeleteConfirm(false);
+      onHide();
+    } catch (error) {
+      console.error('Error deleting node:', error);
+      setShowDeleteConfirm(false);
+    }
+  };
+
+  // Force immediate save without debounce
+  const forceSave = () => {
+    if (!node || !formData.name) {
+      return false; // Don't save if basic validation fails
+    }
+
+    try {
       // Generate step ID from name for simplicity (auto-generated)
       const generateStepId = (name, stepType) => {
         if (!name) return `${stepType}_${Date.now()}`;
@@ -177,43 +216,34 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       };
 
       onNodeUpdate(updatedNode);
-    }, 500); // 500ms debounce
-
-    return () => clearTimeout(timeoutId);
-  }, [formData, resourceRequirements, outcomes, node, onNodeUpdate, isUserEditing]);
-
-  // Helper function to handle form data changes and mark as user editing
-  const handleFormDataChange = (newData) => {
-    setIsUserEditing(true);
-    setFormData({ ...formData, ...newData });
-  };
-
-  // Helper function to handle resource requirement changes and mark as user editing
-  const handleResourceRequirementChange = (index, field, value) => {
-    setIsUserEditing(true);
-    updateResourceRequirement(index, field, value);
-  };
-
-  // Helper function to handle outcome changes and mark as user editing
-  const handleOutcomeChange = (index, field, value) => {
-    setIsUserEditing(true);
-    updateOutcome(index, field, value);
-  };
-
-  // Handle node deletion
-  const handleDelete = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = () => {
-    try {
-      onNodeDelete([node]); // Pass as array since onNodesDelete expects array
-      setShowDeleteConfirm(false);
-      onHide();
+      return true;
     } catch (error) {
-      console.error('Error deleting node:', error);
-      setShowDeleteConfirm(false);
+      console.error('Error saving node:', error);
+      return false;
     }
+  };
+
+  // Handle save and close
+  const handleSaveAndClose = () => {
+    if (forceSave()) {
+      onHide();
+    }
+    // If save fails, modal stays open
+  };
+
+  // Handle close button (X) - check for unsaved changes
+  const handleCloseButton = () => {
+    if (isUserEditing) {
+      setShowUnsavedChangesModal(true);
+    } else {
+      onHide();
+    }
+  };
+
+  // Confirm discard changes
+  const handleDiscardChanges = () => {
+    setShowUnsavedChangesModal(false);
+    onHide();
   };
 
   const addResourceRequirement = () => {
@@ -596,7 +626,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   return (
     <>
-    <Modal show={show} onHide={onHide} centered size="lg">
+    <Modal show={show} onHide={handleCloseButton} centered size="lg">
       <Modal.Header closeButton>
         <Modal.Title>Edit {node?.data.stepConfig?.step_type || 'Step'} Step</Modal.Title>
       </Modal.Header>
@@ -613,7 +643,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             <FiTrash2 className="me-2" /> Delete Step
           </Button>
         )}
-        <Button variant="secondary" onClick={onHide}>Close</Button>
+        <Button variant="primary" onClick={handleSaveAndClose}>Save & Close</Button>
       </Modal.Footer>
     </Modal>
 
@@ -626,6 +656,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       confirmText="Delete Step"
       cancelText="Cancel"
       variant="danger"
+      theme={theme}
+    />
+
+    <UnsavedChangesModal
+      show={showUnsavedChangesModal}
+      onHide={() => setShowUnsavedChangesModal(false)}
+      onSave={handleSaveAndClose}
+      onDiscard={handleDiscardChanges}
       theme={theme}
     />
   </>
