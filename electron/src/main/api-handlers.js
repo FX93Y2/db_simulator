@@ -46,6 +46,9 @@ function registerApiHandlers(appPaths) {
   // File Management
   registerFileHandlers();
   
+  // App Controls
+  registerAppControlHandlers();
+  
   console.log('All API handlers registered successfully');
 }
 
@@ -343,6 +346,39 @@ async function ensureProjectDirectory(projectId) {
       console.log(`Created project output directory: ${projectDir}`);
     }
   }
+}
+
+/**
+ * Register app control handlers
+ */
+function registerAppControlHandlers() {
+  const { getMainWindow } = require('./window');
+  
+  ipcMain.handle('api:reloadApp', async () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      mainWindow.webContents.reload();
+      return { success: true };
+    }
+    return { success: false, error: 'Main window not found' };
+  });
+
+  ipcMain.handle('api:closeApp', async () => {
+    const mainWindow = getMainWindow();
+    if (mainWindow) {
+      // Force close by removing the close event listener temporarily
+      mainWindow.removeAllListeners('close');
+      mainWindow.close();
+    } else {
+      app.quit();
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle('api:checkUnsavedChanges', async (_, hasChanges) => {
+    // This can be used to store unsaved changes state in main process if needed
+    return { success: true, hasUnsavedChanges: hasChanges };
+  });
 }
 
 /**

@@ -39,7 +39,16 @@ function createWindow(preloadPath) {
   // Load the index.html file
   mainWindow.loadFile(path.join(__dirname, '..', '..', 'index.html'));
 
-  // Handle window closed event
+  // Handle window close event (before closing)
+  mainWindow.on('close', (event) => {
+    // Always prevent immediate close and let renderer handle unsaved changes
+    event.preventDefault();
+    
+    // Send close request to renderer
+    mainWindow.webContents.send('app-close-requested');
+  });
+
+  // Handle window closed event (after closing)
   mainWindow.on('closed', () => {
     mainWindow = null;
   });

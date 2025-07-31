@@ -1,6 +1,6 @@
 import React from 'react';
 import { Modal, Button } from 'react-bootstrap';
-import { FiAlertTriangle, FiTrash2, FiX } from 'react-icons/fi';
+import { FiTrash2 } from 'react-icons/fi';
 
 const ConfirmationModal = ({ 
   show, 
@@ -12,7 +12,7 @@ const ConfirmationModal = ({
   cancelText = "Cancel",
   variant = "danger", // danger, warning, primary, etc.
   icon = null,
-  theme = "light"
+  theme = "light" // Keep for API compatibility but rely on CSS theme variables
 }) => {
   const handleConfirm = () => {
     onConfirm();
@@ -25,23 +25,8 @@ const ConfirmationModal = ({
     switch (variant) {
       case 'danger':
         return <FiTrash2 className="me-2" />;
-      case 'warning':
-        return <FiAlertTriangle className="me-2" />;
       default:
-        return <FiAlertTriangle className="me-2" />;
-    }
-  };
-
-  const getVariantClass = () => {
-    switch (variant) {
-      case 'danger':
-        return 'text-danger';
-      case 'warning':
-        return 'text-warning';
-      case 'primary':
-        return 'text-primary';
-      default:
-        return 'text-danger';
+        return <FiTrash2 className="me-2" />;
     }
   };
 
@@ -50,38 +35,20 @@ const ConfirmationModal = ({
       show={show}
       onHide={onHide}
       centered
-      size="sm"
-      backdrop="static"
-      className="confirmation-modal"
     >
-      <Modal.Header 
-        closeButton 
-        className={theme === 'dark' ? 'bg-dark text-light border-secondary' : 'bg-light border-light'}
-      >
-        <Modal.Title className={`d-flex align-items-center ${getVariantClass()}`}>
-          {getIcon()}
-          {title}
-        </Modal.Title>
+      <Modal.Header closeButton>
+        <Modal.Title>{title}</Modal.Title>
       </Modal.Header>
       
-      <Modal.Body className={theme === 'dark' ? 'bg-dark text-light' : 'bg-white'}>
-        <div className="d-flex align-items-start">
-          <div className={`me-3 ${getVariantClass()}`} style={{ fontSize: '1.5rem' }}>
-            <FiAlertTriangle />
-          </div>
-          <div>
-            <p className="mb-0">{message}</p>
-          </div>
-        </div>
+      <Modal.Body>
+        <p>{message}</p>
       </Modal.Body>
       
-      <Modal.Footer className={theme === 'dark' ? 'bg-dark border-secondary' : 'bg-light border-light'}>
+      <Modal.Footer>
         <Button 
           variant="outline-secondary" 
           onClick={onHide}
-          className="d-flex align-items-center"
         >
-          <FiX className="me-1" />
           {cancelText}
         </Button>
         <Button 

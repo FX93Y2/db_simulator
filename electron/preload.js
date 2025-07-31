@@ -67,6 +67,18 @@ contextBridge.exposeInMainWorld(
     // File Management
     openFile: (filePath) => ipcRenderer.invoke('api:openFile', filePath),
     saveFile: (filePath, content) => ipcRenderer.invoke('api:saveFile', filePath, content),
-    showDirectoryPicker: (options) => ipcRenderer.invoke('api:showDirectoryPicker', options)
+    showDirectoryPicker: (options) => ipcRenderer.invoke('api:showDirectoryPicker', options),
+    
+    // App Controls
+    reloadApp: () => ipcRenderer.invoke('api:reloadApp'),
+    closeApp: () => ipcRenderer.invoke('api:closeApp'),
+    checkUnsavedChanges: (hasChanges) => ipcRenderer.invoke('api:checkUnsavedChanges', hasChanges),
+    
+    // App Events
+    onAppCloseRequested: (callback) => {
+      ipcRenderer.on('app-close-requested', callback);
+      // Return cleanup function
+      return () => ipcRenderer.removeListener('app-close-requested', callback);
+    }
   }
 ); 

@@ -76,7 +76,7 @@ const App = () => {
               maxSize={50}
               order={1}
             >
-              <ProjectSidebar />
+              <ProjectSidebar theme={theme} />
             </Panel>
             <PanelResizeHandle className="main-resize-handle" />
             <Panel

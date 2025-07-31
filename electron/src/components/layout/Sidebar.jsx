@@ -6,8 +6,9 @@ import { getProjects, formatDate, createDefaultProject, deleteProject, updatePro
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 import { createSafeNavigate } from '../../utils/navigationHelper';
+import ConfirmationModal from '../shared/ConfirmationModal';
 
-const ProjectSidebar = () => {
+const ProjectSidebar = ({ theme = 'light' }) => {
   const { showSuccess, showError } = useToastContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -616,52 +617,30 @@ const ProjectSidebar = () => {
       </Modal>
 
       {/* Delete Project Modal */}
-      <Modal show={showDeleteModal} onHide={handleCloseDeleteModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Project</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete the project "{projectToDelete?.name}"? 
-          This action cannot be undone and all associated configurations will be deleted.
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseDeleteModal}>
-            Cancel
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleConfirmDelete}
-            disabled={deletingProject}
-          >
-            {deletingProject ? <Spinner size="sm" animation="border" className="me-2" /> : <FiTrash2 className="me-2" />}
-            Delete Project
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmationModal
+        show={showDeleteModal}
+        onHide={handleCloseDeleteModal}
+        onConfirm={handleConfirmDelete}
+        title="Delete Project"
+        message={`Are you sure you want to delete the project "${projectToDelete?.name}"? This action cannot be undone and all associated configurations will be deleted.`}
+        confirmText="Delete Project"
+        cancelText="Cancel"
+        variant="danger"
+        theme={theme}
+      />
       
       {/* Delete Result Modal */}
-      <Modal show={showDeleteResultModal} onHide={handleCloseDeleteResultModal} centered>
-        <Modal.Header closeButton>
-          <Modal.Title>Delete Simulation Result</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to delete this simulation result? 
-          This action cannot be undone and all generated data will be lost.
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseDeleteResultModal}>
-            Cancel
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleConfirmDeleteResult}
-            disabled={deletingResult}
-          >
-            {deletingResult ? <Spinner size="sm" animation="border" className="me-2" /> : <FiTrash2 className="me-2" />}
-            Delete Result
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmationModal
+        show={showDeleteResultModal}
+        onHide={handleCloseDeleteResultModal}
+        onConfirm={handleConfirmDeleteResult}
+        title="Delete Simulation Result"
+        message="Are you sure you want to delete this simulation result? This action cannot be undone and all generated data will be lost."
+        confirmText="Delete Result"
+        cancelText="Cancel"
+        variant="danger"
+        theme={theme}
+      />
 
       {/* Edit Project Name Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} centered>

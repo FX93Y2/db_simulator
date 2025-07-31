@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Row, Col, Button, Modal, Spinner } from 'react-bootstrap';
+import { Row, Col, Button, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import ProjectCard from '../shared/ProjectCard';
 import { clearAllConfigurations } from '../../utils/projectApi';
 import { useToastContext } from '../../contexts/ToastContext';
+import ConfirmationModal from '../shared/ConfirmationModal';
 
-const Dashboard = () => {
+const Dashboard = ({ theme = 'light' }) => {
   const { showSuccess, showError } = useToastContext();
   const [dbConfigs, setDbConfigs] = useState([]);
   const [simConfigs, setSimConfigs] = useState([]);
@@ -162,30 +163,17 @@ const Dashboard = () => {
       </div>
 
       {/* Clear Configurations Modal */}
-      <Modal show={showClearModal} onHide={() => setShowClearModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>Clear All Configurations</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          Are you sure you want to clear all standalone configurations? This action cannot be undone.
-          <p className="mt-2 text-muted">
-            Note: This will only clear configurations not associated with any project.
-          </p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowClearModal(false)}>
-            Cancel
-          </Button>
-          <Button 
-            variant="danger" 
-            onClick={handleClearConfigurations}
-            disabled={clearing}
-          >
-            {clearing ? <Spinner size="sm" animation="border" className="me-2" /> : <FiTrash2 className="me-2" />}
-            Clear Configurations
-          </Button>
-        </Modal.Footer>
-      </Modal>
+      <ConfirmationModal
+        show={showClearModal}
+        onHide={() => setShowClearModal(false)}
+        onConfirm={handleClearConfigurations}
+        title="Clear All Configurations"
+        message="Are you sure you want to clear all standalone configurations? This action cannot be undone. Note: This will only clear configurations not associated with any project."
+        confirmText="Clear Configurations"
+        cancelText="Cancel"
+        variant="danger"
+        theme={theme}
+      />
     </div>
   );
 };

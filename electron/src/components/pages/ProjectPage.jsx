@@ -230,18 +230,83 @@ const ProjectPage = ({ theme }) => {
     setHasUnsavedChanges(hasDbChanges || hasSimChanges);
   }, [dbConfigContent, simConfigContent, lastSavedDbConfig, lastSavedSimConfig]);
 
-  // Navigation warning for unsaved changes
+  // Navigation warning for unsaved changes (reload)
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (hasUnsavedChanges) {
+        // Prevent the default browser behavior
         e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return 'You have unsaved changes. Are you sure you want to leave?';
+        
+        // Show our custom modal for reload
+        setShowUnsavedModal(true);
+        setPendingNavigation({
+          state: 'blocked',
+          targetPath: 'reload', // Specific to reload actions
+          proceed: async () => {
+            // Force reload by temporarily disabling unsaved changes check
+            setHasUnsavedChanges(false);
+            // Use requestAnimationFrame to ensure state update is processed
+            requestAnimationFrame(async () => {
+              if (window.api?.reloadApp) {
+                await window.api.reloadApp();
+              } else {
+                window.location.reload();
+              }
+            });
+          },
+          reset: () => {
+            // Just close the modal, stay on current page
+            setShowUnsavedModal(false);
+            setPendingNavigation(null);
+          }
+        });
+        
+        // Return empty string to prevent browser dialog
+        e.returnValue = '';
+        return '';
       }
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasUnsavedChanges]);
+
+  // App close warning for unsaved changes
+  useEffect(() => {
+    if (window.api?.onAppCloseRequested) {
+      const cleanup = window.api.onAppCloseRequested(() => {
+        if (hasUnsavedChanges) {
+          // Show our custom modal for close
+          setShowUnsavedModal(true);
+          setPendingNavigation({
+            state: 'blocked',
+            targetPath: 'close', // Specific to close actions
+            proceed: async () => {
+              // Force close by temporarily disabling unsaved changes check
+              setHasUnsavedChanges(false);
+              // Use requestAnimationFrame to ensure state update is processed
+              requestAnimationFrame(async () => {
+                if (window.api?.closeApp) {
+                  await window.api.closeApp();
+                }
+              });
+            },
+            reset: () => {
+              // Just close the modal, stay on current page
+              setShowUnsavedModal(false);
+              setPendingNavigation(null);
+            }
+          });
+        } else {
+          // No unsaved changes, close immediately
+          if (window.api?.closeApp) {
+            window.api.closeApp();
+          }
+        }
+      });
+
+      return cleanup;
+    }
   }, [hasUnsavedChanges]);
 
   // Navigation blocker state and modal
@@ -262,20 +327,37 @@ const ProjectPage = ({ theme }) => {
     try {
       await handleSaveAll();
       setShowUnsavedModal(false);
-      if (blocker.state === 'blocked') {
+      
+      // Check if this is a reload/close action or navigation
+      if (pendingNavigation?.targetPath === 'reload' || pendingNavigation?.targetPath === 'close') {
+        // For reload/close, use our custom proceed function
+        pendingNavigation.proceed();
+      } else if (blocker.state === 'blocked') {
+        // For navigation, use the blocker's proceed function
         blocker.proceed();
       }
     } catch (error) {
       showError('Failed to save changes. Please try again.');
     }
-  }, [handleSaveAll, blocker, showError]);
+  }, [handleSaveAll, blocker, pendingNavigation, showError]);
 
   const handleDiscardAndContinue = useCallback(() => {
-    setShowUnsavedModal(false);
-    if (blocker.state === 'blocked') {
-      blocker.proceed();
+    // Check if this is a reload/close action or navigation
+    if (pendingNavigation?.targetPath === 'reload' || pendingNavigation?.targetPath === 'close') {
+      // For reload/close, discard changes by reverting to last saved state
+      setDbConfigContent(lastSavedDbConfig);
+      setSimConfigContent(lastSavedSimConfig);
+      setShowUnsavedModal(false);
+      // Use our custom proceed function to reload or close
+      pendingNavigation.proceed();
+    } else {
+      // For navigation, just proceed without saving
+      setShowUnsavedModal(false);
+      if (blocker.state === 'blocked') {
+        blocker.proceed();
+      }
     }
-  }, [blocker]);
+  }, [blocker, pendingNavigation, lastSavedDbConfig, lastSavedSimConfig]);
 
   const handleCancelNavigation = useCallback(() => {
     setShowUnsavedModal(false);
@@ -549,7 +631,13 @@ const ProjectPage = ({ theme }) => {
         onDiscard={handleDiscardAndContinue}
         onCancel={handleCancelNavigation}
         title="Unsaved Changes"
-        message="You have unsaved changes in your project configuration. What would you like to do?"
+        message={
+          pendingNavigation?.targetPath === 'reload' 
+            ? "You have unsaved changes in your project configuration. What would you like to do before reloading?"
+            : pendingNavigation?.targetPath === 'close'
+            ? "You have unsaved changes in your project configuration. What would you like to do before closing?"
+            : "You have unsaved changes in your project configuration. What would you like to do?"
+        }
       />
     </Container>
   );

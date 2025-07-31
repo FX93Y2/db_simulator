@@ -6,6 +6,7 @@ import ReactFlow, {
   Background,
   useNodesState,
   useEdgesState,
+  useReactFlow,
   Handle,
   Position,
 } from 'reactflow';
@@ -21,6 +22,26 @@ import {
   validateConnection,
   getSuggestedConnectionTypes 
 } from './ERDiagramConnectionHandler';
+
+// Function to sort attributes: primary key first, then foreign keys, then others
+const sortAttributes = (attributes) => {
+  if (!attributes || attributes.length === 0) return [];
+  
+  return [...attributes].sort((a, b) => {
+    // Primary key gets highest priority (0)
+    const aPriority = a.type === 'pk' ? 0 : 
+                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
+    const bPriority = b.type === 'pk' ? 0 : 
+                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id') ? 1 : 2;
+    
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+    
+    // If same priority, sort alphabetically by name
+    return a.name.localeCompare(b.name);
+  });
+};
 
 // Custom Entity Node component with enhanced connection handles
 const EntityNode = ({ data, theme }) => {
@@ -88,7 +109,7 @@ const EntityNode = ({ data, theme }) => {
         )}
       </div>
       <div className="entity-node__attributes">
-        {data.attributes.map((attr, index) => (
+        {sortAttributes(data.attributes).map((attr, index) => (
           <div
             key={index}
             className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${
@@ -177,21 +198,43 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   const addEntity = useCallback((entityData) => {
     console.log('[ERDiagram] Adding entity directly:', entityData);
     
-    // Find a good position for the new entity
-    const maxY = canonicalEntities.reduce((max, entity) => {
-      const position = layoutMap[entity.name] || { y: 0 };
-      return Math.max(max, position.y);
-    }, 0);
-    
-    const newPosition = {
-      x: 50 + (canonicalEntities.length % 3) * 300,
-      y: maxY + 300
-    };
+    // Calculate viewport-centered position for new entity
+    let newPosition;
+    if (containerRef.current) {
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const centerX = containerRect.width / 2;
+      const centerY = containerRect.height / 2;
+      
+      // Add some randomness to avoid stacking entities exactly on top of each other
+      const offsetX = (canonicalEntities.length % 3 - 1) * 50; // -50, 0, 50
+      const offsetY = Math.floor(canonicalEntities.length / 3) * 50; // 0, 50, 100, etc.
+      
+      newPosition = {
+        x: Math.max(50, centerX - 100 + offsetX), // Ensure minimum x of 50
+        y: Math.max(50, centerY - 100 + offsetY)  // Ensure minimum y of 50
+      };
+      
+      console.log('[ERDiagram] New entity positioned at viewport center:', newPosition);
+    } else {
+      // Fallback to old positioning if container not available
+      const maxY = canonicalEntities.reduce((max, entity) => {
+        const position = layoutMap[entity.name] || { y: 0 };
+        return Math.max(max, position.y);
+      }, 0);
+      
+      newPosition = {
+        x: 50 + (canonicalEntities.length % 3) * 300,
+        y: maxY + 300
+      };
+      
+      console.log('[ERDiagram] New entity positioned with fallback method:', newPosition);
+    }
     
     // Add to canonical entities
     const newEntity = {
       ...entityData,
-      position: newPosition
+      position: newPosition,
+      attributes: sortAttributes(entityData.attributes || []) // Sort attributes
     };
     
     setCanonicalEntities(prev => [...prev, newEntity]);
@@ -211,11 +254,36 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   const updateEntity = useCallback((entityId, newData) => {
     console.log('[ERDiagram] Updating entity:', entityId, newData);
     
+    // Check if name is changing
+    const isNameChanging = newData.name && newData.name !== entityId;
+    
     setCanonicalEntities(prev => prev.map(entity => 
       entity.name === entityId 
-        ? { ...entity, ...newData, position: entity.position } // Preserve position
+        ? { 
+            ...entity, 
+            ...newData, 
+            position: entity.position, // Preserve position
+            attributes: sortAttributes(newData.attributes || entity.attributes || []) // Sort attributes
+          }
         : entity
     ));
+    
+    // If name is changing, update the layoutMap key to preserve position
+    if (isNameChanging) {
+      setLayoutMap(prev => {
+        const currentPosition = prev[entityId];
+        if (currentPosition) {
+          const newLayout = { ...prev };
+          // Add position under new name
+          newLayout[newData.name] = currentPosition;
+          // Remove old name entry
+          delete newLayout[entityId];
+          console.log('[ERDiagram] Updated layoutMap key:', entityId, '->', newData.name, 'position:', currentPosition);
+          return newLayout;
+        }
+        return prev;
+      });
+    }
     
     // Set internal update flag
     internalUpdateRef.current = true;
@@ -224,7 +292,56 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   const deleteEntity = useCallback((entityId) => {
     console.log('[ERDiagram] Deleting entity:', entityId);
     
-    setCanonicalEntities(prev => prev.filter(entity => entity.name !== entityId));
+    // Use the same foreign key cleanup logic as onNodesDelete
+    if (dbSchema) {
+      handleTableDeletion(
+        [entityId], // Array of deleted table names
+        dbSchema,
+        (newSchema) => {
+          // Update internal state
+          setDbSchema(newSchema);
+          
+          // Update canonical entities to reflect the deletion and foreign key cleanup
+          setCanonicalEntities(prev => {
+            console.log('[ERDiagram] Before canonical cleanup (deleteEntity) - entities:', prev.map(e => e.name));
+            console.log('[ERDiagram] Deleted entity:', entityId);
+            console.log('[ERDiagram] New schema entities:', newSchema.entities.map(e => e.name));
+            
+            // Remove deleted entity and update remaining entities with cleaned foreign keys
+            const updatedCanonical = prev
+              .filter(entity => entity.name !== entityId) // Remove deleted entity
+              .map(entity => {
+                // Update remaining entities with cleaned foreign keys from newSchema
+                const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
+                if (updatedEntity) {
+                  console.log(`[ERDiagram] Updating ${entity.name} attributes from ${entity.attributes?.length || 0} to ${updatedEntity.attributes?.length || 0}`);
+                  return {
+                    ...entity,
+                    attributes: sortAttributes(updatedEntity.attributes || []) // Apply foreign key cleanup and sorting
+                  };
+                }
+                return entity;
+              });
+              
+            console.log('[ERDiagram] After canonical cleanup (deleteEntity) - entities:', updatedCanonical.map(e => e.name));
+            return updatedCanonical;
+          });
+          
+          // Set internal update flag to notify parent of changes
+          internalUpdateRef.current = true;
+          
+          // Notify parent component
+          if (onDiagramChange) {
+            console.log("[ERDiagram] Calling onDiagramChange with updated schema after entity deletion");
+            onDiagramChange(yaml.stringify(newSchema));
+          }
+        }
+      );
+    } else {
+      // Fallback: simple deletion without foreign key cleanup if dbSchema not available
+      setCanonicalEntities(prev => prev.filter(entity => entity.name !== entityId));
+      internalUpdateRef.current = true;
+    }
     
     // Remove from layout map
     setLayoutMap(prev => {
@@ -232,10 +349,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
       delete newLayout[entityId];
       return newLayout;
     });
-    
-    // Set internal update flag
-    internalUpdateRef.current = true;
-  }, []);
+  }, [dbSchema, onDiagramChange]);
 
   const generateYAML = useCallback(() => {
     console.log('[ERDiagram] Generating YAML from canonical entities');
@@ -278,7 +392,15 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   // Handle YAML changes from external sources (like YAML editor)
   const handleYAMLChange = useCallback((newYAMLContent) => {
     console.log('[ERDiagram] Handling external YAML change, content length:', newYAMLContent?.length);
-    console.log('[ERDiagram] YAML content preview:', newYAMLContent?.substring(0, 100));
+    console.log('[ERDiagram] YAML content type:', typeof newYAMLContent);
+    
+    // Ensure we have a string
+    if (typeof newYAMLContent !== 'string') {
+      console.warn('[ERDiagram] handleYAMLChange received non-string content:', typeof newYAMLContent);
+      return;
+    }
+    
+    console.log('[ERDiagram] YAML content preview:', newYAMLContent.substring(0, 100));
     
     try {
       const parsedYAML = yaml.parse(newYAMLContent);
@@ -340,7 +462,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
         
         return {
           ...entity,
-          position: finalPosition
+          position: finalPosition,
+          attributes: sortAttributes(entity.attributes || []) // Sort attributes
         };
       });
       
@@ -390,7 +513,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
           label: entity.name,
           tableType: entity.type || '',
           rows: entity.rows || 100,
-          attributes: entity.attributes || []
+          attributes: sortAttributes(entity.attributes || [])
         },
         width: 200,
         height: 100 + (entity.attributes?.length || 0) * 25,
@@ -432,6 +555,16 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
     setNodes(visualNodes);
     setEdges(visualEdges);
     
+    // Update dbSchema to stay in sync with canonicalEntities for connection validation
+    setDbSchema({
+      entities: canonicalEntities.map(entity => ({
+        name: entity.name,
+        type: entity.type,
+        rows: entity.rows,
+        attributes: entity.attributes || []
+      }))
+    });
+    
     // Notify parent of changes if this was an internal update
     if (internalUpdateRef.current && onDiagramChange) {
       const generatedYAML = generateYAML();
@@ -453,7 +586,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
 
   // Generate a consistent ID for the schema based on its entities
   useEffect(() => {
-    if (yamlContent) {
+    if (yamlContent && typeof yamlContent === 'string') {
       try {
         const parsedDoc = yaml.parseDocument(yamlContent);
         const parsedYaml = parsedDoc.toJSON();
@@ -476,6 +609,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
       } catch (error) {
         console.error('[ERDiagram] Error generating schema ID:', error);
       }
+    } else if (yamlContent && typeof yamlContent !== 'string') {
+      console.warn('[ERDiagram] yamlContent is not a string, received:', typeof yamlContent);
     }
   }, [yamlContent]);
 
@@ -729,12 +864,29 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
           // Notify parent component
           if (onDiagramChange) {
             console.log("[ERDiagram] Calling onDiagramChange with updated schema after auto-FK creation");
-            onDiagramChange(newSchema);
+            onDiagramChange(yaml.stringify(newSchema));
           }
         }
       );
       
       if (updatedSchema) {
+        // Update canonical entities to reflect the new foreign key
+        setCanonicalEntities(prev => {
+          return prev.map(entity => {
+            if (entity.name === params.source) {
+              // Find the updated entity from the schema
+              const updatedEntity = updatedSchema.entities.find(e => e.name === params.source);
+              if (updatedEntity) {
+                return {
+                  ...entity,
+                  attributes: updatedEntity.attributes || []
+                };
+              }
+            }
+            return entity;
+          });
+        });
+
         // Update visual nodes to reflect the new foreign key immediately
         setNodes((currentNodes) => {
           return currentNodes.map(node => {
@@ -746,7 +898,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                   ...node,
                   data: {
                     ...node.data,
-                    attributes: updatedEntity.attributes || []
+                    attributes: sortAttributes(updatedEntity.attributes || [])
                   }
                 };
               }
@@ -776,22 +928,19 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   // Handle node movement
   const onNodeDragStop = useCallback(
     (_event, node) => {
+      // Only update the visual nodes and layoutMap - don't modify canonicalEntities
+      // This prevents regenerating the entire node structure and losing unsaved changes
       setNodes(nds =>
         nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
       );
       
-      // Update canonical entities with new position
-      setCanonicalEntities(prev => prev.map(entity => 
-        entity.name === node.id 
-          ? { ...entity, position: node.position }
-          : entity
-      ));
-      
-      // Update layoutMap in state (triggers debounced save)
+      // Update layoutMap in state (triggers debounced save to localStorage)
       setLayoutMap(prev => ({
         ...prev,
         [node.id]: { ...node.position }
       }));
+      
+      console.log('[ERDiagram] Node dragged, position saved to layoutMap:', node.id, node.position);
     },
     [setNodes]
   );
@@ -812,6 +961,32 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             // Update internal state
             setDbSchema(newSchema);
             
+            // Update canonical entities to reflect the deletion and foreign key cleanup
+            setCanonicalEntities(prev => {
+              console.log('[ERDiagram] Before canonical cleanup - entities:', prev.map(e => e.name));
+              console.log('[ERDiagram] Deleted IDs:', deletedIds);
+              console.log('[ERDiagram] New schema entities:', newSchema.entities.map(e => e.name));
+              
+              // Remove deleted entities and update remaining entities with cleaned foreign keys
+              const updatedCanonical = prev
+                .filter(entity => !deletedIds.includes(entity.name)) // Remove deleted entities
+                .map(entity => {
+                  // Update remaining entities with cleaned foreign keys from newSchema
+                  const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
+                  if (updatedEntity) {
+                    console.log(`[ERDiagram] Updating ${entity.name} attributes from ${entity.attributes?.length || 0} to ${updatedEntity.attributes?.length || 0}`);
+                    return {
+                      ...entity,
+                      attributes: sortAttributes(updatedEntity.attributes || []) // Apply foreign key cleanup and sorting
+                    };
+                  }
+                  return entity;
+                });
+                
+              console.log('[ERDiagram] After canonical cleanup - entities:', updatedCanonical.map(e => e.name));
+              return updatedCanonical;
+            });
+            
             // Update visual nodes to remove deleted tables and update foreign keys immediately
             setNodes(currentNodes => {
               // First filter out deleted nodes
@@ -825,7 +1000,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                     ...node,
                     data: {
                       ...node.data,
-                      attributes: updatedEntity.attributes || []
+                      attributes: sortAttributes(updatedEntity.attributes || [])
                     }
                   };
                 }
@@ -846,7 +1021,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             // Notify parent component
             if (onDiagramChange) {
               console.log("[ERDiagram] Calling onDiagramChange with updated schema after table deletion");
-              onDiagramChange(newSchema);
+              onDiagramChange(yaml.stringify(newSchema));
             }
           }
         );
@@ -919,7 +1094,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             // Notify parent component
             if (onDiagramChange) {
               console.log("[ERDiagram] Calling onDiagramChange with updated schema after FK removal");
-              onDiagramChange(newSchema);
+              onDiagramChange(yaml.stringify(newSchema));
             }
           }
         );
@@ -1008,12 +1183,25 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
       <EntityEditor
         show={showNodeModal}
         onHide={() => setShowNodeModal(false)}
-        entity={selectedNode ? {
-          name: selectedNode.id,
-          type: selectedNode.data?.tableType,
-          rows: selectedNode.data?.rows,
-          attributes: selectedNode.data?.attributes || []
-        } : null}
+        entity={selectedNode ? (() => {
+          // Get the most up-to-date entity data from canonicalEntities
+          const canonicalEntity = canonicalEntities.find(e => e.name === selectedNode.id);
+          if (canonicalEntity) {
+            return {
+              name: canonicalEntity.name,
+              type: canonicalEntity.type,
+              rows: canonicalEntity.rows,
+              attributes: canonicalEntity.attributes || []
+            };
+          }
+          // Fallback to visual node data if not found in canonical entities
+          return {
+            name: selectedNode.id,
+            type: selectedNode.data?.tableType,
+            rows: selectedNode.data?.rows,
+            attributes: selectedNode.data?.attributes || []
+          };
+        })() : null}
         onEntityUpdate={handleEntityUpdate}
         onEntityDelete={handleEntityDelete}
         theme={theme}

@@ -150,6 +150,20 @@ export const handleTableConnection = (params, dbSchema, onSchemaUpdate) => {
   
   sourceEntity.attributes.push(foreignKeyAttribute);
   
+  // Sort attributes to ensure primary key first, then foreign keys, then others
+  sourceEntity.attributes.sort((a, b) => {
+    const aPriority = a.type === 'pk' ? 0 : 
+                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
+    const bPriority = b.type === 'pk' ? 0 : 
+                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id') ? 1 : 2;
+    
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+    
+    return a.name.localeCompare(b.name);
+  });
+  
   console.log(`[ConnectionHandler] Created foreign key: ${fkName} (${fkType}) -> ${params.target}.${targetPrimaryKey}`);
   
   // Update the schema through callback
