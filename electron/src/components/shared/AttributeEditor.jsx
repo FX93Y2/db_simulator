@@ -13,6 +13,12 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
     ...attribute
   });
 
+  // Helper function to check if a type should have a generator
+  const shouldHaveGenerator = (type) => {
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+    return !typesWithoutGenerators.includes(type);
+  };
+
   // Update local state when attribute prop changes
   useEffect(() => {
     setLocalAttribute({
@@ -29,6 +35,37 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
   // Handle changes and propagate to parent
   const handleChange = (field, value) => {
     const updatedAttribute = { ...localAttribute, [field]: value };
+    
+    // Handle generator configuration based on data type
+    if (field === 'type') {
+      if (!shouldHaveGenerator(value)) {
+        // Remove generator for types that shouldn't have one
+        delete updatedAttribute.generator;
+      } else if (value === 'fk') {
+        // Foreign keys need foreign_key generator
+        updatedAttribute.generator = {
+          type: 'foreign_key',
+          subtype: 'one_to_many'
+        };
+      } else if (value === 'resource_type') {
+        // Resource types need distribution generator
+        updatedAttribute.generator = {
+          type: 'distribution',
+          distribution: {
+            type: 'choice',
+            values: ['Option1', 'Option2'],
+            weights: [0.5, 0.5]
+          }
+        };
+      } else {
+        // Other data types get faker generator by default
+        updatedAttribute.generator = {
+          type: 'faker',
+          method: 'name'
+        };
+      }
+    }
+    
     setLocalAttribute(updatedAttribute);
     onAttributeChange(updatedAttribute);
   };
@@ -193,9 +230,12 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                 onChange={(e) => handleDistributionChange('type', e.target.value)}
               >
                 <option value="choice">Choice</option>
-                <option value="normal">Normal</option>
                 <option value="uniform">Uniform</option>
+                <option value="normal">Normal</option>
                 <option value="exponential">Exponential</option>
+                <option value="poisson">Poisson</option>
+                <option value="binomial">Binomial</option>
+                <option value="gamma">Gamma</option>
               </Form.Select>
             </Form.Group>
             
@@ -318,6 +358,80 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                 />
               </Form.Group>
             )}
+            
+            {generator.distribution?.type === 'poisson' && (
+              <Form.Group className="mb-3">
+                <Form.Label>Lambda (Rate)</Form.Label>
+                <Form.Control
+                  type="number"
+                  step="0.1"
+                  min="0.1"
+                  value={generator.distribution.lambda || 1}
+                  onChange={(e) => handleDistributionChange('lambda', parseFloat(e.target.value))}
+                />
+                <Form.Text className="text-muted">
+                  Average number of events per interval
+                </Form.Text>
+              </Form.Group>
+            )}
+            
+            {generator.distribution?.type === 'binomial' && (
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Trials (n)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      min="1"
+                      value={generator.distribution.n || 10}
+                      onChange={(e) => handleDistributionChange('n', parseInt(e.target.value))}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Probability (p)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      max="1"
+                      value={generator.distribution.p || 0.5}
+                      onChange={(e) => handleDistributionChange('p', parseFloat(e.target.value))}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
+            
+            {generator.distribution?.type === 'gamma' && (
+              <Row>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Shape (alpha)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={generator.distribution.alpha || 1}
+                      onChange={(e) => handleDistributionChange('alpha', parseFloat(e.target.value))}
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={6}>
+                  <Form.Group className="mb-3">
+                    <Form.Label>Scale (beta)</Form.Label>
+                    <Form.Control
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={generator.distribution.beta || 1}
+                      onChange={(e) => handleDistributionChange('beta', parseFloat(e.target.value))}
+                    />
+                  </Form.Group>
+                </Col>
+              </Row>
+            )}
           </div>
         );
         
@@ -350,6 +464,11 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                     >
                       <option value="choice">Choice</option>
                       <option value="uniform">Uniform</option>
+                      <option value="normal">Normal</option>
+                      <option value="exponential">Exponential</option>
+                      <option value="poisson">Poisson</option>
+                      <option value="binomial">Binomial</option>
+                      <option value="gamma">Gamma</option>
                     </Form.Select>
                   </Form.Group>
                   
@@ -400,6 +519,148 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                         </Button>
                       </div>
                     </Form.Group>
+                  )}
+                  
+                  {generator.distribution.type === 'uniform' && (
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Minimum</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            value={generator.distribution.min || 0}
+                            onChange={(e) => handleDistributionChange('min', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Maximum</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            value={generator.distribution.max || 1}
+                            onChange={(e) => handleDistributionChange('max', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  )}
+                  
+                  {generator.distribution.type === 'normal' && (
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Mean</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            value={generator.distribution.mean || 0}
+                            onChange={(e) => handleDistributionChange('mean', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Standard Deviation</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            min="0"
+                            value={generator.distribution.stddev || 1}
+                            onChange={(e) => handleDistributionChange('stddev', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  )}
+                  
+                  {generator.distribution.type === 'exponential' && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Scale</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        value={generator.distribution.scale || 1}
+                        onChange={(e) => handleDistributionChange('scale', parseFloat(e.target.value))}
+                      />
+                    </Form.Group>
+                  )}
+                  
+                  {generator.distribution.type === 'poisson' && (
+                    <Form.Group className="mb-3">
+                      <Form.Label>Lambda (Rate)</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.1"
+                        min="0.1"
+                        value={generator.distribution.lambda || 1}
+                        onChange={(e) => handleDistributionChange('lambda', parseFloat(e.target.value))}
+                      />
+                      <Form.Text className="text-muted">
+                        Average number of events per interval
+                      </Form.Text>
+                    </Form.Group>
+                  )}
+                  
+                  {generator.distribution.type === 'binomial' && (
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Trials (n)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            min="1"
+                            value={generator.distribution.n || 10}
+                            onChange={(e) => handleDistributionChange('n', parseInt(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Probability (p)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.01"
+                            min="0"
+                            max="1"
+                            value={generator.distribution.p || 0.5}
+                            onChange={(e) => handleDistributionChange('p', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  )}
+                  
+                  {generator.distribution.type === 'gamma' && (
+                    <Row>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Shape (alpha)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            value={generator.distribution.alpha || 1}
+                            onChange={(e) => handleDistributionChange('alpha', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={6}>
+                        <Form.Group className="mb-3">
+                          <Form.Label>Scale (beta)</Form.Label>
+                          <Form.Control
+                            type="number"
+                            step="0.1"
+                            min="0.1"
+                            value={generator.distribution.beta || 1}
+                            onChange={(e) => handleDistributionChange('beta', parseFloat(e.target.value))}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
                   )}
                 </Card.Body>
               </Card>
@@ -485,7 +746,7 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
         </Row>
         
         {/* Generator Configuration */}
-        {localAttribute.type !== 'pk' && (
+        {shouldHaveGenerator(localAttribute.type) && (
           <div className="generator-section">
             <h6 className="section-title">Data Generator Configuration</h6>
             
@@ -496,12 +757,18 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                   <Form.Select
                     value={localAttribute.generator?.type || 'faker'}
                     onChange={(e) => handleGeneratorChange('type', e.target.value)}
+                    disabled={localAttribute.type === 'fk' || localAttribute.type === 'resource_type'}
                   >
                     <option value="faker">Faker</option>
                     <option value="template">Template</option>
                     <option value="distribution">Distribution</option>
                     <option value="foreign_key">Foreign Key</option>
                   </Form.Select>
+                  {(localAttribute.type === 'fk' || localAttribute.type === 'resource_type') && (
+                    <Form.Text className="text-muted">
+                      Generator type is automatically set for this data type.
+                    </Form.Text>
+                  )}
                 </Form.Group>
               </Col>
               <Col md={6}>
