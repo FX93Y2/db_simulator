@@ -29,6 +29,20 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
   // Handle changes and propagate to parent
   const handleChange = (field, value) => {
     const updatedAttribute = { ...localAttribute, [field]: value };
+
+    if (field === 'type') {
+      const noGeneratorTypes = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+      if (noGeneratorTypes.includes(value)) {
+        delete updatedAttribute.generator;
+      } else if (value === 'resource_type') {
+        updatedAttribute.generator = { type: 'distribution', distribution: { type: 'choice', values: [], weights: [] } };
+      } else if (value === 'fk') {
+        updatedAttribute.generator = { type: 'foreign_key', subtype: 'one_to_many' };
+      } else {
+        updatedAttribute.generator = { type: 'faker', method: 'name' };
+      }
+    }
+
     setLocalAttribute(updatedAttribute);
     onAttributeChange(updatedAttribute);
   };
@@ -86,29 +100,20 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
     onAttributeChange(updatedAttribute);
   };
 
-  // Handle choice distribution value/weight pairs
-  const handleChoiceValueChange = (index, field, value) => {
-    const distribution = localAttribute.generator.distribution;
-    const newValues = [...(distribution.values || [])];
-    const newWeights = [...(distribution.weights || [])];
-    
-    if (field === 'value') {
-      newValues[index] = value;
-    } else if (field === 'weight') {
-      newWeights[index] = parseFloat(value) || 0;
+  useEffect(() => {
+    if (attribute.type !== localAttribute.type) {
+      const noGeneratorTypes = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+      if (noGeneratorTypes.includes(attribute.type)) {
+        onAttributeChange({ ...attribute, generator: undefined });
+      } else if (attribute.type === 'resource_type') {
+        onAttributeChange({ ...attribute, generator: { type: 'distribution', distribution: { type: 'choice', values: [], weights: [] } } });
+      } else if (attribute.type === 'fk') {
+        onAttributeChange({ ...attribute, generator: { type: 'foreign_key', subtype: 'one_to_many' } });
+      } else {
+        onAttributeChange({ ...attribute, generator: { type: 'faker', method: 'name' } });
+      }
     }
-    
-    // Update both values and weights in a single operation
-    const updatedDistribution = {
-      ...distribution,
-      values: newValues,
-      weights: newWeights
-    };
-    const updatedGenerator = { ...localAttribute.generator, distribution: updatedDistribution };
-    const updatedAttribute = { ...localAttribute, generator: updatedGenerator };
-    setLocalAttribute(updatedAttribute);
-    onAttributeChange(updatedAttribute);
-  };
+  }, [attribute.type]);
 
   // Add new choice value/weight pair
   const addChoiceValue = () => {
@@ -336,11 +341,23 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
               </Form.Select>
             </Form.Group>
             
+            <Form.Check
+              type="switch"
+              id={`dist-switch-${localAttribute.name}`}
+              label="Add Distribution (Optional)"
+              checked={!!generator.distribution}
+              onChange={() => {
+                if (generator.distribution) {
+                  const { distribution, ...rest } = generator;
+                  handleGeneratorChange('distribution', undefined);
+                } else {
+                  handleGeneratorChange('distribution', { type: 'choice', values: [] });
+                }
+              }}
+              className="mb-3"
+            />
             {generator.distribution && (
               <Card className="distribution-optional-card">
-                <Card.Header>
-                  <small className="text-muted">Distribution (Optional)</small>
-                </Card.Header>
                 <Card.Body>
                   <Form.Group className="mb-3">
                     <Form.Label>Distribution Type</Form.Label>
@@ -353,13 +370,13 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                     </Form.Select>
                   </Form.Group>
                   
-                  {generator.distribution.type === 'choice' && generator.distribution.values && (
+                  {generator.distribution.type === 'choice' && (
                     <Form.Group className="mb-3">
                       <Form.Label>Choice Values (Probabilities)</Form.Label>
                       <div className="choice-values-editor">
-                        {generator.distribution.values.map((value, index) => (
+                        {(generator.distribution.values || []).map((value, index) => (
                           <Row key={index} className="mb-2 align-items-center">
-                            <Col md={8}>
+                            <Col>
                               <Form.Control
                                 type="number"
                                 step="0.1"
@@ -371,59 +388,17 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                                   newValues[index] = parseFloat(e.target.value) || 0;
                                   handleDistributionChange('values', newValues);
                                 }}
-                                placeholder="Probability"
+                                placeholder={`Probability for row ${index + 1}`}
                               />
-                            </Col>
-                            <Col md={4}>
-                              <Button
-                                variant="outline-danger"
-                                size="sm"
-                                onClick={() => {
-                                  const newValues = generator.distribution.values.filter((_, i) => i !== index);
-                                  handleDistributionChange('values', newValues);
-                                }}
-                              >
-                                <FiTrash2 />
-                              </Button>
                             </Col>
                           </Row>
                         ))}
-                        <Button
-                          variant="outline-primary"
-                          size="sm"
-                          onClick={() => {
-                            const newValues = [...(generator.distribution.values || []), 0.1];
-                            handleDistributionChange('values', newValues);
-                          }}
-                        >
-                          <FiPlus className="me-1" /> Add Value
-                        </Button>
                       </div>
                     </Form.Group>
                   )}
                 </Card.Body>
               </Card>
             )}
-            
-            <Button
-              variant="outline-secondary"
-              size="sm"
-              className="mt-2"
-              onClick={() => {
-                if (generator.distribution) {
-                  const updatedGenerator = { ...generator };
-                  delete updatedGenerator.distribution;
-                  handleGeneratorChange('distribution', undefined);
-                } else {
-                  handleGeneratorChange('distribution', {
-                    type: 'choice',
-                    values: [0.2, 0.3, 0.5]
-                  });
-                }
-              }}
-            >
-              {generator.distribution ? 'Remove Distribution' : 'Add Distribution'}
-            </Button>
           </div>
         );
         
@@ -485,7 +460,7 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
         </Row>
         
         {/* Generator Configuration */}
-        {localAttribute.type !== 'pk' && (
+        {localAttribute.generator && (
           <div className="generator-section">
             <h6 className="section-title">Data Generator Configuration</h6>
             

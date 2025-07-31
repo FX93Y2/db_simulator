@@ -538,7 +538,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                 animated: true,
                 type: 'smoothstep',
                 style: { stroke: '#3498db' },
-                label: attr.name,
+                
                 markerEnd: {
                   type: 'arrowclosed',
                   width: 20,
@@ -725,7 +725,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                       animated: true,
                       type: 'smoothstep',
                       style: { stroke: '#3498db' },
-                      label: attr.name,
+                      
                       markerEnd: {
                         type: 'arrowclosed',
                         width: 20,
@@ -757,7 +757,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                       animated: true,
                       type: 'smoothstep',
                       style: { stroke: '#3498db' },
-                      label: attr.name,
+                      
                       markerEnd: {
                         type: 'arrowclosed',
                         width: 20,
@@ -809,7 +809,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                     animated: true,
                     type: 'smoothstep',
                     style: { stroke: '#3498db' },
-                    label: attr.name,
+                    
                     markerEnd: {
                       type: 'arrowclosed',
                       width: 20,
