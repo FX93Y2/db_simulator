@@ -133,46 +133,32 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setRows('n/a');
     }
     
+    let updatedAttributes = [...attributes];
+
     // Handle bridging table date columns
     if (newType === 'bridging') {
-      // Auto-add start_date and end_date columns for bridging tables
-      const currentAttributes = [...attributes];
-      
-      // Check if start_date already exists
-      const hasStartDate = currentAttributes.some(attr => attr.name === 'start_date');
-      if (!hasStartDate) {
-        currentAttributes.push({
-          name: 'start_date',
-          type: 'datetime'
-          // No generator needed for datetime fields in bridging tables
-        });
+      if (!updatedAttributes.some(attr => attr.name === 'start_date')) {
+        updatedAttributes.push({ name: 'start_date', type: 'datetime' });
       }
-      
-      // Check if end_date already exists
-      const hasEndDate = currentAttributes.some(attr => attr.name === 'end_date');
-      if (!hasEndDate) {
-        currentAttributes.push({
-          name: 'end_date',
-          type: 'datetime'
-          // No generator needed for datetime fields in bridging tables
-        });
+      if (!updatedAttributes.some(attr => attr.name === 'end_date')) {
+        updatedAttributes.push({ name: 'end_date', type: 'datetime' });
       }
-      
-      // Update attributes if we added any
-      if (!hasStartDate || !hasEndDate) {
-        setAttributes(currentAttributes);
-      }
-    } else if (entityType === 'bridging' && newType !== 'bridging') {
-      // Clean up auto-generated date columns when switching away from bridging
-      const cleanedAttributes = attributes.filter(attr => 
-        !(attr.name === 'start_date' || attr.name === 'end_date')
+    } else if (entityType === 'bridging') {
+      updatedAttributes = updatedAttributes.filter(
+        attr => !(attr.name === 'start_date' || attr.name === 'end_date')
       );
-      
-      // Only update if we actually removed some columns
-      if (cleanedAttributes.length !== attributes.length) {
-        setAttributes(cleanedAttributes);
-      }
     }
+
+    // Handle event table event_type column
+    if (newType === 'event') {
+      if (!updatedAttributes.some(attr => attr.type === 'event_type')) {
+        updatedAttributes.push({ name: 'event_type', type: 'event_type' });
+      }
+    } else if (entityType === 'event') {
+      updatedAttributes = updatedAttributes.filter(attr => attr.type !== 'event_type');
+    }
+
+    setAttributes(updatedAttributes);
   };
 
   const handleRowsChange = (newRows) => {

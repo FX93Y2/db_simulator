@@ -24,6 +24,8 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
     return entityType === 'bridging' && (attributeName === 'start_date' || attributeName === 'end_date');
   };
 
+  const isEventTypeColumn = localAttribute.type === 'event_type';
+
 
   // Update local state when attribute prop changes
   useEffect(() => {
@@ -709,10 +711,13 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
           variant="outline-danger"
           size="sm"
           onClick={onAttributeDelete}
-          disabled={isProtectedDateColumn(localAttribute.name)}
-          title={isProtectedDateColumn(localAttribute.name) 
-            ? "Auto-generated columns cannot be deleted" 
-            : "Delete attribute"
+          disabled={isProtectedDateColumn(localAttribute.name) || isEventTypeColumn}
+          title={
+            isProtectedDateColumn(localAttribute.name)
+              ? "Auto-generated columns cannot be deleted"
+              : isEventTypeColumn
+              ? "This column is automatically managed for Event entities"
+              : "Delete attribute"
           }
         >
           <FiTrash2 />
@@ -740,10 +745,10 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
           <Col md={6}>
             <Form.Group>
               <Form.Label>Data Type</Form.Label>
-              {isProtectedDateColumn(localAttribute.name) ? (
+              {isProtectedDateColumn(localAttribute.name) || isEventTypeColumn ? (
                 <Form.Control
                   type="text"
-                  value="DateTime"
+                  value={isEventTypeColumn ? 'Event Type' : 'DateTime'}
                   readOnly
                   className="form-control-readonly"
                 />
