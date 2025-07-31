@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import ReactFlow, {
   addEdge,
   MiniMap,
@@ -111,10 +111,14 @@ const nodeTypes = {
   entity: EntityNode,
 };
 
-const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
+const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  
+  // Canonical entity state - this is now the source of truth
+  const [canonicalEntities, setCanonicalEntities] = useState([]);
   const [dbSchema, setDbSchema] = useState(null);
+  
   const containerRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
@@ -122,6 +126,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
   const [schemaId, setSchemaId] = useState(null);
   const currentNodesRef = useRef([]);
   const [layoutMap, setLayoutMap] = useState({});
+  
+  // Track if we're updating from internal canvas operations
   const internalUpdateRef = useRef(false);
 
 
@@ -167,6 +173,283 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     }
   }, []);
 
+  // Direct manipulation methods - Canvas is source of truth
+  const addEntity = useCallback((entityData) => {
+    console.log('[ERDiagram] Adding entity directly:', entityData);
+    
+    // Find a good position for the new entity
+    const maxY = canonicalEntities.reduce((max, entity) => {
+      const position = layoutMap[entity.name] || { y: 0 };
+      return Math.max(max, position.y);
+    }, 0);
+    
+    const newPosition = {
+      x: 50 + (canonicalEntities.length % 3) * 300,
+      y: maxY + 300
+    };
+    
+    // Add to canonical entities
+    const newEntity = {
+      ...entityData,
+      position: newPosition
+    };
+    
+    setCanonicalEntities(prev => [...prev, newEntity]);
+    
+    // Update layout map
+    setLayoutMap(prev => ({
+      ...prev,
+      [entityData.name]: newPosition
+    }));
+    
+    // Set internal update flag to prevent YAML sync loops
+    internalUpdateRef.current = true;
+    
+    return newEntity;
+  }, [canonicalEntities, layoutMap]);
+
+  const updateEntity = useCallback((entityId, newData) => {
+    console.log('[ERDiagram] Updating entity:', entityId, newData);
+    
+    setCanonicalEntities(prev => prev.map(entity => 
+      entity.name === entityId 
+        ? { ...entity, ...newData, position: entity.position } // Preserve position
+        : entity
+    ));
+    
+    // Set internal update flag
+    internalUpdateRef.current = true;
+  }, []);
+
+  const deleteEntity = useCallback((entityId) => {
+    console.log('[ERDiagram] Deleting entity:', entityId);
+    
+    setCanonicalEntities(prev => prev.filter(entity => entity.name !== entityId));
+    
+    // Remove from layout map
+    setLayoutMap(prev => {
+      const newLayout = { ...prev };
+      delete newLayout[entityId];
+      return newLayout;
+    });
+    
+    // Set internal update flag
+    internalUpdateRef.current = true;
+  }, []);
+
+  const generateYAML = useCallback(() => {
+    console.log('[ERDiagram] Generating YAML from canonical entities');
+    
+    const yamlObject = {
+      entities: canonicalEntities.map(entity => ({
+        name: entity.name,
+        ...(entity.type && { type: entity.type }),
+        rows: entity.rows || 100,
+        attributes: entity.attributes || []
+      }))
+    };
+    
+    return yaml.stringify(yamlObject);
+  }, [canonicalEntities]);
+
+  // Utility function to detect entity changes
+  const detectEntityChanges = useCallback((oldEntities, newEntities) => {
+    const oldNames = new Set(oldEntities.map(e => e.name));
+    const newNames = new Set(newEntities.map(e => e.name));
+    
+    const added = newEntities.filter(e => !oldNames.has(e.name));
+    const deleted = oldEntities.filter(e => !newNames.has(e.name));
+    const modified = newEntities.filter(e => {
+      const oldEntity = oldEntities.find(old => old.name === e.name);
+      if (!oldEntity) return false;
+      
+      // Deep comparison of entity properties (excluding position)
+      const oldClean = { ...oldEntity };
+      delete oldClean.position;
+      const newClean = { ...e };
+      delete newClean.position;
+      
+      return JSON.stringify(oldClean) !== JSON.stringify(newClean);
+    });
+    
+    return { added, deleted, modified };
+  }, []);
+
+  // Handle YAML changes from external sources (like YAML editor)
+  const handleYAMLChange = useCallback((newYAMLContent) => {
+    console.log('[ERDiagram] Handling external YAML change, content length:', newYAMLContent?.length);
+    console.log('[ERDiagram] YAML content preview:', newYAMLContent?.substring(0, 100));
+    
+    try {
+      const parsedYAML = yaml.parse(newYAMLContent);
+      const newEntities = parsedYAML?.entities || [];
+      
+      if (newEntities.length === 0) {
+        console.log('[ERDiagram] WARNING: Empty entities detected!');
+        console.log('[ERDiagram] Parsed YAML:', parsedYAML);
+        console.log('[ERDiagram] Raw YAML content:', newYAMLContent);
+        
+        // Don't clear entities if we currently have entities - this prevents accidental clearing
+        if (canonicalEntities.length > 0) {
+          console.log('[ERDiagram] PREVENTING canvas clear - keeping existing', canonicalEntities.length, 'entities');
+          return;
+        }
+        
+        console.log('[ERDiagram] No existing entities, clearing canvas');
+        setCanonicalEntities([]);
+        return;
+      }
+      
+      // Capture current node positions from ReactFlow
+      const currentPositions = {};
+      currentNodesRef.current.forEach(node => {
+        currentPositions[node.id] = node.position;
+      });
+      
+      // Detect what changed
+      const changes = detectEntityChanges(canonicalEntities, newEntities);
+      console.log('[ERDiagram] Detected changes:', {
+        added: changes.added.length,
+        deleted: changes.deleted.length,
+        modified: changes.modified.length
+      });
+      
+      // Apply changes while preserving positions
+      const updatedEntities = newEntities.map(entity => {
+        // Priority order for position: current ReactFlow position > existing entity position > layoutMap > default
+        const currentPosition = currentPositions[entity.name];
+        const existingEntity = canonicalEntities.find(e => e.name === entity.name);
+        const existingPosition = existingEntity?.position;
+        const layoutPosition = layoutMap[entity.name];
+        
+        let finalPosition;
+        if (currentPosition) {
+          finalPosition = currentPosition;
+        } else if (existingPosition) {
+          finalPosition = existingPosition;
+        } else if (layoutPosition) {
+          finalPosition = layoutPosition;
+        } else {
+          // Only for truly new entities without any position history
+          const maxY = Object.values(currentPositions).reduce((max, pos) => Math.max(max, pos.y), 0);
+          finalPosition = {
+            x: 50 + (Object.keys(currentPositions).length % 3) * 300,
+            y: Math.max(maxY + 300, 50)
+          };
+        }
+        
+        return {
+          ...entity,
+          position: finalPosition
+        };
+      });
+      
+      // Update canonical entities
+      console.log('[ERDiagram] Setting canonical entities to:', updatedEntities.length, 'entities');
+      setCanonicalEntities(updatedEntities);
+      
+      // Update dbSchema for compatibility with legacy code
+      setDbSchema(parsedYAML);
+      
+      // Update layout map with current positions
+      const newLayoutMap = { ...layoutMap };
+      updatedEntities.forEach(entity => {
+        if (entity.position) {
+          newLayoutMap[entity.name] = entity.position;
+        }
+      });
+      setLayoutMap(newLayoutMap);
+      
+    } catch (error) {
+      console.error('[ERDiagram] Invalid YAML, ignoring changes:', error);
+      // Could show a warning to the user here
+    }
+  }, [canonicalEntities, layoutMap, detectEntityChanges]);
+
+  // Update visual nodes and edges from canonical entities
+  useEffect(() => {
+    console.log('[ERDiagram] Updating visual nodes from canonical entities:', canonicalEntities.length);
+    console.log('[ERDiagram] Current canonical entities:', canonicalEntities.map(e => e.name));
+    
+    if (canonicalEntities.length === 0) {
+      console.log('[ERDiagram] WARNING: Setting nodes and edges to empty arrays!');
+      setNodes([]);
+      setEdges([]);
+      return;
+    }
+
+    // Generate visual nodes
+    const visualNodes = canonicalEntities.map(entity => {
+      const position = layoutMap[entity.name] || entity.position || { x: 50, y: 50 };
+      
+      return {
+        id: entity.name,
+        type: 'entity',
+        position: position,
+        data: {
+          label: entity.name,
+          tableType: entity.type || '',
+          rows: entity.rows || 100,
+          attributes: entity.attributes || []
+        },
+        width: 200,
+        height: 100 + (entity.attributes?.length || 0) * 25,
+      };
+    });
+
+    // Generate visual edges from foreign key relationships
+    const visualEdges = [];
+    canonicalEntities.forEach(entity => {
+      if (entity.attributes) {
+        entity.attributes.forEach(attr => {
+          if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+            const [targetEntity] = attr.ref.split('.');
+            // Only create edge if target entity exists in canonical entities
+            if (canonicalEntities.find(e => e.name === targetEntity)) {
+              visualEdges.push({
+                id: `${entity.name}-${targetEntity}`,
+                source: entity.name,
+                sourceHandle: 'source-right',
+                target: targetEntity,
+                targetHandle: 'target-left',
+                animated: true,
+                type: 'smoothstep',
+                style: { stroke: '#3498db' },
+                label: attr.name,
+                markerEnd: {
+                  type: 'arrowclosed',
+                  width: 20,
+                  height: 20,
+                  color: '#3498db',
+                },
+              });
+            }
+          }
+        });
+      }
+    });
+
+    setNodes(visualNodes);
+    setEdges(visualEdges);
+    
+    // Notify parent of changes if this was an internal update
+    if (internalUpdateRef.current && onDiagramChange) {
+      const generatedYAML = generateYAML();
+      console.log('[ERDiagram] Notifying parent of internal changes');
+      onDiagramChange(generatedYAML);
+      internalUpdateRef.current = false;
+    }
+  }, [canonicalEntities, layoutMap, onDiagramChange, generateYAML]);
+
+  // Expose methods to parent components
+  useImperativeHandle(ref, () => ({
+    addEntity,
+    updateEntity,
+    deleteEntity,
+    generateYAML,
+    handleYAMLChange,
+    getCanonicalEntities: () => canonicalEntities
+  }), [addEntity, updateEntity, deleteEntity, generateYAML, handleYAMLChange, canonicalEntities]);
 
   // Generate a consistent ID for the schema based on its entities
   useEffect(() => {
@@ -215,13 +498,35 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
     }
   }, [layoutMap, schemaId, saveLayoutToLocalStorage]);
 
-  // Parse YAML to extract entities and hydrate positions
+  // Legacy YAML parsing - now handled by handleYAMLChange method
+  // This useEffect is disabled in favor of the new canvas-first architecture
   useEffect(() => {
-    // Skip re-parsing if this update came from an internal diagram change
-    if (internalUpdateRef.current) {
-      console.log('[ERDiagram] Skipping YAML re-parse - internal update');
-      internalUpdateRef.current = false;
-      return;
+    // Skip all legacy YAML parsing - now handled by handleYAMLChange
+    console.log('[ERDiagram] Legacy YAML parsing disabled - using canvas-first architecture');
+    return;
+
+    // Check if this is just adding new entities (not modifying existing ones)
+    // If so, we can preserve existing node positions and only add new nodes
+    let isAddingNewEntitiesOnly = false;
+    try {
+      if (yamlContent && currentNodesRef.current.length > 0) {
+        const parsedYaml = yaml.parseDocument(yamlContent).toJSON();
+        if (parsedYaml && parsedYaml.entities) {
+          const currentEntityNames = new Set(currentNodesRef.current.map(n => n.id));
+          const newEntityNames = new Set(parsedYaml.entities.map(e => e.name));
+          
+          // Check if all current entities still exist and no entities were removed
+          const hasAllCurrentEntities = [...currentEntityNames].every(name => newEntityNames.has(name));
+          const hasNewEntities = newEntityNames.size > currentEntityNames.size;
+          
+          if (hasAllCurrentEntities && hasNewEntities) {
+            isAddingNewEntitiesOnly = true;
+            console.log('[ERDiagram] Detected addition of new entities only - preserving existing positions');
+          }
+        }
+      }
+    } catch (error) {
+      console.log('[ERDiagram] Error checking for new entities only, proceeding with full re-parse');
     }
 
     try {
@@ -237,60 +542,157 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setDbSchema(parsedYaml);
 
       if (parsedYaml && parsedYaml.entities) {
-        const entityNodes = [];
-        const relationEdges = [];
+        if (isAddingNewEntitiesOnly) {
+          // Optimized path: only add new entities while preserving existing ones
+          const currentEntityNames = new Set(currentNodesRef.current.map(n => n.id));
+          const newEntities = parsedYaml.entities.filter(entity => !currentEntityNames.has(entity.name));
+          
+          if (newEntities.length > 0) {
+            console.log('[ERDiagram] Adding', newEntities.length, 'new entities:', newEntities.map(e => e.name));
+            
+            // Create nodes for new entities only
+            const newEntityNodes = [];
+            const newRelationEdges = [];
+            const maxY = currentNodesRef.current.reduce((max, node) => Math.max(max, node.position.y), 0);
+            
+            newEntities.forEach((entity, index) => {
+              // Position new tables below existing ones
+              let position = layoutMap[entity.name] || { 
+                x: (index % 3) * 300 + 50, 
+                y: maxY + 300 + Math.floor(index / 3) * 300 
+              };
 
-        // Create nodes for each entity
-        parsedYaml.entities.forEach((entity, index) => {
-          // Default position if not in layoutMap
-          let position = layoutMap[entity.name] || { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
+              newEntityNodes.push({
+                id: entity.name,
+                type: 'entity',
+                position: position,
+                data: {
+                  label: entity.name,
+                  tableType: entity.type || '',
+                  rows: entity.rows,
+                  attributes: entity.attributes || []
+                },
+                width: 200,
+                height: 100 + (entity.attributes?.length || 0) * 25,
+              });
 
-          entityNodes.push({
-            id: entity.name,
-            type: 'entity',
-            position: position,
-            data: {
-              label: entity.name,
-              tableType: entity.type || '',
-              rows: entity.rows,
-              attributes: entity.attributes || []
-            },
-            width: 200,
-            height: 100 + (entity.attributes?.length || 0) * 25,
-          });
-
-          // Create edges for relationships
-          if (entity.attributes) {
-            entity.attributes.forEach(attr => {
-              if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-                const [targetEntity] = attr.ref.split('.');
-                relationEdges.push({
-                  id: `${entity.name}-${targetEntity}`,
-                  source: entity.name,
-                  sourceHandle: 'source-right',
-                  target: targetEntity,
-                  targetHandle: 'target-left',
-                  animated: true,
-                  type: 'smoothstep',
-                  style: { stroke: '#3498db' },
-                  label: attr.name,
-                  markerEnd: {
-                    type: 'arrowclosed',
-                    width: 20,
-                    height: 20,
-                    color: '#3498db',
-                  },
+              // Create edges for relationships from new entities
+              if (entity.attributes) {
+                entity.attributes.forEach(attr => {
+                  if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+                    const [targetEntity] = attr.ref.split('.');
+                    newRelationEdges.push({
+                      id: `${entity.name}-${targetEntity}`,
+                      source: entity.name,
+                      sourceHandle: 'source-right',
+                      target: targetEntity,
+                      targetHandle: 'target-left',
+                      animated: true,
+                      type: 'smoothstep',
+                      style: { stroke: '#3498db' },
+                      label: attr.name,
+                      markerEnd: {
+                        type: 'arrowclosed',
+                        width: 20,
+                        height: 20,
+                        color: '#3498db',
+                      },
+                    });
+                  }
                 });
               }
             });
+
+            // Add new nodes to existing ones
+            setNodes(prevNodes => [...prevNodes, ...newEntityNodes]);
+            
+            // Add new edges, but also regenerate all edges to catch new relationships to new entities
+            const allEdges = [];
+            parsedYaml.entities.forEach(entity => {
+              if (entity.attributes) {
+                entity.attributes.forEach(attr => {
+                  if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+                    const [targetEntity] = attr.ref.split('.');
+                    allEdges.push({
+                      id: `${entity.name}-${targetEntity}`,
+                      source: entity.name,
+                      sourceHandle: 'source-right',
+                      target: targetEntity,
+                      targetHandle: 'target-left',
+                      animated: true,
+                      type: 'smoothstep',
+                      style: { stroke: '#3498db' },
+                      label: attr.name,
+                      markerEnd: {
+                        type: 'arrowclosed',
+                        width: 20,
+                        height: 20,
+                        color: '#3498db',
+                      },
+                    });
+                  }
+                });
+              }
+            });
+            setEdges(allEdges);
           }
-        });
+        } else {
+          // Full re-parse path: rebuild everything
+          const entityNodes = [];
+          const relationEdges = [];
 
-        // Hydrate positions from layoutMap
-        const hydratedNodes = applyLayoutToNodes(entityNodes, layoutMap);
+          // Create nodes for each entity
+          parsedYaml.entities.forEach((entity, index) => {
+            // Default position if not in layoutMap
+            let position = layoutMap[entity.name] || { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
 
-        setNodes(hydratedNodes);
-        setEdges(relationEdges);
+            entityNodes.push({
+              id: entity.name,
+              type: 'entity',
+              position: position,
+              data: {
+                label: entity.name,
+                tableType: entity.type || '',
+                rows: entity.rows,
+                attributes: entity.attributes || []
+              },
+              width: 200,
+              height: 100 + (entity.attributes?.length || 0) * 25,
+            });
+
+            // Create edges for relationships
+            if (entity.attributes) {
+              entity.attributes.forEach(attr => {
+                if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+                  const [targetEntity] = attr.ref.split('.');
+                  relationEdges.push({
+                    id: `${entity.name}-${targetEntity}`,
+                    source: entity.name,
+                    sourceHandle: 'source-right',
+                    target: targetEntity,
+                    targetHandle: 'target-left',
+                    animated: true,
+                    type: 'smoothstep',
+                    style: { stroke: '#3498db' },
+                    label: attr.name,
+                    markerEnd: {
+                      type: 'arrowclosed',
+                      width: 20,
+                      height: 20,
+                      color: '#3498db',
+                    },
+                  });
+                }
+              });
+            }
+          });
+
+          // Hydrate positions from layoutMap
+          const hydratedNodes = applyLayoutToNodes(entityNodes, layoutMap);
+
+          setNodes(hydratedNodes);
+          setEdges(relationEdges);
+        }
       } else {
         setNodes([]);
         setEdges([]);
@@ -300,7 +702,7 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setNodes([]);
       setEdges([]);
     }
-  }, [yamlContent, theme, schemaId, layoutMap, applyLayoutToNodes]);
+  }, []); // Disabled - no dependencies so it only runs once
   
   // Handle connecting nodes with automatic foreign key generation
   const onConnect = useCallback(
@@ -377,6 +779,14 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       setNodes(nds =>
         nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
       );
+      
+      // Update canonical entities with new position
+      setCanonicalEntities(prev => prev.map(entity => 
+        entity.name === node.id 
+          ? { ...entity, position: node.position }
+          : entity
+      ));
+      
       // Update layoutMap in state (triggers debounced save)
       setLayoutMap(prev => ({
         ...prev,
@@ -529,43 +939,27 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
 
   // Handle entity update from EntityEditor
   const handleEntityUpdate = useCallback((updatedEntity) => {
-      if (dbSchema && selectedNode) {
-         // Create a deep copy
-        const updatedSchema = JSON.parse(JSON.stringify(dbSchema));
-
-        // Find and update the entity in the schema
-        const entityIndex = updatedSchema.entities.findIndex(e => e.name === selectedNode.id);
-        if (entityIndex !== -1) {
-            // Update the entity with the new data from EntityEditor
-            updatedSchema.entities[entityIndex] = {
-                name: updatedEntity.name,
-                ...(updatedEntity.type && { type: updatedEntity.type }),
-                rows: updatedEntity.rows,
-                attributes: updatedEntity.attributes
-            };
-        }
-
-        // Update internal state
-        setDbSchema(updatedSchema);
-
-        // Set flag to prevent circular update
-        internalUpdateRef.current = true;
-
-        // Call the callback with the updated OBJECT
-        if (onDiagramChange) {
-          console.log("[ERDiagram] Calling onDiagramChange with updated schema object after entity update:", updatedSchema);
-          onDiagramChange(updatedSchema);
-        }
+      if (selectedNode) {
+        console.log("[ERDiagram] Updating entity via EntityEditor:", updatedEntity);
+        
+        // Use the new updateEntity method
+        updateEntity(selectedNode.id, {
+          name: updatedEntity.name,
+          type: updatedEntity.type,
+          rows: updatedEntity.rows,
+          attributes: updatedEntity.attributes
+        });
       }
-  }, [dbSchema, onDiagramChange, selectedNode]);
+  }, [selectedNode, updateEntity]);
 
   // Handle entity deletion from EntityEditor
   const handleEntityDelete = useCallback((_entity) => {
     if (selectedNode) {
       console.log("[ERDiagram] Deleting entity from EntityEditor:", selectedNode);
-      onNodesDelete([selectedNode]);
+      // Use the new deleteEntity method
+      deleteEntity(selectedNode.id);
     }
-  }, [onNodesDelete, selectedNode]);
+  }, [selectedNode, deleteEntity]);
 
 
   // If not initialized, just show the container to get dimensions
@@ -626,6 +1020,8 @@ const ERDiagram = ({ yamlContent, onDiagramChange, theme }) => {
       />
     </div>
   );
-};
+});
+
+ERDiagram.displayName = 'ERDiagram';
 
 export default ERDiagram; 

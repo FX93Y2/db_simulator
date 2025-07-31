@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Row,
@@ -42,6 +42,12 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
   
+  // Ref to access ERDiagram methods
+  const erDiagramRef = useRef(null);
+  
+  // Track if YAML change came from ERDiagram to prevent loops
+  const yamlChangeFromDiagram = useRef(false);
+  
   // Load existing configuration or create new one for the project
   useEffect(() => {
     const loadConfig = async () => {
@@ -79,6 +85,9 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       }
     };
     
+    // Reset initialization flag when project/config changes
+    setERDiagramInitialized(false);
+    
     if (projectId) {
       loadConfig();
     } else if (configId) {
@@ -90,6 +99,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       setName('New Database Configuration');
     }
   }, [projectId, configId]);
+
+  // Track if ERDiagram has been initialized to prevent loops
+  const [erDiagramInitialized, setERDiagramInitialized] = useState(false);
+
+  // Initialize ERDiagram with initial YAML content (only once)
+  useEffect(() => {
+    if (yamlContent && erDiagramRef.current && !erDiagramInitialized) {
+      console.log('[DbConfigEditor] Initializing ERDiagram with YAML content, length:', yamlContent.length);
+      erDiagramRef.current.handleYAMLChange(yamlContent);
+      setERDiagramInitialized(true);
+    } else if (yamlContent && erDiagramRef.current && erDiagramInitialized) {
+      console.log('[DbConfigEditor] Skipping ERDiagram initialization - already initialized');
+    }
+  }, [yamlContent, erDiagramInitialized]); // Only initialize once
   
   // Legacy method to load config directly by ID
   const loadConfigById = async () => {
@@ -120,29 +143,43 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   
   // Handle YAML content changes
   const handleYamlChange = (content) => {
+    console.log('[DbConfigEditor] handleYamlChange called, content length:', content?.length);
+    console.log('[DbConfigEditor] yamlChangeFromDiagram.current:', yamlChangeFromDiagram.current);
+    
     setYamlContent(content);
+    
+    // Only send changes to ERDiagram if they didn't come from ERDiagram
+    // This prevents infinite loops
+    if (erDiagramRef.current && !yamlChangeFromDiagram.current) {
+      console.log('[DbConfigEditor] Sending YAML change to ERDiagram');
+      erDiagramRef.current.handleYAMLChange(content);
+    } else {
+      console.log('[DbConfigEditor] Skipping ERDiagram update - change came from diagram');
+    }
+    
+    // Reset the flag
+    yamlChangeFromDiagram.current = false;
+    
     // Notify parent component of the change for real-time reactivity
     if (onConfigChange) {
       onConfigChange(content);
     }
   };
   
-  // Handle diagram changes - parse and update state
-  const handleDiagramChange = useCallback((updatedDiagramData) => {
-    try {
-      // Here, we expect updatedDiagramData to be the JS object
-      // Stringify using the 'yaml' library to preserve comments/formatting as much as possible
-      const updatedYaml = yaml.stringify(updatedDiagramData);
-      setYamlContent(updatedYaml);
-      // Notify parent component of the change for real-time reactivity
-      if (onConfigChange) {
-        onConfigChange(updatedYaml);
-      }
-    } catch (error) {
-      console.error('Error stringifying diagram changes:', error);
-      // Optionally show an error to the user
+  // Handle diagram changes - now much simpler since ERDiagram generates YAML
+  const handleDiagramChange = useCallback((updatedYamlContent) => {
+    console.log('[DbConfigEditor] Received YAML update from ERDiagram');
+    
+    // Set flag to indicate this change came from ERDiagram
+    yamlChangeFromDiagram.current = true;
+    
+    setYamlContent(updatedYamlContent);
+    
+    // Notify parent component of the change for real-time reactivity
+    if (onConfigChange) {
+      onConfigChange(updatedYamlContent);
     }
-  }, [onConfigChange]); // Add onConfigChange as dependency
+  }, [onConfigChange]);
   
   // Validation function using the new library
   const validateYaml = (content) => {
@@ -170,6 +207,11 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         if (result.success) {
           setConfig(result.config);
           showSuccess('Database configuration saved successfully');
+          
+          // Don't update YAML content from save response to prevent ERDiagram clearing
+          // The current yamlContent is already what we saved
+          console.log('[DbConfigEditor] Save successful, keeping current YAML content');
+          
           if (onSaveSuccess) {
             onSaveSuccess();
           }
@@ -214,29 +256,29 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     }
   };
   
-  // Handle adding a new table
+  // Handle adding a new table - now uses ERDiagram API directly
   const handleAddTable = () => {
+    if (!erDiagramRef.current) {
+      showError('ERDiagram not ready. Please try again.');
+      return;
+    }
+
     try {
-      // Parse existing YAML
-      const parsedYaml = yaml.parse(yamlContent) || {};
-      
-      // Ensure entities array exists
-      if (!parsedYaml.entities) {
-        parsedYaml.entities = [];
-      }
+      // Get current entities to generate unique name
+      const currentEntities = erDiagramRef.current.getCanonicalEntities();
       
       // Generate a unique table name
       const baseTableName = "NewTable";
       let tableName = baseTableName;
       let counter = 1;
       
-      while (parsedYaml.entities.some(entity => entity.name === tableName)) {
+      while (currentEntities.some(entity => entity.name === tableName)) {
         tableName = `${baseTableName}${counter}`;
         counter++;
       }
       
-      // Add new table template
-      parsedYaml.entities.push({
+      // Add new table via ERDiagram API
+      const newEntity = {
         name: tableName,
         rows: 100,
         attributes: [
@@ -253,15 +295,14 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
             }
           }
         ]
-      });
+      };
       
-      // Convert back to YAML
-      const updatedYaml = yaml.stringify(parsedYaml);
-      setYamlContent(updatedYaml);
+      console.log('[DbConfigEditor] Adding table via ERDiagram API:', newEntity);
+      erDiagramRef.current.addEntity(newEntity);
       
     } catch (error) {
       console.error('Error adding table:', error);
-      showError('Failed to add table. Please check that your YAML is valid.');
+      showError('Failed to add table. Please try again.');
     }
   };
   
@@ -381,18 +422,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
               </Button>
             </div>
             
-            <div className="canvas-content">
-              {loading ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" />
-                  <div className="mt-2">Loading diagram...</div>
+            <div className="canvas-content position-relative">
+              <ERDiagram 
+                ref={erDiagramRef}
+                yamlContent={yamlContent} 
+                onDiagramChange={handleDiagramChange}
+                theme={theme}
+              />
+              {loading && (
+                <div className="position-absolute top-50 start-50 translate-middle">
+                  <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">
+                    <Spinner animation="border" />
+                    <div className="mt-2">Saving...</div>
+                  </div>
                 </div>
-              ) : (
-                <ERDiagram 
-                  yamlContent={yamlContent} 
-                  onDiagramChange={handleDiagramChange}
-                  theme={theme}
-                />
               )}
             </div>
           </div>
