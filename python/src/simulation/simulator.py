@@ -23,6 +23,7 @@ from ..utils.data_generation import generate_attribute_value
 from .event_tracker import EventTracker
 from .resource_manager import ResourceManager
 from .entity_manager import EntityManager
+from .entity_attribute_manager import EntityAttributeManager
 from .step_processors import StepProcessorFactory
 import dataclasses
 
@@ -137,9 +138,13 @@ class EventSimulator:
         # Initialize entity manager
         self.entity_manager = EntityManager(self.env, self.engine, self.db_path, config, db_config, self.event_tracker)
         
+        # Initialize entity attribute manager for Arena-style assign functionality
+        self.entity_attribute_manager = EntityAttributeManager()
+        
         # Initialize step processor factory
         self.step_processor_factory = StepProcessorFactory(
-            self.env, self.engine, self.resource_manager, self.entity_manager, self.event_tracker, self.config
+            self.env, self.engine, self.resource_manager, self.entity_manager, 
+            self.event_tracker, self.config, self.entity_attribute_manager
         )
     
     
@@ -191,12 +196,16 @@ class EventSimulator:
             # Get final resource utilization stats
             resource_stats = self.resource_manager.get_utilization_stats()
             
+            # Get entity attribute statistics
+            attribute_stats = self.entity_attribute_manager.get_statistics()
+            
             # Return simulation results
             return {
                 'duration_days': self.config.duration_days,
                 'entity_count': self.entity_manager.entity_count,
                 'processed_events': self.processed_events,
-                'resource_utilization': resource_stats
+                'resource_utilization': resource_stats,
+                'entity_attributes': attribute_stats
             }
             
         finally:
@@ -245,6 +254,11 @@ class EventSimulator:
             except Exception as sqlite_err:
                 logger.warning(f"[{timestamp}] [PYTHON] Could not force SQLite cleanup for {self.db_path}: {sqlite_err}")
                 
+            # Clean up entity attributes
+            if hasattr(self, 'entity_attribute_manager') and self.entity_attribute_manager:
+                logger.info(f"[{timestamp}] [PYTHON] Clearing entity attribute manager for: {self.db_path}")
+                self.entity_attribute_manager.clear_all()
+            
             logger.info(f"[{timestamp}] [PYTHON] Simulator cleanup completed for: {self.db_path}")
             
         except Exception as e:

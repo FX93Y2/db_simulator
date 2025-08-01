@@ -276,6 +276,7 @@ def main():
     gen_parser.add_argument('config', help='Path to database configuration file')
     gen_parser.add_argument('--output-dir', '-o', default='output', help='Output directory')
     gen_parser.add_argument('--name', '-n', help='Database name (without extension)')
+    gen_parser.add_argument('--sim-config', help='Path to simulation configuration file for attribute column detection')
     
     # Run simulation command (preserved for CLI compatibility)
     sim_parser = subparsers.add_parser('simulate', help='Run a simulation')
@@ -322,7 +323,7 @@ def main():
         run_api(host=args.host, port=args.port)
     elif args.command == 'generate':
         try:
-            db_path = generate_database(args.config, args.output_dir, args.name)
+            db_path = generate_database(args.config, args.output_dir, args.name, sim_config_path=args.sim_config)
             logger.info(f"Database generated at: {db_path}")
         except Exception as e:
             logger.error(f"Error generating database: {e}")
@@ -339,7 +340,7 @@ def main():
         logger.warning("The 'dynamic-simulate' command is deprecated and may be removed in future versions. Please use 'generate-simulate' instead.")
         try:
             # Use generate_database instead of generate_database_for_simulation for better reliability
-            db_path = generate_database(args.db_config, args.output_dir, args.name)
+            db_path = generate_database(args.db_config, args.output_dir, args.name, sim_config_path=args.sim_config)
             logger.info(f"Database generated at: {db_path}")
             
             # Run simulation with dynamic entity generation
@@ -355,7 +356,7 @@ def main():
             # 2. Running the simulation on this complete database
             
             # Generate complete database with all tables including Project and Deliverable
-            db_path = generate_database(args.db_config, args.output_dir, args.name)
+            db_path = generate_database(args.db_config, args.output_dir, args.name, sim_config_path=args.sim_config)
             logger.info(f"Complete database generated at: {db_path}")
             
             # Run simulation on the complete database

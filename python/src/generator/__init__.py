@@ -15,7 +15,7 @@ from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_f
 logger = logging.getLogger(__name__)
 
 # Export the generate_database function
-def generate_database(config_path_or_content, output_dir='output', db_name=None, project_id=None):
+def generate_database(config_path_or_content, output_dir='output', db_name=None, project_id=None, sim_config_path=None):
     """
     Generate a SQLite database from a configuration file path or content string.
     
@@ -24,6 +24,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
         output_dir (str): Directory to store the generated database
         db_name (str, optional): Name of the database (without extension)
         project_id (str, optional): Project ID to organize output files
+        sim_config_path (str, optional): Path to simulation config for attribute column detection
         
     Returns:
         Path: Path to the generated database file
@@ -35,6 +36,17 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
     else:
         logger.info("Generating database from config content string")
         config = parse_db_config_from_string(config_path_or_content)
+    
+    # Parse simulation config if provided
+    sim_config = None
+    if sim_config_path:
+        if os.path.exists(sim_config_path) and os.path.isfile(sim_config_path):
+            logger.info(f"Parsing simulation config from file: {sim_config_path}")
+            sim_config = parse_sim_config(sim_config_path)
+        else:
+            logger.warning(f"Simulation config path does not exist: {sim_config_path}")
+    else:
+        logger.debug("No simulation config provided")
     
     # Check if we're in packaged mode (environment variable set by Electron)
     is_packaged = os.environ.get('DB_SIMULATOR_PACKAGED', 'false').lower() == 'true'
@@ -140,7 +152,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
         db_name = db_name[:-3]
         logger.info(f"Removed .db extension from database name: {db_name}")
     
-    generator = DatabaseGenerator(config, output_dir, None)
+    generator = DatabaseGenerator(config, output_dir, None, sim_config)
     db_path = generator.generate(db_name)
     
     # Ensure the returned path is absolute

@@ -22,6 +22,33 @@ class DecideStepProcessor(StepProcessor):
     conditional evaluation, and routing to next steps.
     """
     
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+        """
+        Initialize the decide step processor.
+        
+        Args:
+            env: SimPy environment
+            engine: SQLAlchemy engine
+            resource_manager: Resource manager instance
+            entity_manager: Entity manager instance
+            event_tracker: Event tracker instance
+            config: Simulation configuration
+        """
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config)
+        
+        # Entity attribute manager will be set during integration
+        self.entity_attribute_manager = None
+    
+    def set_entity_attribute_manager(self, manager):
+        """
+        Set the entity attribute manager.
+        
+        Args:
+            manager: EntityAttributeManager instance
+        """
+        self.entity_attribute_manager = manager
+        self.logger.debug("Entity attribute manager set")
+    
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle decide steps."""
         return step_type == "decide"
@@ -200,11 +227,7 @@ class DecideStepProcessor(StepProcessor):
     
     def _evaluate_conditional_decision(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
         """
-        Evaluate conditional decision based on entity attributes or system state.
-        
-        Note: This is a placeholder for future implementation of conditional logic.
-        Currently not supported but provides the framework for extension.
-        Conditional decisions require additional modules like Assignment and queue tracking.
+        Evaluate conditional decision based on entity attributes.
         
         Args:
             entity_id: Entity ID for context
@@ -213,14 +236,146 @@ class DecideStepProcessor(StepProcessor):
         Returns:
             Next step ID based on conditional evaluation
         """
-        self.logger.warning(f"Conditional decisions not yet implemented for entity {entity_id}")
+        if self.entity_attribute_manager is None:
+            self.logger.error(f"No entity attribute manager available for conditional decision, entity {entity_id}")
+            # Fallback to first outcome
+            return decide_config.outcomes[0].next_step_id if decide_config.outcomes else None
         
-        # Placeholder implementation - choose first outcome
         outcomes = decide_config.outcomes
-        if outcomes:
-            return outcomes[0].next_step_id
         
+        # Evaluate each outcome's conditions
+        for outcome in outcomes:
+            if self._evaluate_outcome_conditions(entity_id, outcome.conditions):
+                self.logger.debug(f"Entity {entity_id} matched outcome {outcome.outcome_id}, next step: {outcome.next_step_id}")
+                return outcome.next_step_id
+        
+        # No outcome matched - log warning and return None
+        self.logger.warning(f"No outcome conditions matched for entity {entity_id} in conditional decision")
         return None
+    
+    def _evaluate_outcome_conditions(self, entity_id: int, conditions: list) -> bool:
+        """
+        Evaluate all conditions for an outcome (AND logic).
+        
+        Args:
+            entity_id: Entity ID
+            conditions: List of condition objects
+            
+        Returns:
+            True if all conditions are met, False otherwise
+        """
+        if not conditions:
+            return True  # No conditions means always true
+        
+        for condition in conditions:
+            if not self._evaluate_single_condition(entity_id, condition):
+                return False  # AND logic - one false condition fails the outcome
+        
+        return True  # All conditions passed
+    
+    def _evaluate_single_condition(self, entity_id: int, condition) -> bool:
+        """
+        Evaluate a single condition.
+        
+        Args:
+            entity_id: Entity ID
+            condition: Condition object
+            
+        Returns:
+            True if condition is met, False otherwise
+        """
+        condition_type = condition.condition_type.lower()
+        
+        if condition_type == "probability":
+            # Handle probability conditions (existing logic)
+            return random.random() <= (condition.probability or 0.5)
+        
+        # Attribute-based conditions
+        elif condition_type == "attribute_equals":
+            return self._evaluate_attribute_equals(entity_id, condition)
+        
+        elif condition_type == "attribute_not_equals":
+            return self._evaluate_attribute_not_equals(entity_id, condition)
+        
+        elif condition_type == "attribute_greater_than":
+            return self._evaluate_attribute_greater_than(entity_id, condition)
+        
+        elif condition_type == "attribute_less_than":
+            return self._evaluate_attribute_less_than(entity_id, condition)
+        
+        elif condition_type == "attribute_in":
+            return self._evaluate_attribute_in(entity_id, condition)
+        
+        else:
+            self.logger.error(f"Unsupported condition type: {condition_type}")
+            return False
+    
+    def _evaluate_attribute_equals(self, entity_id: int, condition) -> bool:
+        """Evaluate attribute_equals condition."""
+        if not condition.attribute_name or condition.value is None:
+            self.logger.error(f"Invalid attribute_equals condition for entity {entity_id}: missing attribute_name or value")
+            return False
+        
+        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        result = attr_value == condition.value
+        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} == {condition.value} -> {result} (actual: {attr_value})")
+        return result
+    
+    def _evaluate_attribute_not_equals(self, entity_id: int, condition) -> bool:
+        """Evaluate attribute_not_equals condition."""
+        if not condition.attribute_name or condition.value is None:
+            self.logger.error(f"Invalid attribute_not_equals condition for entity {entity_id}: missing attribute_name or value")
+            return False
+        
+        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        result = attr_value != condition.value
+        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} != {condition.value} -> {result} (actual: {attr_value})")
+        return result
+    
+    def _evaluate_attribute_greater_than(self, entity_id: int, condition) -> bool:
+        """Evaluate attribute_greater_than condition."""
+        if not condition.attribute_name or condition.value is None:
+            self.logger.error(f"Invalid attribute_greater_than condition for entity {entity_id}: missing attribute_name or value")
+            return False
+        
+        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        
+        # Check if both values are numeric
+        if not isinstance(attr_value, (int, float)) or not isinstance(condition.value, (int, float)):
+            self.logger.error(f"Non-numeric values in greater_than comparison for entity {entity_id}: {attr_value} > {condition.value}")
+            return False
+        
+        result = attr_value > condition.value
+        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} > {condition.value} -> {result} (actual: {attr_value})")
+        return result
+    
+    def _evaluate_attribute_less_than(self, entity_id: int, condition) -> bool:
+        """Evaluate attribute_less_than condition."""
+        if not condition.attribute_name or condition.value is None:
+            self.logger.error(f"Invalid attribute_less_than condition for entity {entity_id}: missing attribute_name or value")
+            return False
+        
+        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        
+        # Check if both values are numeric
+        if not isinstance(attr_value, (int, float)) or not isinstance(condition.value, (int, float)):
+            self.logger.error(f"Non-numeric values in less_than comparison for entity {entity_id}: {attr_value} < {condition.value}")
+            return False
+        
+        result = attr_value < condition.value
+        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} < {condition.value} -> {result} (actual: {attr_value})")
+        return result
+    
+    def _evaluate_attribute_in(self, entity_id: int, condition) -> bool:
+        """Evaluate attribute_in condition."""
+        if not condition.attribute_name or not condition.values:
+            self.logger.error(f"Invalid attribute_in condition for entity {entity_id}: missing attribute_name or values")
+            return False
+        
+        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        result = attr_value in condition.values
+        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} in {condition.values} -> {result} (actual: {attr_value})")
+        return result
     
     def get_supported_decision_types(self) -> list:
         """
@@ -240,7 +395,11 @@ class DecideStepProcessor(StepProcessor):
         """
         return {
             "2-way by chance": "Fully supported",
-            "2-way by condition": "Not implemented (requires Assignment/Queue modules)", 
+            "2-way by condition": "Fully supported (requires entity attributes)", 
             "N-way by chance": "Fully supported (fixed cumulative distribution)",
-            "N-way by condition": "Not implemented (requires Assignment/Queue modules)"
+            "N-way by condition": "Fully supported (requires entity attributes)",
+            "Supported condition types": [
+                "attribute_equals", "attribute_not_equals", 
+                "attribute_greater_than", "attribute_less_than", "attribute_in"
+            ]
         }

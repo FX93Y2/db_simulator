@@ -52,6 +52,83 @@ class EntityManager:
         # Counter for entities
         self.entity_count = 0
     
+    def update_entity_attribute_column(self, entity_id: int, entity_table: str, 
+                                     attribute_name: str, value) -> bool:
+        """
+        Update a specific attribute column in the entity table.
+        
+        Args:
+            entity_id: ID of the entity to update
+            entity_table: Name of the entity table
+            attribute_name: Name of the attribute column to update
+            value: Value to set (string, int, or float)
+            
+        Returns:
+            True if update was successful, False otherwise
+        """
+        try:
+            with Session(self.engine) as session:
+                # Use parameterized query to prevent SQL injection
+                # Note: Column name can't be parameterized, but we validate it's from assign config
+                sql_query = text(f"UPDATE {entity_table} SET {attribute_name} = :value WHERE id = :id")
+                
+                result = session.execute(sql_query, {"value": value, "id": entity_id})
+                
+                if result.rowcount > 0:
+                    session.commit()
+                    logger.debug(f"Updated {entity_table}.{attribute_name} = {value} for entity {entity_id}")
+                    return True
+                else:
+                    logger.warning(f"No rows updated for entity {entity_id} in table {entity_table}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Error updating attribute column {entity_table}.{attribute_name} for entity {entity_id}: {e}")
+            return False
+    
+    def update_entity_attributes_batch(self, entity_id: int, entity_table: str, 
+                                     attributes: Dict[str, Any]) -> bool:
+        """
+        Update multiple attribute columns for an entity in a single transaction.
+        
+        Args:
+            entity_id: ID of the entity to update
+            entity_table: Name of the entity table
+            attributes: Dictionary of attribute_name -> value pairs
+            
+        Returns:
+            True if all updates were successful, False otherwise
+        """
+        if not attributes:
+            return True
+        
+        try:
+            with Session(self.engine) as session:
+                # Build dynamic SET clause
+                set_clauses = []
+                params = {"id": entity_id}
+                
+                for attr_name, attr_value in attributes.items():
+                    set_clauses.append(f"{attr_name} = :{attr_name}")
+                    params[attr_name] = attr_value
+                
+                set_clause = ", ".join(set_clauses)
+                sql_query = text(f"UPDATE {entity_table} SET {set_clause} WHERE id = :id")
+                
+                result = session.execute(sql_query, params)
+                
+                if result.rowcount > 0:
+                    session.commit()
+                    logger.debug(f"Batch updated {len(attributes)} attributes for entity {entity_id} in {entity_table}")
+                    return True
+                else:
+                    logger.warning(f"No rows updated for entity {entity_id} in table {entity_table}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Error batch updating attributes for entity {entity_id} in {entity_table}: {e}")
+            return False
+    
     def get_entity_config(self, entity_name: str) -> Optional[DbEntity]:
         """Find entity configuration by name."""
         if not self.db_config:

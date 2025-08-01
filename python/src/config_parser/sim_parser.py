@@ -71,7 +71,10 @@ class WorkShifts:
 class Condition:
     condition_type: str
     probability: Optional[float] = None
-    # Future: add other condition types like attribute_value, formula, etc.
+    # Attribute-based conditions
+    attribute_name: Optional[str] = None
+    value: Optional[Union[str, int, float]] = None
+    values: Optional[List[Union[str, int, float]]] = None  # For 'attribute_in' conditions
 
 @dataclass
 class Outcome:
@@ -85,6 +88,19 @@ class DecideConfig:
     decision_type: str
     outcomes: List[Outcome] = field(default_factory=list)
 
+# Arena-style Assignment module dataclasses
+@dataclass
+class AssignmentOperation:
+    assignment_type: str  # "attribute", future: "variable", "variable_array"
+    # Attribute-specific fields
+    attribute_name: Optional[str] = None
+    value: Optional[Union[str, int, float]] = None
+
+@dataclass
+class AssignConfig:
+    module_id: str
+    assignments: List[AssignmentOperation] = field(default_factory=list)
+
 @dataclass
 class EventStepConfig:
     name: str
@@ -94,9 +110,10 @@ class EventStepConfig:
 @dataclass
 class Step:
     step_id: str
-    step_type: str  # 'event', 'decide', 'release'
+    step_type: str  # 'event', 'decide', 'release', 'assign'
     event_config: Optional[EventStepConfig] = None
     decide_config: Optional[DecideConfig] = None
+    assign_config: Optional[AssignConfig] = None
     next_steps: List[str] = field(default_factory=list)
 
 @dataclass
@@ -326,7 +343,10 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             for condition_dict in outcome_dict.get('conditions', []):
                                 conditions.append(Condition(
                                     condition_type=condition_dict.get('condition_type', ''),
-                                    probability=condition_dict.get('probability')
+                                    probability=condition_dict.get('probability'),
+                                    attribute_name=condition_dict.get('attribute_name'),
+                                    value=condition_dict.get('value'),
+                                    values=condition_dict.get('values')
                                 ))
                             
                             outcomes.append(Outcome(
@@ -341,11 +361,29 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             outcomes=outcomes
                         )
                     
+                    # Parse assign config if present
+                    assign_config = None
+                    if 'assign_config' in step_dict:
+                        assign_dict = step_dict['assign_config']
+                        assignments = []
+                        if 'assignments' in assign_dict:
+                            for assignment_dict in assign_dict['assignments']:
+                                assignments.append(AssignmentOperation(
+                                    assignment_type=assignment_dict.get('assignment_type', ''),
+                                    attribute_name=assignment_dict.get('attribute_name'),
+                                    value=assignment_dict.get('value')
+                                ))
+                        assign_config = AssignConfig(
+                            module_id=assign_dict.get('module_id', ''),
+                            assignments=assignments
+                        )
+                    
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
                         event_config=event_config,
                         decide_config=decide_config,
+                        assign_config=assign_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
@@ -525,7 +563,10 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             for condition_dict in outcome_dict.get('conditions', []):
                                 conditions.append(Condition(
                                     condition_type=condition_dict.get('condition_type', ''),
-                                    probability=condition_dict.get('probability')
+                                    probability=condition_dict.get('probability'),
+                                    attribute_name=condition_dict.get('attribute_name'),
+                                    value=condition_dict.get('value'),
+                                    values=condition_dict.get('values')
                                 ))
                             
                             outcomes.append(Outcome(
@@ -540,11 +581,29 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             outcomes=outcomes
                         )
                     
+                    # Parse assign config if present
+                    assign_config = None
+                    if 'assign_config' in step_dict:
+                        assign_dict = step_dict['assign_config']
+                        assignments = []
+                        if 'assignments' in assign_dict:
+                            for assignment_dict in assign_dict['assignments']:
+                                assignments.append(AssignmentOperation(
+                                    assignment_type=assignment_dict.get('assignment_type', ''),
+                                    attribute_name=assignment_dict.get('attribute_name'),
+                                    value=assignment_dict.get('value')
+                                ))
+                        assign_config = AssignConfig(
+                            module_id=assign_dict.get('module_id', ''),
+                            assignments=assignments
+                        )
+                    
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
                         event_config=event_config,
                         decide_config=decide_config,
+                        assign_config=assign_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 

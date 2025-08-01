@@ -21,17 +21,20 @@ from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, MetaD
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
-from ..config_parser import DatabaseConfig, Entity, Attribute
+from ..config_parser import DatabaseConfig, Entity, Attribute, SimulationConfig
 from ..utils.data_generation import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 
 
 class DatabaseGenerator:
-    def __init__(self, config: DatabaseConfig, output_dir: str = "output", dynamic_entity_tables: Optional[List[str]] = None):
+    def __init__(self, config: DatabaseConfig, output_dir: str = "output", 
+                 dynamic_entity_tables: Optional[List[str]] = None, 
+                 sim_config: Optional[SimulationConfig] = None):
         from sqlalchemy.ext.declarative import declarative_base
         self.Base = declarative_base()
         self.config = config
+        self.sim_config = sim_config
         self.output_dir = output_dir
         self.engine = None
         self.session = None
@@ -40,8 +43,60 @@ class DatabaseGenerator:
         self.models = {}
         self.dynamic_entity_tables = dynamic_entity_tables or []
         
+        # Analyze simulation config for attribute assignments
+        self.detected_attributes = self._analyze_simulation_attributes()
+        
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
+    
+    def _analyze_simulation_attributes(self) -> Dict[str, Any]:
+        """
+        Analyze simulation config to detect attribute assignments.
+        
+        Returns:
+            Dictionary mapping attribute names to SQLAlchemy column types
+        """
+        attributes = {}
+        
+        if not self.sim_config or not self.sim_config.event_simulation:
+            return attributes
+        
+        event_flows = self.sim_config.event_simulation.event_flows
+        if not event_flows or not event_flows.flows:
+            return attributes
+        
+        logger.info("Analyzing simulation config for attribute assignments...")
+        
+        for flow in event_flows.flows:
+            for step in flow.steps:
+                if step.step_type == 'assign' and step.assign_config:
+                    for assignment in step.assign_config.assignments:
+                        if assignment.assignment_type == 'attribute' and assignment.attribute_name:
+                            attr_name = assignment.attribute_name
+                            attr_value = assignment.value
+                            
+                            # Infer column type from assigned value
+                            if isinstance(attr_value, (int, float)):
+                                column_type = Integer
+                            else:
+                                column_type = String
+                            
+                            # Store the detected attribute (use most general type if multiple)
+                            if attr_name in attributes:
+                                # If we already have this attribute, use String if types differ
+                                if attributes[attr_name] != column_type:
+                                    attributes[attr_name] = String
+                            else:
+                                attributes[attr_name] = column_type
+                            
+                            logger.debug(f"Detected attribute: {attr_name} -> {column_type.__name__}")
+        
+        if attributes:
+            logger.info(f"Found {len(attributes)} unique attribute assignments: {list(attributes.keys())}")
+        else:
+            logger.info("No attribute assignments found in simulation config")
+        
+        return attributes
     
     def generate(self, db_name: Optional[str] = None) -> str:
         """
@@ -188,6 +243,13 @@ class DatabaseGenerator:
             # Handle regular columns
             else:
                 attrs[attr.name] = Column(column_type)
+        
+        # Add simulation attribute columns for entity tables only
+        if entity.type == 'entity' and self.detected_attributes:
+            logger.info(f"Adding {len(self.detected_attributes)} attribute columns to entity table '{entity.name}'")
+            for attr_name, attr_type in self.detected_attributes.items():
+                attrs[attr_name] = Column(attr_type, nullable=True)
+                logger.debug(f"Added column: {entity.name}.{attr_name} ({attr_type.__name__})")
         
         # Create model class
         model_class = type(entity.name, (self.Base,), attrs)

@@ -27,7 +27,72 @@ event_simulation:
                 value: Tech Support
                 count: 1
           next_steps:
+            - priority_routing_decide
+        
+        - step_id: priority_routing_decide
+          step_type: decide
+          decide_config:
+            module_id: priority_routing_001
+            decision_type: probability
+            outcomes:
+              - outcome_id: route_high
+                next_step_id: assign_high_priority
+                conditions:
+                  - condition_type: probability
+                    probability: 0.2
+              - outcome_id: route_medium
+                next_step_id: assign_medium_priority
+                conditions:
+                  - condition_type: probability
+                    probability: 0.5
+              - outcome_id: route_low
+                next_step_id: assign_low_priority
+                conditions:
+                  - condition_type: probability
+                    probability: 0.3
+        
+        - step_id: assign_high_priority
+          step_type: assign
+          assign_config:
+            module_id: assign_high_001
+            assignments:
+              - assignment_type: attribute
+                attribute_name: ticket_priority
+                value: "high"
+              - assignment_type: attribute
+                attribute_name: sla_hours
+                value: 4
+          next_steps:
             - sre_assist
+        
+        - step_id: assign_medium_priority
+          step_type: assign
+          assign_config:
+            module_id: assign_medium_001
+            assignments:
+              - assignment_type: attribute
+                attribute_name: ticket_priority
+                value: "medium"
+              - assignment_type: attribute
+                attribute_name: sla_hours
+                value: 24
+          next_steps:
+            - sre_assist
+        
+        - step_id: assign_low_priority
+          step_type: assign
+          assign_config:
+            module_id: assign_low_001
+            assignments:
+              - assignment_type: attribute
+                attribute_name: ticket_priority
+                value: "low"
+              - assignment_type: attribute
+                attribute_name: sla_hours
+                value: 72
+          next_steps:
+            - sre_assist
+        
         - step_id: sre_assist
           step_type: event
           event_config:
@@ -42,38 +107,33 @@ event_simulation:
                 value: SRE
                 count: 1
           next_steps:
-            - decide_1753963217122
-        - step_id: decide_1753963217122
+            - resource_allocation_decide
+        
+        - step_id: resource_allocation_decide
           step_type: decide
           decide_config:
-            module_id: decide_1753963217122
-            decision_type: probability
+            module_id: resource_allocation_002
+            decision_type: condition
             outcomes:
-              - outcome_id: outcome_1
-                next_step_id: developer_assist
-                conditions:
-                  - condition_type: probability
-                    probability: 0.5
-              - outcome_id: outcome_2
+              - outcome_id: high_priority_path
                 next_step_id: security_assist
                 conditions:
-                  - condition_type: probability
-                    probability: 0.5
-        - step_id: developer_assist
-          step_type: event
-          event_config:
-            name: Developer Assist
-            duration:
-              distribution:
-                type: normal
-                mean: 2
-                stddev: 0.5
-            resource_requirements:
-              - resource_table: Staff
-                value: Dev
-                count: 2
-          next_steps:
-            - release_1753963527202
+                  - condition_type: attribute_equals
+                    attribute_name: ticket_priority
+                    value: "high"
+              - outcome_id: medium_priority_path
+                next_step_id: developer_assist
+                conditions:
+                  - condition_type: attribute_equals
+                    attribute_name: ticket_priority
+                    value: "medium"
+              - outcome_id: low_priority_path
+                next_step_id: basic_resolution
+                conditions:
+                  - condition_type: attribute_equals
+                    attribute_name: ticket_priority
+                    value: "low"
+        
         - step_id: security_assist
           step_type: event
           event_config:
@@ -88,13 +148,72 @@ event_simulation:
                 value: Security
                 count: 2
           next_steps:
-            - release_1753963533370
-        - step_id: release_1753963527202
+            - urgency_check_decide
+        
+        - step_id: developer_assist
+          step_type: event
+          event_config:
+            name: Developer Assist
+            duration:
+              distribution:
+                type: normal
+                mean: 2
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Staff
+                value: Dev
+                count: 2
+          next_steps:
+            - urgency_check_decide
+        
+        - step_id: basic_resolution
+          step_type: event
+          event_config:
+            name: Basic Resolution
+            duration:
+              distribution:
+                type: normal
+                mean: 1
+                stddev: 0.2
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - release_basic
+        
+        - step_id: urgency_check_decide
+          step_type: decide
+          decide_config:
+            module_id: urgency_check_003
+            decision_type: condition
+            outcomes:
+              - outcome_id: expedite_release
+                next_step_id: release_expedited
+                conditions:
+                  - condition_type: attribute_in
+                    attribute_name: ticket_priority
+                    values: ["high", "medium"]
+                  # Future: Could add SLA time check condition here
+              - outcome_id: standard_release
+                next_step_id: release_standard
+                conditions:
+                  - condition_type: attribute_equals
+                    attribute_name: ticket_priority
+                    value: "low"
+        
+        - step_id: release_expedited
           step_type: release
           event_config:
-            name: Release
-        - step_id: release_1753963533370
+            name: Expedited Release
+        
+        - step_id: release_standard
           step_type: release
           event_config:
-            name: Release
+            name: Standard Release
+        
+        - step_id: release_basic
+          step_type: release
+          event_config:
+            name: Basic Release
   resource_capacities: {}

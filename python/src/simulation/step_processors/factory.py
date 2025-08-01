@@ -12,6 +12,7 @@ from .base import StepProcessor
 from .event_processor import EventStepProcessor
 from .decide_processor import DecideStepProcessor
 from .release_processor import ReleaseStepProcessor
+from .assign_processor import AssignStepProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class StepProcessorFactory:
     step processing requests to the appropriate processor based on step type.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None):
         """
         Initialize the step processor factory.
         
@@ -35,6 +36,7 @@ class StepProcessorFactory:
             entity_manager: Entity manager instance
             event_tracker: Event tracker instance
             config: Simulation configuration
+            entity_attribute_manager: Entity attribute manager instance (optional)
         """
         self.env = env
         self.engine = engine
@@ -42,20 +44,45 @@ class StepProcessorFactory:
         self.entity_manager = entity_manager
         self.event_tracker = event_tracker
         self.config = config
+        self.entity_attribute_manager = entity_attribute_manager
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
         # Initialize all processors
         self.processors: List[StepProcessor] = [
             EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
             DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config)
+            ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
+            AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config)
         ]
+        
+        # Configure processors that need entity attribute manager
+        self._configure_attribute_dependent_processors()
         
         # Create lookup cache for faster processor retrieval
         self._processor_cache: Dict[str, StepProcessor] = {}
         self._build_processor_cache()
         
         self.logger.info(f"Initialized step processor factory with {len(self.processors)} processors")
+    
+    def _configure_attribute_dependent_processors(self):
+        """Configure processors that depend on entity attribute manager."""
+        if self.entity_attribute_manager is None:
+            return
+        
+        # Import here to avoid circular imports
+        from ..assignment_handlers.handler_factory import AssignmentHandlerFactory
+        
+        # Create assignment handler factory
+        assignment_handler_factory = AssignmentHandlerFactory(self.entity_attribute_manager)
+        
+        # Configure processors
+        for processor in self.processors:
+            if isinstance(processor, DecideStepProcessor):
+                processor.set_entity_attribute_manager(self.entity_attribute_manager)
+            elif isinstance(processor, AssignStepProcessor):
+                processor.set_assignment_handler_factory(assignment_handler_factory)
+        
+        self.logger.info("Configured attribute-dependent processors")
     
     def _build_processor_cache(self):
         """Build cache mapping step types to processors."""
@@ -82,7 +109,7 @@ class StepProcessorFactory:
             List of supported step types
         """
         # Standard step types to check
-        standard_types = ["event", "decide", "release"]
+        standard_types = ["event", "decide", "release", "assign"]
         supported = []
         
         for step_type in standard_types:
