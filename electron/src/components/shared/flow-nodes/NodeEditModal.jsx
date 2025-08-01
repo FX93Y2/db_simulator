@@ -7,6 +7,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
+  const [assignments, setAssignments] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
 
@@ -86,6 +87,31 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           setOutcomes(convertedOutcomes);
         }
         
+      } else if (stepConfig.step_type === 'assign') {
+        const assignConfig = stepConfig.assign_config || {};
+        
+        setFormData({
+          module_id: assignConfig.module_id || stepConfig.step_id
+        });
+        
+        // Initialize assignments
+        const convertedAssignments = (assignConfig.assignments || []).map((assignment) => ({
+          assignment_type: assignment.assignment_type || 'attribute',
+          attribute_name: assignment.attribute_name || '',
+          value: assignment.value || ''
+        }));
+        
+        // Ensure at least one assignment
+        if (convertedAssignments.length === 0) {
+          setAssignments([{
+            assignment_type: 'attribute',
+            attribute_name: '',
+            value: ''
+          }]);
+        } else {
+          setAssignments(convertedAssignments);
+        }
+        
       } else if (stepConfig.step_type === 'release') {
         setFormData({
           name: stepConfig.event_config?.name || 'Release'
@@ -145,6 +171,31 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           setOutcomes(convertedOutcomes);
         }
         
+      } else if (stepConfig.step_type === 'assign') {
+        const assignConfig = stepConfig.assign_config || {};
+        
+        setFormData({
+          module_id: assignConfig.module_id || stepConfig.step_id
+        });
+        
+        // Initialize assignments
+        const convertedAssignments = (assignConfig.assignments || []).map((assignment) => ({
+          assignment_type: assignment.assignment_type || 'attribute',
+          attribute_name: assignment.attribute_name || '',
+          value: assignment.value || ''
+        }));
+        
+        // Ensure at least one assignment
+        if (convertedAssignments.length === 0) {
+          setAssignments([{
+            assignment_type: 'attribute',
+            attribute_name: '',
+            value: ''
+          }]);
+        } else {
+          setAssignments(convertedAssignments);
+        }
+        
       } else if (stepConfig.step_type === 'release') {
         setFormData({
           name: stepConfig.event_config?.name || 'Release'
@@ -167,6 +218,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   // Helper function to handle outcome changes
   const handleOutcomeChange = (index, field, value) => {
     updateOutcome(index, field, value);
+  };
+
+  // Helper function to handle assignment changes
+  const handleAssignmentChange = (index, field, value) => {
+    updateAssignment(index, field, value);
   };
 
   // Handle node deletion
@@ -251,6 +307,17 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           outcomes: convertedOutcomes
         };
         
+      } else if (updatedStepConfig.step_type === 'assign') {
+        updatedStepConfig.assign_config = {
+          module_id: formData.module_id || stepId,
+          assignments: assignments.map((assignment) => ({
+            assignment_type: assignment.assignment_type,
+            attribute_name: assignment.attribute_name,
+            value: assignment.value
+          }))
+        };
+        updatedStepConfig.next_steps = [];
+        
       } else if (updatedStepConfig.step_type === 'release') {
         updatedStepConfig.event_config = {
           name: formData.name
@@ -325,6 +392,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const removeOutcome = (index) => {
     if (outcomes.length > 1) {
       setOutcomes(outcomes.filter((_, i) => i !== index));
+    }
+  };
+
+  const addAssignment = () => {
+    setAssignments([...assignments, {
+      assignment_type: 'attribute',
+      attribute_name: '',
+      value: ''
+    }]);
+  };
+
+  const updateAssignment = (index, field, value) => {
+    const updated = [...assignments];
+    updated[index] = { ...updated[index], [field]: value };
+    setAssignments(updated);
+  };
+
+  const removeAssignment = (index) => {
+    if (assignments.length > 1) {
+      setAssignments(assignments.filter((_, i) => i !== index));
     }
   };
 
@@ -634,6 +721,90 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               </Row>
             </div>
           ))}
+        </>
+      );
+
+    } else if (stepType === 'assign') {
+      return (
+        <>
+          <Form.Group className="mb-3">
+            <Form.Label>Module ID</Form.Label>
+            <Form.Control
+              type="text"
+              value={formData.module_id || ''}
+              onChange={(e) => handleFormDataChange({ module_id: e.target.value })}
+              placeholder="Auto-generated module ID"
+            />
+            <Form.Text className="text-muted">
+              Unique identifier for this assign module.
+            </Form.Text>
+          </Form.Group>
+
+          <hr />
+          <div className="d-flex justify-content-between align-items-center mb-3">
+            <h6>Attribute Assignments</h6>
+            <Button size="sm" onClick={addAssignment}>Add Assignment</Button>
+          </div>
+
+          {assignments.map((assignment, index) => (
+            <div key={index} className="border p-3 mb-3 rounded">
+              <Row>
+                <Col md={4}>
+                  <Form.Group className="mb-2">
+                    <Form.Label>Assignment Type</Form.Label>
+                    <Form.Select
+                      value={assignment.assignment_type || 'attribute'}
+                      onChange={(e) => handleAssignmentChange(index, 'assignment_type', e.target.value)}
+                      disabled
+                    >
+                      <option value="attribute">Attribute</option>
+                    </Form.Select>
+                    <Form.Text className="text-muted">
+                      Only attribute assignments are currently supported.
+                    </Form.Text>
+                  </Form.Group>
+                </Col>
+                <Col md={3}>
+                  <Form.Group className="mb-2">
+                    <Form.Label>Attribute Name</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={assignment.attribute_name || ''}
+                      onChange={(e) => handleAssignmentChange(index, 'attribute_name', e.target.value)}
+                      placeholder="e.g., priority, status"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={4}>
+                  <Form.Group className="mb-2">
+                    <Form.Label>Value</Form.Label>
+                    <Form.Control
+                      type="text"
+                      value={assignment.value || ''}
+                      onChange={(e) => handleAssignmentChange(index, 'value', e.target.value)}
+                      placeholder="e.g., high, completed, 5"
+                    />
+                  </Form.Group>
+                </Col>
+                <Col md={1}>
+                  <div className="d-flex align-items-end h-100 pb-2">
+                    <Button 
+                      variant="outline-danger" 
+                      size="sm" 
+                      onClick={() => removeAssignment(index)}
+                      disabled={assignments.length <= 1}
+                    >
+                      <FiTrash2 />
+                    </Button>
+                  </div>
+                </Col>
+              </Row>
+            </div>
+          ))}
+
+          <Form.Text className="text-muted">
+            Assign module sets custom attributes on entities that can be used for conditional routing in Decide modules.
+          </Form.Text>
         </>
       );
 

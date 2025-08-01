@@ -62,6 +62,7 @@ export const buildNodesFromFlow = (flow, layoutMap, theme, currentPositions = {}
 
     let nodeType = 'process';
     if (step.step_type === 'decide') nodeType = 'decide';
+    if (step.step_type === 'assign') nodeType = 'assign';
     if (step.step_type === 'release') nodeType = 'release';
 
     const node = {

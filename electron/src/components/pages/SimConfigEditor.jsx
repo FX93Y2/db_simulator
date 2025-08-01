@@ -18,7 +18,7 @@ import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
-import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new simulation configuration using event_flows
@@ -263,6 +263,16 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             }
           ]
         };
+      } else if (moduleType === 'assign') {
+        newStep.assign_config = {
+          module_id: stepId,
+          assignments: [{
+            assignment_type: "attribute",
+            attribute_name: "new_attribute",
+            value: "default_value"
+          }]
+        };
+        newStep.next_steps = [];
       } else if (moduleType === 'release') {
         newStep.event_config = { name: "Release" };
       }
@@ -621,6 +631,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                       <Dropdown.Item onClick={() => handleAddModule('decide')}>
                         <FiGitBranch className="me-2" />
                         Decide
+                      </Dropdown.Item>
+                      <Dropdown.Item onClick={() => handleAddModule('assign')}>
+                        <FiTag className="me-2" />
+                        Assign
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('release')}>
                         <FiPlay className="me-2" />

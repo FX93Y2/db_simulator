@@ -108,6 +108,41 @@ export const DecideNode = ({ data, selected }) => {
   );
 };
 
+// Assign Node Component - Green rectangle for Arena-style assignments
+export const AssignNode = ({ data, selected }) => {
+  const assignments = data.stepConfig?.assign_config?.assignments || [];
+  
+  return (
+    <div className={`custom-node assign-step-node ${selected ? 'selected' : ''}`}>
+      <Handle type="target" position={Position.Left} />
+      <div className="node-header">
+        <span className="node-type">Assign</span>
+      </div>
+      <div className="node-content">
+        <div className="node-title">{data.stepConfig?.assign_config?.module_id || data.label}</div>
+        <div className="node-details">
+          {assignments.length > 0 && (
+            <div className="detail-item">
+              <strong>Assignments:</strong> {assignments.length}
+            </div>
+          )}
+          {assignments.slice(0, 2).map((assignment, index) => (
+            <div key={index} className="detail-item assignment-item">
+              • {assignment.attribute_name} = {assignment.value}
+            </div>
+          ))}
+          {assignments.length > 2 && (
+            <div className="detail-item">
+              ... and {assignments.length - 2} more
+            </div>
+          )}
+        </div>
+      </div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+};
+
 // Release Node Component - Dispose shape (rectangle with angled side)
 export const ReleaseNode = ({ data, selected }) => {
   return (
@@ -129,5 +164,6 @@ export const ReleaseNode = ({ data, selected }) => {
 export const nodeTypes = {
   process: ProcessNode,
   decide: DecideNode,
+  assign: AssignNode,
   release: ReleaseNode,
 };
