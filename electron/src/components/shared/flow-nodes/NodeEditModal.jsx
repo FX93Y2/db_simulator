@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Row, Col } from 'react-bootstrap';
+import { Modal, Button, Form, Row, Col, InputGroup, DropdownButton, Dropdown } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 import ConfirmationModal from '../ConfirmationModal';
 
@@ -282,7 +282,15 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   // Helper function to handle assignment changes
   const handleAssignmentChange = (index, field, value) => {
-    updateAssignment(index, field, value);
+    // Process the value to handle numeric strings properly for YAML
+    let processedValue = value;
+    if (field === 'value' && value) {
+      // Try to convert to number if it's a valid numeric string
+      if (/^\d+(\.\d+)?$/.test(value.toString())) {
+        processedValue = value.includes('.') ? parseFloat(value) : parseInt(value, 10);
+      }
+    }
+    updateAssignment(index, field, processedValue);
   };
 
   // Handle node deletion
@@ -947,18 +955,46 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                 <Col md={3}>
                   <Form.Group className="mb-2">
                     <Form.Label>Attribute Name</Form.Label>
-                    <Form.Control
-                      type="text"
-                      value={assignment.attribute_name || ''}
-                      onChange={(e) => handleAssignmentChange(index, 'attribute_name', e.target.value)}
-                      placeholder="e.g., priority, status"
-                      isInvalid={!assignment.attribute_name}
-                    />
-                    <Form.Control.Feedback type="invalid">
-                      Attribute name is required.
-                    </Form.Control.Feedback>
+                    {(() => {
+                      const availableAttributes = getAvailableAttributes();
+                      
+                      return (
+                        <>
+                          <InputGroup>
+                            <Form.Control
+                              type="text"
+                              value={assignment.attribute_name || ''}
+                              onChange={(e) => handleAssignmentChange(index, 'attribute_name', e.target.value)}
+                              placeholder="Type attribute name..."
+                              isInvalid={!assignment.attribute_name}
+                            />
+                            {availableAttributes.length > 0 && (
+                              <DropdownButton
+                                variant="outline-secondary"
+                                title=""
+                                id={`attribute-dropdown-${index}`}
+                                align="end"
+                              >
+                                {availableAttributes.map(attr => (
+                                  <Dropdown.Item 
+                                    key={attr}
+                                    onClick={() => handleAssignmentChange(index, 'attribute_name', attr)}
+                                  >
+                                    {attr}
+                                  </Dropdown.Item>
+                                ))}
+                              </DropdownButton>
+                            )}
+                          </InputGroup>
+                          <Form.Control.Feedback type="invalid">
+                            Attribute name is required.
+                          </Form.Control.Feedback>
+                        </>
+                      );
+                    })()}
                   </Form.Group>
                 </Col>
+
                 <Col md={4}>
                   <Form.Group className="mb-2">
                     <Form.Label>Value</Form.Label>

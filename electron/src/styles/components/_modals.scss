@@ -34,6 +34,28 @@
         color: var(--theme-muted-text);
       }
     }
+
+    // InputGroup dropdown button styling in modals
+    .input-group {
+      .dropdown-toggle {
+        background-color: var(--theme-sidebar-bg);
+        border-color: var(--theme-border);
+        color: var(--theme-text);
+        
+        &:hover {
+          background-color: var(--theme-hover-bg);
+          border-color: var(--theme-border);
+          color: var(--theme-text);
+        }
+        
+        &:focus {
+          background-color: var(--theme-hover-bg);
+          border-color: var(--theme-primary);
+          color: var(--theme-text);
+          box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
+        }
+      }
+    }
   }
   
   .modal-footer {

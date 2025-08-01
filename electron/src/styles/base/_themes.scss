@@ -148,6 +148,65 @@ body.theme-dark { // Dark theme overrides
       opacity: 0.8;
     }
   }
+
+  // --- Bootstrap Dropdown Dark Theme Overrides ---
+  .dropdown-menu {
+    background-color: var(--theme-card-bg);
+    border: 1px solid var(--theme-border);
+    color: var(--theme-text);
+  }
+
+  .dropdown-item {
+    color: var(--theme-text);
+    
+    &:hover, &:focus {
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-text);
+    }
+    
+    &:active {
+      background-color: var(--theme-active-bg);
+      color: var(--theme-text);
+    }
+  }
+
+  .dropdown-divider {
+    border-top-color: var(--theme-border);
+  }
+
+  // Dropdown button styling
+  .dropdown-button, .btn-outline-secondary {
+    background-color: var(--theme-sidebar-bg);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    
+    &:hover {
+      background-color: var(--theme-hover-bg);
+      border-color: var(--theme-border);
+      color: var(--theme-text);
+    }
+    
+    &:focus {
+      background-color: var(--theme-hover-bg);
+      border-color: var(--theme-primary);
+      color: var(--theme-text);
+      box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
+    }
+  }
+
+  // Form select styling for dark theme
+  .form-select {
+    background-color: var(--theme-sidebar-bg);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    
+    &:focus {
+      background-color: var(--theme-sidebar-bg);
+      border-color: var(--theme-primary);
+      color: var(--theme-text);
+      box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
+    }
+  }
 }
 
 // React Flow Global Styles (apply to both light and dark themes)

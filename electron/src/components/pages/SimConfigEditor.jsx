@@ -426,7 +426,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       
       if (!result.success) {
         console.error("SimConfigEditor: Error: result.success is false", result);
-        showError('Error saving configuration');
+        const errorMessage = result.error || 'Unknown error saving configuration';
+        showError(`Error saving configuration: ${errorMessage}`);
       }
       
       return result;

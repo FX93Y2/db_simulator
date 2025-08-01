@@ -90,7 +90,7 @@ def validate_event_flows_structure(config_data):
                 step_ids.add(step_id)
                 
                 # Validate step type
-                valid_step_types = ['event', 'decide', 'release']
+                valid_step_types = ['event', 'decide', 'release', 'assign']
                 if step_type not in valid_step_types:
                     return {"valid": False, "error": f"Flow {i} step {step_id} has invalid step_type: {step_type}"}
                 
@@ -124,6 +124,25 @@ def validate_event_flows_structure(config_data):
                     for k, outcome in enumerate(outcomes):
                         if 'outcome_id' not in outcome or 'next_step_id' not in outcome:
                             return {"valid": False, "error": f"Flow {i} decide step {step_id} outcome {k} missing required fields"}
+                
+                elif step_type == 'assign':
+                    if 'assign_config' not in step:
+                        return {"valid": False, "error": f"Flow {i} assign step {step_id} missing assign_config"}
+                    
+                    assign_config = step['assign_config']
+                    required_assign_fields = ['module_id', 'assignments']
+                    for field in required_assign_fields:
+                        if field not in assign_config:
+                            return {"valid": False, "error": f"Flow {i} assign step {step_id} missing assign_config.{field}"}
+                    
+                    # Validate assignments
+                    assignments = assign_config['assignments']
+                    if not isinstance(assignments, list) or len(assignments) == 0:
+                        return {"valid": False, "error": f"Flow {i} assign step {step_id} must have at least 1 assignment"}
+                    
+                    for k, assignment in enumerate(assignments):
+                        if 'assignment_type' not in assignment or 'attribute_name' not in assignment or 'value' not in assignment:
+                            return {"valid": False, "error": f"Flow {i} assign step {step_id} assignment {k} missing required fields"}
                 
                 elif step_type == 'release':
                     # Release steps are typically minimal, just verify structure
