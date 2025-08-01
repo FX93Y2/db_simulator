@@ -35,6 +35,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       .map(s => s.event_config?.name || s.step_id) || [];
   };
 
+  // Get all available attributes from assign modules for condition dropdowns
+  function getAvailableAttributes() {
+    if (!parsedSchema?.event_simulation?.event_flows) return [];
+    const flow = parsedSchema.event_simulation.event_flows[0];
+    const attributes = new Set();
+    
+    // Find all assign steps and extract their attribute names
+    flow?.steps?.forEach(step => {
+      if (step.step_type === 'assign' && step.assign_config?.assignments) {
+        step.assign_config.assignments.forEach(assignment => {
+          if (assignment.attribute_name) {
+            attributes.add(assignment.attribute_name);
+          }
+        });
+      }
+    });
+    
+    return Array.from(attributes).sort();
+  }
+
   useEffect(() => {
     // Only reset form data when node actually changes (new node opened), not during auto-updates
     if (node && node.data.stepConfig && (!lastNodeId || node.id !== lastNodeId)) {
@@ -76,17 +96,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             next_event_name: nextEventName
           };
 
-          if (condition.condition_type === 'probability') {
-            convertedOutcome.probability = condition.probability || 0.5;
+          if (condition.if && condition.if.toLowerCase() === 'probability') {
+            convertedOutcome.probability = condition.value || 0.5;
           } else {
             // Attribute-based condition
-            convertedOutcome.condition_type = condition.condition_type || 'attribute_equals';
-            convertedOutcome.attribute_name = condition.attribute_name || '';
-            if (condition.condition_type === 'attribute_in') {
-              convertedOutcome.condition_value = (condition.values || []).join(', ');
-            } else {
-              convertedOutcome.condition_value = condition.value || '';
-            }
+            convertedOutcome.if = condition.if || 'Attribute';
+            convertedOutcome.name = condition.name || '';
+            convertedOutcome.is = condition.is || '==';
+            convertedOutcome.value = condition.value || '';
           }
 
           return convertedOutcome;
@@ -97,8 +114,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           const isCondition = decideConfig.decision_type === 'condition';
           if (isCondition) {
             setOutcomes([
-              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' },
-              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' }
+              { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' },
+              { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' }
             ]);
           } else {
             setOutcomes([
@@ -183,17 +200,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             next_event_name: nextEventName
           };
 
-          if (condition.condition_type === 'probability') {
-            convertedOutcome.probability = condition.probability || 0.5;
+          if (condition.if && condition.if.toLowerCase() === 'probability') {
+            convertedOutcome.probability = condition.value || 0.5;
           } else {
             // Attribute-based condition
-            convertedOutcome.condition_type = condition.condition_type || 'attribute_equals';
-            convertedOutcome.attribute_name = condition.attribute_name || '';
-            if (condition.condition_type === 'attribute_in') {
-              convertedOutcome.condition_value = (condition.values || []).join(', ');
-            } else {
-              convertedOutcome.condition_value = condition.value || '';
-            }
+            convertedOutcome.if = condition.if || 'Attribute';
+            convertedOutcome.name = condition.name || '';
+            convertedOutcome.is = condition.is || '==';
+            convertedOutcome.value = condition.value || '';
           }
 
           return convertedOutcome;
@@ -204,8 +218,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           const isCondition = decideConfig.decision_type === 'condition';
           if (isCondition) {
             setOutcomes([
-              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' },
-              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' }
+              { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' },
+              { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' }
             ]);
           } else {
             setOutcomes([
@@ -375,23 +389,18 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
           if (formData.decision_type === 'probability') {
             baseOutcome.conditions = [{
-              condition_type: 'probability',
-              probability: parseFloat(outcome.probability) || 0.5
+              if: 'Probability',
+              is: '==',
+              value: parseFloat(outcome.probability) || 0.5
             }];
           } else {
             // Condition-based decision
             const condition = {
-              condition_type: outcome.condition_type || 'attribute_equals',
-              attribute_name: outcome.attribute_name || '',
+              if: outcome.if || 'Attribute',
+              name: outcome.name || '',
+              is: outcome.is || '==',
+              value: outcome.value || ''
             };
-
-            if (outcome.condition_type === 'attribute_in') {
-              // For 'in' conditions, split the value by commas
-              condition.values = (outcome.condition_value || '').split(',').map(v => v.trim());
-            } else {
-              // For other conditions, use single value
-              condition.value = outcome.condition_value || '';
-            }
 
             baseOutcome.conditions = [condition];
           }
@@ -492,9 +501,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     if (isCondition) {
       setOutcomes([...outcomes, {
         next_event_name: '',
-        condition_type: 'attribute_equals',
-        attribute_name: '',
-        condition_value: ''
+        if: 'Attribute',
+        name: '',
+        is: '==',
+        value: ''
       }]);
     } else {
       setOutcomes([...outcomes, {
@@ -818,42 +828,57 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                     </Form.Group>
                   </Col>
                 ) : (
-                  <Col md={5}>
+                  <Col md={8}>
                     <Row>
-                      <Col md={4}>
+                      <Col md={3}>
                         <Form.Group className="mb-2">
-                          <Form.Label>Condition</Form.Label>
+                          <Form.Label>If</Form.Label>
                           <Form.Select
-                            value={outcome.condition_type || 'attribute_equals'}
-                            onChange={(e) => handleOutcomeChange(index, 'condition_type', e.target.value)}
+                            value={outcome.if || 'Attribute'}
+                            onChange={(e) => handleOutcomeChange(index, 'if', e.target.value)}
                           >
-                            <option value="attribute_equals">Equals</option>
-                            <option value="attribute_not_equals">Not Equals</option>
-                            <option value="attribute_greater_than">Greater Than</option>
-                            <option value="attribute_less_than">Less Than</option>
-                            <option value="attribute_in">In List</option>
+                            <option value="Attribute">Attribute</option>
                           </Form.Select>
                         </Form.Group>
                       </Col>
-                      <Col md={4}>
+                      <Col md={3}>
                         <Form.Group className="mb-2">
-                          <Form.Label>Attribute</Form.Label>
-                          <Form.Control
-                            type="text"
-                            value={outcome.attribute_name || ''}
-                            onChange={(e) => handleOutcomeChange(index, 'attribute_name', e.target.value)}
-                            placeholder="e.g., priority, status"
-                          />
+                          <Form.Label>Name</Form.Label>
+                          <Form.Select
+                            value={outcome.name || ''}
+                            onChange={(e) => handleOutcomeChange(index, 'name', e.target.value)}
+                          >
+                            <option value="">Select attribute...</option>
+                            {getAvailableAttributes().map(attr => (
+                              <option key={attr} value={attr}>{attr}</option>
+                            ))}
+                          </Form.Select>
                         </Form.Group>
                       </Col>
-                      <Col md={4}>
+                      <Col md={3}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Is</Form.Label>
+                          <Form.Select
+                            value={outcome.is || '=='}
+                            onChange={(e) => handleOutcomeChange(index, 'is', e.target.value)}
+                          >
+                            <option value="==">=</option>
+                            <option value="<>">&lt;&gt;</option>
+                            <option value=">">&gt;</option>
+                            <option value=">=">&gt;=</option>
+                            <option value="<">&lt;</option>
+                            <option value="<=">&lt;=</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={3}>
                         <Form.Group className="mb-2">
                           <Form.Label>Value</Form.Label>
                           <Form.Control
                             type="text"
-                            value={outcome.condition_value || ''}
-                            onChange={(e) => handleOutcomeChange(index, 'condition_value', e.target.value)}
-                            placeholder={outcome.condition_type === 'attribute_in' ? 'high,medium,low' : 'high'}
+                            value={outcome.value || ''}
+                            onChange={(e) => handleOutcomeChange(index, 'value', e.target.value)}
+                            placeholder="high"
                           />
                         </Form.Group>
                       </Col>

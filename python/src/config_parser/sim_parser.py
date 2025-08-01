@@ -69,12 +69,11 @@ class WorkShifts:
 # New event flow dataclasses
 @dataclass
 class Condition:
-    condition_type: str
-    probability: Optional[float] = None
-    # Attribute-based conditions
-    attribute_name: Optional[str] = None
+    # Clean new format: if name is value
+    if_: Optional[str] = field(default=None, metadata={'yaml_key': 'if'})  # "Attribute", "Variable" (future), etc.
+    name: Optional[str] = None     # attribute/variable name
+    is_: Optional[str] = field(default=None, metadata={'yaml_key': 'is'})  # "==", "!=", ">", ">=", "<", "<=", "<>"
     value: Optional[Union[str, int, float]] = None
-    values: Optional[List[Union[str, int, float]]] = None  # For 'attribute_in' conditions
 
 @dataclass
 class Outcome:
@@ -342,11 +341,10 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             conditions = []
                             for condition_dict in outcome_dict.get('conditions', []):
                                 conditions.append(Condition(
-                                    condition_type=condition_dict.get('condition_type', ''),
-                                    probability=condition_dict.get('probability'),
-                                    attribute_name=condition_dict.get('attribute_name'),
-                                    value=condition_dict.get('value'),
-                                    values=condition_dict.get('values')
+                                    if_=condition_dict.get('if'),
+                                    name=condition_dict.get('name'),
+                                    is_=condition_dict.get('is'),
+                                    value=condition_dict.get('value')
                                 ))
                             
                             outcomes.append(Outcome(
@@ -562,11 +560,10 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             conditions = []
                             for condition_dict in outcome_dict.get('conditions', []):
                                 conditions.append(Condition(
-                                    condition_type=condition_dict.get('condition_type', ''),
-                                    probability=condition_dict.get('probability'),
-                                    attribute_name=condition_dict.get('attribute_name'),
-                                    value=condition_dict.get('value'),
-                                    values=condition_dict.get('values')
+                                    if_=condition_dict.get('if'),
+                                    name=condition_dict.get('name'),
+                                    is_=condition_dict.get('is'),
+                                    value=condition_dict.get('value')
                                 ))
                             
                             outcomes.append(Outcome(

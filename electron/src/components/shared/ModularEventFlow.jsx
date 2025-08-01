@@ -152,8 +152,9 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
               outcome_id: `outcome_${outcomeIndex + 1}`,
               next_step_id: params.target,
               conditions: [{
-                condition_type: 'probability',
-                probability: 0.5 // Default probability, user can edit later
+                if: 'Probability',
+                is: '==',
+                value: 0.5 // Default probability, user can edit later
               }]
             };
             
@@ -313,8 +314,8 @@ const ModularEventFlow = ({ yamlContent, parsedSchema, onDiagramChange, theme, d
             const equalProbability = 1 / step.decide_config.outcomes.length;
             step.decide_config.outcomes.forEach(outcome => {
               outcome.conditions.forEach(condition => {
-                if (condition.condition_type === 'probability') {
-                  condition.probability = equalProbability;
+                if (condition.if && condition.if.toLowerCase() === 'probability') {
+                  condition.value = equalProbability;
                 }
               });
             });

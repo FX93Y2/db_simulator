@@ -404,13 +404,15 @@ entity_arrival:
             - outcome_id: to_testing
               next_step_id: testing
               conditions:
-                - condition_type: probability
-                  probability: 0.8
+                - if: Probability
+                  is: "=="
+                  value: 0.8
             - outcome_id: rework
               next_step_id: design
               conditions:
-                - condition_type: probability
-                  probability: 0.2`}</CodeBlock>
+                - if: Probability
+                  is: "=="
+                  value: 0.2`}</CodeBlock>
         </div>
       )
     },
@@ -488,13 +490,15 @@ entity_arrival:
     - outcome_id: pass
       next_step_id: continue_process
       conditions:
-        - condition_type: probability
-          probability: 0.8    # 80% pass rate
+        - if: Probability
+          is: "=="
+          value: 0.8    # 80% pass rate
     - outcome_id: fail
       next_step_id: rework
       conditions:
-        - condition_type: probability
-          probability: 0.2    # 20% fail rate`}</CodeBlock>
+        - if: Probability
+          is: "=="
+          value: 0.2    # 20% fail rate`}</CodeBlock>
           
           <h6>N-way by chance</h6>
           <CodeBlock>{`decide_config:
@@ -504,18 +508,21 @@ entity_arrival:
     - outcome_id: high_priority
       next_step_id: fast_track
       conditions:
-        - condition_type: probability
-          probability: 0.2    # 20% high priority
+        - if: Probability
+          is: "=="
+          value: 0.2    # 20% high priority
     - outcome_id: medium_priority
       next_step_id: normal_track
       conditions:
-        - condition_type: probability
-          probability: 0.6    # 60% medium priority
+        - if: Probability
+          is: "=="
+          value: 0.6    # 60% medium priority
     - outcome_id: low_priority
       next_step_id: slow_track
       conditions:
-        - condition_type: probability
-          probability: 0.2    # 20% low priority`}</CodeBlock>
+        - if: Probability
+          is: "=="
+          value: 0.2    # 20% low priority`}</CodeBlock>
           
           <h5>2-way by condition & n-way by condition (Future)</h5>
           <p>Route entities based on attributes or system state (planned for future implementation):</p>
@@ -527,14 +534,17 @@ decide_config:
     - outcome_id: vip_customer
       next_step_id: priority_service
       conditions:
-        - condition_type: attribute_value
-          attribute: customer_type
-          operator: equals
+        - if: Attribute
+          name: customer_type
+          is: "=="
           value: VIP
     - outcome_id: regular_customer
       next_step_id: standard_service
       conditions:
-        - condition_type: default`}</CodeBlock>
+        - if: Attribute
+          name: customer_type
+          is: "!="
+          value: VIP`}</CodeBlock>
           
           <div className="alert alert-info">
             <strong>Note:</strong> The system automatically normalizes probabilities to ensure they sum to 1.0, and uses proper cumulative distribution for accurate probability-based routing.

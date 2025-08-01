@@ -254,12 +254,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             {
               outcome_id: "outcome_1",
               next_step_id: "",
-              conditions: [{ condition_type: "probability", probability: 0.5 }]
+              conditions: [{ if: "Probability", is: "==", value: 0.5 }]
             },
             {
               outcome_id: "outcome_2", 
               next_step_id: "",
-              conditions: [{ condition_type: "probability", probability: 0.5 }]
+              conditions: [{ if: "Probability", is: "==", value: 0.5 }]
             }
           ]
         };

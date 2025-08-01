@@ -38,18 +38,21 @@ event_simulation:
               - outcome_id: route_high
                 next_step_id: assign_high_priority
                 conditions:
-                  - condition_type: probability
-                    probability: 0.2
+                  - if: Probability
+                    is: "=="
+                    value: 0.2
               - outcome_id: route_medium
                 next_step_id: assign_medium_priority
                 conditions:
-                  - condition_type: probability
-                    probability: 0.5
+                  - if: Probability
+                    is: "=="
+                    value: 0.5
               - outcome_id: route_low
                 next_step_id: assign_low_priority
                 conditions:
-                  - condition_type: probability
-                    probability: 0.3
+                  - if: Probability
+                    is: "=="
+                    value: 0.3
         
         - step_id: assign_high_priority
           step_type: assign
@@ -118,20 +121,23 @@ event_simulation:
               - outcome_id: high_priority_path
                 next_step_id: security_assist
                 conditions:
-                  - condition_type: attribute_equals
-                    attribute_name: ticket_priority
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
                     value: "high"
               - outcome_id: medium_priority_path
                 next_step_id: developer_assist
                 conditions:
-                  - condition_type: attribute_equals
-                    attribute_name: ticket_priority
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
                     value: "medium"
               - outcome_id: low_priority_path
                 next_step_id: basic_resolution
                 conditions:
-                  - condition_type: attribute_equals
-                    attribute_name: ticket_priority
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
                     value: "low"
         
         - step_id: security_assist
@@ -191,14 +197,23 @@ event_simulation:
               - outcome_id: expedite_release
                 next_step_id: release_expedited
                 conditions:
-                  - condition_type: attribute_in
-                    attribute_name: ticket_priority
-                    values: ["high", "medium"]
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
+                    value: "high"
+              - outcome_id: medium_expedite_release
+                next_step_id: release_expedited
+                conditions:
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
+                    value: "medium"
               - outcome_id: standard_release
                 next_step_id: release_standard
                 conditions:
-                  - condition_type: attribute_equals
-                    attribute_name: ticket_priority
+                  - if: Attribute
+                    name: ticket_priority
+                    is: "=="
                     value: "low"
         
         - step_id: release_expedited

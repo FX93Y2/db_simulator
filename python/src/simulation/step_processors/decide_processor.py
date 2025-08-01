@@ -165,8 +165,8 @@ class DecideStepProcessor(StepProcessor):
         # Get probability from first outcome's conditions
         probability = 0.5  # Default 50/50
         for condition in first_outcome.conditions:
-            if condition.condition_type == "probability" and condition.probability is not None:
-                probability = condition.probability
+            if condition.if_ and condition.if_.lower() == "probability" and condition.value is not None:
+                probability = condition.value
                 break
         
         # Make decision
@@ -196,8 +196,8 @@ class DecideStepProcessor(StepProcessor):
         for outcome in outcomes:
             prob = 0.0
             for condition in outcome.conditions:
-                if condition.condition_type == "probability" and condition.probability is not None:
-                    prob = condition.probability
+                if condition.if_ and condition.if_.lower() == "probability" and condition.value is not None:
+                    prob = condition.value
                     break
             probabilities.append(prob)
             outcome_ids.append(outcome.next_step_id)
@@ -238,8 +238,7 @@ class DecideStepProcessor(StepProcessor):
         """
         if self.entity_attribute_manager is None:
             self.logger.error(f"No entity attribute manager available for conditional decision, entity {entity_id}")
-            # Fallback to first outcome
-            return decide_config.outcomes[0].next_step_id if decide_config.outcomes else None
+            return None
         
         outcomes = decide_config.outcomes
         
@@ -275,7 +274,7 @@ class DecideStepProcessor(StepProcessor):
     
     def _evaluate_single_condition(self, entity_id: int, condition) -> bool:
         """
-        Evaluate a single condition.
+        Evaluate a single condition using the new if/name/is/value format.
         
         Args:
             entity_id: Entity ID
@@ -284,98 +283,106 @@ class DecideStepProcessor(StepProcessor):
         Returns:
             True if condition is met, False otherwise
         """
-        condition_type = condition.condition_type.lower()
+        # Validate new format
+        if not condition.if_ or not condition.is_ or condition.value is None:
+            self.logger.error(f"Invalid condition format for entity {entity_id}: missing required fields (if, is, value)")
+            return False
+            
+        if_type = condition.if_.lower()
+        operator = condition.is_
+        value = condition.value
         
-        if condition_type == "probability":
-            # Handle probability conditions (existing logic)
-            return random.random() <= (condition.probability or 0.5)
-        
-        # Attribute-based conditions
-        elif condition_type == "attribute_equals":
-            return self._evaluate_attribute_equals(entity_id, condition)
-        
-        elif condition_type == "attribute_not_equals":
-            return self._evaluate_attribute_not_equals(entity_id, condition)
-        
-        elif condition_type == "attribute_greater_than":
-            return self._evaluate_attribute_greater_than(entity_id, condition)
-        
-        elif condition_type == "attribute_less_than":
-            return self._evaluate_attribute_less_than(entity_id, condition)
-        
-        elif condition_type == "attribute_in":
-            return self._evaluate_attribute_in(entity_id, condition)
-        
+        if if_type == "probability":
+            return self._evaluate_probability_condition(entity_id, operator, value)
+        elif if_type == "attribute":
+            if not condition.name:
+                self.logger.error(f"Invalid attribute condition for entity {entity_id}: missing name field")
+                return False
+            return self._evaluate_attribute_condition(entity_id, condition.name, operator, value)
         else:
-            self.logger.error(f"Unsupported condition type: {condition_type}")
+            self.logger.error(f"Unsupported if type: {if_type}")
             return False
     
-    def _evaluate_attribute_equals(self, entity_id: int, condition) -> bool:
-        """Evaluate attribute_equals condition."""
-        if not condition.attribute_name or condition.value is None:
-            self.logger.error(f"Invalid attribute_equals condition for entity {entity_id}: missing attribute_name or value")
-            return False
+    def _evaluate_probability_condition(self, entity_id: int, operator: str, probability_value: float) -> bool:
+        """
+        Evaluate probability condition.
         
-        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
-        result = attr_value == condition.value
-        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} == {condition.value} -> {result} (actual: {attr_value})")
+        Args:
+            entity_id: Entity ID
+            operator: Comparison operator (should be "==")
+            probability_value: Probability threshold
+            
+        Returns:
+            True if random value meets probability condition
+        """
+        if operator != "==":
+            self.logger.error(f"Unsupported probability operator: {operator}")
+            return False
+            
+        random_value = random.random()
+        result = random_value <= probability_value
+        self.logger.debug(f"Entity {entity_id}: Probability {random_value} <= {probability_value} -> {result}")
         return result
     
-    def _evaluate_attribute_not_equals(self, entity_id: int, condition) -> bool:
-        """Evaluate attribute_not_equals condition."""
-        if not condition.attribute_name or condition.value is None:
-            self.logger.error(f"Invalid attribute_not_equals condition for entity {entity_id}: missing attribute_name or value")
+    def _evaluate_attribute_condition(self, entity_id: int, attribute_name: str, operator: str, expected_value) -> bool:
+        """
+        Evaluate attribute condition using operator.
+        
+        Args:
+            entity_id: Entity ID
+            attribute_name: Name of the attribute
+            operator: Comparison operator ("==", "!=", ">", ">=", "<", "<=", "<>")
+            expected_value: Value to compare against
+            
+        Returns:
+            True if condition is met, False otherwise
+        """
+        if self.entity_attribute_manager is None:
+            self.logger.error(f"No entity attribute manager available for attribute condition, entity {entity_id}")
             return False
         
-        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
-        result = attr_value != condition.value
-        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} != {condition.value} -> {result} (actual: {attr_value})")
-        return result
-    
-    def _evaluate_attribute_greater_than(self, entity_id: int, condition) -> bool:
-        """Evaluate attribute_greater_than condition."""
-        if not condition.attribute_name or condition.value is None:
-            self.logger.error(f"Invalid attribute_greater_than condition for entity {entity_id}: missing attribute_name or value")
+        if not attribute_name or expected_value is None:
+            self.logger.error(f"Invalid attribute condition for entity {entity_id}: missing attribute_name or value")
             return False
         
-        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
+        actual_value = self.entity_attribute_manager.get_attribute(entity_id, attribute_name)
         
-        # Check if both values are numeric
-        if not isinstance(attr_value, (int, float)) or not isinstance(condition.value, (int, float)):
-            self.logger.error(f"Non-numeric values in greater_than comparison for entity {entity_id}: {attr_value} > {condition.value}")
+        try:
+            if operator == "==":
+                result = actual_value == expected_value
+            elif operator == "!=" or operator == "<>":
+                result = actual_value != expected_value
+            elif operator == ">":
+                # Ensure both values are numeric for comparison
+                if not isinstance(actual_value, (int, float)) or not isinstance(expected_value, (int, float)):
+                    self.logger.error(f"Non-numeric values in > comparison for entity {entity_id}: {actual_value} > {expected_value}")
+                    return False
+                result = actual_value > expected_value
+            elif operator == ">=":
+                if not isinstance(actual_value, (int, float)) or not isinstance(expected_value, (int, float)):
+                    self.logger.error(f"Non-numeric values in >= comparison for entity {entity_id}: {actual_value} >= {expected_value}")
+                    return False
+                result = actual_value >= expected_value
+            elif operator == "<":
+                if not isinstance(actual_value, (int, float)) or not isinstance(expected_value, (int, float)):
+                    self.logger.error(f"Non-numeric values in < comparison for entity {entity_id}: {actual_value} < {expected_value}")
+                    return False
+                result = actual_value < expected_value
+            elif operator == "<=":
+                if not isinstance(actual_value, (int, float)) or not isinstance(expected_value, (int, float)):
+                    self.logger.error(f"Non-numeric values in <= comparison for entity {entity_id}: {actual_value} <= {expected_value}")
+                    return False
+                result = actual_value <= expected_value
+            else:
+                self.logger.error(f"Unsupported operator: {operator}")
+                return False
+            
+            self.logger.debug(f"Entity {entity_id}: {attribute_name} {operator} {expected_value} -> {result} (actual: {actual_value})")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error evaluating attribute condition for entity {entity_id}: {e}")
             return False
-        
-        result = attr_value > condition.value
-        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} > {condition.value} -> {result} (actual: {attr_value})")
-        return result
-    
-    def _evaluate_attribute_less_than(self, entity_id: int, condition) -> bool:
-        """Evaluate attribute_less_than condition."""
-        if not condition.attribute_name or condition.value is None:
-            self.logger.error(f"Invalid attribute_less_than condition for entity {entity_id}: missing attribute_name or value")
-            return False
-        
-        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
-        
-        # Check if both values are numeric
-        if not isinstance(attr_value, (int, float)) or not isinstance(condition.value, (int, float)):
-            self.logger.error(f"Non-numeric values in less_than comparison for entity {entity_id}: {attr_value} < {condition.value}")
-            return False
-        
-        result = attr_value < condition.value
-        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} < {condition.value} -> {result} (actual: {attr_value})")
-        return result
-    
-    def _evaluate_attribute_in(self, entity_id: int, condition) -> bool:
-        """Evaluate attribute_in condition."""
-        if not condition.attribute_name or not condition.values:
-            self.logger.error(f"Invalid attribute_in condition for entity {entity_id}: missing attribute_name or values")
-            return False
-        
-        attr_value = self.entity_attribute_manager.get_attribute(entity_id, condition.attribute_name)
-        result = attr_value in condition.values
-        self.logger.debug(f"Entity {entity_id}: {condition.attribute_name} in {condition.values} -> {result} (actual: {attr_value})")
-        return result
     
     def get_supported_decision_types(self) -> list:
         """
@@ -398,8 +405,7 @@ class DecideStepProcessor(StepProcessor):
             "2-way by condition": "Fully supported (requires entity attributes)", 
             "N-way by chance": "Fully supported (fixed cumulative distribution)",
             "N-way by condition": "Fully supported (requires entity attributes)",
-            "Supported condition types": [
-                "attribute_equals", "attribute_not_equals", 
-                "attribute_greater_than", "attribute_less_than", "attribute_in"
-            ]
+            "Condition format": "Clean 'if name is value' format",
+            "Supported operators": ["==", "!=", ">", ">=", "<", "<=", "<>"],
+            "Supported if types": ["Attribute", "Probability"]
         }
