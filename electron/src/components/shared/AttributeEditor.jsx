@@ -220,7 +220,6 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
               type="text"
               value={generator.template || ''}
               onChange={(e) => handleGeneratorChange('template', e.target.value)}
-              placeholder="e.g., Department_{id}"
             />
             <Form.Text className="text-muted">
               Template string with {'{id}'} placeholder for auto-increment
@@ -258,7 +257,6 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                           type="text"
                           value={value}
                           onChange={(e) => handleChoiceValueChange(index, 'value', e.target.value)}
-                          placeholder="Value"
                         />
                       </Col>
                       <Col md={4}>
@@ -270,7 +268,6 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                             max="1"
                             value={generator.distribution.weights?.[index] || 0}
                             onChange={(e) => handleChoiceValueChange(index, 'weight', e.target.value)}
-                            placeholder="Weight"
                           />
                           <InputGroup.Text>%</InputGroup.Text>
                         </InputGroup>
@@ -498,7 +495,6 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                                   newValues[index] = parseFloat(e.target.value) || 0;
                                   handleDistributionChange('values', newValues);
                                 }}
-                                placeholder="Probability"
                               />
                             </Col>
                             <Col md={4}>
@@ -824,7 +820,6 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
                 type="text"
                 value={localAttribute.ref || ''}
                 onChange={(e) => handleChange('ref', e.target.value)}
-                placeholder="e.g., Department.id"
               />
               <Form.Text className="text-muted">
                 Reference to another entity's attribute (EntityName.attributeName)

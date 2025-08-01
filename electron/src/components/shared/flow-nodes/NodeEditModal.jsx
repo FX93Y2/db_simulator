@@ -619,7 +619,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                 type="text"
                 value={formData.duration_values || '1, 2, 3'}
                 onChange={(e) => handleFormDataChange({ duration_values: e.target.value })}
-                placeholder="1, 2, 3"
               />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -628,7 +627,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                 type="text"
                 value={formData.duration_weights || '0.5, 0.3, 0.2'}
                 onChange={(e) => handleFormDataChange({ duration_weights: e.target.value })}
-                placeholder="0.5, 0.3, 0.2"
               />
             </Form.Group>
           </>
@@ -652,7 +650,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               type="text"
               value={formData.name || ''}
               onChange={(e) => handleFormDataChange({ name: e.target.value })}
-              placeholder="Display name for this event"
             />
             <Form.Text className="text-muted">
               This name will be used to identify the event in decision outcomes.
@@ -714,7 +711,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                           type="text"
                           value={selectedResourceTable}
                           onChange={(e) => handleResourceRequirementChange(index, 'resource_table', e.target.value)}
-                          placeholder="e.g., Consultant"
                         />
                       )}
                       {availableResourceTables.length === 0 && (
@@ -744,7 +740,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                           type="text"
                           value={req.value || ''}
                           onChange={(e) => handleResourceRequirementChange(index, 'value', e.target.value)}
-                          placeholder={selectedResourceTable ? "Select resource table first" : "e.g., Developer"}
                           disabled={selectedResourceTable && availableResourceTypes.length === 0}
                         />
                       )}
@@ -886,7 +881,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                             type="text"
                             value={outcome.value || ''}
                             onChange={(e) => handleOutcomeChange(index, 'value', e.target.value)}
-                            placeholder="high"
                           />
                         </Form.Group>
                       </Col>
@@ -921,7 +915,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               type="text"
               value={formData.module_id || ''}
               onChange={(e) => handleFormDataChange({ module_id: e.target.value })}
-              placeholder="Auto-generated module ID"
             />
             <Form.Text className="text-muted">
               Unique identifier for this assign module.
@@ -1002,7 +995,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                       type="text"
                       value={assignment.value || ''}
                       onChange={(e) => handleAssignmentChange(index, 'value', e.target.value)}
-                      placeholder="e.g., high, completed, 5"
                       isInvalid={!assignment.value}
                     />
                     <Form.Control.Feedback type="invalid">
@@ -1041,7 +1033,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               type="text"
               value={formData.name || ''}
               onChange={(e) => handleFormDataChange({ name: e.target.value })}
-              placeholder="Display name for this release step"
             />
           </Form.Group>
           
