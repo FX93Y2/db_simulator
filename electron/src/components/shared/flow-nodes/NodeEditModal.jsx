@@ -11,28 +11,61 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
 
-  // Helper function to get event name from step ID
-  const getEventNameFromStepId = (stepId) => {
+  // Helper function to get display name from step ID
+  const getDisplayNameFromStepId = (stepId) => {
     if (!parsedSchema?.event_simulation?.event_flows) return '';
     const flow = parsedSchema.event_simulation.event_flows[0];
     const step = flow?.steps?.find(s => s.step_id === stepId);
-    return step?.event_config?.name || step?.step_id || '';
+    if (!step) return '';
+    
+    // For event and release steps, use their name; for others use step_id
+    if (step.step_type === 'event' || step.step_type === 'release') {
+      return step.event_config?.name || step.step_id;
+    } else {
+      return step.step_id;
+    }
   };
 
-  // Helper function to get step ID from event name
-  const getStepIdFromEventName = (eventName) => {
+  // Helper function to get step ID from display name
+  const getStepIdFromDisplayName = (displayName) => {
     if (!parsedSchema?.event_simulation?.event_flows) return '';
     const flow = parsedSchema.event_simulation.event_flows[0];
-    const step = flow?.steps?.find(s => s.event_config?.name === eventName);
+    
+    // First try to find by event_config.name (for event/release steps)
+    let step = flow?.steps?.find(s => 
+      (s.step_type === 'event' || s.step_type === 'release') && 
+      s.event_config?.name === displayName
+    );
+    
+    // If not found, try to find by step_id (for all step types)
+    if (!step) {
+      step = flow?.steps?.find(s => s.step_id === displayName);
+    }
+    
     return step?.step_id || '';
   };
 
-  // Get all available event names for dropdowns
-  const getAvailableEventNames = () => {
+  // Backward compatibility aliases
+  const getEventNameFromStepId = getDisplayNameFromStepId;
+  const getStepIdFromEventName = getStepIdFromDisplayName;
+
+  // Get all available step names for dropdowns (all steps can be next steps)
+  const getAvailableStepNames = () => {
     if (!parsedSchema?.event_simulation?.event_flows) return [];
     const flow = parsedSchema.event_simulation.event_flows[0];
-    return flow?.steps?.filter(s => s.step_type === 'event' || s.step_type === 'release')
-      .map(s => s.event_config?.name || s.step_id) || [];
+    return flow?.steps?.map(s => {
+      // For event and release steps, use their name; for others use step_id
+      if (s.step_type === 'event' || s.step_type === 'release') {
+        return s.event_config?.name || s.step_id;
+      } else {
+        return s.step_id;
+      }
+    }) || [];
+  };
+
+  // Get all available event names for dropdowns (for backward compatibility)
+  const getAvailableEventNames = () => {
+    return getAvailableStepNames();
   };
 
   // Get all available attributes from assign modules for condition dropdowns
@@ -86,14 +119,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           decision_type: decideConfig.decision_type || 'probability'
         });
         
-        // Convert outcomes to use event names instead of step IDs
+        // Convert outcomes to use display names instead of step IDs
         const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
           const nextStepId = outcome.next_step_id;
-          const nextEventName = getEventNameFromStepId(nextStepId);
+          const nextDisplayName = getDisplayNameFromStepId(nextStepId);
           const condition = outcome.conditions?.[0] || {};
           
           const convertedOutcome = {
-            next_event_name: nextEventName
+            next_event_name: nextDisplayName
           };
 
           if (condition.if && condition.if.toLowerCase() === 'probability') {
@@ -190,14 +223,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           decision_type: decideConfig.decision_type || 'probability'
         });
         
-        // Convert outcomes to use event names instead of step IDs
+        // Convert outcomes to use display names instead of step IDs
         const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
           const nextStepId = outcome.next_step_id;
-          const nextEventName = getEventNameFromStepId(nextStepId);
+          const nextDisplayName = getDisplayNameFromStepId(nextStepId);
           const condition = outcome.conditions?.[0] || {};
           
           const convertedOutcome = {
-            next_event_name: nextEventName
+            next_event_name: nextDisplayName
           };
 
           if (condition.if && condition.if.toLowerCase() === 'probability') {
@@ -392,7 +425,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         const convertedOutcomes = outcomes.map((outcome, index) => {
           const baseOutcome = {
             outcome_id: `outcome_${index + 1}`,
-            next_step_id: getStepIdFromEventName(outcome.next_event_name)
+            next_step_id: getStepIdFromDisplayName(outcome.next_event_name)
           };
 
           if (formData.decision_type === 'probability') {
@@ -775,7 +808,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       );
 
     } else if (stepType === 'decide') {
-      const availableEvents = getAvailableEventNames();
+      const availableSteps = getAvailableStepNames();
       
       return (
         <>
@@ -801,15 +834,15 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               <Row>
                 <Col md={formData.decision_type === 'condition' ? 6 : 8}>
                   <Form.Group className="mb-2">
-                    <Form.Label>Next Event</Form.Label>
+                    <Form.Label>Next Step</Form.Label>
                     <Form.Select
                       value={outcome.next_event_name || ''}
                       onChange={(e) => handleOutcomeChange(index, 'next_event_name', e.target.value)}
                     >
-                      <option value="">Select next event...</option>
-                      {availableEvents.map((eventName, eventIndex) => (
-                        <option key={eventIndex} value={eventName}>
-                          {eventName}
+                      <option value="">Select next step...</option>
+                      {availableSteps.map((stepName, stepIndex) => (
+                        <option key={stepIndex} value={stepName}>
+                          {stepName}
                         </option>
                       ))}
                     </Form.Select>

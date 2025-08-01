@@ -9,13 +9,13 @@ import logging
 from pathlib import Path
 
 from .db_generator import DatabaseGenerator
-from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_from_string
+from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_from_string, parse_sim_config_from_string
 
 # Create logger
 logger = logging.getLogger(__name__)
 
 # Export the generate_database function
-def generate_database(config_path_or_content, output_dir='output', db_name=None, project_id=None, sim_config_path=None):
+def generate_database(config_path_or_content, output_dir='output', db_name=None, project_id=None, sim_config_path_or_content=None):
     """
     Generate a SQLite database from a configuration file path or content string.
     
@@ -24,7 +24,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
         output_dir (str): Directory to store the generated database
         db_name (str, optional): Name of the database (without extension)
         project_id (str, optional): Project ID to organize output files
-        sim_config_path (str, optional): Path to simulation config for attribute column detection
+        sim_config_path_or_content (str, optional): Path to simulation config file or YAML content for attribute column detection
         
     Returns:
         Path: Path to the generated database file
@@ -39,12 +39,14 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
     
     # Parse simulation config if provided
     sim_config = None
-    if sim_config_path:
-        if os.path.exists(sim_config_path) and os.path.isfile(sim_config_path):
-            logger.info(f"Parsing simulation config from file: {sim_config_path}")
-            sim_config = parse_sim_config(sim_config_path)
+    if sim_config_path_or_content:
+        # Check if the input is a file path or content string
+        if os.path.exists(sim_config_path_or_content) and os.path.isfile(sim_config_path_or_content):
+            logger.info(f"Parsing simulation config from file: {sim_config_path_or_content}")
+            sim_config = parse_sim_config(sim_config_path_or_content)
         else:
-            logger.warning(f"Simulation config path does not exist: {sim_config_path}")
+            logger.info("Parsing simulation config from content string")
+            sim_config = parse_sim_config_from_string(sim_config_path_or_content)
     else:
         logger.debug("No simulation config provided")
     

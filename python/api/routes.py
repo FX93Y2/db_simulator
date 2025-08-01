@@ -760,7 +760,8 @@ def generate_and_simulate():
             db_config['content'], 
             output_dir,
             db_name,
-            project_id
+            project_id,
+            sim_config['content']  # Pass simulation config content for attribute column detection
         )
         
         # Log database creation with full details

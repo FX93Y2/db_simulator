@@ -62,12 +62,17 @@ class DatabaseGenerator:
             return attributes
         
         event_flows = self.sim_config.event_simulation.event_flows
-        if not event_flows or not event_flows.flows:
+        if not event_flows:
             return attributes
         
         logger.info("Analyzing simulation config for attribute assignments...")
         
-        for flow in event_flows.flows:
+        # Handle both new EventFlowsConfig structure and direct list structure
+        flows = event_flows.flows if hasattr(event_flows, 'flows') else event_flows
+        if not flows:
+            return attributes
+            
+        for flow in flows:
             for step in flow.steps:
                 if step.step_type == 'assign' and step.assign_config:
                     for assignment in step.assign_config.assignments:
@@ -76,8 +81,21 @@ class DatabaseGenerator:
                             attr_value = assignment.value
                             
                             # Infer column type from assigned value
-                            if isinstance(attr_value, (int, float)):
+                            if isinstance(attr_value, int):
                                 column_type = Integer
+                            elif isinstance(attr_value, float):
+                                column_type = Integer  # Use Integer for numbers, SQLite is flexible
+                            elif isinstance(attr_value, str):
+                                # Try to detect if string represents a number
+                                try:
+                                    int(attr_value)
+                                    column_type = Integer
+                                except ValueError:
+                                    try:
+                                        float(attr_value)
+                                        column_type = Integer  # Use Integer for numeric strings too
+                                    except ValueError:
+                                        column_type = String
                             else:
                                 column_type = String
                             
