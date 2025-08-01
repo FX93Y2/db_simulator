@@ -70,19 +70,42 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
           const nextStepId = outcome.next_step_id;
           const nextEventName = getEventNameFromStepId(nextStepId);
+          const condition = outcome.conditions?.[0] || {};
           
-          return {
-            next_event_name: nextEventName,
-            probability: outcome.conditions?.[0]?.probability || 0.5
+          const convertedOutcome = {
+            next_event_name: nextEventName
           };
+
+          if (condition.condition_type === 'probability') {
+            convertedOutcome.probability = condition.probability || 0.5;
+          } else {
+            // Attribute-based condition
+            convertedOutcome.condition_type = condition.condition_type || 'attribute_equals';
+            convertedOutcome.attribute_name = condition.attribute_name || '';
+            if (condition.condition_type === 'attribute_in') {
+              convertedOutcome.condition_value = (condition.values || []).join(', ');
+            } else {
+              convertedOutcome.condition_value = condition.value || '';
+            }
+          }
+
+          return convertedOutcome;
         });
         
-        // Ensure at least 2 outcomes
+        // Ensure at least 2 outcomes with appropriate defaults
         if (convertedOutcomes.length === 0) {
-          setOutcomes([
-            { next_event_name: '', probability: 0.5 },
-            { next_event_name: '', probability: 0.5 }
-          ]);
+          const isCondition = decideConfig.decision_type === 'condition';
+          if (isCondition) {
+            setOutcomes([
+              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' },
+              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' }
+            ]);
+          } else {
+            setOutcomes([
+              { next_event_name: '', probability: 0.5 },
+              { next_event_name: '', probability: 0.5 }
+            ]);
+          }
         } else {
           setOutcomes(convertedOutcomes);
         }
@@ -154,19 +177,42 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
           const nextStepId = outcome.next_step_id;
           const nextEventName = getEventNameFromStepId(nextStepId);
+          const condition = outcome.conditions?.[0] || {};
           
-          return {
-            next_event_name: nextEventName,
-            probability: outcome.conditions?.[0]?.probability || 0.5
+          const convertedOutcome = {
+            next_event_name: nextEventName
           };
+
+          if (condition.condition_type === 'probability') {
+            convertedOutcome.probability = condition.probability || 0.5;
+          } else {
+            // Attribute-based condition
+            convertedOutcome.condition_type = condition.condition_type || 'attribute_equals';
+            convertedOutcome.attribute_name = condition.attribute_name || '';
+            if (condition.condition_type === 'attribute_in') {
+              convertedOutcome.condition_value = (condition.values || []).join(', ');
+            } else {
+              convertedOutcome.condition_value = condition.value || '';
+            }
+          }
+
+          return convertedOutcome;
         });
         
-        // Ensure at least 2 outcomes
+        // Ensure at least 2 outcomes with appropriate defaults
         if (convertedOutcomes.length === 0) {
-          setOutcomes([
-            { next_event_name: '', probability: 0.5 },
-            { next_event_name: '', probability: 0.5 }
-          ]);
+          const isCondition = decideConfig.decision_type === 'condition';
+          if (isCondition) {
+            setOutcomes([
+              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' },
+              { next_event_name: '', condition_type: 'attribute_equals', attribute_name: '', condition_value: '' }
+            ]);
+          } else {
+            setOutcomes([
+              { next_event_name: '', probability: 0.5 },
+              { next_event_name: '', probability: 0.5 }
+            ]);
+          }
         } else {
           setOutcomes(convertedOutcomes);
         }
@@ -241,20 +287,49 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   };
 
+  // Handle save and close
+  const handleSaveAndClose = () => {
+    if (forceSave()) {
+      onHide();
+    }
+  };
+
   // Force immediate save without debounce
   const forceSave = () => {
-    if (!node || !formData.name) {
-      return false; // Don't save if basic validation fails
+    if (!node) {
+      return false; // Don't save if no node
+    }
+    
+    // Validation depends on step type
+    const stepType = node.data.stepConfig.step_type;
+    if ((stepType === 'event' || stepType === 'release') && !formData.name) {
+      return false; // Don't save if basic validation fails for event/release
+    }
+    if (stepType === 'assign') {
+      if (assignments.length === 0) {
+        return false; // Don't save if no assignments for assign step
+      }
+      // Validate all assignments have required fields
+      for (const assignment of assignments) {
+        if (!assignment.attribute_name || !assignment.value) {
+          return false; // Don't save if any assignment is incomplete
+        }
+      }
     }
 
     try {
-      // Generate step ID from name for simplicity (auto-generated)
-      const generateStepId = (name, stepType) => {
-        if (!name) return `${stepType}_${Date.now()}`;
-        return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+      // Generate step ID based on step type
+      const generateStepId = (stepType, formData) => {
+        if (stepType === 'assign') {
+          return formData.module_id || node.data.stepConfig.step_id || `assign_${Date.now()}`;
+        } else {
+          const name = formData.name;
+          if (!name) return `${stepType}_${Date.now()}`;
+          return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+        }
       };
 
-      const stepId = generateStepId(formData.name, node.data.stepConfig.step_type);
+      const stepId = generateStepId(node.data.stepConfig.step_type, formData);
       const updatedStepConfig = { 
         ...node.data.stepConfig,
         step_id: stepId
@@ -291,15 +366,38 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         };
         
       } else if (updatedStepConfig.step_type === 'decide') {
-        // Convert outcomes back to step IDs
-        const convertedOutcomes = outcomes.map((outcome, index) => ({
-          outcome_id: `outcome_${index + 1}`,
-          next_step_id: getStepIdFromEventName(outcome.next_event_name),
-          conditions: [{ 
-            condition_type: 'probability', 
-            probability: parseFloat(outcome.probability) || 0.5 
-          }]
-        }));
+        // Convert outcomes back to step IDs with proper conditions
+        const convertedOutcomes = outcomes.map((outcome, index) => {
+          const baseOutcome = {
+            outcome_id: `outcome_${index + 1}`,
+            next_step_id: getStepIdFromEventName(outcome.next_event_name)
+          };
+
+          if (formData.decision_type === 'probability') {
+            baseOutcome.conditions = [{
+              condition_type: 'probability',
+              probability: parseFloat(outcome.probability) || 0.5
+            }];
+          } else {
+            // Condition-based decision
+            const condition = {
+              condition_type: outcome.condition_type || 'attribute_equals',
+              attribute_name: outcome.attribute_name || '',
+            };
+
+            if (outcome.condition_type === 'attribute_in') {
+              // For 'in' conditions, split the value by commas
+              condition.values = (outcome.condition_value || '').split(',').map(v => v.trim());
+            } else {
+              // For other conditions, use single value
+              condition.value = outcome.condition_value || '';
+            }
+
+            baseOutcome.conditions = [condition];
+          }
+
+          return baseOutcome;
+        });
 
         updatedStepConfig.decide_config = {
           module_id: stepId, // Auto-generated same as step_id
@@ -324,13 +422,22 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         };
       }
 
+      // Generate appropriate label based on step type
+      const generateLabel = (stepType, formData, stepId) => {
+        if (stepType === 'assign') {
+          return 'Assign';
+        } else {
+          return formData.name || stepId;
+        }
+      };
+
       const updatedNode = {
         ...node,
         id: stepId,
         data: {
           ...node.data,
           stepConfig: updatedStepConfig,
-          label: formData.name || stepId
+          label: generateLabel(node.data.stepConfig.step_type, formData, stepId)
         }
       };
 
@@ -341,15 +448,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       return false;
     }
   };
-
-  // Handle save and close
-  const handleSaveAndClose = () => {
-    if (forceSave()) {
-      onHide();
-    }
-    // If save fails, modal stays open
-  };
-
 
   const addResourceRequirement = () => {
     // Get the first available resource table and type from the database config
@@ -376,12 +474,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     setResourceRequirements(resourceRequirements.filter((_, i) => i !== index));
   };
 
-  const addOutcome = () => {
-    setOutcomes([...outcomes, {
-      next_event_name: '',
-      probability: 0.5
-    }]);
-  };
 
   const updateOutcome = (index, field, value) => {
     const updated = [...outcomes];
@@ -392,6 +484,23 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const removeOutcome = (index) => {
     if (outcomes.length > 1) {
       setOutcomes(outcomes.filter((_, i) => i !== index));
+    }
+  };
+
+  const addOutcome = () => {
+    const isCondition = formData.decision_type === 'condition';
+    if (isCondition) {
+      setOutcomes([...outcomes, {
+        next_event_name: '',
+        condition_type: 'attribute_equals',
+        attribute_name: '',
+        condition_value: ''
+      }]);
+    } else {
+      setOutcomes([...outcomes, {
+        next_event_name: '',
+        probability: 0.5
+      }]);
     }
   };
 
@@ -664,7 +773,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               onChange={(e) => handleFormDataChange({ decision_type: e.target.value })}
             >
               <option value="probability">Probability-based</option>
-              <option value="condition">Condition-based (future)</option>
+              <option value="condition">Condition-based</option>
             </Form.Select>
           </Form.Group>
 
@@ -677,7 +786,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           {outcomes.map((outcome, index) => (
             <div key={index} className="border p-3 mb-3 rounded">
               <Row>
-                <Col md={8}>
+                <Col md={formData.decision_type === 'condition' ? 6 : 8}>
                   <Form.Group className="mb-2">
                     <Form.Label>Next Event</Form.Label>
                     <Form.Select
@@ -693,19 +802,65 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                     </Form.Select>
                   </Form.Group>
                 </Col>
-                <Col md={3}>
-                  <Form.Group className="mb-2">
-                    <Form.Label>Probability</Form.Label>
-                    <Form.Control
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      max="1"
-                      value={outcome.probability || 0}
-                      onChange={(e) => handleOutcomeChange(index, 'probability', e.target.value)}
-                    />
-                  </Form.Group>
-                </Col>
+
+                {formData.decision_type === 'probability' ? (
+                  <Col md={3}>
+                    <Form.Group className="mb-2">
+                      <Form.Label>Probability</Form.Label>
+                      <Form.Control
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max="1"
+                        value={outcome.probability || 0}
+                        onChange={(e) => handleOutcomeChange(index, 'probability', e.target.value)}
+                      />
+                    </Form.Group>
+                  </Col>
+                ) : (
+                  <Col md={5}>
+                    <Row>
+                      <Col md={4}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Condition</Form.Label>
+                          <Form.Select
+                            value={outcome.condition_type || 'attribute_equals'}
+                            onChange={(e) => handleOutcomeChange(index, 'condition_type', e.target.value)}
+                          >
+                            <option value="attribute_equals">Equals</option>
+                            <option value="attribute_not_equals">Not Equals</option>
+                            <option value="attribute_greater_than">Greater Than</option>
+                            <option value="attribute_less_than">Less Than</option>
+                            <option value="attribute_in">In List</option>
+                          </Form.Select>
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Attribute</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={outcome.attribute_name || ''}
+                            onChange={(e) => handleOutcomeChange(index, 'attribute_name', e.target.value)}
+                            placeholder="e.g., priority, status"
+                          />
+                        </Form.Group>
+                      </Col>
+                      <Col md={4}>
+                        <Form.Group className="mb-2">
+                          <Form.Label>Value</Form.Label>
+                          <Form.Control
+                            type="text"
+                            value={outcome.condition_value || ''}
+                            onChange={(e) => handleOutcomeChange(index, 'condition_value', e.target.value)}
+                            placeholder={outcome.condition_type === 'attribute_in' ? 'high,medium,low' : 'high'}
+                          />
+                        </Form.Group>
+                      </Col>
+                    </Row>
+                  </Col>
+                )}
+
                 <Col md={1}>
                   <div className="d-flex align-items-end h-100 pb-2">
                     <Button 
@@ -772,7 +927,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                       value={assignment.attribute_name || ''}
                       onChange={(e) => handleAssignmentChange(index, 'attribute_name', e.target.value)}
                       placeholder="e.g., priority, status"
+                      isInvalid={!assignment.attribute_name}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      Attribute name is required.
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={4}>
@@ -783,7 +942,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
                       value={assignment.value || ''}
                       onChange={(e) => handleAssignmentChange(index, 'value', e.target.value)}
                       placeholder="e.g., high, completed, 5"
+                      isInvalid={!assignment.value}
                     />
+                    <Form.Control.Feedback type="invalid">
+                      Value is required.
+                    </Form.Control.Feedback>
                   </Form.Group>
                 </Col>
                 <Col md={1}>

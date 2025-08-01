@@ -194,7 +194,6 @@ event_simulation:
                   - condition_type: attribute_in
                     attribute_name: ticket_priority
                     values: ["high", "medium"]
-                  # Future: Could add SLA time check condition here
               - outcome_id: standard_release
                 next_step_id: release_standard
                 conditions:

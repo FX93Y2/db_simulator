@@ -115,28 +115,11 @@ export const AssignNode = ({ data, selected }) => {
   return (
     <div className={`custom-node assign-step-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Left} />
-      <div className="node-header">
-        <span className="node-type">Assign</span>
-      </div>
       <div className="node-content">
-        <div className="node-title">{data.stepConfig?.assign_config?.module_id || data.label}</div>
-        <div className="node-details">
-          {assignments.length > 0 && (
-            <div className="detail-item">
-              <strong>Assignments:</strong> {assignments.length}
-            </div>
-          )}
-          {assignments.slice(0, 2).map((assignment, index) => (
-            <div key={index} className="detail-item assignment-item">
-              • {assignment.attribute_name} = {assignment.value}
-            </div>
-          ))}
-          {assignments.length > 2 && (
-            <div className="detail-item">
-              ... and {assignments.length - 2} more
-            </div>
-          )}
-        </div>
+        <div className="node-title">Assign</div>
+        {assignments.length > 0 && (
+          <div className="node-subtitle">{assignments.length} assignment{assignments.length !== 1 ? 's' : ''}</div>
+        )}
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
