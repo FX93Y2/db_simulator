@@ -115,7 +115,7 @@ export const ReleaseNode = ({ data, selected }) => {
       <Handle type="target" position={Position.Left} />
       <div className="dispose-shape">
         <div className="dispose-content">
-          <div className="node-title">{data.label}</div>
+          <div className="node-title">Release</div>
           <div className="node-details">
             <div className="detail-item">End of flow</div>
           </div>

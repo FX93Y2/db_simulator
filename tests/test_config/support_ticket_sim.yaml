@@ -1,114 +1,100 @@
 simulation:
   duration_days: 30
-  start_date: 2024-06-01
-  random_seed: 123
-
+  start_date: 2024-01-01
+  random_seed: 42
 event_simulation:
   entity_arrival:
     interarrival_time:
       distribution:
         type: exponential
-        scale: 1.2  # ~20 tickets per day
+        scale: 1.2
     max_entities: n/a
-
-  event_sequence:
-    event_types:
-      - name: Professional Assignment
-        duration:
-          distribution:
-            type: normal
-            mean: 0.5
-            stddev: 0.1
-        resource_requirements:
-          - resource_table: Staff
-            value: Technical Support
-            count: 1
-
-      - name: SRE Assist
-        duration:
-          distribution:
-            type: normal
-            mean: 1.0
-            stddev: 0.2
-        resource_requirements:
-          - resource_table: Staff
-            value: SRE
-            count: 1
-
-      - name: SSA Assist
-        duration:
-          distribution:
-            type: normal
-            mean: 1.0
-            stddev: 0.2
-        resource_requirements:
-          - resource_table: Staff
-            value: SSA
-            count: 1
-
-      - name: Security Assist
-        duration:
-          distribution:
-            type: normal
-            mean: 1.0
-            stddev: 0.2
-        resource_requirements:
-          - resource_table: Staff
-            value: Security
-            count: 1
-
-      - name: Developer Assist
-        duration:
-          distribution:
-            type: normal
-            mean: 2.0
-            stddev: 0.5
-        resource_requirements:
-          - resource_table: Staff
-            value: Developer
-            count: 1
-
-      - name: Resolve
-        duration:
-          distribution:
-            type: constant
-            value: 0
-        resource_requirements: []
-
-    transitions:
-      - from: Professional Assignment
-        to:
-          - event_type: SRE Assist
-            probability: 0.4
-          - event_type: SSA Assist
-            probability: 0.3
-          - event_type: Security Assist
-            probability: 0.1
-          - event_type: Resolve
-            probability: 0.2
-
-      - from: SRE Assist
-        to:
-          - event_type: Resolve
-            probability: 0.7
-          - event_type: Developer Assist
-            probability: 0.3
-
-      - from: SSA Assist
-        to:
-          - event_type: Resolve
-            probability: 0.7
-          - event_type: Developer Assist
-            probability: 0.3
-
-      - from: Security Assist
-        to:
-          - event_type: Resolve
-            probability: 0.7
-          - event_type: Developer Assist
-            probability: 0.3
-
-      - from: Developer Assist
-        to:
-          - event_type: Resolve
-            probability: 1.0
+  event_flows:
+    - flow_id: main_flow
+      initial_step: professional_assignment
+      steps:
+        - step_id: professional_assignment
+          step_type: event
+          event_config:
+            name: Professional Assignment
+            duration:
+              distribution:
+                type: normal
+                mean: 3
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - sre_assist
+        - step_id: sre_assist
+          step_type: event
+          event_config:
+            name: SRE Assist
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: SRE
+                count: 1
+          next_steps:
+            - decide_1753963217122
+        - step_id: decide_1753963217122
+          step_type: decide
+          decide_config:
+            module_id: decide_1753963217122
+            decision_type: probability
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: developer_assist
+                conditions:
+                  - condition_type: probability
+                    probability: 0.5
+              - outcome_id: outcome_2
+                next_step_id: security_assist
+                conditions:
+                  - condition_type: probability
+                    probability: 0.5
+        - step_id: developer_assist
+          step_type: event
+          event_config:
+            name: Developer Assist
+            duration:
+              distribution:
+                type: normal
+                mean: 2
+                stddev: 0.5
+            resource_requirements:
+              - resource_table: Staff
+                value: Dev
+                count: 2
+          next_steps:
+            - release_1753963527202
+        - step_id: security_assist
+          step_type: event
+          event_config:
+            name: Security Assist
+            duration:
+              distribution:
+                type: normal
+                mean: 2
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: Security
+                count: 2
+          next_steps:
+            - release_1753963533370
+        - step_id: release_1753963527202
+          step_type: release
+          event_config:
+            name: Release
+        - step_id: release_1753963533370
+          step_type: release
+          event_config:
+            name: Release
+  resource_capacities: {}

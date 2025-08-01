@@ -1,4 +1,58 @@
 entities:
+  - name: Staff
+    type: resource
+    rows: 20
+    attributes:
+      - name: id
+        type: pk
+      - name: role
+        type: resource_type
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values:
+              - SRE
+              - Tech Support
+              - Dev
+              - Security
+            weights:
+              - 0.2
+              - 0.5
+              - 0.2
+              - 0.1
+  - name: Ticket
+    type: entity
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: submitter_id
+        type: fk
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+          distribution:
+            type: uniform
+            values:
+              - 0.2
+              - 0.2
+              - 0.2
+              - 0.2
+              - 0.2
+            min: 3
+            max: 10
+        ref: Submitter.id
+      - name: description
+        type: string
+        generator:
+          type: faker
+          method: sentence
+      - name: title
+        type: string
+        generator:
+          type: template
+          template: ticket_{id}
   - name: Submitter
     rows: 100
     attributes:
@@ -9,66 +63,6 @@ entities:
         generator:
           type: faker
           method: name
-      - name: email
-        type: string
-        generator:
-          type: faker
-          method: email
-
-  - name: Staff
-    type: resource
-    rows: 20
-    attributes:
-      - name: id
-        type: pk
-      - name: name
-        type: string
-        generator:
-          type: faker
-          method: name
-      - name: role
-        type: resource_type
-        generator:
-          type: distribution
-          distribution:
-            type: choice
-            values: ["Technical Support", "SRE", "SSA", "Security", "Developer"]
-            weights: [0.3, 0.2, 0.2, 0.1, 0.2]
-    resource_capacity:
-      - name: "Technical Support"
-        capacity: 10
-      - name: "SRE"
-        capacity: 5
-      - name: "SSA"
-        capacity: 4
-      - name: "Security"
-        capacity: 4
-      - name: "Developer"
-        capacity: 2
-
-  - name: Ticket
-    type: entity
-    rows: n/a
-    attributes:
-      - name: id
-        type: pk
-      - name: submitter_id
-        type: fk
-        ref: Submitter.id
-        generator:
-          type: foreign_key
-          subtype: one_to_many
-      - name: title
-        type: string
-        generator:
-          type: template
-          template: "Ticket_{id}"
-      - name: description
-        type: string
-        generator:
-          type: faker
-          method: sentence
-
   - name: Task
     type: event
     rows: n/a
@@ -77,22 +71,31 @@ entities:
         type: pk
       - name: ticket_id
         type: entity_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
         ref: Ticket.id
-      - name: type
+      - name: event_type
         type: event_type
-
   - name: Staff_Task
+    type: bridging
     rows: n/a
     attributes:
       - name: id
         type: pk
-      - name: task_id
-        type: event_id
-        ref: Task.id
       - name: staff_id
         type: resource_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
         ref: Staff.id
-      - name: start_date
-        type: datetime
+      - name: task_id
+        type: event_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Task.id
       - name: end_date
+        type: datetime
+      - name: start_date
         type: datetime
