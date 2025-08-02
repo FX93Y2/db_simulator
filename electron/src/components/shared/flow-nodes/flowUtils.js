@@ -131,3 +131,180 @@ export const isUserTyping = () => {
     activeElement.isContentEditable
   );
 };
+
+// Step validation utilities
+export const validateStep = (step) => {
+  const errors = [];
+  
+  if (!step.step_id || step.step_id.trim() === '') {
+    errors.push('Step ID is required');
+  }
+  
+  if (!step.step_type || !['event', 'decide', 'assign', 'release'].includes(step.step_type)) {
+    errors.push('Valid step type is required (event, decide, assign, release)');
+  }
+  
+  // Validate step-specific configurations
+  switch (step.step_type) {
+    case 'event':
+      if (!step.event_config?.name) {
+        errors.push('Event name is required');
+      }
+      break;
+    case 'decide':
+      if (!step.decide_config?.decision_type) {
+        errors.push('Decision type is required');
+      }
+      break;
+    case 'assign':
+      if (!step.assign_config?.assignments || step.assign_config.assignments.length === 0) {
+        errors.push('At least one assignment is required');
+      }
+      break;
+    case 'release':
+      // Release steps don't require additional validation
+      break;
+  }
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// Validate entire flow
+export const validateFlow = (steps) => {
+  const errors = [];
+  const stepIds = new Set();
+  
+  if (!Array.isArray(steps) || steps.length === 0) {
+    errors.push('Flow must contain at least one step');
+    return { isValid: false, errors };
+  }
+  
+  // Check for duplicate step IDs
+  steps.forEach(step => {
+    if (stepIds.has(step.step_id)) {
+      errors.push(`Duplicate step ID: ${step.step_id}`);
+    } else {
+      stepIds.add(step.step_id);
+    }
+    
+    // Validate individual step
+    const stepValidation = validateStep(step);
+    if (!stepValidation.isValid) {
+      errors.push(...stepValidation.errors.map(err => `${step.step_id}: ${err}`));
+    }
+  });
+  
+  // Check for orphaned references
+  steps.forEach(step => {
+    if (step.next_steps) {
+      step.next_steps.forEach(nextStepId => {
+        if (!stepIds.has(nextStepId)) {
+          errors.push(`${step.step_id} references non-existent step: ${nextStepId}`);
+        }
+      });
+    }
+    
+    if (step.decide_config?.outcomes) {
+      step.decide_config.outcomes.forEach(outcome => {
+        if (outcome.next_step_id && !stepIds.has(outcome.next_step_id)) {
+          errors.push(`${step.step_id} outcome references non-existent step: ${outcome.next_step_id}`);
+        }
+      });
+    }
+  });
+  
+  return {
+    isValid: errors.length === 0,
+    errors
+  };
+};
+
+// Find steps that have no incoming connections
+export const findEntryPoints = (steps) => {
+  const allTargets = new Set();
+  
+  steps.forEach(step => {
+    if (step.next_steps) {
+      step.next_steps.forEach(target => allTargets.add(target));
+    }
+    if (step.decide_config?.outcomes) {
+      step.decide_config.outcomes.forEach(outcome => {
+        if (outcome.next_step_id) {
+          allTargets.add(outcome.next_step_id);
+        }
+      });
+    }
+  });
+  
+  return steps.filter(step => !allTargets.has(step.step_id));
+};
+
+// Find steps that have no outgoing connections
+export const findExitPoints = (steps) => {
+  return steps.filter(step => {
+    if (step.step_type === 'release') return true;
+    
+    const hasNextSteps = step.next_steps && step.next_steps.length > 0;
+    const hasOutcomes = step.decide_config?.outcomes && step.decide_config.outcomes.length > 0;
+    
+    return !hasNextSteps && !hasOutcomes;
+  });
+};
+
+// Generate a unique step ID
+export const generateStepId = (stepType, existingSteps) => {
+  const existingIds = new Set(existingSteps.map(s => s.step_id));
+  let counter = 1;
+  let candidateId = `${stepType}_${Date.now()}`;
+  
+  while (existingIds.has(candidateId)) {
+    candidateId = `${stepType}_${Date.now()}_${counter}`;
+    counter++;
+  }
+  
+  return candidateId;
+};
+
+// Calculate optimal layout positions
+export const calculateOptimalLayout = (steps, containerWidth = 800) => {
+  const positions = {};
+  const stepWidth = 200;
+  const stepHeight = 100;
+  const horizontalSpacing = 50;
+  const verticalSpacing = 50;
+  
+  if (steps.length === 0) return positions;
+  
+  // Simple grid layout for now
+  const maxColumns = Math.floor((containerWidth - horizontalSpacing) / (stepWidth + horizontalSpacing));
+  
+  steps.forEach((step, index) => {
+    const column = index % maxColumns;
+    const row = Math.floor(index / maxColumns);
+    
+    positions[step.step_id] = {
+      x: horizontalSpacing + column * (stepWidth + horizontalSpacing),
+      y: horizontalSpacing + row * (stepHeight + verticalSpacing)
+    };
+  });
+  
+  return positions;
+};
+
+// Deep clone step (for safe mutations)
+export const cloneStep = (step) => {
+  return JSON.parse(JSON.stringify(step));
+};
+
+// Check if two steps are deeply equal (excluding position)
+export const stepsEqual = (step1, step2) => {
+  const clean1 = { ...step1 };
+  const clean2 = { ...step2 };
+  delete clean1.position;
+  delete clean2.position;
+  
+  return JSON.stringify(clean1) === JSON.stringify(clean2);
+};

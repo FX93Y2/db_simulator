@@ -62,6 +62,9 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const { configId } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
+  
+  // Debug project ID
+  console.log('[SimConfigEditor] 🔑 RECEIVED PROJECT ID:', projectId, 'isProjectTab:', isProjectTab);
   const [config, setConfig] = useState(null);
   const [yamlContent, setYamlContent] = useState('');
   const [parsedYamlObject, setParsedYamlObject] = useState(null);
@@ -662,6 +665,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                       onDiagramChange={handleDiagramChange}
                       theme={theme}
                       dbConfigContent={dbConfigContent}
+                      projectId={projectId}
                     />
                   )}
                   
