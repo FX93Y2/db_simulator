@@ -13,6 +13,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import yaml from 'yaml';
+import { useCanvasPositions } from '../../hooks/useCanvasPositions';
 import EntityEditor from './EntityEditor';
 import { FiKey, FiLink } from 'react-icons/fi';
 import { 
@@ -144,60 +145,28 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   const [initialized, setInitialized] = useState(false);
   const [selectedNode, setSelectedNode] = useState(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
-  const [schemaId, setSchemaId] = useState(null);
-  const currentNodesRef = useRef([]);
-  const [layoutMap, setLayoutMap] = useState({});
   
   // Track if we're updating from internal canvas operations
   const internalUpdateRef = useRef(false);
+  
+  // Use position management hook (no projectId for ERDiagram since it's not project-specific)
+  const positions = useCanvasPositions(yamlContent, 'er_diagram_positions');
 
 
-  // Utility: Apply layout map to nodes
-  const applyLayoutToNodes = useCallback((nodesArr, layout) => {
-    return nodesArr.map(node => {
-      if (layout && layout[node.id]) {
-        return { ...node, position: { ...layout[node.id] } };
-      }
-      return node;
-    });
-  }, []);
-
-  // Debounced save to localStorage
-  const debounceRef = useRef();
-  const saveLayoutToLocalStorage = useCallback((layout, key) => {
-    if (!key) return;
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      try {
-        localStorage.setItem(key, JSON.stringify(layout));
-        // console.log('[ERDiagram] Debounced save to localStorage:', layout);
-      } catch (err) {
-        console.error('[ERDiagram] Error saving layout to localStorage:', err);
-      }
-    }, 300);
-  }, []);
-  // Update the ref whenever nodes change
+  // Update current nodes in position hook
   useEffect(() => {
-    currentNodesRef.current = nodes;
-  }, [nodes]);
+    positions.updateCurrentNodes(nodes);
+  }, [nodes, positions]);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
-      console.log('[ERDiagram] Container dimensions:', {
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight,
-        clientWidth: containerRef.current.clientWidth,
-        clientHeight: containerRef.current.clientHeight
-      });
       setInitialized(true);
     }
   }, []);
 
   // Direct manipulation methods - Canvas is source of truth
   const addEntity = useCallback((entityData) => {
-    console.log('[ERDiagram] Adding entity directly:', entityData);
-    
     // Calculate viewport-centered position for new entity
     let newPosition;
     if (containerRef.current) {
@@ -206,53 +175,40 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
       const centerY = containerRect.height / 2;
       
       // Add some randomness to avoid stacking entities exactly on top of each other
-      const offsetX = (canonicalEntities.length % 3 - 1) * 50; // -50, 0, 50
-      const offsetY = Math.floor(canonicalEntities.length / 3) * 50; // 0, 50, 100, etc.
+      const offsetX = (canonicalEntities.length % 3 - 1) * 50;
+      const offsetY = Math.floor(canonicalEntities.length / 3) * 50;
       
       newPosition = {
-        x: Math.max(50, centerX - 100 + offsetX), // Ensure minimum x of 50
-        y: Math.max(50, centerY - 100 + offsetY)  // Ensure minimum y of 50
+        x: Math.max(50, centerX - 100 + offsetX),
+        y: Math.max(50, centerY - 100 + offsetY)
       };
-      
-      console.log('[ERDiagram] New entity positioned at viewport center:', newPosition);
     } else {
-      // Fallback to old positioning if container not available
-      const maxY = canonicalEntities.reduce((max, entity) => {
-        const position = layoutMap[entity.name] || { y: 0 };
-        return Math.max(max, position.y);
-      }, 0);
-      
+      // Fallback to grid positioning
       newPosition = {
         x: 50 + (canonicalEntities.length % 3) * 300,
-        y: maxY + 300
+        y: 100 + Math.floor(canonicalEntities.length / 3) * 200
       };
-      
-      console.log('[ERDiagram] New entity positioned with fallback method:', newPosition);
     }
     
     // Add to canonical entities
     const newEntity = {
       ...entityData,
       position: newPosition,
-      attributes: sortAttributes(entityData.attributes || []) // Sort attributes
+      attributes: sortAttributes(entityData.attributes || [])
     };
     
     setCanonicalEntities(prev => [...prev, newEntity]);
     
-    // Update layout map
-    setLayoutMap(prev => ({
-      ...prev,
-      [entityData.name]: newPosition
-    }));
+    // Update position in hook
+    positions.updateItemPosition(entityData.name, newPosition);
     
     // Set internal update flag to prevent YAML sync loops
     internalUpdateRef.current = true;
     
     return newEntity;
-  }, [canonicalEntities, layoutMap]);
+  }, [canonicalEntities, positions]);
 
   const updateEntity = useCallback((entityId, newData) => {
-    console.log('[ERDiagram] Updating entity:', entityId, newData);
     
     // Check if name is changing
     const isNameChanging = newData.name && newData.name !== entityId;
@@ -268,29 +224,16 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
         : entity
     ));
     
-    // If name is changing, update the layoutMap key to preserve position
+    // If name is changing, update position mapping
     if (isNameChanging) {
-      setLayoutMap(prev => {
-        const currentPosition = prev[entityId];
-        if (currentPosition) {
-          const newLayout = { ...prev };
-          // Add position under new name
-          newLayout[newData.name] = currentPosition;
-          // Remove old name entry
-          delete newLayout[entityId];
-          console.log('[ERDiagram] Updated layoutMap key:', entityId, '->', newData.name, 'position:', currentPosition);
-          return newLayout;
-        }
-        return prev;
-      });
+      positions.updateItemId(entityId, newData.name);
     }
     
     // Set internal update flag
     internalUpdateRef.current = true;
-  }, []);
+  }, [positions]);
 
   const deleteEntity = useCallback((entityId) => {
-    console.log('[ERDiagram] Deleting entity:', entityId);
     
     // Use the same foreign key cleanup logic as onNodesDelete
     if (dbSchema) {
@@ -303,10 +246,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
           
           // Update canonical entities to reflect the deletion and foreign key cleanup
           setCanonicalEntities(prev => {
-            console.log('[ERDiagram] Before canonical cleanup (deleteEntity) - entities:', prev.map(e => e.name));
-            console.log('[ERDiagram] Deleted entity:', entityId);
-            console.log('[ERDiagram] New schema entities:', newSchema.entities.map(e => e.name));
-            
             // Remove deleted entity and update remaining entities with cleaned foreign keys
             const updatedCanonical = prev
               .filter(entity => entity.name !== entityId) // Remove deleted entity
@@ -314,7 +253,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                 // Update remaining entities with cleaned foreign keys from newSchema
                 const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
                 if (updatedEntity) {
-                  console.log(`[ERDiagram] Updating ${entity.name} attributes from ${entity.attributes?.length || 0} to ${updatedEntity.attributes?.length || 0}`);
                   return {
                     ...entity,
                     attributes: sortAttributes(updatedEntity.attributes || []) // Apply foreign key cleanup and sorting
@@ -323,7 +261,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                 return entity;
               });
               
-            console.log('[ERDiagram] After canonical cleanup (deleteEntity) - entities:', updatedCanonical.map(e => e.name));
             return updatedCanonical;
           });
           
@@ -332,7 +269,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
           
           // Notify parent component
           if (onDiagramChange) {
-            console.log("[ERDiagram] Calling onDiagramChange with updated schema after entity deletion");
             onDiagramChange(yaml.stringify(newSchema));
           }
         }
@@ -343,17 +279,11 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
       internalUpdateRef.current = true;
     }
     
-    // Remove from layout map
-    setLayoutMap(prev => {
-      const newLayout = { ...prev };
-      delete newLayout[entityId];
-      return newLayout;
-    });
+    // Remove position
+    positions.removeItemPositions([entityId]);
   }, [dbSchema, onDiagramChange]);
 
   const generateYAML = useCallback(() => {
-    console.log('[ERDiagram] Generating YAML from canonical entities');
-    
     const yamlObject = {
       entities: canonicalEntities.map(entity => ({
         name: entity.name,
@@ -391,111 +321,53 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
 
   // Handle YAML changes from external sources (like YAML editor)
   const handleYAMLChange = useCallback((newYAMLContent) => {
-    console.log('[ERDiagram] Handling external YAML change, content length:', newYAMLContent?.length);
-    console.log('[ERDiagram] YAML content type:', typeof newYAMLContent);
-    
     // Ensure we have a string
     if (typeof newYAMLContent !== 'string') {
-      console.warn('[ERDiagram] handleYAMLChange received non-string content:', typeof newYAMLContent);
       return;
     }
-    
-    console.log('[ERDiagram] YAML content preview:', newYAMLContent.substring(0, 100));
     
     try {
       const parsedYAML = yaml.parse(newYAMLContent);
       const newEntities = parsedYAML?.entities || [];
       
       if (newEntities.length === 0) {
-        console.log('[ERDiagram] WARNING: Empty entities detected!');
-        console.log('[ERDiagram] Parsed YAML:', parsedYAML);
-        console.log('[ERDiagram] Raw YAML content:', newYAMLContent);
-        
         // Don't clear entities if we currently have entities - this prevents accidental clearing
         if (canonicalEntities.length > 0) {
-          console.log('[ERDiagram] PREVENTING canvas clear - keeping existing', canonicalEntities.length, 'entities');
           return;
         }
         
-        console.log('[ERDiagram] No existing entities, clearing canvas');
         setCanonicalEntities([]);
         return;
       }
       
-      // Capture current node positions from ReactFlow
-      const currentPositions = {};
-      currentNodesRef.current.forEach(node => {
-        currentPositions[node.id] = node.position;
-      });
+      // Use position hook to resolve positions
+      const updatedEntities = positions.resolvePositions(newEntities.map(entity => ({
+        ...entity,
+        attributes: sortAttributes(entity.attributes || []) // Sort attributes
+      })));
       
-      // Detect what changed
-      const changes = detectEntityChanges(canonicalEntities, newEntities);
-      console.log('[ERDiagram] Detected changes:', {
-        added: changes.added.length,
-        deleted: changes.deleted.length,
-        modified: changes.modified.length
-      });
+      // Check for structural changes
+      const hasStructuralChanges = JSON.stringify(canonicalEntities.map(e => {
+        const { position, ...entity } = e;
+        return entity;
+      })) !== JSON.stringify(newEntities);
       
-      // Apply changes while preserving positions
-      const updatedEntities = newEntities.map(entity => {
-        // Priority order for position: current ReactFlow position > existing entity position > layoutMap > default
-        const currentPosition = currentPositions[entity.name];
-        const existingEntity = canonicalEntities.find(e => e.name === entity.name);
-        const existingPosition = existingEntity?.position;
-        const layoutPosition = layoutMap[entity.name];
-        
-        let finalPosition;
-        if (currentPosition) {
-          finalPosition = currentPosition;
-        } else if (existingPosition) {
-          finalPosition = existingPosition;
-        } else if (layoutPosition) {
-          finalPosition = layoutPosition;
-        } else {
-          // Only for truly new entities without any position history
-          const maxY = Object.values(currentPositions).reduce((max, pos) => Math.max(max, pos.y), 0);
-          finalPosition = {
-            x: 50 + (Object.keys(currentPositions).length % 3) * 300,
-            y: Math.max(maxY + 300, 50)
-          };
-        }
-        
-        return {
-          ...entity,
-          position: finalPosition,
-          attributes: sortAttributes(entity.attributes || []) // Sort attributes
-        };
-      });
-      
-      // Update canonical entities
-      console.log('[ERDiagram] Setting canonical entities to:', updatedEntities.length, 'entities');
-      setCanonicalEntities(updatedEntities);
+      if (hasStructuralChanges || canonicalEntities.length !== updatedEntities.length) {
+        setCanonicalEntities(updatedEntities);
+        positions.completeInitialLoad();
+      }
       
       // Update dbSchema for compatibility with legacy code
       setDbSchema(parsedYAML);
       
-      // Update layout map with current positions
-      const newLayoutMap = { ...layoutMap };
-      updatedEntities.forEach(entity => {
-        if (entity.position) {
-          newLayoutMap[entity.name] = entity.position;
-        }
-      });
-      setLayoutMap(newLayoutMap);
-      
     } catch (error) {
-      console.error('[ERDiagram] Invalid YAML, ignoring changes:', error);
-      // Could show a warning to the user here
+      // Invalid YAML, ignore changes
     }
-  }, [canonicalEntities, layoutMap, detectEntityChanges]);
+  }, [canonicalEntities, positions]);
 
   // Update visual nodes and edges from canonical entities
   useEffect(() => {
-    console.log('[ERDiagram] Updating visual nodes from canonical entities:', canonicalEntities.length);
-    console.log('[ERDiagram] Current canonical entities:', canonicalEntities.map(e => e.name));
-    
     if (canonicalEntities.length === 0) {
-      console.log('[ERDiagram] WARNING: Setting nodes and edges to empty arrays!');
       setNodes([]);
       setEdges([]);
       return;
@@ -503,7 +375,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
 
     // Generate visual nodes
     const visualNodes = canonicalEntities.map(entity => {
-      const position = layoutMap[entity.name] || entity.position || { x: 50, y: 50 };
+      const position = entity.position || { x: 50, y: 50 };
       
       return {
         id: entity.name,
@@ -567,11 +439,10 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
     // Notify parent of changes if this was an internal update
     if (internalUpdateRef.current && onDiagramChange) {
       const generatedYAML = generateYAML();
-      console.log('[ERDiagram] Notifying parent of internal changes');
       onDiagramChange(generatedYAML);
       internalUpdateRef.current = false;
     }
-  }, [canonicalEntities, layoutMap, onDiagramChange, generateYAML]);
+  }, [canonicalEntities, onDiagramChange, generateYAML]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -584,265 +455,30 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   }), [addEntity, updateEntity, deleteEntity, generateYAML, handleYAMLChange, canonicalEntities]);
 
   // Generate a consistent ID for the schema based on its entities
+
+  // Handle external YAML updates
   useEffect(() => {
-    if (yamlContent && typeof yamlContent === 'string') {
-      try {
-        const parsedDoc = yaml.parseDocument(yamlContent);
-        const parsedYaml = parsedDoc.toJSON();
-        
-        if (parsedYaml) {
-          // Generate a more stable ID that doesn't change when entities are added/removed
-          // This uses a hash of the first part of the YAML content
-          const yamlPrefix = yamlContent.substring(0, 100).replace(/\s+/g, '');
-          let stableId = '';
-          
-          // Simple hash function to create a stable ID
-          for (let i = 0; i < yamlPrefix.length; i++) {
-            stableId += yamlPrefix.charCodeAt(i);
-          }
-          
-          const id = `er_diagram_positions_${stableId}`;
-          console.log('[ERDiagram] Generated stable schema ID:', id);
-          setSchemaId(id);
-        }
-      } catch (error) {
-        console.error('[ERDiagram] Error generating schema ID:', error);
-      }
-    } else if (yamlContent && typeof yamlContent !== 'string') {
-      console.warn('[ERDiagram] yamlContent is not a string, received:', typeof yamlContent);
+    // Skip if this was triggered by internal changes
+    if (internalUpdateRef.current) {
+      return;
     }
-  }, [yamlContent]);
-
-  // Load layout map from localStorage on mount or schemaId change
-  useEffect(() => {
-    if (schemaId) {
-      try {
-        const saved = localStorage.getItem(schemaId);
-        setLayoutMap(saved ? JSON.parse(saved) : {});
-      } catch (err) {
-        setLayoutMap({});
-      }
+    
+    // Wait for position storage to be ready
+    if (!positions.isStorageReady()) {
+      return;
     }
-  }, [schemaId]);
-
-  // Save layout to localStorage whenever layoutMap changes
-  useEffect(() => {
-    if (schemaId) {
-      saveLayoutToLocalStorage(layoutMap, schemaId);
+    
+    if (yamlContent) {
+      handleYAMLChange(yamlContent);
     }
-  }, [layoutMap, schemaId, saveLayoutToLocalStorage]);
-
-  // Legacy YAML parsing - now handled by handleYAMLChange method
-  // This useEffect is disabled in favor of the new canvas-first architecture
-  useEffect(() => {
-    // Skip all legacy YAML parsing - now handled by handleYAMLChange
-    console.log('[ERDiagram] Legacy YAML parsing disabled - using canvas-first architecture');
-    return;
-
-    // Check if this is just adding new entities (not modifying existing ones)
-    // If so, we can preserve existing node positions and only add new nodes
-    let isAddingNewEntitiesOnly = false;
-    try {
-      if (yamlContent && currentNodesRef.current.length > 0) {
-        const parsedYaml = yaml.parseDocument(yamlContent).toJSON();
-        if (parsedYaml && parsedYaml.entities) {
-          const currentEntityNames = new Set(currentNodesRef.current.map(n => n.id));
-          const newEntityNames = new Set(parsedYaml.entities.map(e => e.name));
-          
-          // Check if all current entities still exist and no entities were removed
-          const hasAllCurrentEntities = [...currentEntityNames].every(name => newEntityNames.has(name));
-          const hasNewEntities = newEntityNames.size > currentEntityNames.size;
-          
-          if (hasAllCurrentEntities && hasNewEntities) {
-            isAddingNewEntitiesOnly = true;
-            console.log('[ERDiagram] Detected addition of new entities only - preserving existing positions');
-          }
-        }
-      }
-    } catch (error) {
-      console.log('[ERDiagram] Error checking for new entities only, proceeding with full re-parse');
-    }
-
-    try {
-      if (!yamlContent) {
-        setDbSchema(null);
-        setNodes([]);
-        setEdges([]);
-        return;
-      }
-      const parsedDoc = yaml.parseDocument(yamlContent);
-      const parsedYaml = parsedDoc.toJSON();
-
-      setDbSchema(parsedYaml);
-
-      if (parsedYaml && parsedYaml.entities) {
-        if (isAddingNewEntitiesOnly) {
-          // Optimized path: only add new entities while preserving existing ones
-          const currentEntityNames = new Set(currentNodesRef.current.map(n => n.id));
-          const newEntities = parsedYaml.entities.filter(entity => !currentEntityNames.has(entity.name));
-          
-          if (newEntities.length > 0) {
-            console.log('[ERDiagram] Adding', newEntities.length, 'new entities:', newEntities.map(e => e.name));
-            
-            // Create nodes for new entities only
-            const newEntityNodes = [];
-            const newRelationEdges = [];
-            const maxY = currentNodesRef.current.reduce((max, node) => Math.max(max, node.position.y), 0);
-            
-            newEntities.forEach((entity, index) => {
-              // Position new tables below existing ones
-              let position = layoutMap[entity.name] || { 
-                x: (index % 3) * 300 + 50, 
-                y: maxY + 300 + Math.floor(index / 3) * 300 
-              };
-
-              newEntityNodes.push({
-                id: entity.name,
-                type: 'entity',
-                position: position,
-                data: {
-                  label: entity.name,
-                  tableType: entity.type || '',
-                  rows: entity.rows,
-                  attributes: entity.attributes || []
-                },
-                width: 200,
-                height: 100 + (entity.attributes?.length || 0) * 25,
-              });
-
-              // Create edges for relationships from new entities
-              if (entity.attributes) {
-                entity.attributes.forEach(attr => {
-                  if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-                    const [targetEntity] = attr.ref.split('.');
-                    newRelationEdges.push({
-                      id: `${entity.name}-${targetEntity}`,
-                      source: entity.name,
-                      sourceHandle: 'source-right',
-                      target: targetEntity,
-                      targetHandle: 'target-left',
-                      animated: true,
-                      type: 'smoothstep',
-                      style: { stroke: '#3498db' },
-                      markerEnd: {
-                        type: 'arrowclosed',
-                        width: 20,
-                        height: 20,
-                        color: '#3498db',
-                      },
-                    });
-                  }
-                });
-              }
-            });
-
-            // Add new nodes to existing ones
-            setNodes(prevNodes => [...prevNodes, ...newEntityNodes]);
-            
-            // Add new edges, but also regenerate all edges to catch new relationships to new entities
-            const allEdges = [];
-            parsedYaml.entities.forEach(entity => {
-              if (entity.attributes) {
-                entity.attributes.forEach(attr => {
-                  if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-                    const [targetEntity] = attr.ref.split('.');
-                    allEdges.push({
-                      id: `${entity.name}-${targetEntity}`,
-                      source: entity.name,
-                      sourceHandle: 'source-right',
-                      target: targetEntity,
-                      targetHandle: 'target-left',
-                      animated: true,
-                      type: 'smoothstep',
-                      style: { stroke: '#3498db' },
-                      markerEnd: {
-                        type: 'arrowclosed',
-                        width: 20,
-                        height: 20,
-                        color: '#3498db',
-                      },
-                    });
-                  }
-                });
-              }
-            });
-            setEdges(allEdges);
-          }
-        } else {
-          // Full re-parse path: rebuild everything
-          const entityNodes = [];
-          const relationEdges = [];
-
-          // Create nodes for each entity
-          parsedYaml.entities.forEach((entity, index) => {
-            // Default position if not in layoutMap
-            let position = layoutMap[entity.name] || { x: (index % 3) * 300 + 50, y: Math.floor(index / 3) * 300 + 50 };
-
-            entityNodes.push({
-              id: entity.name,
-              type: 'entity',
-              position: position,
-              data: {
-                label: entity.name,
-                tableType: entity.type || '',
-                rows: entity.rows,
-                attributes: entity.attributes || []
-              },
-              width: 200,
-              height: 100 + (entity.attributes?.length || 0) * 25,
-            });
-
-            // Create edges for relationships
-            if (entity.attributes) {
-              entity.attributes.forEach(attr => {
-                if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
-                  const [targetEntity] = attr.ref.split('.');
-                  relationEdges.push({
-                    id: `${entity.name}-${targetEntity}`,
-                    source: entity.name,
-                    sourceHandle: 'source-right',
-                    target: targetEntity,
-                    targetHandle: 'target-left',
-                    animated: true,
-                    type: 'smoothstep',
-                    style: { stroke: '#3498db' },
-                    markerEnd: {
-                      type: 'arrowclosed',
-                      width: 20,
-                      height: 20,
-                      color: '#3498db',
-                    },
-                  });
-                }
-              });
-            }
-          });
-
-          // Hydrate positions from layoutMap
-          const hydratedNodes = applyLayoutToNodes(entityNodes, layoutMap);
-
-          setNodes(hydratedNodes);
-          setEdges(relationEdges);
-        }
-      } else {
-        setNodes([]);
-        setEdges([]);
-      }
-    } catch (error) {
-      setDbSchema(null);
-      setNodes([]);
-      setEdges([]);
-    }
-  }, []); // Disabled - no dependencies so it only runs once
+  }, [yamlContent, handleYAMLChange, positions]);
   
   // Handle connecting nodes with automatic foreign key generation
   const onConnect = useCallback(
     (params) => {
-      console.log('[ERDiagram] Connection attempt:', params);
       
       // Validate connection
       if (!validateConnection(params, dbSchema)) {
-        console.warn('[ERDiagram] Invalid connection attempt');
         return;
       }
       
@@ -859,7 +495,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
           
           // Notify parent component
           if (onDiagramChange) {
-            console.log("[ERDiagram] Calling onDiagramChange with updated schema after auto-FK creation");
             onDiagramChange(yaml.stringify(newSchema));
           }
         }
@@ -930,15 +565,17 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
         nds.map(n => n.id === node.id ? { ...n, position: node.position } : n)
       );
       
-      // Update layoutMap in state (triggers debounced save to localStorage)
-      setLayoutMap(prev => ({
-        ...prev,
-        [node.id]: { ...node.position }
-      }));
+      // Update position in canonical entities and position hook
+      setCanonicalEntities(prev => prev.map(entity => 
+        entity.name === node.id 
+          ? { ...entity, position: node.position }
+          : entity
+      ));
       
-      console.log('[ERDiagram] Node dragged, position saved to layoutMap:', node.id, node.position);
+      // Update position in hook for localStorage persistence
+      positions.updateItemPosition(node.id, node.position);
     },
-    [setNodes]
+    [positions]
   );
   
   
@@ -959,10 +596,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             
             // Update canonical entities to reflect the deletion and foreign key cleanup
             setCanonicalEntities(prev => {
-              console.log('[ERDiagram] Before canonical cleanup - entities:', prev.map(e => e.name));
-              console.log('[ERDiagram] Deleted IDs:', deletedIds);
-              console.log('[ERDiagram] New schema entities:', newSchema.entities.map(e => e.name));
-              
               // Remove deleted entities and update remaining entities with cleaned foreign keys
               const updatedCanonical = prev
                 .filter(entity => !deletedIds.includes(entity.name)) // Remove deleted entities
@@ -970,7 +603,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                   // Update remaining entities with cleaned foreign keys from newSchema
                   const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
                   if (updatedEntity) {
-                    console.log(`[ERDiagram] Updating ${entity.name} attributes from ${entity.attributes?.length || 0} to ${updatedEntity.attributes?.length || 0}`);
                     return {
                       ...entity,
                       attributes: sortAttributes(updatedEntity.attributes || []) // Apply foreign key cleanup and sorting
@@ -979,7 +611,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
                   return entity;
                 });
                 
-              console.log('[ERDiagram] After canonical cleanup - entities:', updatedCanonical.map(e => e.name));
               return updatedCanonical;
             });
             
@@ -1016,43 +647,21 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             
             // Notify parent component
             if (onDiagramChange) {
-              console.log("[ERDiagram] Calling onDiagramChange with updated schema after table deletion");
               onDiagramChange(yaml.stringify(newSchema));
             }
           }
         );
         
-        // Remove the deleted node positions from localStorage
-        if (schemaId) {
-          try {
-            const savedData = localStorage.getItem(schemaId);
-            if (savedData) {
-              let positions = JSON.parse(savedData);
-              
-              // Remove positions for all deleted nodes
-              deletedIds.forEach(id => {
-                if (positions[id]) {
-                  console.log(`[ERDiagram] Removing position for deleted node: ${id}`);
-                  delete positions[id];
-                }
-              });
-              
-              // Save the updated positions back to localStorage
-              localStorage.setItem(schemaId, JSON.stringify(positions));
-            }
-          } catch (err) {
-            console.error('[ERDiagram] Error updating positions in localStorage after deletion:', err);
-          }
-        }
+        // Remove deleted node positions
+        positions.removeItemPositions(deletedIds);
       }
     },
-    [dbSchema, onDiagramChange, schemaId]
+    [dbSchema, onDiagramChange, positions]
   );
 
   // Handle edge deletion with automatic foreign key removal
   const onEdgesDelete = useCallback(
     (deletedEdges) => {
-      console.log('[ERDiagram] Edge deletion:', deletedEdges);
       
       if (dbSchema && deletedEdges.length > 0) {
         handleEdgeDeletion(
@@ -1089,7 +698,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
             
             // Notify parent component
             if (onDiagramChange) {
-              console.log("[ERDiagram] Calling onDiagramChange with updated schema after FK removal");
               onDiagramChange(yaml.stringify(newSchema));
             }
           }
@@ -1111,8 +719,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   // Handle entity update from EntityEditor
   const handleEntityUpdate = useCallback((updatedEntity) => {
       if (selectedNode) {
-        console.log("[ERDiagram] Updating entity via EntityEditor:", updatedEntity);
-        
         // Use the new updateEntity method
         updateEntity(selectedNode.id, {
           name: updatedEntity.name,
@@ -1126,7 +732,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme }, ref) => {
   // Handle entity deletion from EntityEditor
   const handleEntityDelete = useCallback((_entity) => {
     if (selectedNode) {
-      console.log("[ERDiagram] Deleting entity from EntityEditor:", selectedNode);
       // Use the new deleteEntity method
       deleteEntity(selectedNode.id);
     }

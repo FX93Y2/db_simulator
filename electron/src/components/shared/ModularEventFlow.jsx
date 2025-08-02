@@ -10,10 +10,10 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
 import useResourceDefinitions from '../../hooks/useResourceDefinitions';
+import { useCanvasPositions } from '../../hooks/useCanvasPositions';
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
 import NodeEditModal from './flow-nodes/NodeEditModal';
 import { 
-  generateSchemaId,
   buildNodesFromFlow,
   buildEdgesFromFlow,
   isUserTyping
@@ -34,39 +34,25 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
   // Canonical step state - this is now the source of truth
   const [canonicalSteps, setCanonicalSteps] = useState([]);
   const [flowSchema, setFlowSchema] = useState(null);
-  
-  const [schemaId, setSchemaId] = useState(null);
-  const [layoutMap, setLayoutMap] = useState({});
   const [initialized, setInitialized] = useState(false);
   const containerRef = useRef(null);
-  const currentNodesRef = useRef([]);
   
   // Track if we're updating from internal canvas operations
   const internalUpdateRef = useRef(false);
   
-  // Track loading states to fix React hydration issues
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
-  const hasProcessedSchemaRef = useRef(false);
-  const localStorageLoadedRef = useRef(false);
+  // Use position management hook
+  const positions = useCanvasPositions(yamlContent, 'modular_flow_positions', projectId);
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
-  // Update the ref whenever nodes change (but only after initial load)
+  // Update current nodes in position hook
   useEffect(() => {
-    // Don't update currentNodesRef during initial load to prevent stale positions
-    if (!isInitialLoad) {
-      currentNodesRef.current = nodes;
-      console.log('[ModularEventFlow] 📍 Updated currentNodesRef with', nodes.length, 'nodes (post-initial-load)');
-    } else {
-      console.log('[ModularEventFlow] ⏳ Skipping currentNodesRef update during initial load');
-    }
-  }, [nodes, isInitialLoad]);
+    positions.updateCurrentNodes(nodes);
+  }, [nodes, positions]);
 
   // Direct step manipulation methods - Canvas is source of truth
   const addStep = useCallback((stepData) => {
-    console.log('[ModularEventFlow] Adding step directly:', stepData);
-    
     // Calculate viewport-centered position for new step
     let newPosition;
     if (containerRef.current) {
@@ -75,28 +61,19 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
       const centerY = containerRect.height / 2;
       
       // Add some randomness to avoid stacking steps exactly on top of each other
-      const offsetX = (canonicalSteps.length % 3 - 1) * 50; // -50, 0, 50
-      const offsetY = Math.floor(canonicalSteps.length / 3) * 50; // 0, 50, 100, etc.
+      const offsetX = (canonicalSteps.length % 3 - 1) * 50;
+      const offsetY = Math.floor(canonicalSteps.length / 3) * 50;
       
       newPosition = {
-        x: Math.max(50, centerX - 100 + offsetX), // Ensure minimum x of 50
-        y: Math.max(50, centerY - 100 + offsetY)  // Ensure minimum y of 50
+        x: Math.max(50, centerX - 100 + offsetX),
+        y: Math.max(50, centerY - 100 + offsetY)
       };
-      
-      console.log('[ModularEventFlow] New step positioned at viewport center:', newPosition);
     } else {
-      // Fallback to old positioning if container not available
-      const maxY = canonicalSteps.reduce((max, step) => {
-        const position = layoutMap[step.step_id] || { y: 0 };
-        return Math.max(max, position.y);
-      }, 0);
-      
+      // Fallback to grid positioning
       newPosition = {
         x: 50 + (canonicalSteps.length % 3) * 300,
-        y: maxY + 300
+        y: 100 + Math.floor(canonicalSteps.length / 3) * 200
       };
-      
-      console.log('[ModularEventFlow] New step positioned with fallback method:', newPosition);
     }
     
     // Add to canonical steps
@@ -107,21 +84,16 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     
     setCanonicalSteps(prev => [...prev, newStep]);
     
-    // Update layout map
-    setLayoutMap(prev => ({
-      ...prev,
-      [stepData.step_id]: newPosition
-    }));
+    // Update position in hook
+    positions.updateItemPosition(stepData.step_id, newPosition);
     
     // Set internal update flag to prevent YAML sync loops
     internalUpdateRef.current = true;
     
     return newStep;
-  }, [canonicalSteps, layoutMap]);
+  }, [canonicalSteps, positions]);
 
   const updateStep = useCallback((stepId, newData) => {
-    console.log('[ModularEventFlow] Updating step:', stepId, newData);
-    
     // Check if step_id is changing
     const isIdChanging = newData.step_id && newData.step_id !== stepId;
     
@@ -135,47 +107,27 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
         : step
     ));
     
-    // If step_id is changing, update the layoutMap key to preserve position
+    // If step_id is changing, update position mapping
     if (isIdChanging) {
-      setLayoutMap(prev => {
-        const currentPosition = prev[stepId];
-        if (currentPosition) {
-          const newLayout = { ...prev };
-          // Add position under new step_id
-          newLayout[newData.step_id] = currentPosition;
-          // Remove old step_id entry
-          delete newLayout[stepId];
-          console.log('[ModularEventFlow] Updated layoutMap key:', stepId, '->', newData.step_id, 'position:', currentPosition);
-          return newLayout;
-        }
-        return prev;
-      });
+      positions.updateItemId(stepId, newData.step_id);
     }
     
     // Set internal update flag
     internalUpdateRef.current = true;
-  }, []);
+  }, [positions]);
 
   const deleteStep = useCallback((stepId) => {
-    console.log('[ModularEventFlow] Deleting step:', stepId);
-    
     // Remove from canonical steps
     setCanonicalSteps(prev => prev.filter(step => step.step_id !== stepId));
     
-    // Remove from layout map
-    setLayoutMap(prev => {
-      const newLayout = { ...prev };
-      delete newLayout[stepId];
-      return newLayout;
-    });
+    // Remove position
+    positions.removeItemPositions([stepId]);
     
     // Set internal update flag
     internalUpdateRef.current = true;
-  }, []);
+  }, [positions]);
 
   const generateYAML = useCallback(() => {
-    console.log('[ModularEventFlow] Generating YAML from canonical steps');
-    
     if (!flowSchema || canonicalSteps.length === 0) {
       return null;
     }
@@ -222,288 +174,60 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
 
   // Handle YAML changes from external sources (like YAML editor)
   const handleYAMLChange = useCallback((newSchema) => {
-    console.log('[ModularEventFlow] 📝 YAML CHANGE DETECTED');
-    console.log('[ModularEventFlow] Current canonical steps count:', canonicalSteps.length);
-    console.log('[ModularEventFlow] Current layoutMap keys:', Object.keys(layoutMap));
-    console.log('[ModularEventFlow] Current layoutMap data:', layoutMap);
-    
     if (!newSchema?.event_simulation?.event_flows) {
-      console.log('[ModularEventFlow] No event flows in schema, clearing steps');
       setCanonicalSteps([]);
       return;
     }
     
     const eventFlows = newSchema.event_simulation.event_flows;
     if (eventFlows.length === 0) {
-      console.log('[ModularEventFlow] Empty event flows, clearing steps');
       setCanonicalSteps([]);
       return;
     }
     
-    // Use first flow for now
+    // Use first flow
     const flow = eventFlows[0];
     const newSteps = flow.steps || [];
     
     if (newSteps.length === 0) {
-      console.log('[ModularEventFlow] WARNING: Empty steps detected!');
-      
-      // Don't clear steps if we currently have steps - this prevents accidental clearing
+      // Don't clear steps if we currently have steps - prevents accidental clearing
       if (canonicalSteps.length > 0) {
-        console.log('[ModularEventFlow] PREVENTING canvas clear - keeping existing', canonicalSteps.length, 'steps');
         return;
       }
-      
-      console.log('[ModularEventFlow] No existing steps, clearing canvas');
       setCanonicalSteps([]);
       return;
     }
     
-    // Capture current node positions from ReactFlow (highest priority)
-    const currentPositions = {};
-    currentNodesRef.current.forEach(node => {
-      currentPositions[node.id] = node.position;
-    });
-    console.log('[ModularEventFlow] 📍 Current ReactFlow positions:', currentPositions);
+    // Use position hook to resolve positions
+    const updatedSteps = positions.resolvePositions(newSteps);
     
-    // Also capture positions from existing canonical steps
-    const existingPositions = {};
-    canonicalSteps.forEach(step => {
-      if (step.position) {
-        existingPositions[step.step_id] = step.position;
-      }
-    });
-    console.log('[ModularEventFlow] 📄 Existing canonical positions:', existingPositions);
-    console.log('[ModularEventFlow] 💾 Available localStorage positions:', layoutMap);
+    // Check for structural changes
+    const hasStructuralChanges = JSON.stringify(canonicalSteps.map(s => {
+      const { position, ...step } = s;
+      return step;
+    })) !== JSON.stringify(newSteps);
     
-    // Detect what changed
-    const changes = detectStepChanges(canonicalSteps, newSteps);
-    console.log('[ModularEventFlow] Detected changes:', {
-      added: changes.added.length,
-      deleted: changes.deleted.length,
-      modified: changes.modified.length
-    });
-    
-    // Apply changes while preserving positions - FIXED priority logic
-    const updatedSteps = newSteps.map((step, index) => {
-      const currentPosition = currentPositions[step.step_id];
-      const existingPosition = existingPositions[step.step_id];
-      const savedPosition = layoutMap[step.step_id];
-      
-      let finalPosition;
-      
-      if (isInitialLoad && localStorageLoadedRef.current && savedPosition) {
-        // 🔑 CRITICAL FIX: On initial load, localStorage takes absolute priority
-        finalPosition = savedPosition;
-        console.log('[ModularEventFlow] 🚀 INITIAL LOAD: Using localStorage position for', step.step_id, ':', savedPosition);
-      } else if (currentPosition) {
-        // During active session, current ReactFlow position takes priority
-        finalPosition = currentPosition;
-        console.log('[ModularEventFlow] 📍 SESSION: Using current ReactFlow position for', step.step_id, ':', currentPosition);
-      } else if (savedPosition) {
-        // 🔑 CRITICAL FIX: Prioritize localStorage over canonical positions when ReactFlow is empty (project switching)
-        finalPosition = savedPosition;
-        console.log('[ModularEventFlow] 💾 PRIORITY: Using localStorage position for', step.step_id, ':', savedPosition);
-      } else if (existingPosition) {
-        // Use existing canonical position if available
-        finalPosition = existingPosition;
-        console.log('[ModularEventFlow] 📄 EXISTING: Using existing canonical position for', step.step_id, ':', existingPosition);
-      } else {
-        // Default grid layout for truly new steps
-        finalPosition = {
-          x: 100 + (index % 3) * 300,
-          y: 100 + Math.floor(index / 3) * 200
-        };
-        console.log('[ModularEventFlow] ✨ NEW: Assigning default position for new step', step.step_id, ':', finalPosition);
-      }
-      
-      return {
-        ...step,
-        position: finalPosition
-      };
-    });
-    
-    // Only update canonical steps if there are actual differences
-    const currentStepsWithoutPosition = canonicalSteps.map(s => {
-      const { position, ...stepWithoutPosition } = s;
-      return stepWithoutPosition;
-    });
-    
-    const newStepsWithoutPosition = updatedSteps.map(s => {
-      const { position, ...stepWithoutPosition } = s;
-      return stepWithoutPosition;
-    });
-    
-    if (JSON.stringify(currentStepsWithoutPosition) !== JSON.stringify(newStepsWithoutPosition) ||
-        canonicalSteps.length !== updatedSteps.length) {
-      console.log('[ModularEventFlow] Updating canonical steps to:', updatedSteps.length, 'steps (structural changes detected)');
+    if (hasStructuralChanges || canonicalSteps.length !== updatedSteps.length) {
       setCanonicalSteps(updatedSteps);
-      
-      // Clear initial load flag after first successful load
-      if (isInitialLoad) {
-        console.log('[ModularEventFlow] ✅ Initial load complete, clearing isInitialLoad flag');
-        setIsInitialLoad(false);
-      }
-    } else {
-      console.log('[ModularEventFlow] No structural changes detected, keeping existing canonical steps with their positions');
-      // Just update the flow schema for compatibility
-      setFlowSchema(newSchema);
-      
-      // Clear initial load flag even if no structural changes
-      if (isInitialLoad) {
-        console.log('[ModularEventFlow] ✅ Initial load complete (no changes), clearing isInitialLoad flag');
-        setIsInitialLoad(false);
-      }
-      return;
+      positions.completeInitialLoad();
     }
     
-    // Update flowSchema for compatibility
+    // Always update flowSchema
     setFlowSchema(newSchema);
     
-    // Update layout map with current positions for localStorage persistence
-    const newLayoutMap = { ...layoutMap };
-    let layoutChanged = false;
-    updatedSteps.forEach(step => {
-      if (step.position) {
-        const existing = newLayoutMap[step.step_id];
-        if (!existing || existing.x !== step.position.x || existing.y !== step.position.y) {
-          newLayoutMap[step.step_id] = step.position;
-          layoutChanged = true;
-        }
-      }
-    });
-    
-    if (layoutChanged) {
-      console.log('[ModularEventFlow] Updating layoutMap with new positions, triggering localStorage save');
-      setLayoutMap(newLayoutMap);
-    }
-    
-  }, [canonicalSteps, layoutMap, detectStepChanges]);
+  }, [canonicalSteps, positions]);
 
-  // Use layout effect to ensure container is measured before rendering (COPIED FROM ERDIAGRAM)
+  // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
-      console.log('[ModularEventFlow] Container dimensions:', {
-        width: containerRef.current.offsetWidth,
-        height: containerRef.current.offsetHeight,
-        clientWidth: containerRef.current.clientWidth,
-        clientHeight: containerRef.current.clientHeight
-      });
       setInitialized(true);
     }
   }, []);
 
 
-  // Generate stable schema ID (copied from ER Diagram approach)
-  useEffect(() => {
-    if (yamlContent && typeof yamlContent === 'string') {
-      try {
-        // Use first 100 characters of YAML content for stable ID (like ER Diagram)
-        const yamlPrefix = yamlContent.substring(0, 100).replace(/\s+/g, '');
-        let stableId = '';
-        
-        // Simple hash function to create a stable ID (same as ER Diagram)
-        for (let i = 0; i < yamlPrefix.length; i++) {
-          stableId += yamlPrefix.charCodeAt(i);
-        }
-        
-        // Use proper project ID for isolation
-        const projectIdentifier = projectId || 'default';
-        const id = `modular_flow_positions_${projectIdentifier}_${stableId}`;
-        
-        console.log('[ModularEventFlow] 🔑 PROJECT ID DEBUG:', projectId);
-        console.log('[ModularEventFlow] 🔑 PROJECT IDENTIFIER:', projectIdentifier);
-        console.log('[ModularEventFlow] 🔑 STABLE ID HASH:', stableId);
-        console.log('[ModularEventFlow] Generated stable schema ID:', id);
-        console.log('[ModularEventFlow] YAML prefix used:', yamlPrefix.substring(0, 50) + '...');
-        
-        // Reset loading states when schema ID changes (new project/content)
-        if (schemaId && schemaId !== id) {
-          console.log('[ModularEventFlow] 🔄 Schema change detected, resetting loading states');
-          setIsInitialLoad(true);
-          hasProcessedSchemaRef.current = false;
-          localStorageLoadedRef.current = false;
-        }
-        
-        setSchemaId(id);
-      } catch (error) {
-        console.error('[ModularEventFlow] Error generating schema ID:', error);
-      }
-    } else if (yamlContent && typeof yamlContent !== 'string') {
-      console.warn('[ModularEventFlow] yamlContent is not a string, received:', typeof yamlContent);
-    }
-  }, [yamlContent]);
-
-  // Load layout map from localStorage immediately when schema ID is available
-  useEffect(() => {
-    if (schemaId) {
-      try {
-        const saved = localStorage.getItem(schemaId);
-        if (saved) {
-          const savedPositions = JSON.parse(saved);
-          console.log('[ModularEventFlow] ✅ INITIAL LOAD: Loaded', Object.keys(savedPositions).length, 'positions from localStorage for schema:', schemaId);
-          console.log('[ModularEventFlow] 📍 Saved positions:', savedPositions);
-          
-          setLayoutMap(savedPositions);
-          localStorageLoadedRef.current = true;
-        } else {
-          console.log('[ModularEventFlow] ⚠️ INITIAL LOAD: No saved positions found for schema:', schemaId);
-          setLayoutMap({});
-          localStorageLoadedRef.current = true;
-        }
-      } catch (err) {
-        console.error('[ModularEventFlow] ❌ INITIAL LOAD: Error loading positions from localStorage:', err);
-        setLayoutMap({});
-        localStorageLoadedRef.current = true;
-      }
-    }
-  }, [schemaId]);
-
-  // Debounced save to localStorage with enhanced debugging
-  const debounceRef = useRef();
-  const saveLayoutToLocalStorage = useCallback((layout, key) => {
-    if (!key) {
-      console.warn('[ModularEventFlow] ⚠️ Cannot save - no key provided');
-      return;
-    }
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => {
-      try {
-        const jsonData = JSON.stringify(layout);
-        localStorage.setItem(key, jsonData);
-        console.log('[ModularEventFlow] ✅ Successfully saved to localStorage with key:', key);
-        console.log('[ModularEventFlow] 💾 Data saved:', jsonData);
-        
-        // Verify the save by reading it back
-        const verification = localStorage.getItem(key);
-        if (verification === jsonData) {
-          console.log('[ModularEventFlow] ✅ Save verification successful');
-        } else {
-          console.error('[ModularEventFlow] ❌ Save verification failed!');
-        }
-      } catch (err) {
-        console.error('[ModularEventFlow] ❌ Error saving layout to localStorage:', err);
-      }
-    }, 300);
-  }, []);
-
-  // Save layout to localStorage with proper debouncing
-  useEffect(() => {
-    if (schemaId && Object.keys(layoutMap).length > 0) {
-      console.log('[ModularEventFlow] 💾 SAVING', Object.keys(layoutMap).length, 'positions to localStorage for schema:', schemaId);
-      console.log('[ModularEventFlow] 📍 Positions being saved:', layoutMap);
-      saveLayoutToLocalStorage(layoutMap, schemaId);
-    } else if (schemaId) {
-      console.log('[ModularEventFlow] ⚠️ No positions to save for schema:', schemaId);
-    }
-  }, [layoutMap, schemaId, saveLayoutToLocalStorage]);
-
   // Update visual nodes and edges from canonical steps
   useEffect(() => {
-    console.log('[ModularEventFlow] Updating visual nodes from canonical steps:', canonicalSteps.length);
-    console.log('[ModularEventFlow] Current canonical steps:', canonicalSteps.map(s => s.step_id));
-    
     if (canonicalSteps.length === 0) {
-      console.log('[ModularEventFlow] WARNING: Setting nodes and edges to empty arrays!');
       setNodes([]);
       setEdges([]);
       return;
@@ -562,8 +286,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
       }
     });
 
-    // Always update nodes and edges directly
-    console.log('[ModularEventFlow] Updating visual representation with', visualNodes.length, 'nodes and', visualEdges.length, 'edges');
+    // Update visual representation
     setNodes(visualNodes);
     setEdges(visualEdges);
     
@@ -571,10 +294,8 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     if (internalUpdateRef.current && onDiagramChange && flowSchema) {
       const generatedSchema = generateYAML();
       if (generatedSchema) {
-        console.log('[ModularEventFlow] Notifying parent of internal changes');
         // Set a timeout to reset the flag after the parent processes the change
         setTimeout(() => {
-          console.log('[ModularEventFlow] Resetting internal update flag after timeout');
           internalUpdateRef.current = false;
         }, 200);
         onDiagramChange(generatedSchema);
@@ -582,43 +303,24 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
         internalUpdateRef.current = false;
       }
     }
-  }, [canonicalSteps, layoutMap, theme, onDiagramChange, generateYAML, flowSchema]);
+  }, [canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema]);
 
-  // Handle external YAML updates (with guards against double processing)
+  // Handle external YAML updates
   useEffect(() => {
-    console.log('[ModularEventFlow] 🔄 YAML UPDATE EFFECT TRIGGERED');
-    console.log('[ModularEventFlow] internalUpdateRef.current:', internalUpdateRef.current);
-    console.log('[ModularEventFlow] parsedSchema exists:', !!parsedSchema);
-    console.log('[ModularEventFlow] layoutMap available:', Object.keys(layoutMap).length, 'positions');
-    console.log('[ModularEventFlow] isInitialLoad:', isInitialLoad);
-    console.log('[ModularEventFlow] localStorageLoadedRef.current:', localStorageLoadedRef.current);
-    
-    // Always skip if this was triggered by our internal changes
+    // Skip if this was triggered by internal changes
     if (internalUpdateRef.current) {
-      console.log('[ModularEventFlow] ⏭️ SKIPPING - internal change in progress');
       return;
     }
     
-    // Skip if we're in initial load but localStorage hasn't loaded yet
-    if (isInitialLoad && !localStorageLoadedRef.current) {
-      console.log('[ModularEventFlow] ⏳ WAITING - initial load but localStorage not ready yet');
+    // Wait for position storage to be ready
+    if (!positions.isStorageReady()) {
       return;
-    }
-    
-    // 🔑 CRITICAL FIX: Skip if we expect localStorage positions but layoutMap hasn't been updated yet
-    if (isInitialLoad && localStorageLoadedRef.current && schemaId) {
-      const saved = localStorage.getItem(schemaId);
-      if (saved && Object.keys(layoutMap).length === 0) {
-        console.log('[ModularEventFlow] ⏳ WAITING - localStorage has positions but layoutMap not yet populated');
-        return;
-      }
     }
     
     if (parsedSchema) {
-      console.log('[ModularEventFlow] ▶️ PROCESSING external YAML update');
       handleYAMLChange(parsedSchema);
     }
-  }, [parsedSchema, handleYAMLChange, layoutMap, isInitialLoad]);
+  }, [parsedSchema, handleYAMLChange, positions]);
 
   // Memoized imperative methods to prevent recreation on every render
   const imperativeMethods = useMemo(() => ({
@@ -634,17 +336,13 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
   useImperativeHandle(ref, () => imperativeMethods, [imperativeMethods]);
 
   const onConnect = useCallback((params) => {
-    console.log('[ModularEventFlow] Connection attempt:', params);
-    
     // Validate connection
     if (!validateConnection(params, canonicalSteps)) {
-      console.warn('[ModularEventFlow] Invalid connection attempt');
       return;
     }
     
     // Check if connection already exists
     if (connectionExists(params, canonicalSteps)) {
-      console.log('[ModularEventFlow] Connection already exists, ignoring');
       return;
     }
     
@@ -706,8 +404,6 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     const oldNodeId = selectedNode?.id;
     const newNodeId = updatedNode.id;
     
-    console.log('[ModularEventFlow] Handling node update:', oldNodeId, '->', newNodeId);
-    
     // Update canonical steps with new node data
     setCanonicalSteps(prev => {
       let updatedSteps = prev.map(step => {
@@ -766,35 +462,24 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
 
   // Handle node drag end - update canonical steps positions immediately
   const onNodeDragStop = useCallback((_event, node) => {
-    console.log('[ModularEventFlow] 👍 DRAG END:', node.id, 'to position:', node.position);
-    
-    // Update the position in canonical steps immediately
+    // Update position in canonical steps
     setCanonicalSteps(prev => prev.map(step => 
       step.step_id === node.id 
         ? { ...step, position: node.position }
         : step
     ));
     
-    // Also update the visual nodes to reflect the change
+    // Update visual nodes
     setNodes(nds => nds.map(n => 
       n.id === node.id ? { ...n, position: node.position } : n
     ));
     
-    // Update layout map for immediate localStorage save (triggers the debounced save effect)
-    setLayoutMap(prev => {
-      const newLayoutMap = {
-        ...prev,
-        [node.id]: { ...node.position }
-      };
-      console.log('[ModularEventFlow] 📍 Updated layoutMap for', node.id, ', total positions:', Object.keys(newLayoutMap).length);
-      console.log('[ModularEventFlow] 🚀 This will trigger localStorage save effect');
-      return newLayoutMap;
-    });
-  }, []);
+    // Update position in hook for localStorage persistence
+    positions.updateItemPosition(node.id, node.position);
+  }, [positions]);
 
   const onNodesDelete = useCallback((deletedNodes) => {
     const deletedIds = deletedNodes.map(n => n.id);
-    console.log('[ModularEventFlow] Deleting nodes:', deletedIds);
     
     // Update canonical steps - remove deleted steps and clean up references
     setCanonicalSteps(prev => {
@@ -852,7 +537,6 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
 
   // Handle edge deletion with automatic connection removal
   const onEdgesDelete = useCallback((deletedEdges) => {
-    console.log('[ModularEventFlow] Edge deletion:', deletedEdges);
     
     if (canonicalSteps && deletedEdges.length > 0) {
       handleEdgeDeletion(
