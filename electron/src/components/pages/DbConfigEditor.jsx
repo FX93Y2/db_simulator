@@ -428,6 +428,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 yamlContent={yamlContent} 
                 onDiagramChange={handleDiagramChange}
                 theme={theme}
+                projectId={projectId}
               />
               {loading && (
                 <div className="position-absolute top-50 start-50 translate-middle">

@@ -10,26 +10,17 @@
  * @param {string} projectId - Optional project ID for isolation
  * @returns {string} - Stable schema ID
  */
-export const generateSchemaId = (content, prefix, projectId = null) => {
-  if (!content || typeof content !== 'string') return null;
-  
-  try {
-    // Use first 100 characters of content for stable ID
-    const contentPrefix = content.substring(0, 100).replace(/\s+/g, '');
-    let stableId = '';
-    
-    // Simple hash function to create a stable ID
-    for (let i = 0; i < contentPrefix.length; i++) {
-      stableId += contentPrefix.charCodeAt(i);
-    }
-    
-    // Include project ID for isolation if provided
-    const projectIdentifier = projectId ? `${projectId}_` : '';
-    return `${prefix}_${projectIdentifier}${stableId}`;
-  } catch (error) {
-    console.error('[positionUtils] Error generating schema ID:', error);
+export const generateSchemaId = (content, prefix, projectId) => {
+  if (!projectId) {
+    // Project ID is essential for isolating storage.
+    // A null return will prevent positions from being saved, which is the correct behavior
+    // if the project context is not available.
     return null;
   }
+  
+  // The schemaId is now composed of the prefix and projectId, ensuring a unique key
+  // for each project's ER diagram or modular flow. This was the source of the bug.
+  return `${prefix}_${projectId}`;
 };
 
 /**
