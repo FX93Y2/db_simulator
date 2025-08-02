@@ -2,18 +2,18 @@
 .app-header {
   background-color: var(--theme-navbar-bg);
   color: var(--theme-navbar-text);
-  padding: 0;
+  padding: 4px;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   
   // Styles for the sidebar toggle button
   .sidebar-toggle-button {
-    padding: 6px;
+    padding: 1px;
     display: flex;
     align-items: center;
     justify-content: center;
     height: auto;
     cursor: pointer;
-    border-radius: none;
+    border-radius: 6px;
     transition: all 0.2s ease-in-out;
     margin-right: 8px;
     background: transparent;
