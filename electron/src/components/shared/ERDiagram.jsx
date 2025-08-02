@@ -320,6 +320,21 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
 
   // Handle YAML changes from external sources (like YAML editor)
   const handleYAMLChange = useCallback((newYAMLContent) => {
+    console.log(`[ERDiagram] handleYAMLChange called:`, {
+      contentLength: newYAMLContent?.length,
+      isInitialLoad: positions.isInitialLoad,
+      layoutMapSize: Object.keys(positions.layoutMap).length,
+      canonicalEntitiesCount: canonicalEntities.length,
+      storageReady: positions.isStorageReady(),
+      layoutMapReady: positions.layoutMapReady
+    });
+    
+    // CRITICAL: Don't process YAML until positions are ready
+    if (!positions.isStorageReady() || !positions.layoutMapReady) {
+      console.log(`[ERDiagram] handleYAMLChange: Aborting - position storage not ready`);
+      return;
+    }
+    
     // Ensure we have a string
     if (typeof newYAMLContent !== 'string') {
       return;
@@ -328,6 +343,11 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     try {
       const parsedYAML = yaml.parse(newYAMLContent);
       const newEntities = parsedYAML?.entities || [];
+      
+      // Skip if this looks like simulation YAML (has steps) rather than database YAML
+      if (parsedYAML?.steps) {
+        return;
+      }
       
       if (newEntities.length === 0) {
         // Don't clear entities if we currently have entities - this prevents accidental clearing
@@ -353,7 +373,18 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
       
       if (hasStructuralChanges || canonicalEntities.length !== updatedEntities.length) {
         setCanonicalEntities(updatedEntities);
-        positions.completeInitialLoad();
+        // Only complete initial load if we successfully loaded and applied saved positions
+        // OR if there were no saved positions to begin with
+        const hasSavedPositions = Object.keys(positions.layoutMap).length > 0;
+        const appliedSavedPositions = hasSavedPositions && updatedEntities.some(e => 
+          positions.layoutMap[e.name] && 
+          e.position.x === positions.layoutMap[e.name].x && 
+          e.position.y === positions.layoutMap[e.name].y
+        );
+        
+        if (!hasSavedPositions || appliedSavedPositions) {
+          positions.completeInitialLoad();
+        }
       }
       
       // Update dbSchema for compatibility with legacy code
@@ -362,7 +393,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     } catch (error) {
       // Invalid YAML, ignore changes
     }
-  }, [canonicalEntities, positions]);
+  }, [canonicalEntities, positions.layoutMap, positions.isInitialLoad, positions.isStorageReady, positions.layoutMapReady]);
 
   // Update visual nodes and edges from canonical entities
   useEffect(() => {
@@ -375,6 +406,13 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     // Generate visual nodes
     const visualNodes = canonicalEntities.map(entity => {
       const position = entity.position || { x: 50, y: 50 };
+      
+      console.log(`[ERDiagram] Creating visual node for ${entity.name}:`, {
+        savedPosition: positions.layoutMap[entity.name],
+        entityPosition: entity.position,
+        finalPosition: position,
+        isInitialLoad: positions.isInitialLoad
+      });
       
       return {
         id: entity.name,
@@ -422,6 +460,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
       }
     });
 
+    console.log(`[ERDiagram] Setting ${visualNodes.length} visual nodes:`, visualNodes.map(n => ({ id: n.id, position: n.position })));
     setNodes(visualNodes);
     setEdges(visualEdges);
     
@@ -457,20 +496,42 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
 
   // Handle external YAML updates
   useEffect(() => {
+    console.log(`[ERDiagram] External YAML effect triggered:`, {
+      hasYamlContent: !!yamlContent,
+      internalUpdate: internalUpdateRef.current,
+      storageReady: positions.isStorageReady(),
+      layoutMapReady: positions.layoutMapReady,
+      isInitialLoad: positions.isInitialLoad,
+      layoutMapSize: Object.keys(positions.layoutMap).length
+    });
+    
     // Skip if this was triggered by internal changes
     if (internalUpdateRef.current) {
+      console.log(`[ERDiagram] Skipping - internal update`);
+      return;
+    }
+    
+    // Skip if no YAML content
+    if (!yamlContent) {
+      console.log(`[ERDiagram] Skipping - no YAML content`);
       return;
     }
     
     // Wait for position storage to be ready
     if (!positions.isStorageReady()) {
+      console.log(`[ERDiagram] Skipping - storage not ready`);
       return;
     }
     
-    if (yamlContent) {
-      handleYAMLChange(yamlContent);
+    // Wait for layoutMap to be ready from localStorage
+    if (!positions.layoutMapReady) {
+      console.log(`[ERDiagram] Skipping - waiting for layoutMap to be ready`);
+      return;
     }
-  }, [yamlContent, handleYAMLChange, positions]);
+    
+    console.log(`[ERDiagram] Calling handleYAMLChange`);
+    handleYAMLChange(yamlContent);
+  }, [yamlContent, positions.layoutMapReady]);
   
   // Handle connecting nodes with automatic foreign key generation
   const onConnect = useCallback(

@@ -25,6 +25,7 @@ export const useCanvasPositions = (content, prefix, projectId = null, debug = fa
   const [schemaId, setSchemaId] = useState(null);
   const [layoutMap, setLayoutMap] = useState({});
   const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [layoutMapReady, setLayoutMapReady] = useState(false);
   
   // Refs for state tracking
   const localStorageLoadedRef = useRef(false);
@@ -51,6 +52,7 @@ export const useCanvasPositions = (content, prefix, projectId = null, debug = fa
           log('Schema change detected, resetting loading states');
           setIsInitialLoad(true);
           localStorageLoadedRef.current = false;
+          setLayoutMapReady(false);
         }
         
         setSchemaId(id);
@@ -65,13 +67,14 @@ export const useCanvasPositions = (content, prefix, projectId = null, debug = fa
       const positionCount = Object.keys(savedPositions).length;
       
       if (positionCount > 0) {
-        log(`Loaded ${positionCount} positions from localStorage`);
+        log(`Loaded ${positionCount} positions from localStorage for schema ${schemaId}:`, savedPositions);
       } else {
-        log('No saved positions found for schema');
+        log('No saved positions found for schema', schemaId);
       }
       
       setLayoutMap(savedPositions);
       localStorageLoadedRef.current = true;
+      setLayoutMapReady(true);
     }
   }, [schemaId, log]);
   
@@ -220,6 +223,7 @@ export const useCanvasPositions = (content, prefix, projectId = null, debug = fa
     schemaId,
     layoutMap,
     isInitialLoad,
+    layoutMapReady,
     localStorageLoaded: localStorageLoadedRef.current,
     
     // Methods
