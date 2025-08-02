@@ -9,6 +9,7 @@
   display: flex;
   flex: 1;
   overflow: hidden;
+  transition: all 0.3s ease-in-out;
   
   // Styles for react-resizable-panels handles
   .main-resize-handle {

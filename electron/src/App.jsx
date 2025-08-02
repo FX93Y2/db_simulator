@@ -40,6 +40,10 @@ const App = () => {
 
   // Sidebar state management
   const [sidebarSizePercentage, setSidebarSizePercentage] = useState(20);
+  const [sidebarVisible, setSidebarVisible] = useState(() => {
+    const savedVisibility = localStorage.getItem('sidebarVisible');
+    return savedVisibility !== null ? savedVisibility === 'true' : true;
+  });
 
   // Get saved sidebar width percentage from localStorage on initial load
   useEffect(() => {
@@ -53,11 +57,21 @@ const App = () => {
     }
   }, []);
 
+  // Save sidebar visibility to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('sidebarVisible', sidebarVisible.toString());
+  }, [sidebarVisible]);
+
+  // Toggle sidebar visibility
+  const toggleSidebar = () => {
+    setSidebarVisible(prev => !prev);
+  };
+
   // Save sidebar width percentage to localStorage when layout changes
   // The onLayout prop gives an array of panel sizes in percentages.
   const handleLayoutChange = (sizes) => {
-    const newSidebarSize = sizes[0]; // Assuming sidebar is the first panel
-    if (newSidebarSize) {
+    if (sidebarVisible && sizes[0]) {
+      const newSidebarSize = sizes[0]; // Assuming sidebar is the first panel
       const percentage = Math.round(newSidebarSize);
       setSidebarSizePercentage(percentage);
       localStorage.setItem('sidebarSizePercentage', percentage.toString());
@@ -67,49 +81,82 @@ const App = () => {
   return (
     <ToastProvider>
       <div className="app-container">
-        <Header currentTheme={theme} onToggleTheme={toggleTheme} />
+        <Header 
+          currentTheme={theme} 
+          onToggleTheme={toggleTheme} 
+          sidebarVisible={sidebarVisible}
+          onToggleSidebar={toggleSidebar}
+        />
         <div className="main-content">
-          <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
-            <Panel
-              defaultSize={sidebarSizePercentage}
-              minSize={10}
-              maxSize={50}
-              order={1}
-            >
-              <ProjectSidebar theme={theme} />
-            </Panel>
-            <PanelResizeHandle className="main-resize-handle" />
-            <Panel
-              minSize={50}
-              order={2}
-            >
-              <div className="content-area">
-                <Container fluid>
-                  <Routes>
-                    {/* Welcome and dashboard */}
-                    <Route path="/" element={<ConfigurationGuide />} />
-                    
-                    {/* Project routes */}
-                    <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />
-                    <Route path="/project/:projectId/:activeTab" element={<ProjectPage theme={theme} />} />
-                    <Route path="/project/:projectId/results/:resultId" element={<ProjectPage theme={theme} />} />
-                    
-                    {/* Standalone configuration routes */}
-                    <Route path="/db-config" element={<DbConfigEditor theme={theme} />} />
-                    <Route path="/db-config/:configId" element={<DbConfigEditor theme={theme} />} />
-                    <Route path="/sim-config" element={<SimConfigEditor theme={theme} />} />
-                    <Route path="/sim-config/:configId" element={<SimConfigEditor theme={theme} />} />
-                    
-                    {/* Results routes */}
-                    <Route path="/results/:databasePath" element={<ResultsViewer />} />
-                    
-                    {/* Default catch-all route */}
-                    <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Container>
-              </div>
-            </Panel>
-          </PanelGroup>
+          {sidebarVisible ? (
+            <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
+              <Panel
+                defaultSize={sidebarSizePercentage}
+                minSize={10}
+                maxSize={50}
+                order={1}
+              >
+                <ProjectSidebar theme={theme} />
+              </Panel>
+              <PanelResizeHandle className="main-resize-handle" />
+              <Panel
+                minSize={50}
+                order={2}
+              >
+                <div className="content-area">
+                  <Container fluid>
+                    <Routes>
+                      {/* Welcome and dashboard */}
+                      <Route path="/" element={<ConfigurationGuide />} />
+                      
+                      {/* Project routes */}
+                      <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />
+                      <Route path="/project/:projectId/:activeTab" element={<ProjectPage theme={theme} />} />
+                      <Route path="/project/:projectId/results/:resultId" element={<ProjectPage theme={theme} />} />
+                      
+                      {/* Standalone configuration routes */}
+                      <Route path="/db-config" element={<DbConfigEditor theme={theme} />} />
+                      <Route path="/db-config/:configId" element={<DbConfigEditor theme={theme} />} />
+                      <Route path="/sim-config" element={<SimConfigEditor theme={theme} />} />
+                      <Route path="/sim-config/:configId" element={<SimConfigEditor theme={theme} />} />
+                      
+                      {/* Results routes */}
+                      <Route path="/results/:databasePath" element={<ResultsViewer />} />
+                      
+                      {/* Default catch-all route */}
+                      <Route path="*" element={<Navigate to="/" replace />} />
+                    </Routes>
+                  </Container>
+                </div>
+              </Panel>
+            </PanelGroup>
+          ) : (
+            <div className="content-area full-width">
+              <Container fluid>
+                <Routes>
+                  {/* Welcome and dashboard */}
+                  <Route path="/" element={<ConfigurationGuide />} />
+                  
+                  {/* Project routes */}
+                  <Route path="/project/:projectId" element={<ProjectPage theme={theme} />} />
+                  <Route path="/project/:projectId/:activeTab" element={<ProjectPage theme={theme} />} />
+                  <Route path="/project/:projectId/results/:resultId" element={<ProjectPage theme={theme} />} />
+                  
+                  {/* Standalone configuration routes */}
+                  <Route path="/db-config" element={<DbConfigEditor theme={theme} />} />
+                  <Route path="/db-config/:configId" element={<DbConfigEditor theme={theme} />} />
+                  <Route path="/sim-config" element={<SimConfigEditor theme={theme} />} />
+                  <Route path="/sim-config/:configId" element={<SimConfigEditor theme={theme} />} />
+                  
+                  {/* Results routes */}
+                  <Route path="/results/:databasePath" element={<ResultsViewer />} />
+                  
+                  {/* Default catch-all route */}
+                  <Route path="*" element={<Navigate to="/" replace />} />
+                </Routes>
+              </Container>
+            </div>
+          )}
         </div>
       </div>
     </ToastProvider>

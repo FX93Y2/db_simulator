@@ -1,20 +1,40 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { Container, Navbar } from 'react-bootstrap';
-import { FiSun, FiMoon } from 'react-icons/fi';
+import { FiSun, FiMoon, FiHelpCircle } from 'react-icons/fi';
 import appIcon from '../../../public/icon.png';
 
-const Header = ({ currentTheme, onToggleTheme }) => {
+const Header = ({ currentTheme, onToggleTheme, sidebarVisible, onToggleSidebar }) => {
+  const navigate = useNavigate();
+
+  const handleHelpClick = () => {
+    navigate('/');
+  };
+
   return (
     <Navbar expand="lg" className="app-header">
       <Container fluid>
-        <Navbar.Brand as={NavLink} to="/" className="app-icon-brand">
-          <img 
-            src={appIcon}
-            alt="App Icon" 
-            className="app-icon" 
-          />
-        </Navbar.Brand>
+        <div className="d-flex align-items-center">
+          <div 
+            className={`sidebar-toggle-button ${sidebarVisible ? 'active' : ''}`}
+            onClick={onToggleSidebar}
+            title={sidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
+          >
+            <img 
+              src={appIcon}
+              alt="Toggle Sidebar" 
+              className="app-icon" 
+            />
+          </div>
+          
+          <div 
+            className="help-button"
+            onClick={handleHelpClick}
+            title="Help & Configuration Guide"
+          >
+            <FiHelpCircle />
+          </div>
+        </div>
         
         <div className="ms-auto">
           <div 

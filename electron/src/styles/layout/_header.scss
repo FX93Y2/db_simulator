@@ -5,18 +5,58 @@
   padding: 0;
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
   
-  // Styles for the new icon brand
-  .app-icon-brand {
-    padding: 0 15px; // Adjust padding as needed
+  // Styles for the sidebar toggle button
+  .sidebar-toggle-button {
+    padding: 6px;
     display: flex;
     align-items: center;
-    height: $header-height;
+    justify-content: center;
+    height: auto;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s ease-in-out;
+    margin-right: 8px;
+    background: transparent;
+    border: none;
+    outline: none;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    &.active {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .app-icon {
+      height: 32px;
+      width: 32px;
+      transition: transform 0.2s ease-in-out;
+      border-radius: 4px;
+      display: block;
+    }
   }
 
-  .app-icon {
-    height: 40px;
-    width: 40px;
-    transition: transform 0.2s ease-in-out;
+  // VS Code-style Help button
+  .help-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    cursor: pointer;
+    border-radius: 4px;
+    transition: all 0.2s ease-in-out;
+    color: var(--theme-muted-text);
+    
+    svg {
+      font-size: 18px;
+    }
+    
+    &:hover {
+      background-color: var(--theme-accent);
+      color: white;
+    }
   }
   
   // Theme toggle switch styles
@@ -109,8 +149,4 @@
     }
   }
 
-  // Added hover effect for the navbar icon
-  .app-icon-brand .app-icon:hover {
-    transform: scale(1.15);
-  }
 }
