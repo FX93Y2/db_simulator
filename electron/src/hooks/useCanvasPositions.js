@@ -49,10 +49,11 @@ export const useCanvasPositions = (content, prefix, projectId = null, debug = fa
         
         // Reset loading states when schema ID changes (new project/content)
         if (schemaId && schemaId !== id) {
-          log('Schema change detected, resetting loading states');
+          log(`Schema change detected: ${schemaId} -> ${id}, resetting loading states`);
           setIsInitialLoad(true);
           localStorageLoadedRef.current = false;
           setLayoutMapReady(false);
+          setLayoutMap({}); // Clear old project positions
         }
         
         setSchemaId(id);

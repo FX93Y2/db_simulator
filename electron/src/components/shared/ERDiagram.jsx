@@ -149,7 +149,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
   // Track if we're updating from internal canvas operations
   const internalUpdateRef = useRef(false);
   
-  const positions = useCanvasPositions(yamlContent, 'er_diagram_positions', projectId);
+  const positions = useCanvasPositions(yamlContent, 'er_diagram_positions', projectId, true);
 
 
   // Update current nodes in position hook
