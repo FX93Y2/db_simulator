@@ -39,6 +39,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
   
   // Track if we're updating from internal canvas operations
   const internalUpdateRef = useRef(false);
+  const pendingInternalUpdateRef = useRef(false);
   
   // Use position management hook
   const positions = useCanvasPositions(yamlContent, 'modular_flow_positions', projectId);
@@ -89,6 +90,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     
     // Set internal update flag to prevent YAML sync loops
     internalUpdateRef.current = true;
+    pendingInternalUpdateRef.current = true;
     
     return newStep;
   }, [canonicalSteps, positions]);
@@ -114,6 +116,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     
     // Set internal update flag
     internalUpdateRef.current = true;
+    pendingInternalUpdateRef.current = true;
   }, [positions]);
 
   const deleteStep = useCallback((stepId) => {
@@ -125,6 +128,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     
     // Set internal update flag
     internalUpdateRef.current = true;
+    pendingInternalUpdateRef.current = true;
   }, [positions]);
 
   const generateYAML = useCallback(() => {
@@ -294,13 +298,15 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     if (internalUpdateRef.current && onDiagramChange && flowSchema) {
       const generatedSchema = generateYAML();
       if (generatedSchema) {
-        // Set a timeout to reset the flag after the parent processes the change
+        // Set a timeout to reset the flags after the parent processes the change
         setTimeout(() => {
           internalUpdateRef.current = false;
-        }, 200);
+          pendingInternalUpdateRef.current = false;
+        }, 500); // Increased timeout to be more reliable
         onDiagramChange(generatedSchema);
       } else {
         internalUpdateRef.current = false;
+        pendingInternalUpdateRef.current = false;
       }
     }
   }, [canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema]);
@@ -308,7 +314,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
   // Handle external YAML updates
   useEffect(() => {
     // Skip if this was triggered by internal changes
-    if (internalUpdateRef.current) {
+    if (internalUpdateRef.current || pendingInternalUpdateRef.current) {
       return;
     }
     
@@ -365,6 +371,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
         
         // Set flag to prevent circular update
         internalUpdateRef.current = true;
+        pendingInternalUpdateRef.current = true;
       }
     );
     
@@ -440,17 +447,10 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
           return updatedStep;
         });
         
-        // Update layout map key if step ID changed
-        setLayoutMap(prev => {
-          const currentPosition = prev[oldNodeId];
-          if (currentPosition) {
-            const newLayout = { ...prev };
-            newLayout[newNodeId] = currentPosition;
-            delete newLayout[oldNodeId];
-            return newLayout;
-          }
-          return prev;
-        });
+        // Update position mapping if step ID changed
+        if (oldNodeId !== newNodeId) {
+          positions.updateItemId(oldNodeId, newNodeId);
+        }
       }
       
       return updatedSteps;
@@ -458,6 +458,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     
     // Set internal update flag
     internalUpdateRef.current = true;
+    pendingInternalUpdateRef.current = true;
   }, [selectedNode]);
 
   // Handle node drag end - update canonical steps positions immediately
@@ -522,17 +523,12 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
       return remainingSteps;
     });
     
-    // Remove deleted node positions from layoutMap
-    setLayoutMap(prev => {
-      const newLayout = { ...prev };
-      deletedIds.forEach(id => {
-        delete newLayout[id];
-      });
-      return newLayout;
-    });
+    // Remove deleted node positions
+    positions.removeItemPositions(deletedIds);
     
     // Set internal update flag
     internalUpdateRef.current = true;
+    pendingInternalUpdateRef.current = true;
   }, []);
 
   // Handle edge deletion with automatic connection removal
@@ -548,6 +544,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
           
           // Set flag to prevent circular update
           internalUpdateRef.current = true;
+          pendingInternalUpdateRef.current = true;
         }
       );
     }
