@@ -1,0 +1,109 @@
+import React from 'react';
+import { Handle, Position } from 'reactflow';
+import { FiKey, FiLink } from 'react-icons/fi';
+
+// Function to sort attributes: primary key first, then foreign keys, then others
+export const sortAttributes = (attributes) => {
+  if (!attributes || attributes.length === 0) return [];
+  
+  return [...attributes].sort((a, b) => {
+    // Primary key gets highest priority (0)
+    const aPriority = a.type === 'pk' ? 0 : 
+                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
+    const bPriority = b.type === 'pk' ? 0 : 
+                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id') ? 1 : 2;
+    
+    if (aPriority !== bPriority) {
+      return aPriority - bPriority;
+    }
+    
+    // If same priority, sort alphabetically by name
+    return a.name.localeCompare(b.name);
+  });
+};
+
+// Custom Entity Node component with enhanced connection handles
+const EntityNode = ({ data, theme }) => {
+  // Determine node class based on table type
+  const getNodeTypeClass = () => {
+    switch (data.tableType) {
+      case 'entity':
+        return 'entity-type';
+      case 'event':
+        return 'event-type';
+      case 'resource':
+        return 'resource-type';
+      default:
+        return '';
+    }
+  };
+
+  // Get handle tooltip based on table type and position
+  const getHandleTooltip = (position, type) => {
+    if (type === 'source') {
+      return `Connect from ${data.label} to another table (creates foreign key in ${data.label})`;
+    } else {
+      return `Connect to ${data.label} from another table (creates foreign key in source table)`;
+    }
+  };
+
+  return (
+    <div className={`entity-node ${getNodeTypeClass()}`}>
+      {/* Connection handles with enhanced styling and tooltips */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        id="target-top"
+        className="connection-handle connection-handle--target"
+        title={getHandleTooltip('top', 'target')}
+      />
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="source-right"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip('right', 'source')}
+      />
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="target-left"
+        className="connection-handle connection-handle--target"
+        title={getHandleTooltip('left', 'target')}
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="source-bottom"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip('bottom', 'source')}
+      />
+      
+      <div className="entity-node__title">
+        {data.label}
+        {data.tableType && (
+          <span className="entity-node__type-badge">
+            {data.tableType}
+          </span>
+        )}
+      </div>
+      <div className="entity-node__attributes">
+        {sortAttributes(data.attributes).map((attr, index) => (
+          <div
+            key={index}
+            className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${
+              attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
+            }`}
+            title={attr.ref ? `References: ${attr.ref}` : ''}
+          >
+            {(attr.type === 'pk') && <FiKey className="key-icon" />}
+            {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && <FiLink className="key-icon" />}
+            {attr.name}: {attr.type}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default EntityNode;
