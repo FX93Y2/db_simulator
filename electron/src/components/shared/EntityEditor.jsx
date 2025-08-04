@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
 import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
-import AttributeEditor from './AttributeEditor';
+import AttributeEditor from './entity-nodes/editors/AttributeEditor';
 import ConfirmationModal from './ConfirmationModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
