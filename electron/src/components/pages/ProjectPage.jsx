@@ -8,7 +8,7 @@ import SimConfigEditor from './SimConfigEditor';
 import ResultsViewer from './ResultsViewer';
 import { getProject, updateProject, formatDate, getProjectDbConfig, getProjectSimConfig, saveProjectDbConfig, saveProjectSimConfig } from '../../utils/projectApi';
 import { useToastContext } from '../../contexts/ToastContext';
-import { useNavigationBlocker } from '../../hooks/useNavigationBlocker';
+import { useNavigationBlocker } from '../../hooks/shared/useNavigationBlocker';
 import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
 // Cache for project data to reduce loading flicker

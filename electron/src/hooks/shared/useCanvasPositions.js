@@ -10,7 +10,7 @@ import {
   savePositionsToStorage,
   resolvePosition,
   removeDeletedPositions
-} from '../utils/positionUtils';
+} from '../../utils/positionUtils';
 
 /**
  * Canvas position management hook

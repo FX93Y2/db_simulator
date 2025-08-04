@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 import yaml from 'yaml';
-import { sortAttributes } from '../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
 
 /**
  * Custom hook for handling YAML processing in ERDiagram

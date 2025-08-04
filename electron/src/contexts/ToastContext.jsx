@@ -1,5 +1,5 @@
 import React, { createContext, useContext } from 'react';
-import useToast from '../hooks/useToast';
+import useToast from '../hooks/shared/useToast';
 import { ToastManager } from '../components/shared/Toast';
 
 const ToastContext = createContext();

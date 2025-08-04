@@ -5,12 +5,12 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
-import { useCanvasPositions } from '../../hooks/useCanvasPositions';
-import { useEntityManager } from '../../hooks/useEntityManager';
-import { useEntityYamlProcessor } from '../../hooks/useEntityYamlProcessor';
-import { useEntityVisualState } from '../../hooks/useEntityVisualState';
-import { useEntityConnections } from '../../hooks/useEntityConnections';
-import { useEntityEventHandlers } from '../../hooks/useEntityEventHandlers';
+import { useCanvasPositions } from '../../hooks/shared/useCanvasPositions';
+import { useEntityManager } from '../../hooks/entity-diagram/useEntityManager';
+import { useEntityYamlProcessor } from '../../hooks/entity-diagram/useEntityYamlProcessor';
+import { useEntityVisualState } from '../../hooks/entity-diagram/useEntityVisualState';
+import { useEntityConnections } from '../../hooks/entity-diagram/useEntityConnections';
+import { useEntityEventHandlers } from '../../hooks/entity-diagram/useEntityEventHandlers';
 import EntityNode from './entity-nodes/EntityNode';
 import EntityEditor from './EntityEditor';
 import { handleTableDeletion } from './ERDiagramConnectionHandler';

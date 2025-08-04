@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from 'react';
-import { sortAttributes } from '../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
 
 /**
  * Custom hook for managing canonical entity state in ERDiagram

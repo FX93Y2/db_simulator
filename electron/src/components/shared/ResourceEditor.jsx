@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card, Button, Modal, Form, Row, Col, Badge, ListGroup, Alert } from 'react-bootstrap';
 import { FiPlus, FiEdit2, FiTrash2, FiSettings } from 'react-icons/fi';
 import yaml from 'yaml';
-import useResourceDefinitions from '../../hooks/useResourceDefinitions';
+import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 
 const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
   const [parsedData, setParsedData] = useState(null);

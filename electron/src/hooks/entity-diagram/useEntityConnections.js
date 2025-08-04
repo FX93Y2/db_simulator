@@ -1,12 +1,12 @@
 import { useCallback } from 'react';
 import { addEdge } from 'reactflow';
 import yaml from 'yaml';
-import { sortAttributes } from '../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
 import { 
   handleTableConnection, 
   handleEdgeDeletion, 
   validateConnection 
-} from '../components/shared/ERDiagramConnectionHandler';
+} from '../../components/shared/ERDiagramConnectionHandler';
 
 /**
  * Custom hook for handling entity connections in ERDiagram

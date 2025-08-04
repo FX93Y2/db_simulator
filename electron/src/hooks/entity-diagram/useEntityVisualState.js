@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNodesState, useEdgesState } from 'reactflow';
-import { sortAttributes } from '../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
 
 /**
  * Custom hook for managing ReactFlow visual state in ERDiagram

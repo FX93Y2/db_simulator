@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import yaml from 'yaml';
-import { sortAttributes } from '../components/shared/entity-nodes/EntityNode';
-import { handleTableDeletion } from '../components/shared/ERDiagramConnectionHandler';
+import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
+import { handleTableDeletion } from '../../components/shared/ERDiagramConnectionHandler';
 
 /**
  * Custom hook for handling ERDiagram events
