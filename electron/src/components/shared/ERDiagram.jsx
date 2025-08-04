@@ -12,8 +12,8 @@ import { useEntityVisualState } from '../../hooks/entity-diagram/useEntityVisual
 import { useEntityConnections } from '../../hooks/entity-diagram/useEntityConnections';
 import { useEntityEventHandlers } from '../../hooks/entity-diagram/useEntityEventHandlers';
 import EntityNode from './entity-nodes/EntityNode';
-import EntityEditor from './EntityEditor';
-import { handleTableDeletion } from './ERDiagramConnectionHandler';
+import EntityEditor from './entity-nodes/editors/EntityEditor';
+import { handleTableDeletion } from './entity-nodes/ERDiagramConnectionHandler';
 import yaml from 'yaml';
 
 // Node types definition

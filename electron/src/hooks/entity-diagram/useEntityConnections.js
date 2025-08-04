@@ -6,7 +6,7 @@ import {
   handleTableConnection, 
   handleEdgeDeletion, 
   validateConnection 
-} from '../../components/shared/ERDiagramConnectionHandler';
+} from '../../components/shared/entity-nodes/ERDiagramConnectionHandler';
 
 /**
  * Custom hook for handling entity connections in ERDiagram

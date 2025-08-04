@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Modal, Button, Form, Spinner, Alert } from 'react-bootstrap';
-import { FiTrash2, FiEdit, FiPlus } from 'react-icons/fi';
-import AttributeEditor from './entity-nodes/editors/AttributeEditor';
-import ConfirmationModal from './ConfirmationModal';
+import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import { FiTrash2, FiPlus } from 'react-icons/fi';
+import AttributeEditor from './AttributeEditor';
+import ConfirmationModal from '../../ConfirmationModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');
@@ -12,7 +12,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [isLoading, setIsLoading] = useState(false);
   const [validationErrors, setValidationErrors] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isUserEditing, setIsUserEditing] = useState(false);
   const [lastEntityName, setLastEntityName] = useState(null);
 
   // Initialize form when entity changes
@@ -20,7 +19,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     // Only reset form data when entity actually changes (new entity opened), not during auto-updates
     if (entity && (!lastEntityName || entity.name !== lastEntityName)) {
       setLastEntityName(entity.name);
-      setIsUserEditing(false);
       setName(entity.name || '');
       setEntityType(entity.type || '');
       setRows(entity.rows || 'n/a');
@@ -29,7 +27,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     } else if (!entity && lastEntityName !== null) {
       // Reset form for new entity only if coming from an existing entity
       setLastEntityName(null);
-      setIsUserEditing(false);
       setName('');
       setEntityType('');
       setRows('n/a');
@@ -50,7 +47,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setRows(entity.rows || 'n/a');
       setAttributes(entity.attributes || []);
       setValidationErrors([]);
-      setIsUserEditing(false);
     } else if (show && !entity) {
       // Reset for new entity when modal opens
       setName('');
@@ -61,7 +57,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
         type: 'pk'
       }]);
       setValidationErrors([]);
-      setIsUserEditing(false);
     }
   }, [show, entity]);
 
@@ -104,7 +99,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Handle attribute changes
   const handleAttributeChange = (index, updatedAttribute) => {
-    setIsUserEditing(true);
     const newAttributes = [...attributes];
     newAttributes[index] = updatedAttribute;
     setAttributes(newAttributes);
@@ -112,7 +106,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Add new attribute
   const handleAddAttribute = () => {
-    setIsUserEditing(true);
     const newAttribute = {
       name: `attribute_${attributes.length + 1}`,
       type: 'string',
@@ -134,7 +127,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       return; // Do nothing for protected columns
     }
     
-    setIsUserEditing(true);
     const newAttributes = attributes.filter((_, i) => i !== index);
     setAttributes(newAttributes);
   };
@@ -142,12 +134,10 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Helper functions to handle form changes and mark as user editing
   const handleNameChange = (newName) => {
-    setIsUserEditing(true);
     setName(newName);
   };
 
   const handleEntityTypeChange = (newType) => {
-    setIsUserEditing(true);
     setEntityType(newType);
     
     // Auto-set rows for dynamic table types
@@ -184,7 +174,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   };
 
   const handleRowsChange = (newRows) => {
-    setIsUserEditing(true);
     setRows(newRows);
   };
 
