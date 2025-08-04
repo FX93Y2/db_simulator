@@ -12,8 +12,9 @@ from flask_cors import CORS
 # Add the project root to the Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 
-# Fix import to use relative import instead of absolute import from "python" module
-from api.routes import api
+# Import the modular routes registration function
+from api.routes import register_routes
+from api.middleware.error_handlers import register_error_handlers
 
 # Configure logging
 logging.basicConfig(
@@ -29,8 +30,11 @@ def create_app():
     # Enable CORS for Electron frontend
     CORS(app)
     
-    # Register the API Blueprint
-    app.register_blueprint(api, url_prefix='/api')
+    # Register error handlers
+    register_error_handlers(app)
+    
+    # Register all modular routes
+    register_routes(app)
     
     # Index route for health check
     @app.route('/')

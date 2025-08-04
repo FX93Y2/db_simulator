@@ -7,15 +7,14 @@ import argparse
 import logging
 import sys
 import os
-from flask import Flask, request, jsonify
 
 # Import components from refactored structure
 from src.generator import generate_database, generate_database_for_simulation
 from src.simulation.runner import run_simulation, run_simulation_from_config_dir
 from config_storage.config_db import ConfigManager
 
-# Import the API Blueprint
-from api.routes import api
+# Import the Flask app factory from refactored API server
+from api.server import create_app
 
 # Configure logging
 logging.basicConfig(
@@ -24,233 +23,14 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Initialize the Flask app
-app = Flask(__name__)
+# Initialize the Flask app using the modular structure
+app = create_app()
 
-# Register the API Blueprint
-app.register_blueprint(api, url_prefix='/api')
-
-# Initialize configuration manager
+# Initialize configuration manager (for CLI usage)
 config_manager = ConfigManager()
 
-@app.route('/api/config', methods=['GET'])
-def get_configs():
-    """Get all saved configurations"""
-    try:
-        configs = config_manager.get_all_configs()
-        return jsonify({"success": True, "configs": configs})
-    except Exception as e:
-        logger.error(f"Error retrieving configurations: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/config/<config_id>', methods=['GET'])
-def get_config(config_id):
-    """Get a specific configuration by ID"""
-    try:
-        config = config_manager.get_config(config_id)
-        if config:
-            return jsonify({"success": True, "config": config})
-        return jsonify({"success": False, "error": "Configuration not found"}), 404
-    except Exception as e:
-        logger.error(f"Error retrieving configuration: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/config', methods=['POST'])
-def save_config():
-    """Save a new configuration"""
-    try:
-        data = request.json
-        if not data or not data.get('name') or not data.get('config_type') or not data.get('content'):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
-            
-        config_id = config_manager.save_config(
-            data['name'], 
-            data['config_type'], 
-            data['content'],
-            data.get('description', '')
-        )
-        return jsonify({"success": True, "config_id": config_id})
-    except Exception as e:
-        logger.error(f"Error saving configuration: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/config/<config_id>', methods=['PUT'])
-def update_config(config_id):
-    """Update an existing configuration"""
-    try:
-        data = request.json
-        if not data:
-            return jsonify({"success": False, "error": "Missing data"}), 400
-            
-        success = config_manager.update_config(
-            config_id,
-            data.get('name'),
-            data.get('config_type'),
-            data.get('content'),
-            data.get('description')
-        )
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"success": False, "error": "Configuration not found"}), 404
-    except Exception as e:
-        logger.error(f"Error updating configuration: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/config/<config_id>', methods=['DELETE'])
-def delete_config(config_id):
-    """Delete a configuration"""
-    try:
-        success = config_manager.delete_config(config_id)
-        if success:
-            return jsonify({"success": True})
-        return jsonify({"success": False, "error": "Configuration not found"}), 404
-    except Exception as e:
-        logger.error(f"Error deleting configuration: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/generate', methods=['POST'])
-def generate_db():
-    """Generate a synthetic database"""
-    try:
-        data = request.json
-        if not data or not data.get('config_id'):
-            return jsonify({"success": False, "error": "Missing config_id"}), 400
-            
-        config = config_manager.get_config(data['config_id'])
-        if not config:
-            return jsonify({"success": False, "error": "Configuration not found"}), 404
-            
-        output_dir = data.get('output_dir', 'output')
-        db_name = data.get('name')
-        
-        # Generate database using the configuration content
-        db_path = generate_database(config['content'], output_dir, db_name)
-        return jsonify({
-            "success": True, 
-            "database_path": str(db_path),
-            "message": f"Database generated at: {db_path}"
-        })
-    except Exception as e:
-        logger.error(f"Error generating database: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/simulate', methods=['POST'])
-def simulate():
-    """Run a simulation"""
-    try:
-        data = request.json
-        # Require sim_config_id, db_config_id, and database_path
-        if not data or not data.get('sim_config_id') or not data.get('db_config_id') or not data.get('database_path'):
-            return jsonify({"success": False, "error": "Missing sim_config_id, db_config_id, or database_path"}), 400
-            
-        sim_config = config_manager.get_config(data['sim_config_id'])
-        db_config = config_manager.get_config(data['db_config_id'])
-        
-        if not sim_config:
-            return jsonify({"success": False, "error": f"Simulation configuration ID {data['sim_config_id']} not found"}), 404
-        if not db_config:
-            return jsonify({"success": False, "error": f"Database configuration ID {data['db_config_id']} not found"}), 404
-        if db_config['config_type'] != 'database':
-            return jsonify({"success": False, "error": f"Configuration ID {data['db_config_id']} is not a database configuration"}), 400
-        if sim_config['config_type'] != 'simulation':
-            return jsonify({"success": False, "error": f"Configuration ID {data['sim_config_id']} is not a simulation configuration"}), 400
-            
-        # Run simulation using the configuration content
-        results = run_simulation(
-            sim_config_path_or_content=sim_config['content'], 
-            db_config_path_or_content=db_config['content'], 
-            db_path=data['database_path']
-        )
-        return jsonify({
-            "success": True,
-            "results": results,
-            "message": "Simulation completed successfully"
-        })
-    except Exception as e:
-        logger.error(f"Error running simulation: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/dynamic-simulate', methods=['POST'])
-def dynamic_simulate():
-    """Generate a database and run simulation"""
-    logger.warning("The /api/dynamic-simulate endpoint is deprecated. Please use /api/generate-simulate instead.")
-    try:
-        data = request.json
-        if not data or not data.get('db_config_id') or not data.get('sim_config_id'):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
-            
-        db_config = config_manager.get_config(data['db_config_id'])
-        sim_config = config_manager.get_config(data['sim_config_id'])
-        
-        if not db_config or not sim_config:
-            return jsonify({"success": False, "error": "Configuration not found"}), 404
-            
-        output_dir = data.get('output_dir', 'output')
-        db_name = data.get('name')
-        
-        # Use generate_database instead of generate_database_for_simulation for better reliability
-        db_path = generate_database(
-            db_config['content'], 
-            output_dir,
-            db_name
-        )
-        
-        results = run_simulation(sim_config['content'], db_path)
-        return jsonify({
-            "success": True,
-            "database_path": str(db_path),
-            "results": results,
-            "message": "Dynamic simulation completed successfully"
-        })
-    except Exception as e:
-        logger.error(f"Error in dynamic simulation: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/generate-simulate', methods=['POST'])
-def generate_simulate():
-    """Generate a complete database and run simulation with proper table relationships"""
-    try:
-        data = request.json
-        if not data or not data.get('db_config_id') or not data.get('sim_config_id'):
-            return jsonify({"success": False, "error": "Missing required fields"}), 400
-            
-        db_config = config_manager.get_config(data['db_config_id'])
-        sim_config = config_manager.get_config(data['sim_config_id'])
-        
-        if not db_config or not sim_config:
-            return jsonify({"success": False, "error": "Configuration not found"}), 404
-            
-        output_dir = data.get('output_dir', 'output')
-        db_name = data.get('name')
-        
-        # Generate complete database with all tables
-        db_path = generate_database(
-            db_config['content'], 
-            output_dir,
-            db_name
-        )
-        
-        results = run_simulation(
-            sim_config_path_or_content=sim_config['content'], 
-            db_config_path_or_content=db_config['content'], 
-            db_path=db_path
-        )
-        return jsonify({
-            "success": True,
-            "database_path": str(db_path),
-            "results": results,
-            "message": "Generate-simulate completed successfully with proper table relationships"
-        })
-    except Exception as e:
-        logger.error(f"Error in generate-simulate: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/api/health', methods=['GET'])
-def health_check():
-    """
-    Simple health check endpoint to verify the API is running.
-    """
-    return jsonify({'status': 'ok', 'message': 'API is running'})
+# All API routes are now handled by the modular routes structure in api/routes/
+# This file now only handles CLI functionality
 
 def run_api(host='127.0.0.1', port=5000):
     """Run the Flask API server"""
