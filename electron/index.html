@@ -126,23 +126,29 @@
   
   <script>
     // Hide loading screen when React is ready
-    window.addEventListener('DOMContentLoaded', function() {
+    function hideLoadingScreen() {
+      const loadingScreen = document.getElementById('loading-screen');
+      const root = document.getElementById('root');
+      
+      if (loadingScreen && root && loadingScreen.parentNode) {
+        root.classList.add('loaded');
+        loadingScreen.style.opacity = '0';
+        setTimeout(function() {
+          if (loadingScreen && loadingScreen.parentNode) {
+            loadingScreen.parentNode.removeChild(loadingScreen);
+          }
+        }, 500);
+      }
+    }
+
+    // Try to hide loading screen when DOM is ready
+    document.addEventListener('DOMContentLoaded', function() {
       // Give React a moment to render
-      setTimeout(function() {
-        const loadingScreen = document.getElementById('loading-screen');
-        const root = document.getElementById('root');
-        
-        if (loadingScreen && root) {
-          root.classList.add('loaded');
-          loadingScreen.style.opacity = '0';
-          setTimeout(function() {
-            if (loadingScreen.parentNode) {
-              loadingScreen.parentNode.removeChild(loadingScreen);
-            }
-          }, 500);
-        }
-      }, 1000); // Allow time for React to render initial content
+      setTimeout(hideLoadingScreen, 1000);
     });
+
+    // Also expose globally so React can call it directly if needed
+    window.hideLoadingScreen = hideLoadingScreen;
   </script>
   
   <script src="./dist/index.js"></script>

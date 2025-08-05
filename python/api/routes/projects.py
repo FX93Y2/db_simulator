@@ -121,3 +121,30 @@ def delete_project(project_id):
         return not_found_response("Project")
     except Exception as e:
         return handle_exception(e, "deleting project", logger)
+
+@projects_bp.route('/projects/order', methods=['PUT'])
+def update_projects_order():
+    """Update the display order of projects"""
+    try:
+        log_api_request(logger, "Update projects order")
+        
+        if not request.is_json:
+            return error_response("Request must be JSON", status_code=400)
+        
+        data = request.get_json()
+        if not data or 'project_ids' not in data:
+            return error_response("Missing project_ids in request", status_code=400)
+        
+        project_ids = data['project_ids']
+        if not isinstance(project_ids, list):
+            return error_response("project_ids must be a list", status_code=400)
+        
+        success = config_manager.update_project_order(project_ids)
+        
+        if success:
+            return success_response({"message": "Project order updated successfully"})
+        
+        return error_response("Failed to update project order", status_code=500)
+        
+    except Exception as e:
+        return handle_exception(e, "updating project order", logger)

@@ -35,6 +35,7 @@ contextBridge.exposeInMainWorld(
     createProject: (projectData) => ipcRenderer.invoke('api:createProject', projectData),
     updateProject: (projectId, projectData) => ipcRenderer.invoke('api:updateProject', projectId, projectData),
     deleteProject: (projectId) => ipcRenderer.invoke('api:deleteProject', projectId),
+    updateProjectOrder: (projectIds) => ipcRenderer.invoke('api:updateProjectOrder', projectIds),
     
     // Project Configuration Management
     getProjectDbConfig: (projectId) => ipcRenderer.invoke('api:getProjectDbConfig', projectId),

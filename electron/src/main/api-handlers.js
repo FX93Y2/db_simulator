@@ -88,6 +88,10 @@ function registerProjectHandlers() {
       return { success: false, error: error.message };
     }
   });
+
+  ipcMain.handle('api:updateProjectOrder', async (_, projectIds) => {
+    return await makeApiRequest('PUT', 'projects/order', { project_ids: projectIds });
+  });
 }
 
 /**

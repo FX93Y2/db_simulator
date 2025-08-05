@@ -65,6 +65,17 @@ export const deleteProject = async (projectId) => {
   }
 };
 
+// Function to update project order
+export const updateProjectOrder = async (projectIds) => {
+  try {
+    const result = await window.api.updateProjectOrder(projectIds);
+    return result;
+  } catch (error) {
+    console.error('Error updating project order:', error);
+    return { success: false, error: 'Failed to update project order' };
+  }
+};
+
 // Project configuration functions
 
 // Function to get a project's database configuration

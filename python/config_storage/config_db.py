@@ -68,9 +68,17 @@ class ConfigManager:
             name TEXT NOT NULL,
             description TEXT,
             created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+            updated_at TEXT NOT NULL,
+            display_order INTEGER DEFAULT 0
         )
         ''')
+        
+        # Add display_order column if it doesn't exist (for existing databases)
+        try:
+            cursor.execute('ALTER TABLE projects ADD COLUMN display_order INTEGER DEFAULT 0')
+        except sqlite3.OperationalError:
+            # Column already exists
+            pass
         
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS configs (
@@ -107,12 +115,17 @@ class ConfigManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        # Get the next display_order (max + 1)
+        cursor.execute('SELECT MAX(display_order) FROM projects')
+        max_order = cursor.fetchone()[0]
+        next_order = (max_order or -1) + 1
+        
         cursor.execute(
             '''
-            INSERT INTO projects (id, name, description, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO projects (id, name, description, created_at, updated_at, display_order)
+            VALUES (?, ?, ?, ?, ?, ?)
             ''',
-            (project_id, name, description, now, now)
+            (project_id, name, description, now, now, next_order)
         )
         
         conn.commit()
@@ -168,9 +181,9 @@ class ConfigManager:
         
         cursor.execute(
             '''
-            SELECT id, name, description, created_at, updated_at
+            SELECT id, name, description, created_at, updated_at, display_order
             FROM projects
-            ORDER BY updated_at DESC
+            ORDER BY display_order ASC, updated_at DESC
             '''
         )
         
@@ -184,7 +197,8 @@ class ConfigManager:
                 'name': row[1],
                 'description': row[2],
                 'created_at': row[3],
-                'updated_at': row[4]
+                'updated_at': row[4],
+                'display_order': row[5] if len(row) > 5 else 0
             })
         
         return projects
@@ -740,4 +754,42 @@ class ConfigManager:
         conn.close()
         
         logger.info(f"Cleared {deleted_count} configurations")
-        return deleted_count 
+        return deleted_count
+    
+    def update_project_order(self, project_ids):
+        """
+        Update the display order of projects.
+        
+        Args:
+            project_ids (list): List of project IDs in the desired order
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if not project_ids:
+            return False
+            
+        try:
+            conn = sqlite3.connect(self.db_path)
+            cursor = conn.cursor()
+            
+            # Update display_order for each project
+            for index, project_id in enumerate(project_ids):
+                cursor.execute(
+                    '''
+                    UPDATE projects 
+                    SET display_order = ?, updated_at = ?
+                    WHERE id = ?
+                    ''',
+                    (index, datetime.now().isoformat(), project_id)
+                )
+            
+            conn.commit()
+            conn.close()
+            
+            logger.info(f"Updated display order for {len(project_ids)} projects")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error updating project order: {e}")
+            return False 

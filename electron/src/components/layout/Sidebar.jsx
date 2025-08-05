@@ -4,7 +4,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
 import { Button, Spinner, Modal, Form, Dropdown } from 'react-bootstrap';
 import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
-import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject } from '../../utils/projectApi';
+import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject, updateProjectOrder } from '../../utils/projectApi';
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 import { createSafeNavigate } from '../../utils/navigationHelper';
@@ -320,9 +320,13 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
       const result = await createDefaultProject(newProjectName.trim());
       
       if (result.success) {
-        // Add the new project to the list
+        // Add the new project to the list with proper order
         if (result.project) {
-          setProjects([...projects, result.project]);
+          const newProject = {
+            ...result.project,
+            display_order: projects.length // Add to end
+          };
+          setProjects([...projects, newProject]);
         }
         
         // Force a refresh of the projects list
@@ -501,15 +505,33 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   };
 
   // Handle drag end for projects reordering
-  const handleDragEnd = (result) => {
+  const handleDragEnd = async (result) => {
     if (!result.destination) return;
 
     const items = Array.from(projects);
     const [reorderedItem] = items.splice(result.source.index, 1);
     items.splice(result.destination.index, 0, reorderedItem);
 
+    // Update local state immediately for smooth UX
     setProjects(items);
-    // TODO: Add API call to persist project order
+    
+    // Persist the new order to the backend
+    try {
+      const projectIds = items.map(project => project.id);
+      const result = await updateProjectOrder(projectIds);
+      
+      if (!result.success) {
+        console.error('Failed to persist project order:', result.error);
+        showError('Failed to save project order');
+        // Optionally reload projects to restore original order
+        setRefreshTrigger(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Error persisting project order:', error);
+      showError('Error saving project order');
+      // Optionally reload projects to restore original order
+      setRefreshTrigger(prev => prev + 1);
+    }
   };
 
   // Handle right-click context menu

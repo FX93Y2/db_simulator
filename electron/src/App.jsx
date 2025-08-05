@@ -43,18 +43,9 @@ const App = () => {
       // Signal that React app is fully rendered
       document.body.classList.add('react-ready');
       
-      // Try to trigger the loading screen fade out
-      const loadingScreen = document.getElementById('loading-screen');
-      const root = document.getElementById('root');
-      
-      if (loadingScreen && root) {
-        root.classList.add('loaded');
-        loadingScreen.style.opacity = '0';
-        setTimeout(() => {
-          if (loadingScreen.parentNode) {
-            loadingScreen.parentNode.removeChild(loadingScreen);
-          }
-        }, 500);
+      // Use the global function to hide loading screen
+      if (window.hideLoadingScreen) {
+        window.hideLoadingScreen();
       }
     }, 500); // Small delay to ensure content is rendered
     
