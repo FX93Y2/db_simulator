@@ -282,4 +282,39 @@
       }
     }
   }
+
+  // Drag and Drop Styles
+  .project-item {
+    &.dragging {
+      opacity: 0.5;
+      transform: rotate(2deg);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
+    
+    &:hover {
+      cursor: grab;
+    }
+    
+    &:active {
+      cursor: grabbing;
+    }
+  }
+  
+  // Context menu styles
+  .context-menu {
+    .context-menu-item {
+      display: flex;
+      align-items: center;
+      transition: background-color 0.15s ease;
+      user-select: none;
+      
+      &:last-child {
+        border-bottom: none !important;
+      }
+      
+      &:hover {
+        background-color: var(--theme-hover-bg) !important;
+      }
+    }
+  }
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
-import { Button, Spinner, Modal, Form } from 'react-bootstrap';
+import { Button, Spinner, Modal, Form, Dropdown } from 'react-bootstrap';
+import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
 import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject } from '../../utils/projectApi';
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -33,6 +34,8 @@ const ProjectSidebar = ({ theme = 'light' }) => {
   const [resultTables, setResultTables] = useState({});
   // Track if sidebar is in compact mode
   const [isCompact, setIsCompact] = useState(false);
+  // Context menu state
+  const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, project: null });
   
   const navigate = useNavigate();
   const safeNavigate = createSafeNavigate(navigate);
@@ -419,6 +422,64 @@ const ProjectSidebar = ({ theme = 'light' }) => {
       setDeletingResult(false);
     }
   };
+
+  // Handle drag end for projects reordering
+  const handleDragEnd = (result) => {
+    if (!result.destination) return;
+
+    const items = Array.from(projects);
+    const [reorderedItem] = items.splice(result.source.index, 1);
+    items.splice(result.destination.index, 0, reorderedItem);
+
+    setProjects(items);
+    // TODO: Add API call to persist project order
+  };
+
+  // Handle right-click context menu
+  const handleProjectContextMenu = (e, project) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setContextMenu({
+      visible: true,
+      x: e.clientX,
+      y: e.clientY,
+      project: project
+    });
+  };
+
+  // Close context menu
+  const closeContextMenu = () => {
+    setContextMenu({ visible: false, x: 0, y: 0, project: null });
+  };
+
+  // Handle context menu edit
+  const handleContextEdit = () => {
+    const project = contextMenu.project;
+    setProjectToEdit(project);
+    setEditingProjectName(project.name);
+    setShowEditModal(true);
+    closeContextMenu();
+  };
+
+  // Handle context menu delete
+  const handleContextDelete = () => {
+    const project = contextMenu.project;
+    // Create a fake event object since handleDeleteClick expects an event
+    const fakeEvent = { stopPropagation: () => {} };
+    handleDeleteClick(fakeEvent, project);
+    closeContextMenu();
+  };
+
+  // Close context menu when clicking elsewhere
+  useEffect(() => {
+    const handleClick = () => {
+      if (contextMenu.visible) {
+        closeContextMenu();
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [contextMenu.visible]);
   
   return (
     <div className="app-sidebar">
@@ -450,53 +511,40 @@ const ProjectSidebar = ({ theme = 'light' }) => {
               {isCompact ? 'No projects' : 'No projects found. Create your first project!'}
             </div>
           ) : (
-            projects.map((project) => (
-              <div
-                key={project.id}
-                className="project-container"
-              >
-                <div
-                  className={`project-item ${project.id === currentProjectId ? 'active' : ''}`}
-                >
-                  <div className="project-item-expand-icon" onClick={() => toggleProjectExpansion(project.id)}>
-                    {expandedProjects[project.id] ? <FiChevronDown /> : <FiChevronRight />}
-                  </div>
-                  <div
-                    className="project-item-content"
-                    onClick={() => handleOpenProject(project.id)}
-                  >
-                    <div className={`project-item-name ${isCompact ? 'text-truncate' : ''}`}>
-                      {project.name}
-                    </div>
-                    {!isCompact && (
-                      <div className="project-item-date">
-                        {formatDate(project.lastUpdated || project.updated_at).split(' ')[0]}
-                      </div>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline-secondary"
-                    size="sm"
-                    className="project-edit-btn ms-1"
-                    title="Edit project name"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setProjectToEdit(project);
-                      setEditingProjectName(project.name);
-                      setShowEditModal(true);
-                    }}
-                  >
-                    <FiEdit />
-                  </Button>
-                  <Button
-                    variant="outline-danger"
-                    size="sm"
-                    className="project-delete-btn ms-1"
-                    onClick={(e) => handleDeleteClick(e, project)}
-                  >
-                    <FiTrash2 />
-                  </Button>
-                </div>
+            <DragDropContext onDragEnd={handleDragEnd}>
+              <Droppable droppableId="projects-list">
+                {(provided) => (
+                  <div {...provided.droppableProps} ref={provided.innerRef}>
+                    {projects.map((project, index) => (
+                      <Draggable key={project.id} draggableId={project.id.toString()} index={index}>
+                        {(provided, snapshot) => (
+                          <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            className="project-container"
+                          >
+                            <div
+                              {...provided.dragHandleProps}
+                              className={`project-item ${project.id === currentProjectId ? 'active' : ''} ${snapshot.isDragging ? 'dragging' : ''}`}
+                              onContextMenu={(e) => handleProjectContextMenu(e, project)}
+                            >
+                              <div className="project-item-expand-icon" onClick={() => toggleProjectExpansion(project.id)}>
+                                {expandedProjects[project.id] ? <FiChevronDown /> : <FiChevronRight />}
+                              </div>
+                              <div
+                                className="project-item-content"
+                                onClick={() => handleOpenProject(project.id)}
+                              >
+                                <div className={`project-item-name ${isCompact ? 'text-truncate' : ''}`}>
+                                  {project.name}
+                                </div>
+                                {!isCompact && (
+                                  <div className="project-item-date">
+                                    {formatDate(project.lastUpdated || project.updated_at).split(' ')[0]}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                 
                 {/* Results list */}
                 {expandedProjects[project.id] && (
@@ -578,8 +626,15 @@ const ProjectSidebar = ({ theme = 'light' }) => {
                     )}
                   </div>
                 )}
-              </div>
-            ))
+                          </div>
+                        )}
+                      </Draggable>
+                    ))}
+                    {provided.placeholder}
+                  </div>
+                )}
+              </Droppable>
+            </DragDropContext>
           )}
         </div>
       )}
@@ -702,6 +757,54 @@ const ProjectSidebar = ({ theme = 'light' }) => {
           </Button>
         </Modal.Footer>
       </Modal>
+
+      {/* Context Menu */}
+      {contextMenu.visible && (
+        <div
+          className="context-menu"
+          style={{
+            position: 'fixed',
+            top: contextMenu.y,
+            left: contextMenu.x,
+            zIndex: 9999,
+            backgroundColor: 'var(--theme-card-bg)',
+            border: '1px solid var(--theme-border)',
+            borderRadius: '6px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            minWidth: '150px'
+          }}
+        >
+          <div
+            className="context-menu-item"
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              color: 'var(--theme-text)',
+              borderBottom: '1px solid var(--theme-border)'
+            }}
+            onClick={handleContextEdit}
+            onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            <FiEdit className="me-2" />
+            Edit Name
+          </div>
+          <div
+            className="context-menu-item"
+            style={{
+              padding: '8px 12px',
+              cursor: 'pointer',
+              color: '#dc3545'
+            }}
+            onClick={handleContextDelete}
+            onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+          >
+            <FiTrash2 className="me-2" />
+            Delete Project
+          </div>
+        </div>
+      )}
     </div>
   );
 };

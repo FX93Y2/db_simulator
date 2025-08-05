@@ -22,41 +22,7 @@ import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, 
 import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new simulation configuration using event_flows
-const DEFAULT_SIM_CONFIG = `# Simulation Configuration Template
-simulation:
-  duration_days: 30
-  start_date: 2024-01-01
-  random_seed: 42
-event_simulation:
-  entity_arrival:
-    interarrival_time:
-      distribution:
-        type: exponential
-        scale: 5
-    max_entities: 50
-  event_flows:
-    - flow_id: main_flow
-      initial_step: process_1
-      steps:
-        - step_id: process_1
-          step_type: event
-          event_config:
-            name: Initial Process
-            duration:
-              distribution:
-                type: normal
-                mean: 3
-                stddev: 0.5
-            resource_requirements: []
-          next_steps: [release_1]
-        
-        - step_id: release_1
-          step_type: release
-          event_config:
-            name: Release
-  
-  resource_capacities: {}
-`;
+const DEFAULT_SIM_CONFIG = ``;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();

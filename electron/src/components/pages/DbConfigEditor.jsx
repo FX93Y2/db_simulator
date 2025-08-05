@@ -16,19 +16,7 @@ import { FiSave, FiPlus } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
 // Default template for a new database configuration
-const DEFAULT_DB_CONFIG = `# Database Configuration Template
-entities:
-  - name: Example
-    rows: 100
-    attributes:
-      - name: id
-        type: pk
-      - name: name
-        type: string
-        generator:
-          type: faker
-          method: name
-`;
+const DEFAULT_DB_CONFIG = ``;
 
 // Accept theme as a prop
 const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange, onSaveSuccess }) => {
