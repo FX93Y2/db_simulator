@@ -39,7 +39,7 @@ const App = () => {
   };
 
   // Sidebar state management
-  const [sidebarSizePercentage, setSidebarSizePercentage] = useState(20);
+  const [sidebarSizePercentage, setSidebarSizePercentage] = useState(15);
   const [sidebarVisible, setSidebarVisible] = useState(() => {
     const savedVisibility = localStorage.getItem('sidebarVisible');
     return savedVisibility !== null ? savedVisibility === 'true' : true;
