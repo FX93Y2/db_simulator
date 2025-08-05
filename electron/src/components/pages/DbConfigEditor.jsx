@@ -412,6 +412,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
             
             <div className="canvas-content position-relative">
               <ERDiagram 
+                key={projectId} 
                 ref={erDiagramRef}
                 yamlContent={yamlContent} 
                 onDiagramChange={handleDiagramChange}

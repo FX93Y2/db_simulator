@@ -65,7 +65,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     onDiagramChange,
     generateYAML,
     isInternalUpdate,
-    resetInternalFlags
+    resetInternalFlags,
+    projectId
   );
 
   // Connection handling

@@ -7,10 +7,22 @@ import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode'
  * Transforms canonical entities to visual nodes and edges
  * Handles foreign key relationship visualization
  */
-export const useEntityVisualState = (canonicalEntities, onDiagramChange, generateYAML, isInternalUpdate, resetInternalFlags) => {
+export const useEntityVisualState = (canonicalEntities, onDiagramChange, generateYAML, isInternalUpdate, resetInternalFlags, projectId) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [dbSchema, setDbSchema] = useState(null);
+  const [currentProjectId, setCurrentProjectId] = useState(projectId);
+
+  // Reset state when project changes (backup safety net)
+  useEffect(() => {
+    if (projectId && currentProjectId && projectId !== currentProjectId) {
+      console.log(`[useEntityVisualState] Project change detected: ${currentProjectId} -> ${projectId}, resetting state`);
+      setNodes([]);
+      setEdges([]);
+      setDbSchema(null);
+      setCurrentProjectId(projectId);
+    }
+  }, [projectId, currentProjectId, setNodes, setEdges]);
 
   // Update visual nodes and edges from canonical entities
   useEffect(() => {

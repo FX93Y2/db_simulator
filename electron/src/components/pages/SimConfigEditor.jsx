@@ -21,8 +21,20 @@ import SimulationEditor from '../shared/SimulationEditor';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
-// Default template for a new simulation configuration using event_flows
-const DEFAULT_SIM_CONFIG = ``;
+// Default template for a new simulation configuration matching SimulationEditor defaults
+const DEFAULT_SIM_CONFIG = `simulation:
+  duration_days: 30
+  start_date: 2024-01-01
+  random_seed: 42
+
+event_simulation:
+  entity_arrival:
+    interarrival_time:
+      distribution:
+        type: exponential
+        scale: 2
+    max_entities: n/a
+`;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
