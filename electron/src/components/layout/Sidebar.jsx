@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
 import { Button, Spinner, Modal, Form, Dropdown } from 'react-bootstrap';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { getProjects, formatDate, createDefaultProject, deleteProject, updateProject, updateProjectOrder } from '../../utils/projectApi';
 import { FiEdit } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
