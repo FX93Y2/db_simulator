@@ -6,9 +6,145 @@
   <meta http-equiv="Content-Security-Policy" content="script-src 'self' 'unsafe-inline' 'unsafe-eval';">
   <title>DB Simulator</title>
   <link rel="stylesheet" href="./dist/index.css">
+  <style>
+    /* Theme-aware CSS variables and loading screen styles */
+    :root {
+      --loading-bg-light: #ffffff;
+      --loading-text-light: #333333;
+      --loading-primary-light: #007bff;
+      --loading-bg-dark: #1a1a1a;
+      --loading-text-dark: #ffffff;
+      --loading-primary-dark: #4dabf7;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+      transition: background-color 0.3s ease;
+    }
+
+    /* Default to dark theme */
+    body.theme-dark {
+      background-color: var(--loading-bg-dark);
+      color: var(--loading-text-dark);
+    }
+
+    body.theme-light {
+      background-color: var(--loading-bg-light);
+      color: var(--loading-text-light);
+    }
+
+    /* Loading screen styles */
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      transition: opacity 0.5s ease;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      border-top-color: var(--loading-primary-dark);
+      animation: spin 1s linear infinite;
+      margin-bottom: 20px;
+    }
+
+    body.theme-light .loading-spinner {
+      border: 3px solid rgba(0, 0, 0, 0.1);
+      border-top-color: var(--loading-primary-light);
+    }
+
+    .loading-text {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--loading-text-dark);
+      margin-bottom: 10px;
+    }
+
+    body.theme-light .loading-text {
+      color: var(--loading-text-light);
+    }
+
+    .loading-subtext {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+      font-weight: 400;
+    }
+
+    body.theme-light .loading-subtext {
+      color: rgba(0, 0, 0, 0.6);
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Hide root initially until React takes over */
+    #root {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    #root.loaded {
+      opacity: 1;
+    }
+  </style>
+  <script>
+    // Immediate theme detection and application
+    (function() {
+      try {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.body.classList.add('theme-' + savedTheme);
+      } catch (e) {
+        // Fallback to dark theme if localStorage is not available
+        document.body.classList.add('theme-dark');
+      }
+    })();
+  </script>
 </head>
 <body>
+  <!-- Loading screen shown until React is ready -->
+  <div id="loading-screen">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">Loading DB Simulator</div>
+    <div class="loading-subtext">Please wait while the application initializes...</div>
+  </div>
+  
   <div id="root"></div>
+  
+  <script>
+    // Hide loading screen when React is ready
+    window.addEventListener('DOMContentLoaded', function() {
+      // Give React a moment to render
+      setTimeout(function() {
+        const loadingScreen = document.getElementById('loading-screen');
+        const root = document.getElementById('root');
+        
+        if (loadingScreen && root) {
+          root.classList.add('loaded');
+          loadingScreen.style.opacity = '0';
+          setTimeout(function() {
+            if (loadingScreen.parentNode) {
+              loadingScreen.parentNode.removeChild(loadingScreen);
+            }
+          }, 500);
+        }
+      }, 1000); // Allow time for React to render initial content
+    });
+  </script>
+  
   <script src="./dist/index.js"></script>
 </body>
 </html> 

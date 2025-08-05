@@ -26,12 +26,40 @@ const App = () => {
 
   // Effect to apply theme class to body
   useEffect(() => {
+    // Remove any conflicting theme classes
     document.body.classList.remove('theme-light', 'theme-dark');
     document.body.classList.add(`theme-${theme}`);
+    
+    // Also remove the loading overflow hidden after React is ready
+    document.body.style.overflow = 'auto';
     
     // Save theme preference to localStorage
     localStorage.setItem('theme', theme);
   }, [theme]);
+
+  // Signal when React is ready to help with loading screen transition
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Signal that React app is fully rendered
+      document.body.classList.add('react-ready');
+      
+      // Try to trigger the loading screen fade out
+      const loadingScreen = document.getElementById('loading-screen');
+      const root = document.getElementById('root');
+      
+      if (loadingScreen && root) {
+        root.classList.add('loaded');
+        loadingScreen.style.opacity = '0';
+        setTimeout(() => {
+          if (loadingScreen.parentNode) {
+            loadingScreen.parentNode.removeChild(loadingScreen);
+          }
+        }, 500);
+      }
+    }, 500); // Small delay to ensure content is rendered
+    
+    return () => clearTimeout(timer);
+  }, []);
 
   // Function to toggle theme
   const toggleTheme = () => {

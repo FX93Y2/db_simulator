@@ -13,6 +13,8 @@ const CACHE_EXPIRY = 10000; // 10 seconds in ms
 const WINDOW_CONFIG = {
   width: 1200,
   height: 800,
+  backgroundColor: '#1a1a1a', // Dark theme background to prevent white flash
+  show: false, // Don't show until ready-to-show event
   webPreferences: {
     nodeIntegration: false,
     contextIsolation: true,

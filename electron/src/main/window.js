@@ -36,6 +36,11 @@ function createWindow(preloadPath) {
   // Set up context menu
   setupContextMenu();
 
+  // Show window when ready to prevent flash
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
   // Load the index.html file
   mainWindow.loadFile(path.join(__dirname, '..', '..', 'index.html'));
 
