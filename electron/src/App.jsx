@@ -124,7 +124,7 @@ const App = () => {
               className="content-panel"
             >
               <div className="content-area">
-                <Container fluid>
+                <Container fluid className="p-0 h-100">
                   <Routes>
                     {/* Welcome and dashboard */}
                     <Route path="/" element={<ConfigurationGuide />} />

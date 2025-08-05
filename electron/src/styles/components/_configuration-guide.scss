@@ -2,6 +2,18 @@
 .configuration-guide {
   height: 100vh;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+  
+  // Remove Bootstrap row/col gutters
+  .row {
+    margin: 0;
+  }
+  
+  .col,
+  [class*="col-"] {
+    padding: 0;
+  }
   
   .sidebar-nav {
     width: 240px;

@@ -712,7 +712,7 @@ decide_config:
   };
 
   return (
-    <Container fluid className="configuration-guide">
+    <Container fluid className="configuration-guide p-0">
       <Row>
         {/* Left Sidebar Navigation */}
         <Col className="sidebar-nav">
