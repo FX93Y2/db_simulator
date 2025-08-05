@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { FiPlus, FiTrash2, FiChevronDown, FiChevronRight, FiDatabase, FiTable } from 'react-icons/fi';
 import { Button, Spinner, Modal, Form, Dropdown } from 'react-bootstrap';
@@ -9,10 +10,70 @@ import { useToastContext } from '../../contexts/ToastContext';
 import { createSafeNavigate } from '../../utils/navigationHelper';
 import ConfirmationModal from '../shared/ConfirmationModal';
 
+// Context Menu component that renders in a portal
+const ContextMenu = ({ visible, x, y, onEdit, onDelete, onClose }) => {
+  if (!visible) return null;
+
+  // Ensure position doesn't go off screen
+  const adjustedX = Math.min(x, window.innerWidth - 160); // Account for menu width
+  const adjustedY = Math.min(y, window.innerHeight - 80); // Account for menu height
+
+  const contextMenuElement = (
+    <div
+      className="context-menu"
+      style={{
+        position: 'fixed',
+        top: adjustedY,
+        left: adjustedX,
+        zIndex: 10000, // Higher than sidebar z-index
+        backgroundColor: 'var(--theme-card-bg)',
+        border: '1px solid var(--theme-border)',
+        borderRadius: '6px',
+        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+        minWidth: '150px',
+        animation: 'contextMenuFadeIn 0.15s ease-out'
+      }}
+    >
+      <div
+        className="context-menu-item"
+        style={{
+          padding: '8px 12px',
+          cursor: 'pointer',
+          color: 'var(--theme-text)',
+          borderBottom: '1px solid var(--theme-border)'
+        }}
+        onClick={onEdit}
+        onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+      >
+        <FiEdit className="me-2" />
+        Edit Name
+      </div>
+      <div
+        className="context-menu-item"
+        style={{
+          padding: '8px 12px',
+          cursor: 'pointer',
+          color: '#dc3545'
+        }}
+        onClick={onDelete}
+        onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+        onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+      >
+        <FiTrash2 className="me-2" />
+        Delete Project
+      </div>
+    </div>
+  );
+
+  return ReactDOM.createPortal(contextMenuElement, document.body);
+};
+
 const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   const { showSuccess, showError } = useToastContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Edit project name modal state
   const [showEditModal, setShowEditModal] = useState(false);
@@ -104,9 +165,16 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
     const maxRetries = 3;
     const retryDelay = 1000; // 1 second delay between retries
     
-    const loadProjects = async () => {
+    const loadProjects = async (isInitialLoad = false) => {
       try {
-        if (mounted) setLoading(true);
+        if (mounted) {
+          if (isInitialLoad || projects.length === 0) {
+            setLoading(true);
+          } else {
+            setIsRefreshing(true);
+          }
+        }
+        
         // Load projects from API
         const projectsResult = await getProjects();
         
@@ -124,11 +192,14 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
           if (retryCount < maxRetries) {
             retryCount++;
             console.log(`Retrying project load (${retryCount}/${maxRetries}) in ${retryDelay}ms...`);
-            setTimeout(loadProjects, retryDelay);
+            setTimeout(() => loadProjects(isInitialLoad), retryDelay);
             return;
           }
           
-          if (mounted) setProjects([]);
+          // Only clear projects if this is initial load, otherwise keep existing projects
+          if (mounted && (isInitialLoad || projects.length === 0)) {
+            setProjects([]);
+          }
         }
       } catch (error) {
         console.error('Error loading projects:', error);
@@ -137,19 +208,25 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         if (retryCount < maxRetries) {
           retryCount++;
           console.log(`Retrying project load after error (${retryCount}/${maxRetries}) in ${retryDelay}ms...`);
-          setTimeout(loadProjects, retryDelay);
+          setTimeout(() => loadProjects(isInitialLoad), retryDelay);
           return;
         }
         
-        if (mounted) setProjects([]);
+        // Only clear projects if this is initial load, otherwise keep existing projects
+        if (mounted && (isInitialLoad || projects.length === 0)) {
+          setProjects([]);
+        }
       } finally {
-        if (mounted) setLoading(false);
+        if (mounted) {
+          setLoading(false);
+          setIsRefreshing(false);
+        }
       }
     };
     
     // Add a small initial delay on first load to ensure backend is ready
-    const initialLoadDelay = 500; // 500ms delay on first load
-    const timer = setTimeout(loadProjects, initialLoadDelay);
+    const initialLoadDelay = 200; // Reduced delay for better UX
+    const timer = setTimeout(() => loadProjects(true), initialLoadDelay);
     
     // Cleanup function
     return () => {
@@ -499,13 +576,13 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         </div>
       </div>
       
-      {loading ? (
+      {loading && projects.length === 0 ? (
         <div className="sidebar-loading">
           <Spinner animation="border" size="sm" className="me-2" />
           {!isCompact && 'Loading projects...'}
         </div>
       ) : (
-        <div className="sidebar-projects">
+        <div className={`sidebar-projects ${isRefreshing ? 'refreshing' : ''}`}>
           {projects.length === 0 ? (
             <div className="no-projects">
               {isCompact ? 'No projects' : 'No projects found. Create your first project!'}
@@ -758,53 +835,15 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         </Modal.Footer>
       </Modal>
 
-      {/* Context Menu */}
-      {contextMenu.visible && (
-        <div
-          className="context-menu"
-          style={{
-            position: 'fixed',
-            top: contextMenu.y,
-            left: contextMenu.x,
-            zIndex: 9999,
-            backgroundColor: 'var(--theme-card-bg)',
-            border: '1px solid var(--theme-border)',
-            borderRadius: '6px',
-            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-            minWidth: '150px'
-          }}
-        >
-          <div
-            className="context-menu-item"
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              color: 'var(--theme-text)',
-              borderBottom: '1px solid var(--theme-border)'
-            }}
-            onClick={handleContextEdit}
-            onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-          >
-            <FiEdit className="me-2" />
-            Edit Name
-          </div>
-          <div
-            className="context-menu-item"
-            style={{
-              padding: '8px 12px',
-              cursor: 'pointer',
-              color: '#dc3545'
-            }}
-            onClick={handleContextDelete}
-            onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
-            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-          >
-            <FiTrash2 className="me-2" />
-            Delete Project
-          </div>
-        </div>
-      )}
+      {/* Context Menu Portal */}
+      <ContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onEdit={handleContextEdit}
+        onDelete={handleContextDelete}
+        onClose={closeContextMenu}
+      />
     </div>
   );
 };

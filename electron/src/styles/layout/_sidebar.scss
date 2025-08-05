@@ -109,6 +109,24 @@
   .sidebar-projects {
     flex: 1;
     overflow-y: auto;
+    transition: opacity 0.3s ease;
+    
+    &.refreshing {
+      opacity: 0.7;
+      position: relative;
+      
+      &::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        background: linear-gradient(90deg, transparent, var(--theme-primary), transparent);
+        animation: refreshPulse 1.5s ease-in-out infinite;
+        z-index: 1;
+      }
+    }
   }
   
   .no-projects {
@@ -126,7 +144,7 @@
   .project-item {
     padding: 12px 15px;
     cursor: pointer;
-    transition: background-color 0.2s;
+    transition: all 0.2s ease, opacity 0.3s ease;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -313,7 +331,7 @@
     }
   }
   
-  // Context menu styles
+  // Context menu styles (now rendered via portal)
   .context-menu {
     .context-menu-item {
       display: flex;
@@ -329,5 +347,29 @@
         background-color: var(--theme-hover-bg) !important;
       }
     }
+  }
+}
+
+// Context menu animation (global since it's rendered via portal)
+@keyframes contextMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+// Refresh pulse animation
+@keyframes refreshPulse {
+  0%, 100% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  50% {
+    transform: translateX(100%);
+    opacity: 1;
   }
 }
