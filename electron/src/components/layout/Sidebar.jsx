@@ -9,7 +9,7 @@ import { useToastContext } from '../../contexts/ToastContext';
 import { createSafeNavigate } from '../../utils/navigationHelper';
 import ConfirmationModal from '../shared/ConfirmationModal';
 
-const ProjectSidebar = ({ theme = 'light' }) => {
+const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   const { showSuccess, showError } = useToastContext();
   const [projects, setProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -482,7 +482,7 @@ const ProjectSidebar = ({ theme = 'light' }) => {
   }, [contextMenu.visible]);
   
   return (
-    <div className="app-sidebar">
+    <div className={`app-sidebar ${visible ? 'visible' : 'hidden'}`}>
       <div className="sidebar-header">
         <h5 className={`m-0 ${isCompact ? 'text-truncate' : ''}`}>
           {isCompact ? 'Explorer' : 'Database Explorer'}

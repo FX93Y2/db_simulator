@@ -9,7 +9,28 @@
   display: flex;
   flex: 1;
   overflow: hidden;
-  transition: all 0.3s ease-in-out;
+  
+  // Add smooth transitions for panel animations
+  [data-panel-group] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  [data-panel] {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &.sidebar-panel {
+      overflow: hidden;
+      
+      &.hidden {
+        min-width: 0 !important;
+        max-width: 0 !important;
+      }
+    }
+    
+    &.content-panel {
+      flex: 1;
+    }
+  }
   
   // Styles for react-resizable-panels handles
   .main-resize-handle {
@@ -18,6 +39,18 @@
     cursor: col-resize;
     position: relative;
     z-index: 10;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    &.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    &.hidden {
+      opacity: 0;
+      pointer-events: none;
+      width: 0;
+    }
 
     &:hover,
     &[data-resize-handle-state="drag"] {

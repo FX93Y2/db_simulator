@@ -4,10 +4,10 @@
   overflow-y: auto;
   padding: 20px;
   background-color: var(--theme-bg);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 100%;
+  height: 100%;
   
-  &.full-width {
-    width: 100%;
-    height: 100%;
-    transition: all 0.3s ease-in-out;
-  }
+  // Remove the full-width class as it's no longer needed
+  // The content area now always takes up the available space
 }

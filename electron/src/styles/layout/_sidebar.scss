@@ -6,6 +6,19 @@
   height: 100%;
   display: flex;
   flex-direction: column;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &.hidden {
+    opacity: 0;
+    transform: translateX(-100%);
+    pointer-events: none;
+  }
+  
+  &.visible {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
   
   .sidebar-header {
     height: $header-height;
