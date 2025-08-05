@@ -7,7 +7,7 @@ event_simulation:
     interarrival_time:
       distribution:
         type: exponential
-        scale: 1.2
+        scale: 2
     max_entities: n/a
   event_flows:
     - flow_id: main_flow
@@ -27,123 +27,122 @@ event_simulation:
                 value: Tech Support
                 count: 1
           next_steps:
-            - priority_routing_decide
-        
-        - step_id: priority_routing_decide
-          step_type: decide
-          decide_config:
-            module_id: priority_routing_001
-            decision_type: probability
-            outcomes:
-              - outcome_id: route_high
-                next_step_id: assign_high_priority
-                conditions:
-                  - if: Probability
-                    is: "=="
-                    value: 0.2
-              - outcome_id: route_medium
-                next_step_id: assign_medium_priority
-                conditions:
-                  - if: Probability
-                    is: "=="
-                    value: 0.5
-              - outcome_id: route_low
-                next_step_id: assign_low_priority
-                conditions:
-                  - if: Probability
-                    is: "=="
-                    value: 0.3
-        
-        - step_id: assign_high_priority
+            - decide_1754050637838
+        - step_id: assign_1754046034009
           step_type: assign
           assign_config:
-            module_id: assign_high_001
+            module_id: assign_1754046034009
             assignments:
               - assignment_type: attribute
                 attribute_name: ticket_priority
-                value: "high"
+                value: High
               - assignment_type: attribute
-                attribute_name: sla_hours
+                attribute_name: sla_hour
                 value: 4
           next_steps:
-            - sre_assist
-        
-        - step_id: assign_medium_priority
+            - decide_1754050572658
+        - step_id: assign_1754046589167
           step_type: assign
           assign_config:
-            module_id: assign_medium_001
+            module_id: assign_1754046589167
             assignments:
               - assignment_type: attribute
                 attribute_name: ticket_priority
-                value: "medium"
+                value: Medium
               - assignment_type: attribute
-                attribute_name: sla_hours
+                attribute_name: sla_hour
                 value: 24
           next_steps:
-            - sre_assist
-        
-        - step_id: assign_low_priority
+            - decide_1754050572658
+        - step_id: assign_1754046590553
           step_type: assign
           assign_config:
-            module_id: assign_low_001
+            module_id: assign_1754046590553
             assignments:
               - assignment_type: attribute
                 attribute_name: ticket_priority
-                value: "low"
+                value: Low
               - assignment_type: attribute
-                attribute_name: sla_hours
+                attribute_name: sla_hour
                 value: 72
           next_steps:
-            - sre_assist
-        
-        - step_id: sre_assist
+            - decide_1754050572658
+        - step_id: decide_1754050637838
+          step_type: decide
+          decide_config:
+            module_id: decide_1754050637838
+            decision_type: probability
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: assign_1754046034009
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+              - outcome_id: outcome_2
+                next_step_id: assign_1754046589167
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+              - outcome_id: outcome_3
+                next_step_id: assign_1754046590553
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+        - step_id: decide_1754050572658
+          step_type: decide
+          decide_config:
+            module_id: decide_1754050572658
+            decision_type: condition
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: priority_assist
+                conditions:
+                  - if: Attribute
+                    name: ticket_priority
+                    is: ==
+                    value: High
+              - outcome_id: outcome_2
+                next_step_id: normal_assist
+                conditions:
+                  - if: Attribute
+                    name: ticket_priority
+                    is: ==
+                    value: Medium
+              - outcome_id: outcome_3
+                next_step_id: low_priority_assist
+                conditions:
+                  - if: Attribute
+                    name: ticket_priority
+                    is: ==
+                    value: Low
+        - step_id: priority_assist
           step_type: event
           event_config:
-            name: SRE Assist
+            name: Priority Assist
             duration:
               distribution:
                 type: normal
-                mean: 5
+                mean: 2
                 stddev: 1
             resource_requirements:
               - resource_table: Staff
                 value: SRE
                 count: 1
+              - resource_table: Staff
+                value: Dev
+                count: 1
+              - resource_table: Staff
+                value: Security
+                count: 1
           next_steps:
-            - resource_allocation_decide
-        
-        - step_id: resource_allocation_decide
-          step_type: decide
-          decide_config:
-            module_id: resource_allocation_002
-            decision_type: condition
-            outcomes:
-              - outcome_id: high_priority_path
-                next_step_id: security_assist
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "high"
-              - outcome_id: medium_priority_path
-                next_step_id: developer_assist
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "medium"
-              - outcome_id: low_priority_path
-                next_step_id: basic_resolution
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "low"
-        
-        - step_id: security_assist
+            - release
+        - step_id: normal_assist
           step_type: event
           event_config:
-            name: Security Assist
+            name: Normal Assist
             duration:
               distribution:
                 type: normal
@@ -151,83 +150,48 @@ event_simulation:
                 stddev: 1
             resource_requirements:
               - resource_table: Staff
-                value: Security
-                count: 2
-          next_steps:
-            - urgency_check_decide
-        
-        - step_id: developer_assist
-          step_type: event
-          event_config:
-            name: Developer Assist
-            duration:
-              distribution:
-                type: normal
-                mean: 2
-                stddev: 0.5
-            resource_requirements:
+                value: SRE
+                count: 1
               - resource_table: Staff
                 value: Dev
-                count: 2
+                count: 1
           next_steps:
-            - urgency_check_decide
-        
-        - step_id: basic_resolution
+            - release_1754050596887
+        - step_id: low_priority_assist
           step_type: event
           event_config:
-            name: Basic Resolution
+            name: Low Priority Assist
             duration:
               distribution:
                 type: normal
-                mean: 1
-                stddev: 0.2
+                mean: 3
+                stddev: 1
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
           next_steps:
-            - release_basic
-        
-        - step_id: urgency_check_decide
-          step_type: decide
-          decide_config:
-            module_id: urgency_check_003
-            decision_type: condition
-            outcomes:
-              - outcome_id: expedite_release
-                next_step_id: release_expedited
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "high"
-              - outcome_id: medium_expedite_release
-                next_step_id: release_expedited
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "medium"
-              - outcome_id: standard_release
-                next_step_id: release_standard
-                conditions:
-                  - if: Attribute
-                    name: ticket_priority
-                    is: "=="
-                    value: "low"
-        
-        - step_id: release_expedited
+            - release_1754083876277
+        - step_id: release
           step_type: release
           event_config:
-            name: Expedited Release
-        
-        - step_id: release_standard
+            name: Release
+        - step_id: release_1754050596887
           step_type: release
           event_config:
-            name: Standard Release
-        
-        - step_id: release_basic
+            name: Release
+        - step_id: release_1754083876277
           step_type: release
           event_config:
-            name: Basic Release
-  resource_capacities: {}
+            name: Release
+  resource_capacities:
+    Staff:
+      capacity_rules:
+        - resource_type: Tech Support
+          capacity: 2
+        - resource_type: SRE
+          capacity: 1
+        - resource_type: Dev
+          capacity: 1
+        - resource_type: Security
+          capacity: 1
