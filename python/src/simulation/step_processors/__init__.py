@@ -11,11 +11,15 @@ from .factory import StepProcessorFactory
 from .event_processor import EventStepProcessor
 from .decide_processor import DecideStepProcessor
 from .release_processor import ReleaseStepProcessor
+from .assign_processor import AssignStepProcessor
+from .create_processor import CreateStepProcessor
 
 __all__ = [
     'StepProcessor',
     'StepProcessorFactory', 
     'EventStepProcessor',
     'DecideStepProcessor',
-    'ReleaseStepProcessor'
+    'ReleaseStepProcessor',
+    'AssignStepProcessor',
+    'CreateStepProcessor'
 ]

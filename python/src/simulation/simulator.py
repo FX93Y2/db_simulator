@@ -164,16 +164,9 @@ class EventSimulator:
             # Setup resources
             self.resource_manager.setup_resources(self.config.event_simulation)
             
-            # Pre-generate entity arrivals
-            entity_arrivals = self.entity_manager.pre_generate_entity_arrivals()
-            
-            # Start entity generation process
-            if entity_arrivals:
-                self.env.process(self.entity_manager.process_pre_generated_arrivals(entity_arrivals, self._process_entity_events))
-            else:
-                # Fallback to dynamic generation if pre-generation fails
-                self.env.process(self.entity_manager.generate_entities(self._process_entity_events))
-                logger.warning("Failed to pre-generate entity arrivals. No entities will be processed.")
+            # Start entity generation process using dynamic generation
+            # Entity generation will be handled by Create step modules
+            logger.info("Entity generation will be handled by Create step modules in event flows")
             
             # Run simulation for specified duration
             duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes

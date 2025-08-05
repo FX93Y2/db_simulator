@@ -13,6 +13,7 @@ from .event_processor import EventStepProcessor
 from .decide_processor import DecideStepProcessor
 from .release_processor import ReleaseStepProcessor
 from .assign_processor import AssignStepProcessor
+from .create_processor import CreateStepProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +53,8 @@ class StepProcessorFactory:
             EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
             DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
             ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config)
+            AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
+            CreateStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config)
         ]
         
         # Configure processors that need entity attribute manager
@@ -109,7 +111,7 @@ class StepProcessorFactory:
             List of supported step types
         """
         # Standard step types to check
-        standard_types = ["event", "decide", "release", "assign"]
+        standard_types = ["event", "decide", "release", "assign", "create"]
         supported = []
         
         for step_type in standard_types:

@@ -3,16 +3,21 @@ simulation:
   start_date: 2024-01-01
   random_seed: 42
 event_simulation:
-  entity_arrival:
-    interarrival_time:
-      distribution:
-        type: exponential
-        scale: 2
-    max_entities: n/a
   event_flows:
     - flow_id: main_flow
-      initial_step: professional_assignment
+      initial_step: create_tickets
       steps:
+        - step_id: create_tickets
+          step_type: create
+          create_config:
+            entity_table: Ticket
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            initial_step: professional_assignment
+            max_entities: n/a
+        
         - step_id: professional_assignment
           step_type: event
           event_config:

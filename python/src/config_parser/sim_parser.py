@@ -101,6 +101,14 @@ class AssignConfig:
     assignments: List[AssignmentOperation] = field(default_factory=list)
 
 @dataclass
+class CreateConfig:
+    """Configuration for Create step modules (Arena-style entity creation)"""
+    entity_table: str
+    interarrival_time: Dict
+    initial_step: str  # Where created entities enter the flow
+    max_entities: Optional[Union[int, str]] = None  # Can be int or 'n/a'
+
+@dataclass
 class EventStepConfig:
     name: str
     duration: Dict
@@ -109,10 +117,11 @@ class EventStepConfig:
 @dataclass
 class Step:
     step_id: str
-    step_type: str  # 'event', 'decide', 'release', 'assign'
+    step_type: str  # 'event', 'decide', 'release', 'assign', 'create'
     event_config: Optional[EventStepConfig] = None
     decide_config: Optional[DecideConfig] = None
     assign_config: Optional[AssignConfig] = None
+    create_config: Optional[CreateConfig] = None
     next_steps: List[str] = field(default_factory=list)
 
 @dataclass
@@ -128,7 +137,6 @@ class EventFlowsConfig:
 @dataclass
 class EventSimulation:
     table_specification: TableSpecification
-    entity_arrival: Optional[EntityArrival] = None
     work_shifts: Optional[WorkShifts] = None
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
@@ -265,15 +273,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 )
                 logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
         
-        # Parse entity arrival configuration
-        entity_arrival = None
-        if 'entity_arrival' in event_dict:
-            arrival_dict = event_dict['entity_arrival']
-            entity_arrival = EntityArrival(
-                interarrival_time=arrival_dict.get('interarrival_time', {}),
-                max_entities=arrival_dict.get('max_entities'),
-                override_db_config=arrival_dict.get('override_db_config', True)
-            )
+        # Entity arrival is now handled by Create step modules in event flows
         
         # Parse work shifts configuration
         work_shifts = None
@@ -376,12 +376,24 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             assignments=assignments
                         )
                     
+                    # Parse create config if present
+                    create_config = None
+                    if 'create_config' in step_dict:
+                        create_dict = step_dict['create_config']
+                        create_config = CreateConfig(
+                            entity_table=create_dict.get('entity_table', ''),
+                            interarrival_time=create_dict.get('interarrival_time', {}),
+                            max_entities=create_dict.get('max_entities'),
+                            initial_step=create_dict.get('initial_step', '')
+                        )
+                    
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
                         event_config=event_config,
                         decide_config=decide_config,
                         assign_config=assign_config,
+                        create_config=create_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
@@ -416,7 +428,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         
         event_simulation = EventSimulation(
             table_specification=table_spec,
-            entity_arrival=entity_arrival,
             work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
@@ -485,15 +496,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
         
         # Parse the rest of the event simulation configuration
-        # (This is the same code as in parse_sim_config)
-        entity_arrival = None
-        if 'entity_arrival' in event_dict:
-            arrival_dict = event_dict['entity_arrival']
-            entity_arrival = EntityArrival(
-                interarrival_time=arrival_dict.get('interarrival_time', {}),
-                max_entities=arrival_dict.get('max_entities'),
-                override_db_config=arrival_dict.get('override_db_config', True)
-            )
+        # Entity arrival is now handled by Create step modules in event flows
         
         work_shifts = None
         if 'work_shifts' in event_dict:
@@ -595,12 +598,24 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             assignments=assignments
                         )
                     
+                    # Parse create config if present
+                    create_config = None
+                    if 'create_config' in step_dict:
+                        create_dict = step_dict['create_config']
+                        create_config = CreateConfig(
+                            entity_table=create_dict.get('entity_table', ''),
+                            interarrival_time=create_dict.get('interarrival_time', {}),
+                            max_entities=create_dict.get('max_entities'),
+                            initial_step=create_dict.get('initial_step', '')
+                        )
+                    
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
                         event_config=event_config,
                         decide_config=decide_config,
                         assign_config=assign_config,
+                        create_config=create_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
@@ -635,7 +650,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         
         event_simulation = EventSimulation(
             table_specification=table_spec,
-            entity_arrival=entity_arrival,
             work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
