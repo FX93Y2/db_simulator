@@ -306,7 +306,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                         <option value="bridging">Bridging</option>
                       </Form.Select>
                       <Form.Text className="text-muted">
-                        Specify the role of this entity in simulations
+                        Specify the role in simulations
                       </Form.Text>
                     </Form.Group>
                   </div>
@@ -351,12 +351,12 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                   )}
                   <Form.Text className="text-muted">
                     {entityType === 'resource' 
-                      ? 'Resource tables must have a fixed number of rows'
+                      ? 'Enter desired number of resources'
                       : entityType === 'bridging'
-                      ? 'Bridging tables are always dynamic (n/a) as they depend on related entities'
+                      ? 'Bridging table rows will be dynamic'
                       : entityType === 'entity' || entityType === 'event'
-                      ? 'Entity/Event tables are always dynamic (n/a) as they are generated during simulation'
-                      : 'Default tables are fully customizable - enter a number or "n/a" for dynamic'
+                      ? 'Entity/Event table rows will be dynamic'
+                      : 'Define number of rows here'
                     }
                   </Form.Text>
                 </Form.Group>
