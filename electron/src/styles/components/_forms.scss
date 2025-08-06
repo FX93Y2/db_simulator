@@ -11,3 +11,60 @@
     margin-top: 30px;
   }
 }
+
+// Attribute Editor Drag and Drop Styles
+.attribute-editor-card {
+  transition: all 0.2s ease;
+  
+  &.dragging {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transform: scale(1.02);
+  }
+  
+  .attribute-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    
+    &-left {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  }
+  
+  .drag-handle {
+    cursor: grab;
+    padding: 4px;
+    border-radius: 4px;
+    color: var(--bs-secondary);
+    transition: all 0.2s ease;
+    
+    &:hover {
+      color: var(--bs-primary);
+      background-color: var(--bs-light);
+    }
+    
+    &:active {
+      cursor: grabbing;
+    }
+  }
+  
+  .attribute-name {
+    font-weight: 500;
+    color: var(--bs-dark);
+  }
+}
+
+// Dark theme support for attribute editor
+[data-bs-theme="dark"] {
+  .attribute-editor-card {
+    .attribute-name {
+      color: var(--bs-light);
+    }
+    
+    .drag-handle:hover {
+      background-color: var(--bs-dark);
+    }
+  }
+}

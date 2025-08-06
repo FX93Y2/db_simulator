@@ -2,11 +2,17 @@ import React from 'react';
 import { Handle, Position } from 'reactflow';
 import { FiKey, FiLink } from 'react-icons/fi';
 
-// Function to sort attributes: primary key first, then foreign keys, then others
+// Function to sort attributes: primary key first, then foreign keys, then preserve user order for others
 export const sortAttributes = (attributes) => {
   if (!attributes || attributes.length === 0) return [];
   
-  return [...attributes].sort((a, b) => {
+  // Create a copy with original indices to maintain user-defined order
+  const attributesWithIndex = attributes.map((attr, index) => ({
+    ...attr,
+    originalIndex: index
+  }));
+  
+  return attributesWithIndex.sort((a, b) => {
     // Primary key gets highest priority (0)
     const aPriority = a.type === 'pk' ? 0 : 
                      (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
@@ -17,8 +23,12 @@ export const sortAttributes = (attributes) => {
       return aPriority - bPriority;
     }
     
-    // If same priority, sort alphabetically by name
-    return a.name.localeCompare(b.name);
+    // If same priority, preserve original order (user-defined)
+    return a.originalIndex - b.originalIndex;
+  }).map(attr => {
+    // Remove the temporary originalIndex property
+    const { originalIndex, ...cleanAttr } = attr;
+    return cleanAttr;
   });
 };
 

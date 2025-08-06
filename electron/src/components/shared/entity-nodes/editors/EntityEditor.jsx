@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import AttributeEditor from './AttributeEditor';
 import ConfirmationModal from '../../ConfirmationModal';
 
@@ -129,6 +130,27 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     
     const newAttributes = attributes.filter((_, i) => i !== index);
     setAttributes(newAttributes);
+  };
+
+  // Handle drag and drop reordering
+  const handleDragEnd = (result) => {
+    if (!result.destination) {
+      return; // Dropped outside the list
+    }
+
+    const sourceIndex = result.source.index;
+    const destinationIndex = result.destination.index;
+
+    if (sourceIndex === destinationIndex) {
+      return; // No change
+    }
+
+    // Reorder attributes array
+    const reorderedAttributes = Array.from(attributes);
+    const [reorderedItem] = reorderedAttributes.splice(sourceIndex, 1);
+    reorderedAttributes.splice(destinationIndex, 0, reorderedItem);
+
+    setAttributes(reorderedAttributes);
   };
 
 
@@ -377,18 +399,50 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                 No attributes defined. Click "Add Attribute" to create the first attribute.
               </Alert>
             ) : (
-              <div className="attributes-list">
-                {attributes.map((attribute, index) => (
-                  <AttributeEditor
-                    key={index}
-                    attribute={attribute}
-                    onAttributeChange={(updatedAttribute) => handleAttributeChange(index, updatedAttribute)}
-                    onAttributeDelete={() => handleDeleteAttribute(index)}
-                    entityType={entityType}
-                    theme={theme}
-                  />
-                ))}
-              </div>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="attributes-list">
+                  {(provided) => (
+                    <div 
+                      className="attributes-list"
+                      {...provided.droppableProps}
+                      ref={provided.innerRef}
+                    >
+                      {attributes.map((attribute, index) => (
+                        <Draggable 
+                          key={`${attribute.name}-${index}`}
+                          draggableId={`attribute-${index}`}
+                          index={index}
+                        >
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              style={{
+                                ...provided.draggableProps.style,
+                                opacity: snapshot.isDragging ? 0.8 : 1,
+                                transform: snapshot.isDragging 
+                                  ? `${provided.draggableProps.style?.transform || ''} rotate(2deg)`
+                                  : provided.draggableProps.style?.transform
+                              }}
+                            >
+                              <AttributeEditor
+                                attribute={attribute}
+                                onAttributeChange={(updatedAttribute) => handleAttributeChange(index, updatedAttribute)}
+                                onAttributeDelete={() => handleDeleteAttribute(index)}
+                                entityType={entityType}
+                                theme={theme}
+                                dragHandleProps={provided.dragHandleProps}
+                                isDragging={snapshot.isDragging}
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              </DragDropContext>
             )}
           </div>
         </Form>

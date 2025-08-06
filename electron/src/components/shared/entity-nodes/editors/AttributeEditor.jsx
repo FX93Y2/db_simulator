@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button, Card, Row, Col } from 'react-bootstrap';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiTrash2, FiMove } from 'react-icons/fi';
 import FakerGeneratorEditor from './FakerGeneratorEditor';
 import TemplateGeneratorEditor from './TemplateGeneratorEditor';
 import DistributionGeneratorEditor from './DistributionGeneratorEditor';
 import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
 
-const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, availableEntities = [], entityType = '', theme = 'light' }) => {
+const AttributeEditor = ({ 
+  attribute, 
+  onAttributeChange, 
+  onAttributeDelete, 
+  availableEntities = [], 
+  entityType = '', 
+  theme = 'light',
+  dragHandleProps = null,
+  isDragging = false 
+}) => {
   const [localAttribute, setLocalAttribute] = useState({
     name: '',
     type: 'string',
@@ -226,11 +235,20 @@ const AttributeEditor = ({ attribute, onAttributeChange, onAttributeDelete, avai
   };
 
   return (
-    <Card className="mb-3 attribute-editor-card">
+    <Card className={`mb-3 attribute-editor-card ${isDragging ? 'dragging' : ''}`}>
       <Card.Header className="attribute-header">
-        <span className="attribute-name">
-          {localAttribute.name || 'New Attribute'}
-        </span>
+        <div className="attribute-header-left">
+          <div 
+            className="drag-handle"
+            {...dragHandleProps}
+            title="Drag to reorder attribute"
+          >
+            <FiMove />
+          </div>
+          <span className="attribute-name">
+            {localAttribute.name || 'New Attribute'}
+          </span>
+        </div>
         <Button
           variant="outline-danger"
           size="sm"
