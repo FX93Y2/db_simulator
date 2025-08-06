@@ -5,6 +5,7 @@ simulation:
 event_simulation:
   event_flows:
     - flow_id: ticket_flow
+      event_table: Task
       steps:
         - step_id: create_tickets
           step_type: create
@@ -190,6 +191,7 @@ event_simulation:
             name: Release
     
     - flow_id: phone_call_flow
+      event_table: Call_Task
       steps:
         - step_id: create_phone_calls
           step_type: create

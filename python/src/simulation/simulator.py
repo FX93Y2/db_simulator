@@ -297,12 +297,12 @@ class EventSimulator:
             flow: The event flow containing this Create step
         """
         try:
-            # Get table names for this flow
+            # Get flow-specific tables
             entity_table = create_step.create_config.entity_table
-            entity_table_config, event_table, resource_table = self.entity_manager.get_table_names()
+            event_table = flow.event_table
+            _, _, resource_table = self.entity_manager.get_table_names()  # Still need resource table
             
-            # Use the entity table from the Create config instead of the global one
-            logger.debug(f"Create module {create_step.step_id} using tables: entity={entity_table}, event={event_table}")
+            logger.debug(f"Create module {create_step.step_id} using flow-specific tables: entity={entity_table}, event={event_table}, flow={flow.flow_id}")
             
             # Get the Create step processor and set up entity routing callback
             create_processor = self.step_processor_factory.get_processor('create')
@@ -316,7 +316,7 @@ class EventSimulator:
                 create_step, 
                 flow, 
                 entity_table,  # Use the specific entity table from Create config
-                event_table or 'Task'  # Default event table if not found
+                event_table  # Use the flow-specific event table
             )
             
             # Run the Create step generator
@@ -370,38 +370,8 @@ class EventSimulator:
         # Get the adjusted entity ID (1-based indexing in the database)
         db_entity_id = entity_id + 1
         
-        # Use new event flows architecture
-        event_sim = self.config.event_simulation
-        if event_sim and event_sim.event_flows and event_sim.event_flows.flows:
-            yield from self._process_entity_with_flows(db_entity_id, entity_table, event_table)
-        else:
-            logger.error("No event flows configuration found")
-            yield self.env.timeout(0)
-
-    def _process_entity_with_flows(self, entity_id: int, entity_table: str, event_table: str):
-        """
-        Process entity using the new event flows architecture
-        
-        Args:
-            entity_id: Entity ID (1-based for database)
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-        """
-        event_sim = self.config.event_simulation
-        if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
-            logger.error("No event flows configuration found")
-            yield self.env.timeout(0)
-            return
-        
-        # For now, assume there's only one flow (first flow in the list)
-        flow = event_sim.event_flows.flows[0]
-        
-        logger.info(f"Starting entity {entity_id} in flow {flow.flow_id} at step {flow.initial_step}")
-        
-        # Start processing from the initial step
-        self.env.process(self._process_step(entity_id, flow.initial_step, flow, entity_table, event_table))
-        
-        # Yield to make this a generator
+        # Legacy entity processing is no longer used - Create modules handle entity generation and routing
+        logger.error("_process_entity_events should not be called - Create modules handle entity lifecycle")
         yield self.env.timeout(0)
 
     

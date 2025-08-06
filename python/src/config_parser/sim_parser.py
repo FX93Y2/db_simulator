@@ -127,7 +127,7 @@ class Step:
 @dataclass
 class EventFlow:
     flow_id: str
-    initial_step: str
+    event_table: str  # Flow-specific event table
     steps: List[Step] = field(default_factory=list)
 
 @dataclass
@@ -399,7 +399,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 
                 flows.append(EventFlow(
                     flow_id=flow_dict.get('flow_id', ''),
-                    initial_step=flow_dict.get('initial_step', ''),
+                    event_table=flow_dict.get('event_table', ''),
                     steps=steps
                 ))
             
@@ -621,7 +621,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 
                 flows.append(EventFlow(
                     flow_id=flow_dict.get('flow_id', ''),
-                    initial_step=flow_dict.get('initial_step', ''),
+                    event_table=flow_dict.get('event_table', ''),
                     steps=steps
                 ))
             
