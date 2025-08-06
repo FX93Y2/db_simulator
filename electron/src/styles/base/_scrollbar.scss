@@ -1,0 +1,319 @@
+// Modern Custom Scrollbar System
+// Minimal, non-intrusive scrollbar with smooth hover animations and theme awareness
+
+// Scrollbar Variables
+:root {
+  // Light theme scrollbar colors
+  --scrollbar-track: transparent;
+  --scrollbar-thumb: rgba(0, 0, 0, 0.15);
+  --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+  --scrollbar-thumb-active: rgba(0, 0, 0, 0.35);
+  
+  // Scrollbar dimensions
+  --scrollbar-width-minimal: 2px;
+  --scrollbar-width-hover: 8px;
+  --scrollbar-border-radius: 4px;
+  
+  // Animation timing
+  --scrollbar-transition-duration: 0.2s;
+  --scrollbar-transition-easing: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+// Dark theme scrollbar colors
+body.theme-dark {
+  --scrollbar-thumb: rgba(255, 255, 255, 0.2);
+  --scrollbar-thumb-hover: rgba(255, 255, 255, 0.3);
+  --scrollbar-thumb-active: rgba(255, 255, 255, 0.4);
+}
+
+// Base scrollbar styling for webkit browsers (Chrome, Safari, Edge)
+* {
+  // Apply to all elements for consistency
+  scrollbar-width: thin; // Firefox fallback
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); // Firefox
+  
+  // Webkit scrollbars
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+    transition: width var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: var(--scrollbar-border-radius);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--scrollbar-border-radius);
+    border: none;
+    transition: all var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+    
+    // Smooth appearance animation
+    opacity: 0.6;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+    opacity: 1;
+  }
+  
+  &::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active);
+    opacity: 1;
+  }
+  
+  &::-webkit-scrollbar-corner {
+    background: var(--scrollbar-track);
+  }
+  
+  // Hover effect on scrollable container
+  &:hover {
+    &::-webkit-scrollbar {
+      width: var(--scrollbar-width-hover);
+      height: var(--scrollbar-width-hover);
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      opacity: 1;
+    }
+  }
+}
+
+// Special handling for main application areas
+.main-content,
+.sidebar,
+.modal-body,
+.attributes-list,
+.entity-attributes-section .attributes-list {
+  // Enhanced scrollbar visibility for main content areas
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+  }
+  
+  &:hover::-webkit-scrollbar {
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
+  }
+  
+  // Slightly more visible on content areas
+  &::-webkit-scrollbar-thumb {
+    opacity: 0.4;
+  }
+  
+  &:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+}
+
+// Code editor specific scrollbar (Monaco Editor)
+.monaco-editor,
+.monaco-scrollable-element {
+  // Integrate with Monaco Editor's scrollbar system
+  .slider {
+    background: var(--scrollbar-thumb) !important;
+    border-radius: var(--scrollbar-border-radius) !important;
+    transition: all var(--scrollbar-transition-duration) var(--scrollbar-transition-easing) !important;
+    
+    &:hover {
+      background: var(--scrollbar-thumb-hover) !important;
+    }
+  }
+  
+  .scrollbar {
+    &.horizontal {
+      height: var(--scrollbar-width-minimal) !important;
+      
+      &:hover {
+        height: var(--scrollbar-width-hover) !important;
+      }
+    }
+    
+    &.vertical {
+      width: var(--scrollbar-width-minimal) !important;
+      
+      &:hover {
+        width: var(--scrollbar-width-hover) !important;
+      }
+    }
+  }
+}
+
+// Table scrollbars (for attribute tables and data views)
+.table-responsive,
+.attribute-table-container {
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+  }
+  
+  &:hover::-webkit-scrollbar {
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    opacity: 0.5;
+  }
+  
+  &:hover::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb-hover);
+    opacity: 1;
+  }
+}
+
+// Chart containers and visualization areas
+.chart-container,
+.react-flow__viewport,
+.er-diagram-container {
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+  }
+  
+  &:hover::-webkit-scrollbar {
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
+  }
+}
+
+// Firefox-specific enhancements
+@supports (scrollbar-width: thin) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+  
+  // Firefox doesn't support hover effects on scrollbars,
+  // but we can make the scrollbar slightly more visible by default
+  .main-content,
+  .sidebar,
+  .modal-body,
+  .attributes-list {
+    scrollbar-width: auto;
+    scrollbar-color: var(--scrollbar-thumb-hover) var(--scrollbar-track);
+  }
+}
+
+// High contrast mode support
+@media (prefers-contrast: high) {
+  :root {
+    --scrollbar-thumb: rgba(0, 0, 0, 0.6);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.8);
+    --scrollbar-thumb-active: rgba(0, 0, 0, 1);
+  }
+  
+  body.theme-dark {
+    --scrollbar-thumb: rgba(255, 255, 255, 0.6);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.8);
+    --scrollbar-thumb-active: rgba(255, 255, 255, 1);
+  }
+}
+
+// Reduced motion support
+@media (prefers-reduced-motion: reduce) {
+  * {
+    &::-webkit-scrollbar,
+    &::-webkit-scrollbar-thumb {
+      transition: none !important;
+    }
+  }
+  
+  :root {
+    --scrollbar-transition-duration: 0s;
+  }
+}
+
+// Touch device optimizations
+@media (hover: none) {
+  * {
+    &::-webkit-scrollbar {
+      width: var(--scrollbar-width-hover);
+      height: var(--scrollbar-width-hover);
+    }
+    
+    &::-webkit-scrollbar-thumb {
+      opacity: 0.8;
+    }
+  }
+}
+
+// Body and html specific scrollbar (main page scroll)
+html, body {
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    background: var(--scrollbar-track);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: var(--scrollbar-border-radius);
+    opacity: 0.3;
+    transition: all var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+  }
+  
+  &:hover::-webkit-scrollbar {
+    width: var(--scrollbar-width-hover);
+  }
+  
+  &:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+}
+
+// Electron app specific enhancements
+.app-container {
+  // Ensure main app container has proper scrollbar styling
+  &::-webkit-scrollbar {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+  }
+  
+  &:hover::-webkit-scrollbar {
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    opacity: 0.4;
+  }
+  
+  &:hover::-webkit-scrollbar-thumb {
+    opacity: 1;
+  }
+}
+
+// Animation keyframes for smooth appearance
+@keyframes scrollbar-appear {
+  from {
+    opacity: 0;
+    transform: scaleX(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes scrollbar-expand {
+  from {
+    width: var(--scrollbar-width-minimal);
+    height: var(--scrollbar-width-minimal);
+  }
+  to {
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
+  }
+}
+
+// Enhanced focus states for accessibility
+*:focus-visible {
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb-hover);
+    opacity: 1;
+    box-shadow: 0 0 0 1px var(--theme-primary);
+  }
+}
