@@ -68,3 +68,121 @@
     }
   }
 }
+
+// Attribute Table Styles (Mockaroo-style)
+.attribute-table-container {
+  .attribute-table {
+    border: 1px solid var(--theme-border) !important;
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--theme-card-bg) !important;
+    
+    thead th {
+      background-color: var(--theme-sidebar-bg) !important;
+      border-bottom: 2px solid var(--theme-border) !important;
+      font-weight: 600;
+      color: var(--theme-text) !important;
+      padding: 12px 8px;
+      font-size: 0.875rem;
+    }
+    
+    tbody tr {
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--theme-border) !important;
+      background-color: var(--theme-card-bg) !important;
+      color: var(--theme-text) !important;
+      
+      &:hover {
+        background-color: var(--theme-hover-bg) !important;
+      }
+      
+      &.dragging {
+        background-color: var(--theme-hover-bg) !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        transform: scale(1.01);
+      }
+    }
+    
+    tbody td {
+      padding: 8px;
+      vertical-align: middle;
+      border: none !important;
+      background-color: inherit !important;
+      color: inherit !important;
+    }
+  }
+  
+  .drag-handle-table {
+    cursor: grab;
+    padding: 8px 6px;
+    border-radius: 4px;
+    color: var(--theme-muted-text);
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &:hover {
+      color: var(--theme-text);
+      background-color: var(--theme-hover-bg);
+    }
+    
+    &:active {
+      cursor: grabbing;
+    }
+    
+    // Create hamburger menu style with CSS
+    &::before {
+      content: '';
+      width: 12px;
+      height: 2px;
+      background-color: currentColor;
+      border-radius: 1px;
+      box-shadow: 
+        0 -4px 0 currentColor,
+        0 4px 0 currentColor;
+    }
+  }
+  
+  .attribute-name-cell {
+    &.editable {
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: background-color 0.2s ease;
+      
+      &:hover {
+        background-color: var(--theme-hover-bg);
+      }
+    }
+    
+    &.protected {
+      color: var(--theme-muted-text);
+      font-style: italic;
+    }
+  }
+  
+  .options-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .add-attribute-btn {
+    border: 2px dashed var(--theme-border);
+    background: transparent;
+    padding: 8px 16px;
+    transition: all 0.2s ease;
+    color: var(--theme-text);
+    
+    &:hover {
+      border-color: var(--theme-primary);
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-primary);
+    }
+  }
+}
+
+// Note: Dark theme support is now handled automatically through 
+// the app's --theme-* variables defined in _themes.scss

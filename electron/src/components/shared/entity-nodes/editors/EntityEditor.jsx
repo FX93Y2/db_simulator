@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
-import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
-import AttributeEditor from './AttributeEditor';
+import AttributeTable from './AttributeTable';
 import ConfirmationModal from '../../ConfirmationModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
@@ -132,25 +131,9 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     setAttributes(newAttributes);
   };
 
-  // Handle drag and drop reordering
-  const handleDragEnd = (result) => {
-    if (!result.destination) {
-      return; // Dropped outside the list
-    }
-
-    const sourceIndex = result.source.index;
-    const destinationIndex = result.destination.index;
-
-    if (sourceIndex === destinationIndex) {
-      return; // No change
-    }
-
-    // Reorder attributes array
-    const reorderedAttributes = Array.from(attributes);
-    const [reorderedItem] = reorderedAttributes.splice(sourceIndex, 1);
-    reorderedAttributes.splice(destinationIndex, 0, reorderedItem);
-
-    setAttributes(reorderedAttributes);
+  // Handle attributes changes from the table
+  const handleAttributesChange = (newAttributes) => {
+    setAttributes(newAttributes);
   };
 
 
@@ -385,65 +368,22 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           <div className="entity-attributes-section">
             <div className="d-flex justify-content-between align-items-center mb-3">
               <h5 className="mb-0">Attributes</h5>
-              <Button
-                variant="outline-primary"
-                size="sm"
-                onClick={handleAddAttribute}
-              >
-                <FiPlus className="me-1" /> Add Attribute
-              </Button>
             </div>
             
             {attributes.length === 0 ? (
               <Alert variant="info">
-                No attributes defined. Click "Add Attribute" to create the first attribute.
+                No attributes defined. Click "Add Attribute" below to create the first attribute.
               </Alert>
-            ) : (
-              <DragDropContext onDragEnd={handleDragEnd}>
-                <Droppable droppableId="attributes-list">
-                  {(provided) => (
-                    <div 
-                      className="attributes-list"
-                      {...provided.droppableProps}
-                      ref={provided.innerRef}
-                    >
-                      {attributes.map((attribute, index) => (
-                        <Draggable 
-                          key={`${attribute.name}-${index}`}
-                          draggableId={`attribute-${index}`}
-                          index={index}
-                        >
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              style={{
-                                ...provided.draggableProps.style,
-                                opacity: snapshot.isDragging ? 0.8 : 1,
-                                transform: snapshot.isDragging 
-                                  ? `${provided.draggableProps.style?.transform || ''} rotate(2deg)`
-                                  : provided.draggableProps.style?.transform
-                              }}
-                            >
-                              <AttributeEditor
-                                attribute={attribute}
-                                onAttributeChange={(updatedAttribute) => handleAttributeChange(index, updatedAttribute)}
-                                onAttributeDelete={() => handleDeleteAttribute(index)}
-                                entityType={entityType}
-                                theme={theme}
-                                dragHandleProps={provided.dragHandleProps}
-                                isDragging={snapshot.isDragging}
-                              />
-                            </div>
-                          )}
-                        </Draggable>
-                      ))}
-                      {provided.placeholder}
-                    </div>
-                  )}
-                </Droppable>
-              </DragDropContext>
-            )}
+            ) : null}
+            
+            <AttributeTable
+              attributes={attributes}
+              onAttributesChange={handleAttributesChange}
+              onAddAttribute={handleAddAttribute}
+              onDeleteAttribute={handleDeleteAttribute}
+              entityType={entityType}
+              theme={theme}
+            />
           </div>
         </Form>
       </Modal.Body>
