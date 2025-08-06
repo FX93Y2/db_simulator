@@ -39,7 +39,7 @@ class EventStepProcessor(StepProcessor):
                 step.event_config.name is not None)
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process an event step with resource allocation and duration.
         
@@ -56,6 +56,9 @@ class EventStepProcessor(StepProcessor):
         Returns:
             Next step ID from the step configuration
         """
+        # Use provided event_tracker or fall back to default
+        active_event_tracker = event_tracker or self.event_tracker
+        
         if not self.validate_step(step):
             self.logger.error(f"Invalid event step configuration for step {step.step_id}")
             return None
@@ -107,12 +110,12 @@ class EventStepProcessor(StepProcessor):
                 end_time = self.env.now
                 
                 # Record resource allocations in the tracker
-                self._record_resource_allocations(event_id, start_time, end_time)
+                self._record_resource_allocations(event_id, start_time, end_time, active_event_tracker)
                 
                 # Record event processing
                 self._record_event_processing(
                     process_engine, event_table, event_id, entity_id,
-                    start_time, end_time, duration_minutes
+                    start_time, end_time, duration_minutes, active_event_tracker
                 )
                 
                 # Release resources
@@ -258,9 +261,11 @@ class EventStepProcessor(StepProcessor):
     
     def _record_event_processing(self, engine, event_table: str, event_id: int, 
                                 entity_id: int, start_time: float, end_time: float, 
-                                duration_minutes: float):
+                                duration_minutes: float, event_tracker=None):
         """Record event processing in the event tracker."""
         try:
+            # Use provided event_tracker or fall back to default
+            active_event_tracker = event_tracker or self.event_tracker
             # Calculate datetime values
             start_datetime = None
             end_datetime = None
@@ -271,9 +276,9 @@ class EventStepProcessor(StepProcessor):
                 end_datetime = self.config.start_date + timedelta(minutes=end_time)
             
             # Record in event tracker if available
-            if self.event_tracker:
+            if active_event_tracker:
                 with engine.connect() as conn:
-                    stmt = insert(self.event_tracker.event_processing).values(
+                    stmt = insert(active_event_tracker.event_processing).values(
                         event_table=event_table,
                         event_id=event_id,
                         entity_id=entity_id,
@@ -289,14 +294,15 @@ class EventStepProcessor(StepProcessor):
         except Exception as e:
             self.logger.warning(f"Error recording event processing: {str(e)}")
     
-    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float):
+    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_tracker=None):
         """Record resource allocations in the event tracker."""
         try:
-            if self.event_tracker and event_id in self.resource_manager.event_allocations:
+            active_event_tracker = event_tracker or self.event_tracker
+            if active_event_tracker and event_id in self.resource_manager.event_allocations:
                 allocated_resources = self.resource_manager.event_allocations[event_id]
                 for resource in allocated_resources:
                     # Record in the event tracker
-                    self.event_tracker.record_resource_allocation(
+                    active_event_tracker.record_resource_allocation(
                         event_id=event_id,
                         resource_table=resource.table,
                         resource_id=resource.id,

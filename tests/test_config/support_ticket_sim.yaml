@@ -211,8 +211,8 @@ event_simulation:
             duration:
               distribution:
                 type: normal
-                mean: 1
-                stddev: 0.2
+                mean: 0.2
+                stddev: 0.1
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support

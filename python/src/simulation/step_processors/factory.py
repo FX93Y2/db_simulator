@@ -143,7 +143,7 @@ class StepProcessorFactory:
         return None
     
     def process_step(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                    entity_table: str, event_table: str):
+                    entity_table: str, event_table: str, flow_event_tracker=None):
         """
         Process a step using the appropriate processor.
         
@@ -153,6 +153,7 @@ class StepProcessorFactory:
             flow: Event flow configuration
             entity_table: Name of entity table
             event_table: Name of event table
+            flow_event_tracker: Flow-specific EventTracker (optional, uses default if not provided)
             
         Returns:
             Generator from the step processor
@@ -161,8 +162,11 @@ class StepProcessorFactory:
         if processor is None:
             raise ValueError(f"No processor available for step type: {step.step_type}")
         
-        self.logger.debug(f"Processing {step.step_type} step '{step.step_id}' for entity {entity_id}")
-        return processor.process(entity_id, step, flow, entity_table, event_table)
+        # Use flow-specific EventTracker if provided, otherwise use default
+        event_tracker = flow_event_tracker or processor.event_tracker
+        
+        self.logger.debug(f"Processing {step.step_type} step '{step.step_id}' for entity {entity_id} using EventTracker for flow {flow.flow_id}")
+        return processor.process(entity_id, step, flow, entity_table, event_table, event_tracker)
     
     def add_processor(self, processor: StepProcessor):
         """

@@ -43,36 +43,61 @@ class DatabaseGenerator:
         self.models = {}
         self.dynamic_entity_tables = dynamic_entity_tables or []
         
-        # Analyze simulation config for attribute assignments
-        self.detected_attributes = self._analyze_simulation_attributes()
+        # Analyze simulation config for flow-specific attribute assignments
+        self.flow_attributes = self._analyze_simulation_attributes()
         
         # Create output directory if it doesn't exist
         os.makedirs(output_dir, exist_ok=True)
     
-    def _analyze_simulation_attributes(self) -> Dict[str, Any]:
+    def _analyze_simulation_attributes(self) -> Dict[str, Dict[str, Dict[str, Any]]]:
         """
-        Analyze simulation config to detect attribute assignments.
+        Analyze simulation config to detect flow-specific attribute assignments.
         
         Returns:
-            Dictionary mapping attribute names to SQLAlchemy column types
+            Dictionary mapping: {flow_id: {entity_table: {attr_name: attr_type}}}
         """
-        attributes = {}
+        flow_attributes = {}
         
         if not self.sim_config or not self.sim_config.event_simulation:
-            return attributes
+            return flow_attributes
         
         event_flows = self.sim_config.event_simulation.event_flows
         if not event_flows:
-            return attributes
+            return flow_attributes
         
-        logger.info("Analyzing simulation config for attribute assignments...")
+        logger.info("Analyzing simulation config for flow-specific attribute assignments...")
         
         # Handle both new EventFlowsConfig structure and direct list structure
         flows = event_flows.flows if hasattr(event_flows, 'flows') else event_flows
         if not flows:
-            return attributes
-            
+            return flow_attributes
+        
+        # First, build a mapping of flows to their entity tables via Create modules
+        flow_entity_mapping = {}  # {flow_id: [entity_table1, entity_table2, ...]}
+        
         for flow in flows:
+            flow_id = flow.flow_id
+            flow_entity_mapping[flow_id] = []
+            
+            # Find Create modules in this flow to determine which entities it handles
+            for step in flow.steps:
+                if step.step_type == 'create' and step.create_config and step.create_config.entity_table:
+                    entity_table = step.create_config.entity_table
+                    if entity_table not in flow_entity_mapping[flow_id]:
+                        flow_entity_mapping[flow_id].append(entity_table)
+        
+        # Now analyze assign modules and map them to the correct entity tables
+        for flow in flows:
+            flow_id = flow.flow_id
+            entity_tables = flow_entity_mapping.get(flow_id, [])
+            
+            # Skip flows with no entity tables (no Create modules)
+            if not entity_tables:
+                logger.debug(f"Flow {flow_id} has no Create modules, skipping attribute analysis")
+                continue
+            
+            flow_attributes[flow_id] = {}
+            
             for step in flow.steps:
                 if step.step_type == 'assign' and step.assign_config:
                     for assignment in step.assign_config.assignments:
@@ -99,22 +124,64 @@ class DatabaseGenerator:
                             else:
                                 column_type = String
                             
-                            # Store the detected attribute (use most general type if multiple)
-                            if attr_name in attributes:
-                                # If we already have this attribute, use String if types differ
-                                if attributes[attr_name] != column_type:
-                                    attributes[attr_name] = String
-                            else:
-                                attributes[attr_name] = column_type
-                            
-                            logger.debug(f"Detected attribute: {attr_name} -> {column_type.__name__}")
+                            # Add attribute to all entity tables in this flow
+                            for entity_table in entity_tables:
+                                if entity_table not in flow_attributes[flow_id]:
+                                    flow_attributes[flow_id][entity_table] = {}
+                                
+                                # Store or merge the attribute
+                                if attr_name in flow_attributes[flow_id][entity_table]:
+                                    # Use most general type if types differ
+                                    existing_type = flow_attributes[flow_id][entity_table][attr_name]
+                                    if existing_type != column_type:
+                                        flow_attributes[flow_id][entity_table][attr_name] = String
+                                else:
+                                    flow_attributes[flow_id][entity_table][attr_name] = column_type
+                                
+                                logger.debug(f"Assigned attribute to flow {flow_id}, entity {entity_table}: {attr_name} -> {column_type.__name__}")
         
-        if attributes:
-            logger.info(f"Found {len(attributes)} unique attribute assignments: {list(attributes.keys())}")
+        # Log summary
+        total_attributes = 0
+        for flow_id, entities in flow_attributes.items():
+            for entity_table, attrs in entities.items():
+                if attrs:
+                    total_attributes += len(attrs)
+                    logger.info(f"Flow {flow_id}, Entity {entity_table}: {len(attrs)} attributes {list(attrs.keys())}")
+        
+        if total_attributes > 0:
+            logger.info(f"Found {total_attributes} total flow-specific attribute assignments")
         else:
             logger.info("No attribute assignments found in simulation config")
         
-        return attributes
+        return flow_attributes
+    
+    def _get_attributes_for_entity(self, entity_name: str) -> Dict[str, Any]:
+        """
+        Get all attributes that should be added to a specific entity table.
+        
+        Args:
+            entity_name: Name of the entity table
+            
+        Returns:
+            Dictionary mapping attribute names to their SQLAlchemy column types
+        """
+        entity_attributes = {}
+        
+        # Search through all flows to find attributes for this entity
+        for flow_id, entities in self.flow_attributes.items():
+            if entity_name in entities:
+                # Merge attributes from this flow
+                for attr_name, attr_type in entities[entity_name].items():
+                    if attr_name in entity_attributes:
+                        # If attribute exists from multiple flows, use most general type
+                        if entity_attributes[attr_name] != attr_type:
+                            entity_attributes[attr_name] = String
+                    else:
+                        entity_attributes[attr_name] = attr_type
+                    
+                    logger.debug(f"Entity {entity_name} gets attribute {attr_name} from flow {flow_id}")
+        
+        return entity_attributes
     
     def generate(self, db_name: Optional[str] = None) -> str:
         """
@@ -262,12 +329,16 @@ class DatabaseGenerator:
             else:
                 attrs[attr.name] = Column(column_type)
         
-        # Add simulation attribute columns for entity tables only
-        if entity.type == 'entity' and self.detected_attributes:
-            logger.info(f"Adding {len(self.detected_attributes)} attribute columns to entity table '{entity.name}'")
-            for attr_name, attr_type in self.detected_attributes.items():
-                attrs[attr_name] = Column(attr_type, nullable=True)
-                logger.debug(f"Added column: {entity.name}.{attr_name} ({attr_type.__name__})")
+        # Add flow-specific simulation attribute columns for entity tables only
+        if entity.type == 'entity' and self.flow_attributes:
+            entity_attrs = self._get_attributes_for_entity(entity.name)
+            if entity_attrs:
+                logger.info(f"Adding {len(entity_attrs)} flow-specific attribute columns to entity table '{entity.name}'")
+                for attr_name, attr_type in entity_attrs.items():
+                    attrs[attr_name] = Column(attr_type, nullable=True)
+                    logger.debug(f"Added column: {entity.name}.{attr_name} ({attr_type.__name__})")
+            else:
+                logger.debug(f"No flow-specific attributes found for entity table '{entity.name}'")
         
         # Create model class
         model_class = type(entity.name, (self.Base,), attrs)

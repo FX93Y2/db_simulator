@@ -67,7 +67,7 @@ class CreateStepProcessor(StepProcessor):
         return True
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str) -> Generator:
+                entity_table: str, event_table: str, event_tracker=None) -> Generator:
         """
         Process the Create step by generating entities with specified arrival pattern.
         

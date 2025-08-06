@@ -73,67 +73,11 @@ class EventSimulator:
             random.seed(config.random_seed)
             np.random.seed(config.random_seed)
             
-        # Initialize event tracker - Pass table names from config
-        event_table_name = None
-        resource_table_name = None
-        bridge_table_config = None
+        # Initialize flow-specific event trackers
+        self.flow_event_trackers = self._initialize_flow_event_trackers(db_path, config, db_config)
         
-        if config.event_simulation:
-            if config.event_simulation.table_specification:
-                # Use table specification from simulation config
-                spec = config.event_simulation.table_specification
-                event_table_name = spec.event_table
-                # TODO: Handle multiple resource tables if needed
-                resource_table_name = spec.resource_table
-                logger.info(f"Using table specification from simulation config: event_table='{event_table_name}', resource_table='{resource_table_name}'")
-            elif db_config:
-                # Derive table specification from database config based on table types
-                for entity in db_config.entities:
-                    if entity.type == 'event':
-                        event_table_name = entity.name
-                    elif entity.type == 'resource':
-                        resource_table_name = entity.name
-                
-                if event_table_name and resource_table_name:
-                    logger.info(f"Derived table specification from database config: event_table='{event_table_name}', resource_table='{resource_table_name}'")
-                else:
-                    logger.warning("Could not derive complete table specification from database config. EventTracker may not work correctly.")
-            else:
-                logger.warning("Event simulation has no table specification and no database config provided. EventTracker may not create bridging table.")
-        else:
-            logger.warning("No event simulation configuration found. EventTracker may not create bridging table.")
-        
-        # Look for a bridge table in the database configuration
-        if db_config and event_table_name and resource_table_name:
-            # Find a bridge table entity that has event_id and resource_id type attributes
-            for entity in db_config.entities:
-                event_fk_attr = None
-                resource_fk_attr = None
-                
-                # Check if this entity has attributes with type 'event_id' and 'resource_id'
-                for attr in entity.attributes:
-                    if attr.type == 'event_id' and attr.ref and attr.ref.startswith(f"{event_table_name}."):
-                        event_fk_attr = attr
-                    elif attr.type == 'resource_id' and attr.ref and attr.ref.startswith(f"{resource_table_name}."):
-                        resource_fk_attr = attr
-                
-                # If we found both attributes, this is our bridge table
-                if event_fk_attr and resource_fk_attr:
-                    bridge_table_config = {
-                        'name': entity.name,
-                        'event_fk_column': event_fk_attr.name,
-                        'resource_fk_column': resource_fk_attr.name
-                    }
-                    logger.info(f"Found bridge table in database config: {entity.name}")
-                    break
-
-        self.event_tracker = EventTracker(
-            db_path,
-            config.start_date,
-            event_table_name=event_table_name,
-            resource_table_name=resource_table_name,
-            bridge_table_config=bridge_table_config
-        )
+        # Keep a default event tracker for backward compatibility (use first flow's tracker)
+        self.event_tracker = next(iter(self.flow_event_trackers.values())) if self.flow_event_trackers else None
         
         # Initialize entity manager
         self.entity_manager = EntityManager(self.env, self.engine, self.db_path, config, db_config, self.event_tracker)
@@ -203,6 +147,107 @@ class EventSimulator:
         finally:
             # ALWAYS clean up database connections to prevent EBUSY errors on Windows
             self._cleanup_database_connections()
+
+    def _initialize_flow_event_trackers(self, db_path, config, db_config):
+        """
+        Initialize flow-specific EventTracker instances for each flow.
+        
+        Args:
+            db_path: Database path
+            config: Simulation configuration  
+            db_config: Database configuration
+            
+        Returns:
+            Dictionary mapping flow_id to EventTracker instance
+        """
+        flow_trackers = {}
+        
+        if not config.event_simulation or not config.event_simulation.event_flows:
+            logger.warning("No event flows found. Cannot create flow-specific EventTrackers.")
+            return flow_trackers
+        
+        # Get resource table name (shared across flows)
+        resource_table_name = None
+        if config.event_simulation.table_specification:
+            resource_table_name = config.event_simulation.table_specification.resource_table
+        elif db_config:
+            # Find resource table from database config
+            for entity in db_config.entities:
+                if entity.type == 'resource':
+                    resource_table_name = entity.name
+                    break
+        
+        if not resource_table_name:
+            logger.error("Could not determine resource table name. EventTrackers cannot be created.")
+            return flow_trackers
+        
+        # Handle both new EventFlowsConfig structure and direct list structure  
+        flows = config.event_simulation.event_flows.flows if hasattr(config.event_simulation.event_flows, 'flows') else config.event_simulation.event_flows
+        
+        for flow in flows:
+            flow_id = flow.flow_id
+            event_table_name = flow.event_table
+            
+            if not event_table_name:
+                logger.warning(f"Flow {flow_id} has no event_table specified. Skipping EventTracker creation.")
+                continue
+                
+            # Find bridge table for this flow's event table
+            bridge_table_config = self._find_bridge_table_for_flow(db_config, event_table_name, resource_table_name)
+            
+            if bridge_table_config:
+                # Create EventTracker for this flow
+                event_tracker = EventTracker(
+                    db_path,
+                    config.start_date,
+                    event_table_name=event_table_name,
+                    resource_table_name=resource_table_name,
+                    bridge_table_config=bridge_table_config
+                )
+                flow_trackers[flow_id] = event_tracker
+                logger.info(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")
+            else:
+                logger.warning(f"Could not find bridge table for flow {flow_id} (event_table={event_table_name}). Resource tracking may not work.")
+        
+        logger.info(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
+        return flow_trackers
+    
+    def _find_bridge_table_for_flow(self, db_config, event_table_name, resource_table_name):
+        """
+        Find the bridge table configuration for a specific event table.
+        
+        Args:
+            db_config: Database configuration
+            event_table_name: Name of the event table for this flow
+            resource_table_name: Name of the resource table (shared)
+            
+        Returns:
+            Bridge table configuration dict or None if not found
+        """
+        if not db_config:
+            return None
+            
+        # Find a bridge table entity that has event_id and resource_id type attributes
+        for entity in db_config.entities:
+            event_fk_attr = None
+            resource_fk_attr = None
+            
+            # Check if this entity has attributes with type 'event_id' and 'resource_id'
+            for attr in entity.attributes:
+                if attr.type == 'event_id' and attr.ref and attr.ref.startswith(f"{event_table_name}."):
+                    event_fk_attr = attr
+                elif attr.type == 'resource_id' and attr.ref and attr.ref.startswith(f"{resource_table_name}."):
+                    resource_fk_attr = attr
+            
+            # If we found both attributes, this is the bridge table for this flow
+            if event_fk_attr and resource_fk_attr:
+                return {
+                    'name': entity.name,
+                    'event_fk_column': event_fk_attr.name,
+                    'resource_fk_column': resource_fk_attr.name
+                }
+        
+        return None
 
     def _cleanup_database_connections(self):
         """
@@ -310,13 +355,17 @@ class EventSimulator:
                 # Set the entity routing callback so Create processor can route entities properly
                 create_processor.entity_router_callback = self._route_entity_from_create
             
+            # Get flow-specific EventTracker
+            flow_event_tracker = self.flow_event_trackers.get(flow.flow_id)
+            
             # Process the Create step using the step processor factory
             step_generator = self.step_processor_factory.process_step(
                 0,  # entity_id not used for Create steps
                 create_step, 
                 flow, 
                 entity_table,  # Use the specific entity table from Create config
-                event_table  # Use the flow-specific event table
+                event_table,  # Use the flow-specific event table
+                flow_event_tracker  # Use the flow-specific EventTracker
             )
             
             # Run the Create step generator
@@ -442,9 +491,12 @@ class EventSimulator:
         logger.debug(f"Processing step {step_id} of type {step.step_type} for entity {entity_id}")
         
         try:
+            # Get flow-specific EventTracker
+            flow_event_tracker = self.flow_event_trackers.get(flow.flow_id)
+            
             # Use the step processor factory to process the step
             step_generator = self.step_processor_factory.process_step(
-                entity_id, step, flow, entity_table, event_table
+                entity_id, step, flow, entity_table, event_table, flow_event_tracker
             )
             
             # Process the step and get the next step ID
