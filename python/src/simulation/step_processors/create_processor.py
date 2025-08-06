@@ -29,6 +29,11 @@ class CreateStepProcessor(StepProcessor):
     - Support entity limits and arrival patterns
     """
     
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config)
+        # Callback for routing entities to initial steps (set by simulator)
+        self.entity_router_callback = None
+    
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle the given step type."""
         return step_type == "create"
@@ -219,9 +224,6 @@ class CreateStepProcessor(StepProcessor):
         """
         Route the created entity to its initial processing step.
         
-        This method schedules the entity to start processing from its initial step.
-        The actual step processing will be handled by the simulator's main processing loop.
-        
         Args:
             entity_id: ID of the created entity
             initial_step_id: ID of the initial step to route to
@@ -230,21 +232,16 @@ class CreateStepProcessor(StepProcessor):
             event_table: Name of the event table
         """
         try:
-            # For now, we'll use a callback approach similar to the original entity generation
-            # The simulator will need to handle routing entities from Create modules
-            
-            # Create a callback that can be used by the simulator
-            # This is a simplified approach - the full implementation will need
-            # integration with the simulator's _process_entity_events method
-            
-            logger.info(f"Entity {entity_id} created and ready for processing at step {initial_step_id}")
-            
-            # TODO: This needs to be integrated with the simulator's entity processing
-            # For Phase 1, we'll focus on the Create module creation and configuration
+            if self.entity_router_callback:
+                # Use the simulator's callback for proper integration
+                self.entity_router_callback(entity_id, initial_step_id, flow, entity_table, event_table)
+            else:
+                logger.warning(f"No entity router callback set. Entity {entity_id} cannot be routed to step {initial_step_id}")
             
         except Exception as e:
             logger.error(f"Error routing entity {entity_id} to initial step {initial_step_id}: {e}", 
                         exc_info=True)
+    
     
     def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
         """

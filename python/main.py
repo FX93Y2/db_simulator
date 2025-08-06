@@ -136,7 +136,7 @@ def main():
             # 2. Running the simulation on this complete database
             
             # Generate complete database with all tables including Project and Deliverable
-            db_path = generate_database(args.db_config, args.output_dir, args.name, sim_config_path=args.sim_config)
+            db_path = generate_database(args.db_config, args.output_dir, args.name, sim_config_path_or_content=args.sim_config)
             logger.info(f"Complete database generated at: {db_path}")
             
             # Run simulation on the complete database

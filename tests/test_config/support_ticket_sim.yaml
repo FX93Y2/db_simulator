@@ -4,8 +4,7 @@ simulation:
   random_seed: 42
 event_simulation:
   event_flows:
-    - flow_id: main_flow
-      initial_step: create_tickets
+    - flow_id: ticket_flow
       steps:
         - step_id: create_tickets
           step_type: create
@@ -189,6 +188,41 @@ event_simulation:
           step_type: release
           event_config:
             name: Release
+    
+    - flow_id: phone_call_flow
+      steps:
+        - step_id: create_phone_calls
+          step_type: create
+          create_config:
+            entity_table: Phone_Call
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 1
+            initial_step: phone_triage
+            max_entities: n/a
+        
+        - step_id: phone_triage
+          step_type: event
+          event_config:
+            name: Phone Triage
+            duration:
+              distribution:
+                type: normal
+                mean: 1
+                stddev: 0.2
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - phone_release
+        
+        - step_id: phone_release
+          step_type: release
+          event_config:
+            name: Phone Release
+  
   resource_capacities:
     Staff:
       capacity_rules:

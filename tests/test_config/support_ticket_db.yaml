@@ -63,6 +63,41 @@ entities:
         generator:
           type: faker
           method: name
+  - name: Phone_Call
+    type: entity
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: caller_id
+        type: fk
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+          distribution:
+            type: uniform
+            min: 1
+            max: 20
+        ref: Submitter.id
+      - name: phone_number
+        type: string
+        generator:
+          type: faker
+          method: phone_number
+      - name: call_type
+        type: string
+        generator:
+          type: distribution
+          distribution:
+            type: choice
+            values:
+              - Support
+              - Sales
+              - Billing
+            weights:
+              - 0.6
+              - 0.3
+              - 0.1
   - name: Task
     type: event
     rows: n/a
@@ -75,6 +110,20 @@ entities:
           type: foreign_key
           subtype: one_to_many
         ref: Ticket.id
+      - name: event_type
+        type: event_type
+  - name: Call_Task
+    type: event
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: phone_call_id
+        type: entity_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Phone_Call.id
       - name: event_type
         type: event_type
   - name: Staff_Task
@@ -95,6 +144,28 @@ entities:
           type: foreign_key
           subtype: one_to_many
         ref: Task.id
+      - name: end_date
+        type: datetime
+      - name: start_date
+        type: datetime
+  - name: Staff_Call_Task
+    type: bridging
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: staff_id
+        type: resource_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Staff.id
+      - name: call_task_id
+        type: event_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Call_Task.id
       - name: end_date
         type: datetime
       - name: start_date

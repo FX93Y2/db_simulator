@@ -164,9 +164,8 @@ class EventSimulator:
             # Setup resources
             self.resource_manager.setup_resources(self.config.event_simulation)
             
-            # Start entity generation process using dynamic generation
-            # Entity generation will be handled by Create step modules
-            logger.info("Entity generation will be handled by Create step modules in event flows")
+            # Start entity generation process using Create step modules
+            self._start_create_modules()
             
             # Run simulation for specified duration
             duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
@@ -258,6 +257,102 @@ class EventSimulator:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             logger.warning(f"[{timestamp}] [PYTHON] Error during simulator cleanup for {self.db_path}: {e}")
 
+    def _start_create_modules(self):
+        """
+        Start all Create step modules found in event flows.
+        
+        This method scans all event flows for Create steps and starts them as
+        concurrent SimPy processes to generate entities dynamically.
+        """
+        event_sim = self.config.event_simulation
+        if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
+            logger.warning("No event flows found. No entities will be created.")
+            return
+        
+        create_modules_started = 0
+        
+        # Scan all flows for Create steps
+        for flow in event_sim.event_flows.flows:
+            logger.debug(f"Scanning flow {flow.flow_id} for Create modules")
+            
+            for step in flow.steps:
+                if step.step_type == 'create' and step.create_config:
+                    logger.info(f"Starting Create module: {step.step_id} (table: {step.create_config.entity_table})")
+                    
+                    # Start the Create module as a SimPy process
+                    self.env.process(self._run_create_module(step, flow))
+                    create_modules_started += 1
+        
+        if create_modules_started == 0:
+            logger.warning("No Create modules found in event flows. No entities will be created.")
+        else:
+            logger.info(f"Started {create_modules_started} Create module(s)")
+
+    def _run_create_module(self, create_step: 'Step', flow: 'EventFlow'):
+        """
+        Run a Create module as a SimPy process.
+        
+        Args:
+            create_step: The Create step configuration
+            flow: The event flow containing this Create step
+        """
+        try:
+            # Get table names for this flow
+            entity_table = create_step.create_config.entity_table
+            entity_table_config, event_table, resource_table = self.entity_manager.get_table_names()
+            
+            # Use the entity table from the Create config instead of the global one
+            logger.debug(f"Create module {create_step.step_id} using tables: entity={entity_table}, event={event_table}")
+            
+            # Get the Create step processor and set up entity routing callback
+            create_processor = self.step_processor_factory.get_processor('create')
+            if create_processor:
+                # Set the entity routing callback so Create processor can route entities properly
+                create_processor.entity_router_callback = self._route_entity_from_create
+            
+            # Process the Create step using the step processor factory
+            step_generator = self.step_processor_factory.process_step(
+                0,  # entity_id not used for Create steps
+                create_step, 
+                flow, 
+                entity_table,  # Use the specific entity table from Create config
+                event_table or 'Task'  # Default event table if not found
+            )
+            
+            # Run the Create step generator
+            yield from step_generator
+            
+        except Exception as e:
+            logger.error(f"Error running Create module {create_step.step_id}: {e}", exc_info=True)
+    
+    def _route_entity_from_create(self, entity_id: int, initial_step_id: str, flow: 'EventFlow', 
+                                entity_table: str, event_table: str):
+        """
+        Callback method for Create processors to route entities to their initial steps.
+        
+        This method integrates with the simulator's main processing system.
+        
+        Args:
+            entity_id: ID of the created entity
+            initial_step_id: ID of the initial step to route to  
+            flow: Event flow configuration
+            entity_table: Name of the entity table
+            event_table: Name of the event table
+        """
+        try:
+            # Find the initial step in the flow
+            initial_step = self._find_step_by_id(initial_step_id, flow)
+            if not initial_step:
+                logger.error(f"Initial step {initial_step_id} not found in flow {flow.flow_id}")
+                return
+            
+            logger.info(f"Routing entity {entity_id} from table {entity_table} to step {initial_step_id}")
+            
+            # Start processing the entity from the initial step using the simulator's step processing
+            self.env.process(self._process_step(entity_id, initial_step_id, flow, entity_table, event_table))
+            
+        except Exception as e:
+            logger.error(f"Error routing entity {entity_id} from Create module: {e}", exc_info=True)
 
     def _process_entity_events(self, entity_id: int):
         """
