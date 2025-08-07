@@ -21,19 +21,47 @@ import SimulationEditor from '../shared/SimulationEditor';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
-// Default template for a new simulation configuration matching SimulationEditor defaults
+// Default template for a new simulation configuration with Create modules
 const DEFAULT_SIM_CONFIG = `simulation:
   duration_days: 30
   start_date: 2024-01-01
   random_seed: 42
 
 event_simulation:
-  entity_arrival:
-    interarrival_time:
-      distribution:
-        type: exponential
-        scale: 2
-    max_entities: n/a
+  event_flows:
+    - flow_id: main_flow
+      event_table: Task
+      steps:
+        - step_id: create_entities
+          step_type: create
+          create_config:
+            entity_table: Entity
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            max_entities: n/a
+            initial_step: process_entity
+        
+        - step_id: process_entity
+          step_type: event
+          event_config:
+            name: Process Entity
+            duration:
+              distribution:
+                type: normal
+                mean: 2
+                stddev: 0.5
+            resource_requirements: []
+          next_steps:
+            - release
+        
+        - step_id: release
+          step_type: release
+          event_config:
+            name: Release
+
+  resource_capacities: {}
 `;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
@@ -256,6 +284,18 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         newStep.next_steps = [];
       } else if (moduleType === 'release') {
         newStep.event_config = { name: "Release" };
+      } else if (moduleType === 'create') {
+        newStep.create_config = {
+          entity_table: "Entity",
+          interarrival_time: {
+            distribution: {
+              type: "exponential",
+              scale: 2
+            }
+          },
+          max_entities: "n/a",
+          initial_step: ""
+        };
       }
 
       // Add step to flow
@@ -606,6 +646,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                       <FiPlus /> Add Module
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
+                      <Dropdown.Item onClick={() => handleAddModule('create')}>
+                        <FiPlus className="me-2" />
+                        Create
+                      </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('event')}>
                         <FiSettings className="me-2" />
                         Process (Event)

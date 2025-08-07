@@ -151,6 +151,80 @@
   transform: translateY(-1px);
 }
 
+/* Create Step Node (Circle) - Arena-style Create module */
+.create-step-node {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 180px;
+  height: 180px;
+  position: relative;
+  box-shadow: none !important;
+}
+
+.create-shape {
+  width: 160px;
+  height: 160px;
+  background: #3182ce;
+  border: 2px solid #2c5aa0;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  margin-top: -80px;
+  margin-left: -80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  transition: all 0.2s ease;
+}
+
+.create-content {
+  color: white;
+  text-align: center;
+  line-height: 1.2;
+  width: 100%;
+}
+
+.create-content .node-title {
+  color: white;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+  font-weight: 700;
+}
+
+.create-content .node-subtitle {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.8rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.create-content .node-details {
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 0.7rem;
+}
+
+.create-content .detail-item {
+  margin-bottom: 0.15rem;
+  
+  strong {
+    color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+.create-step-node.selected .create-shape {
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.3);
+}
+
+.create-step-node:hover .create-shape {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
 /* Common node content styles */
 .node-content {
   padding: 0.75rem;

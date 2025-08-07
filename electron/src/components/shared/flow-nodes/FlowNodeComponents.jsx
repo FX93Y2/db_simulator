@@ -143,10 +143,42 @@ export const ReleaseNode = ({ data, selected }) => {
   );
 };
 
+// Create Node Component - Circle shape (Arena-style Create module)
+export const CreateNode = ({ data, selected }) => {
+  const createConfig = data.stepConfig?.create_config || {};
+  const entityTable = createConfig.entity_table || 'Entities';
+  const interarrivalTime = createConfig.interarrival_time?.distribution || {};
+  
+  return (
+    <div className={`custom-node create-step-node ${selected ? 'selected' : ''}`}>
+      <div className="create-shape">
+        <div className="create-content">
+          <div className="node-title">Create</div>
+          <div className="node-subtitle">{entityTable}</div>
+          <div className="node-details">
+            {interarrivalTime.type && (
+              <div className="detail-item">
+                <strong>{interarrivalTime.type}</strong>
+                {interarrivalTime.scale && ` (${interarrivalTime.scale})`}
+                {interarrivalTime.mean && ` (${interarrivalTime.mean}±${interarrivalTime.stddev || 0})`}
+              </div>
+            )}
+            {createConfig.max_entities && createConfig.max_entities !== 'n/a' && (
+              <div className="detail-item">Max: {createConfig.max_entities}</div>
+            )}
+          </div>
+        </div>
+      </div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+};
+
 // Node types definition
 export const nodeTypes = {
   process: ProcessNode,
   decide: DecideNode,
   assign: AssignNode,
   release: ReleaseNode,
+  create: CreateNode,
 };

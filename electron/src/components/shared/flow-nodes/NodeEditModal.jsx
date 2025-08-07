@@ -7,6 +7,7 @@ import EventStepEditor from './editors/EventStepEditor';
 import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
+import CreateStepEditor from './editors/CreateStepEditor';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions }) => {
   const [formData, setFormData] = useState({});
@@ -49,6 +50,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       initializeAssignForm(stepConfig);
     } else if (stepConfig.step_type === 'release') {
       initializeReleaseForm(stepConfig);
+    } else if (stepConfig.step_type === 'create') {
+      initializeCreateForm(stepConfig);
     }
   };
 
@@ -149,6 +152,23 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeReleaseForm = (stepConfig) => {
     setFormData({
       name: stepConfig.event_config?.name || 'Release'
+    });
+  };
+
+  const initializeCreateForm = (stepConfig) => {
+    const createConfig = stepConfig.create_config || {};
+    const interarrivalTime = createConfig.interarrival_time?.distribution || {};
+    
+    setFormData({
+      entity_table: createConfig.entity_table || '',
+      distribution_type: interarrivalTime.type || 'exponential',
+      interarrival_mean: interarrivalTime.mean || 2,
+      interarrival_stddev: interarrivalTime.stddev || 0.5,
+      interarrival_scale: interarrivalTime.scale || 2,
+      interarrival_min: interarrivalTime.min || 1,
+      interarrival_max: interarrivalTime.max || 3,
+      max_entities: createConfig.max_entities || 'n/a',
+      initial_step: createConfig.initial_step || ''
     });
   };
 
@@ -288,6 +308,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         }
       }
     }
+    if (stepType === 'create') {
+      if (!formData.entity_table || !formData.initial_step) {
+        return false; // Don't save if essential create fields are missing
+      }
+    }
 
     try {
       const updatedStepConfig = buildStepConfig();
@@ -326,6 +351,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.next_steps = [];
     } else if (stepType === 'release') {
       updatedStepConfig.event_config = { name: formData.name };
+    } else if (stepType === 'create') {
+      updatedStepConfig.create_config = buildCreateConfig();
     }
 
     return updatedStepConfig;
@@ -407,9 +434,33 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     };
   };
 
+  const buildCreateConfig = () => {
+    const distributionConfig = { type: formData.distribution_type || 'exponential' };
+    
+    // Add distribution-specific parameters
+    if (formData.distribution_type === 'normal') {
+      distributionConfig.mean = parseFloat(formData.interarrival_mean) || 2;
+      distributionConfig.stddev = parseFloat(formData.interarrival_stddev) || 0.5;
+    } else if (formData.distribution_type === 'exponential') {
+      distributionConfig.scale = parseFloat(formData.interarrival_scale) || 2;
+    } else if (formData.distribution_type === 'uniform') {
+      distributionConfig.min = parseFloat(formData.interarrival_min) || 1;
+      distributionConfig.max = parseFloat(formData.interarrival_max) || 3;
+    }
+    
+    return {
+      entity_table: formData.entity_table || '',
+      interarrival_time: { distribution: distributionConfig },
+      max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a'),
+      initial_step: formData.initial_step || ''
+    };
+  };
+
   const generateStepId = (stepType, formData) => {
     if (stepType === 'assign') {
       return formData.module_id || node.data.stepConfig.step_id || `assign_${Date.now()}`;
+    } else if (stepType === 'create') {
+      return `create_${formData.entity_table || 'entities'}_${Date.now()}`.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     } else {
       const name = formData.name;
       if (!name) return `${stepType}_${Date.now()}`;
@@ -420,6 +471,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const generateLabel = (stepType, formData, stepId) => {
     if (stepType === 'assign') {
       return 'Assign';
+    } else if (stepType === 'create') {
+      return `Create ${formData.entity_table || 'Entities'}`;
     } else {
       return formData.name || stepId;
     }
@@ -478,6 +531,16 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           <ReleaseStepEditor
             formData={formData}
             onFormDataChange={handleFormDataChange}
+          />
+        );
+      
+      case 'create':
+        return (
+          <CreateStepEditor
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+            availableSteps={availableSteps}
+            availableEntityTables={[]} // TODO: Extract entity tables from parsedSchema
           />
         );
       
