@@ -35,8 +35,7 @@ class EventStepProcessor(StepProcessor):
         if not super().validate_step(step):
             return False
         return (step.step_type == "event" and 
-                step.event_config is not None and
-                step.event_config.name is not None)
+                step.event_config is not None)
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
                 entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
@@ -178,7 +177,7 @@ class EventStepProcessor(StepProcessor):
             row_data = {
                 "id": next_id,
                 relationship_column: entity_id,
-                event_type_column: step.event_config.name
+                event_type_column: step.step_id
             }
             
             # Generate additional attributes if needed
@@ -193,7 +192,7 @@ class EventStepProcessor(StepProcessor):
             session.execute(sql_query, row_data)
             session.commit()
             
-            self.logger.debug(f"Created event {next_id} of type '{step.event_config.name}' for entity {entity_id}")
+            self.logger.debug(f"Created event {next_id} of type '{step.step_id}' for entity {entity_id}")
             return next_id
             
         except Exception as e:

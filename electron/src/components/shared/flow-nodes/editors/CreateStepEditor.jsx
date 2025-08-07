@@ -143,21 +143,21 @@ const CreateStepEditor = ({
         </Form.Text>
       </Form.Group>
 
-      {/* Initial Step Selection */}
+      {/* Next Steps Selection */}
       <Form.Group className="mb-3">
-        <Form.Label>Initial Step</Form.Label>
+        <Form.Label>Next Step</Form.Label>
         <Form.Select
-          value={formData.initial_step || ''}
-          onChange={(e) => onFormDataChange({ initial_step: e.target.value })}
+          value={formData.next_step || ''}
+          onChange={(e) => onFormDataChange({ next_step: e.target.value })}
           required
         >
-          <option value="">Select initial step...</option>
+          <option value="">Select next step...</option>
           {availableSteps.map((stepName) => (
             <option key={stepName} value={stepName}>{stepName}</option>
           ))}
         </Form.Select>
         <Form.Text className="text-muted">
-          Step where created entities enter the flow
+          Step where created entities will be routed
         </Form.Text>
       </Form.Group>
     </div>

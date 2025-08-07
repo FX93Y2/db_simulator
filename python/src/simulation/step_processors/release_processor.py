@@ -33,7 +33,7 @@ class ReleaseStepProcessor(StepProcessor):
         return step.step_type == "release"
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process a release step to complete entity lifecycle.
         

@@ -250,7 +250,7 @@ const ConfigurationGuide = () => {
   event_flows:
     # Defines process flows using step-based configuration
     - flow_id: project_development
-      initial_step: requirements
+      event_table: Task
       steps:
         # Individual steps with event, decide, or release types`}</CodeBlock>
         </div>
@@ -357,14 +357,24 @@ entity_arrival:
           <p>Each event flow has:</p>
           <ul>
             <li><strong>flow_id:</strong> Unique identifier for the flow</li>
-            <li><strong>initial_step:</strong> The first step entities enter</li>
-            <li><strong>steps:</strong> List of all steps in the flow</li>
+            <li><strong>event_table:</strong> Database table for tracking flow events</li>
+            <li><strong>steps:</strong> List of all steps in the flow (entry points auto-detected from Create modules)</li>
           </ul>
           
           <CodeBlock>{`event_flows:
   - flow_id: project_development
-    initial_step: requirements
+    event_table: Task
     steps:
+      - step_id: create_projects
+        step_type: create
+        create_config:
+          entity_table: Project
+          interarrival_time:
+            distribution:
+              type: exponential
+              scale: 5
+          max_entities: n/a
+        next_steps: [requirements]
       - step_id: requirements
         step_type: event
         event_config:

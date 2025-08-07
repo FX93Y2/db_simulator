@@ -146,14 +146,13 @@ def _generate_preview_data(parsed_config):
     preview_data = {
         "flows": [],
         "total_steps": 0,
-        "step_types_count": {"event": 0, "decide": 0, "release": 0, "assign": 0}
+        "step_types_count": {"event": 0, "decide": 0, "release": 0, "assign": 0, "create": 0}
     }
     
     if 'event_simulation' in parsed_config and 'event_flows' in parsed_config['event_simulation']:
         for flow in parsed_config['event_simulation']['event_flows']:
             flow_preview = {
                 "flow_id": flow['flow_id'],
-                "initial_step": flow['initial_step'],
                 "steps_count": len(flow['steps']),
                 "steps": []
             }
@@ -201,5 +200,10 @@ def _generate_step_preview(step):
     
     elif step_type == 'release':
         step_preview["description"] = "Release resources"
+    
+    elif step_type == 'create':
+        if 'create_config' in step:
+            entity_table = step['create_config'].get('entity_table', 'Unknown')
+            step_preview["description"] = f"Create entities in {entity_table}"
     
     return step_preview

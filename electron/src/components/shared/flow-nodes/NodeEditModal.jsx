@@ -168,7 +168,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       interarrival_min: interarrivalTime.min || 1,
       interarrival_max: interarrivalTime.max || 3,
       max_entities: createConfig.max_entities || 'n/a',
-      initial_step: createConfig.initial_step || ''
+      next_step: step.next_steps && step.next_steps.length > 0 ? step.next_steps[0] : ''
     });
   };
 
@@ -309,7 +309,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
     }
     if (stepType === 'create') {
-      if (!formData.entity_table || !formData.initial_step) {
+      if (!formData.entity_table || !formData.next_step) {
         return false; // Don't save if essential create fields are missing
       }
     }
@@ -353,6 +353,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.event_config = { name: formData.name };
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
+      updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
     }
 
     return updatedStepConfig;
@@ -451,8 +452,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     return {
       entity_table: formData.entity_table || '',
       interarrival_time: { distribution: distributionConfig },
-      max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a'),
-      initial_step: formData.initial_step || ''
+      max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
   };
 

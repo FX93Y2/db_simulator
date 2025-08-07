@@ -63,7 +63,7 @@ class DecideStepProcessor(StepProcessor):
                 len(step.decide_config.outcomes) > 0)
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process a decide step and determine the next step based on decision logic.
         

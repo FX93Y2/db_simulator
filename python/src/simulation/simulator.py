@@ -302,12 +302,36 @@ class EventSimulator:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             logger.warning(f"[{timestamp}] [PYTHON] Error during simulator cleanup for {self.db_path}: {e}")
 
+    def _find_flow_entry_points(self, flow: 'EventFlow') -> List[str]:
+        """
+        Find entry point steps for a flow based on step types.
+        
+        Entry point steps are those that can start entity processing:
+        - 'create': Create modules that generate entities
+        - 'batch': Future batch arrival modules (not yet implemented)
+        
+        Args:
+            flow: Event flow to analyze
+            
+        Returns:
+            List of step IDs that are entry points
+        """
+        entry_points = []
+        entry_point_types = ['create', 'batch']  # Extensible for future module types
+        
+        for step in flow.steps:
+            if step.step_type in entry_point_types:
+                entry_points.append(step.step_id)
+                logger.debug(f"Identified entry point: {step.step_id} (type: {step.step_type})")
+        
+        return entry_points
+    
     def _start_create_modules(self):
         """
-        Start all Create step modules found in event flows.
+        Start all entry point modules found in event flows.
         
-        This method scans all event flows for Create steps and starts them as
-        concurrent SimPy processes to generate entities dynamically.
+        This method automatically detects entry point modules (Create, Batch, etc.)
+        and starts them as concurrent SimPy processes to generate entities dynamically.
         """
         event_sim = self.config.event_simulation
         if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
@@ -315,11 +339,23 @@ class EventSimulator:
             return
         
         create_modules_started = 0
+        total_entry_points = 0
         
-        # Scan all flows for Create steps
+        # Scan all flows for entry point modules
         for flow in event_sim.event_flows.flows:
-            logger.debug(f"Scanning flow {flow.flow_id} for Create modules")
+            logger.debug(f"Scanning flow {flow.flow_id} for entry point modules")
             
+            # Find entry points for this flow
+            entry_points = self._find_flow_entry_points(flow)
+            total_entry_points += len(entry_points)
+            
+            if not entry_points:
+                logger.warning(f"Flow {flow.flow_id} has no entry point modules. No entities will be created for this flow.")
+                continue
+            elif len(entry_points) > 1:
+                logger.warning(f"Flow {flow.flow_id} has multiple entry points: {entry_points}. All will be started.")
+            
+            # Start each entry point module
             for step in flow.steps:
                 if step.step_type == 'create' and step.create_config:
                     logger.info(f"Starting Create module: {step.step_id} (table: {step.create_config.entity_table})")
@@ -327,11 +363,12 @@ class EventSimulator:
                     # Start the Create module as a SimPy process
                     self.env.process(self._run_create_module(step, flow))
                     create_modules_started += 1
+                # Future: Add support for other entry point types like 'batch'
         
-        if create_modules_started == 0:
-            logger.warning("No Create modules found in event flows. No entities will be created.")
+        if total_entry_points == 0:
+            logger.warning("No entry point modules found in event flows. No entities will be created.")
         else:
-            logger.info(f"Started {create_modules_started} Create module(s)")
+            logger.info(f"Found {total_entry_points} entry point(s), started {create_modules_started} Create module(s)")
 
     def _run_create_module(self, create_step: 'Step', flow: 'EventFlow'):
         """
@@ -653,7 +690,7 @@ class EventSimulator:
             row_data = {
                 "id": next_id,
                 relationship_column: entity_id,
-                event_type_column: step.event_config.name
+                event_type_column: step.step_id
             }
             
             # Generate values for other attributes using database config

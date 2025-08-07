@@ -18,7 +18,6 @@ event_simulation:
   # Event flow configuration using new flow-based system
   event_flows:
     - flow_id: project_development
-      initial_step: requirements
       steps:
         # Requirements Event
         - step_id: requirements # some unique id written by user or later can be a UUID generated in the frontend

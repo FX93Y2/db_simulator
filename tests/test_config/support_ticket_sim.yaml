@@ -15,13 +15,13 @@ event_simulation:
               distribution:
                 type: exponential
                 scale: 2
-            initial_step: professional_assignment
             max_entities: n/a
+          next_steps:
+            - professional_assignment
         
         - step_id: professional_assignment
           step_type: event
           event_config:
-            name: Professional Assignment
             duration:
               distribution:
                 type: normal
@@ -126,7 +126,6 @@ event_simulation:
         - step_id: priority_assist
           step_type: event
           event_config:
-            name: Priority Assist
             duration:
               distribution:
                 type: normal
@@ -147,7 +146,6 @@ event_simulation:
         - step_id: normal_assist
           step_type: event
           event_config:
-            name: Normal Assist
             duration:
               distribution:
                 type: normal
@@ -165,7 +163,6 @@ event_simulation:
         - step_id: low_priority_assist
           step_type: event
           event_config:
-            name: Low Priority Assist
             duration:
               distribution:
                 type: normal
@@ -179,16 +176,13 @@ event_simulation:
             - release_1754083876277
         - step_id: release
           step_type: release
-          event_config:
-            name: Release
+          event_config: {}
         - step_id: release_1754050596887
           step_type: release
-          event_config:
-            name: Release
+          event_config: {}
         - step_id: release_1754083876277
           step_type: release
-          event_config:
-            name: Release
+          event_config: {}
     
     - flow_id: phone_call_flow
       event_table: Call_Task
@@ -201,13 +195,13 @@ event_simulation:
               distribution:
                 type: exponential
                 scale: 1
-            initial_step: phone_triage
             max_entities: n/a
+          next_steps:
+            - phone_triage
         
         - step_id: phone_triage
           step_type: event
           event_config:
-            name: Phone Triage
             duration:
               distribution:
                 type: normal
@@ -222,8 +216,7 @@ event_simulation:
         
         - step_id: phone_release
           step_type: release
-          event_config:
-            name: Phone Release
+          event_config: {}
   
   resource_capacities:
     Staff:

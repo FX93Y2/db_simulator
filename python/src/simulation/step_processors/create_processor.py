@@ -55,8 +55,9 @@ class CreateStepProcessor(StepProcessor):
             logger.error(f"Create step {step.step_id} missing interarrival_time")
             return False
             
-        if not config.initial_step:
-            logger.error(f"Create step {step.step_id} missing initial_step")
+        # Validate that the step has next_steps for routing entities
+        if not step.next_steps:
+            logger.error(f"Create step {step.step_id} missing next_steps for entity routing")
             return False
             
         # Validate interarrival_time has distribution
@@ -113,9 +114,10 @@ class CreateStepProcessor(StepProcessor):
                 created_entity_id = self._create_entity(config.entity_table, event_table)
                 
                 if created_entity_id:
-                    # Route entity to initial step
-                    self._route_entity_to_initial_step(created_entity_id, config.initial_step, flow, 
-                                                     config.entity_table, event_table)
+                    # Route entity to first next step
+                    first_next_step = step.next_steps[0]
+                    self._route_entity_to_next_step(created_entity_id, first_next_step, flow, 
+                                                   config.entity_table, event_table)
                     entities_created += 1
                     logger.debug(f"Create module {step.step_id} created entity {created_entity_id} "
                                f"({entities_created}/{max_entities if max_entities != -1 else '∞'})")
@@ -219,14 +221,14 @@ class CreateStepProcessor(StepProcessor):
         finally:
             process_engine.dispose()
     
-    def _route_entity_to_initial_step(self, entity_id: int, initial_step_id: str, flow: 'EventFlow',
-                                    entity_table: str, event_table: str):
+    def _route_entity_to_next_step(self, entity_id: int, next_step_id: str, flow: 'EventFlow',
+                                  entity_table: str, event_table: str):
         """
-        Route the created entity to its initial processing step.
+        Route the created entity to its next processing step.
         
         Args:
             entity_id: ID of the created entity
-            initial_step_id: ID of the initial step to route to
+            next_step_id: ID of the next step to route to
             flow: Event flow configuration
             entity_table: Name of the entity table
             event_table: Name of the event table
@@ -234,12 +236,12 @@ class CreateStepProcessor(StepProcessor):
         try:
             if self.entity_router_callback:
                 # Use the simulator's callback for proper integration
-                self.entity_router_callback(entity_id, initial_step_id, flow, entity_table, event_table)
+                self.entity_router_callback(entity_id, next_step_id, flow, entity_table, event_table)
             else:
-                logger.warning(f"No entity router callback set. Entity {entity_id} cannot be routed to step {initial_step_id}")
+                logger.warning(f"No entity router callback set. Entity {entity_id} cannot be routed to step {next_step_id}")
             
         except Exception as e:
-            logger.error(f"Error routing entity {entity_id} to initial step {initial_step_id}: {e}", 
+            logger.error(f"Error routing entity {entity_id} to next step {next_step_id}: {e}", 
                         exc_info=True)
     
     

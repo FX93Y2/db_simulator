@@ -105,12 +105,10 @@ class CreateConfig:
     """Configuration for Create step modules (Arena-style entity creation)"""
     entity_table: str
     interarrival_time: Dict
-    initial_step: str  # Where created entities enter the flow
     max_entities: Optional[Union[int, str]] = None  # Can be int or 'n/a'
 
 @dataclass
 class EventStepConfig:
-    name: str
     duration: Dict
     resource_requirements: List[ResourceRequirement] = field(default_factory=list)
 
@@ -329,7 +327,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             ))
                         
                         event_config = EventStepConfig(
-                            name=ec_dict.get('name', ''),
                             duration=ec_dict.get('duration', {}),
                             resource_requirements=resource_reqs
                         )
@@ -383,8 +380,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
                             interarrival_time=create_dict.get('interarrival_time', {}),
-                            max_entities=create_dict.get('max_entities'),
-                            initial_step=create_dict.get('initial_step', '')
+                            max_entities=create_dict.get('max_entities')
                         )
                     
                     steps.append(Step(
@@ -551,7 +547,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             ))
                         
                         event_config = EventStepConfig(
-                            name=ec_dict.get('name', ''),
                             duration=ec_dict.get('duration', {}),
                             resource_requirements=resource_reqs
                         )
@@ -605,8 +600,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
                             interarrival_time=create_dict.get('interarrival_time', {}),
-                            max_entities=create_dict.get('max_entities'),
-                            initial_step=create_dict.get('initial_step', '')
+                            max_entities=create_dict.get('max_entities')
                         )
                     
                     steps.append(Step(

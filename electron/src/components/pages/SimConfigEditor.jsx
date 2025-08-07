@@ -198,7 +198,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       if (updatedSchema.event_simulation.event_flows.length === 0) {
         updatedSchema.event_simulation.event_flows.push({
           flow_id: 'main_flow',
-          initial_step: '',
+          event_table: 'Event',
           steps: []
         });
       }
@@ -257,18 +257,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
               scale: 2
             }
           },
-          max_entities: "n/a",
-          initial_step: ""
+          max_entities: "n/a"
         };
       }
 
       // Add step to flow
       flow.steps.push(newStep);
-
-      // If this is the first step, make it the initial step
-      if (flow.steps.length === 1) {
-        flow.initial_step = stepId;
-      }
 
       // Convert back to YAML and update state
       const updatedYaml = yaml.stringify(updatedSchema);

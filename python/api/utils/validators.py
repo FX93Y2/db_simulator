@@ -43,7 +43,7 @@ def validate_event_flows_structure(config_data):
                 return {"valid": False, "error": f"Flow {i} must be a dictionary"}
             
             # Check required flow fields
-            required_flow_fields = ['flow_id', 'initial_step', 'steps']
+            required_flow_fields = ['flow_id', 'steps']
             for field in required_flow_fields:
                 if field not in flow:
                     return {"valid": False, "error": f"Flow {i} missing required field: {field}"}
@@ -73,7 +73,7 @@ def validate_event_flows_structure(config_data):
                 step_ids.add(step_id)
                 
                 # Validate step type
-                valid_step_types = ['event', 'decide', 'release', 'assign']
+                valid_step_types = ['event', 'decide', 'release', 'assign', 'create']
                 if step_type not in valid_step_types:
                     return {"valid": False, "error": f"Flow {i} step {step_id} has invalid step_type: {step_type}"}
                 
@@ -84,9 +84,13 @@ def validate_event_flows_structure(config_data):
                 
                 details.append(f"Flow {i} step {step_id} ({step_type}) validated successfully")
             
-            # Validate initial_step exists
-            if flow['initial_step'] not in step_ids:
-                return {"valid": False, "error": f"Flow {i} initial_step '{flow['initial_step']}' not found in steps"}
+            # Validate entry points exist (Create modules should be present for entity generation)
+            entry_point_types = ['create']
+            entry_points = [step for step in steps if step.get('step_type') in entry_point_types]
+            if not entry_points:
+                details.append(f"Flow {i} warning: No entry point modules found (Create, etc.). Entities may not be generated.")
+            else:
+                details.append(f"Flow {i} has {len(entry_points)} entry point module(s)")
         
         return {"valid": True, "details": details}
         
@@ -154,6 +158,21 @@ def _validate_step_config(step, step_id, flow_index):
     elif step_type == 'release':
         # Release steps are typically minimal, just verify structure
         pass
+    
+    elif step_type == 'create':
+        if 'create_config' not in step:
+            return f"Flow {flow_index} create step {step_id} missing create_config"
+        
+        create_config = step['create_config']
+        required_create_fields = ['entity_table', 'interarrival_time']
+        for field in required_create_fields:
+            if field not in create_config:
+                return f"Flow {flow_index} create step {step_id} missing create_config.{field}"
+        
+        # Validate interarrival_time has distribution
+        interarrival_time = create_config['interarrival_time']
+        if not isinstance(interarrival_time, dict) or 'distribution' not in interarrival_time:
+            return f"Flow {flow_index} create step {step_id} interarrival_time must have distribution config"
     
     return None
 
