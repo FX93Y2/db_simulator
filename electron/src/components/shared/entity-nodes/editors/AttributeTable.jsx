@@ -272,8 +272,8 @@ const AttributeTable = ({
             <thead>
               <tr>
                 <th style={{ width: '40px' }}></th>
-                <th style={{ width: '200px' }}>Field Name</th>
-                <th style={{ width: '150px' }}>Type</th>
+                <th>Field Name</th>
+                <th>Type</th>
                 <th>Options</th>
                 <th style={{ width: '60px' }}></th>
               </tr>
@@ -296,7 +296,7 @@ const AttributeTable = ({
                             ${isProtectedAttribute(attribute) ? 'protected-attribute' : ''}
                           `}
                         >
-                          <td style={{ width: '40px' }}>
+                          <td>
                             <div
                               className="drag-handle-table"
                               {...provided.dragHandleProps}
@@ -304,7 +304,7 @@ const AttributeTable = ({
                             >
                             </div>
                           </td>
-                          <td style={{ width: '200px' }}>
+                          <td>
                             {editingIndex === index ? (
                               <Form.Control
                                 type="text"
@@ -326,7 +326,7 @@ const AttributeTable = ({
                               </span>
                             )}
                           </td>
-                          <td style={{ width: '150px' }}>
+                          <td>
                             {isProtectedAttribute(attribute) ? (
                               <span className="text-muted">
                                 {attribute.type === 'event_type' ? 'Event Type' : 'DateTime'}
@@ -382,7 +382,7 @@ const AttributeTable = ({
                               )}
                             </div>
                           </td>
-                          <td style={{ width: '60px' }}>
+                          <td>
                             <Button
                               variant="outline-danger"
                               size="sm"
