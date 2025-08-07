@@ -78,6 +78,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const decideConfig = stepConfig.decide_config || {};
     
     setFormData({
+      display_name: node.data.displayName || '',
       decision_type: decideConfig.decision_type || 'probability'
     });
     
@@ -127,6 +128,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const assignConfig = stepConfig.assign_config || {};
     
     setFormData({
+      display_name: node.data.displayName || '',
       module_id: assignConfig.module_id || stepConfig.step_id
     });
     
@@ -160,6 +162,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const interarrivalTime = createConfig.interarrival_time?.distribution || {};
     
     setFormData({
+      display_name: node.data.displayName || '',
       entity_table: createConfig.entity_table || '',
       distribution_type: interarrivalTime.type || 'exponential',
       interarrival_mean: interarrivalTime.mean || 2,
@@ -168,7 +171,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       interarrival_min: interarrivalTime.min || 1,
       interarrival_max: interarrivalTime.max || 3,
       max_entities: createConfig.max_entities || 'n/a',
-      next_step: step.next_steps && step.next_steps.length > 0 ? step.next_steps[0] : ''
+      next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
     });
   };
 
@@ -322,7 +325,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         data: {
           ...node.data,
           stepConfig: updatedStepConfig,
-          label: generateLabel(node.data.stepConfig.step_type, formData, updatedStepConfig.step_id)
+          label: generateLabel(node.data.stepConfig.step_type, formData, updatedStepConfig.step_id),
+          displayName: formData.display_name || formData.name || ''
         }
       };
 
@@ -457,15 +461,35 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const generateStepId = (stepType, formData) => {
-    if (stepType === 'assign') {
-      return formData.module_id || node.data.stepConfig.step_id || `assign_${Date.now()}`;
-    } else if (stepType === 'create') {
-      return `create_${formData.entity_table || 'entities'}_${Date.now()}`.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-    } else {
-      const name = formData.name;
-      if (!name) return `${stepType}_${Date.now()}`;
-      return name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    // Get existing step IDs to avoid collisions
+    const existingStepIds = getExistingStepIds();
+    
+    if (stepType === 'create') {
+      const entityTable = formData.entity_table || 'entities';
+      return `create_${entityTable.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     }
+    
+    // For other step types, use display_name or name if available
+    const displayName = formData.display_name || formData.name;
+    const baseName = displayName ? 
+      `${stepType}_${displayName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` :
+      stepType;
+    
+    // Check for collisions and increment counter
+    let counter = 1;
+    let stepId = `${baseName}_${counter}`;
+    while (existingStepIds.includes(stepId)) {
+      counter++;
+      stepId = `${baseName}_${counter}`;
+    }
+    
+    return stepId;
+  };
+
+  const getExistingStepIds = () => {
+    if (!parsedSchema?.event_simulation?.event_flows) return [];
+    const flow = parsedSchema.event_simulation.event_flows[0];
+    return flow?.steps?.map(s => s.step_id) || [];
   };
 
   const generateLabel = (stepType, formData, stepId) => {

@@ -14,6 +14,20 @@ const DecideStepEditor = ({
 }) => {
   return (
     <>
+      {/* Display Name */}
+      <Form.Group className="mb-4">
+        <Form.Label>Display Name</Form.Label>
+        <Form.Control
+          type="text"
+          value={formData.display_name || ''}
+          onChange={(e) => onFormDataChange({ display_name: e.target.value })}
+          placeholder="Enter a display name for this decision"
+        />
+        <Form.Text className="text-muted">
+          User-friendly name shown on the node (optional)
+        </Form.Text>
+      </Form.Group>
+
       <Form.Group className="mb-3">
         <Form.Label>Decision Type</Form.Label>
         <Form.Select

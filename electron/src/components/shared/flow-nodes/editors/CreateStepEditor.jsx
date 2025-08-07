@@ -82,6 +82,17 @@ const CreateStepEditor = ({
 
   return (
     <div className="create-step-editor">
+      {/* Display Name */}
+      <Form.Group className="mb-4">
+        <Form.Label>Display Name</Form.Label>
+        <Form.Control
+          type="text"
+          value={formData.display_name || ''}
+          onChange={(e) => onFormDataChange({ display_name: e.target.value })}
+          placeholder="Enter a display name for this module"
+        />
+      </Form.Group>
+
       {/* Entity Table Selection */}
       <Form.Group className="mb-4">
         <Form.Label>Entity Table</Form.Label>
@@ -105,9 +116,6 @@ const CreateStepEditor = ({
             required
           />
         )}
-        <Form.Text className="text-muted">
-          Target entity table for created entities
-        </Form.Text>
       </Form.Group>
 
       {/* Interarrival Time Configuration */}
@@ -156,9 +164,6 @@ const CreateStepEditor = ({
             <option key={stepName} value={stepName}>{stepName}</option>
           ))}
         </Form.Select>
-        <Form.Text className="text-muted">
-          Step where created entities will be routed
-        </Form.Text>
       </Form.Group>
     </div>
   );

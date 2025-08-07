@@ -204,7 +204,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       }
 
       const flow = updatedSchema.event_simulation.event_flows[0]; // Use first flow
-      const stepId = `${moduleType}_${Date.now()}`; // Generate unique ID
+      
+      // Get existing step IDs to avoid collisions
+      const existingStepIds = flow.steps.map(s => s.step_id);
+      const stepId = generateCollisionFreeStepId(moduleType, existingStepIds);
 
       // Create step based on type
       const newStep = {
@@ -276,6 +279,30 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     }
   };
   
+  // Generate collision-free step ID
+  const generateCollisionFreeStepId = (stepType, existingStepIds) => {
+    // For create steps, use entity table (will be updated later when entity_table is set)
+    if (stepType === 'create') {
+      let counter = 1;
+      let stepId = `create_entities_${counter}`;
+      while (existingStepIds.includes(stepId)) {
+        counter++;
+        stepId = `create_entities_${counter}`;
+      }
+      return stepId;
+    }
+    
+    // For other step types, use simple counter approach
+    let counter = 1;
+    let stepId = `${stepType}_${counter}`;
+    while (existingStepIds.includes(stepId)) {
+      counter++;
+      stepId = `${stepType}_${counter}`;
+    }
+    
+    return stepId;
+  };
+
   // Toggle save modal
   const handleSave = () => {
     console.log("SimConfigEditor: handleSave button clicked");

@@ -10,7 +10,7 @@ export const ProcessNode = ({ data, selected }) => {
         <span className="node-type">Process</span>
       </div>
       <div className="node-content">
-        <div className="node-title">{data.stepConfig?.event_config?.name || data.label}</div>
+        <div className="node-title">{data.displayName || "Unnamed Process"}</div>
         <div className="node-details">
           {data.stepConfig?.event_config?.duration && (
             <div className="detail-item">
@@ -98,7 +98,7 @@ export const DecideNode = ({ data, selected }) => {
       <Handle type="target" position={Position.Left} style={{ left: '-12px', top: `${diamondCenterY}px` }} />
       <div className="diamond-shape" style={{ top: `${fixedDiamondTop}px`, left: '50%', marginTop: '0px', marginLeft: '-60px' }}>
         <div className="diamond-content">
-          <div className="node-title">Decision</div>
+          <div className="node-title">{data.displayName || "Unnamed Decision"}</div>
         </div>
       </div>
       
@@ -116,7 +116,7 @@ export const AssignNode = ({ data, selected }) => {
     <div className={`custom-node assign-step-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Left} />
       <div className="node-content">
-        <div className="node-title">Assign</div>
+        <div className="node-title">{data.displayName || "Unnamed Assign"}</div>
         {assignments.length > 0 && (
           <div className="node-subtitle">{assignments.length} assignment{assignments.length !== 1 ? 's' : ''}</div>
         )}
@@ -133,7 +133,7 @@ export const ReleaseNode = ({ data, selected }) => {
       <Handle type="target" position={Position.Left} />
       <div className="dispose-shape">
         <div className="dispose-content">
-          <div className="node-title">Release</div>
+          <div className="node-title">{data.displayName || "Unnamed Release"}</div>
           <div className="node-details">
             <div className="detail-item">End of flow</div>
           </div>
@@ -153,7 +153,7 @@ export const CreateNode = ({ data, selected }) => {
     <div className={`custom-node create-step-node ${selected ? 'selected' : ''}`}>
       <div className="create-shape">
         <div className="create-content">
-          <div className="node-title">Create</div>
+          <div className="node-title">{data.displayName || "Unnamed Create"}</div>
           <div className="node-subtitle">{entityTable}</div>
           <div className="node-details">
             {interarrivalTime.type && (
