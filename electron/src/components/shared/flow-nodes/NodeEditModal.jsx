@@ -488,7 +488,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   return (
     <>
-      <Modal show={show} onHide={onHide} centered size="lg">
+      <Modal show={show} onHide={onHide} centered size="lg" className="step-editor-modal">
         <Modal.Header closeButton>
           <Modal.Title>Edit {node?.data.stepConfig?.step_type || 'Step'} Step</Modal.Title>
         </Modal.Header>

@@ -204,7 +204,7 @@
 .step-editor-grid-container {
   border: 1px solid var(--theme-border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow: visible;
   background-color: var(--theme-card-bg);
   margin-bottom: 1rem;
   
@@ -270,6 +270,7 @@
     display: flex;
     align-items: center;
     min-height: 44px;
+    position: relative;
     
     &.cell-center {
       justify-content: center;
@@ -277,6 +278,17 @@
     
     &.cell-end {
       justify-content: flex-end;
+    }
+    
+    // Fix dropdown width and positioning
+    .input-group .dropdown-toggle {
+      min-width: 40px;
+      border-left: 1px solid var(--bs-border-color);
+    }
+    
+    .dropdown-menu {
+      z-index: 1050;
+      min-width: 100%;
     }
   }
   
@@ -323,6 +335,55 @@
       font-weight: 600;
       color: var(--theme-text);
     }
+  }
+}
+
+// Add step item button (matches AttributeTable styling)
+.add-step-item-btn {
+  border: 2px dashed var(--theme-border) !important;
+  background: transparent !important;
+  padding: 8px 16px;
+  transition: all 0.2s ease;
+  color: var(--theme-text) !important;
+  
+  &:hover {
+    border-color: var(--theme-primary) !important;
+    background-color: var(--theme-hover-bg) !important;
+    color: var(--theme-primary) !important;
+  }
+  
+  &:focus {
+    box-shadow: 0 0 0 0.2rem rgba(var(--bs-primary-rgb), 0.25);
+    border-color: var(--theme-primary) !important;
+    background-color: var(--theme-hover-bg) !important;
+    color: var(--theme-primary) !important;
+  }
+}
+
+// Step Editor Modal Styles (matches AttributeEditor styling)
+.step-editor-modal {
+  .modal-dialog {
+    max-width: 960px;
+    width: 90vw;
+  }
+  
+  .modal-content {
+    background-color: var(--theme-sidebar-bg) !important;
+  }
+  
+  .modal-header {
+    background-color: var(--theme-sidebar-bg) !important;
+    border-bottom: 1px solid var(--theme-border);
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+    background-color: var(--theme-sidebar-bg) !important;
+  }
+  
+  .modal-footer {
+    background-color: var(--theme-sidebar-bg) !important;
+    border-top: 1px solid var(--theme-border);
   }
 }
 

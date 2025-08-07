@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Row, Col, Button, InputGroup, DropdownButton, Dropdown } from 'react-bootstrap';
+import { Form, Button, InputGroup, DropdownButton, Dropdown } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 
 const AssignStepEditor = ({ 
@@ -20,16 +20,20 @@ const AssignStepEditor = ({
           value={formData.module_id || ''}
           onChange={(e) => onFormDataChange({ module_id: e.target.value })}
         />
-        <Form.Text className="text-muted">
-          Unique identifier for this assign module.
-        </Form.Text>
       </Form.Group>
 
       <hr />
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Attribute Assignments</h6>
-          <Button size="sm" onClick={onAddAssignment}>Add Assignment</Button>
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddAssignment}
+            className="add-step-item-btn"
+          >
+            + Add Assignment
+          </Button>
         </div>
 
         <div className="step-editor-grid-container">
@@ -119,10 +123,6 @@ const AssignStepEditor = ({
           ))}
         </div>
       </div>
-
-      <Form.Text className="text-muted">
-        Assign module sets custom attributes on entities that can be used for conditional routing in Decide modules.
-      </Form.Text>
     </>
   );
 };

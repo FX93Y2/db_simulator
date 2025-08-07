@@ -114,9 +114,6 @@ const EventStepEditor = ({
           value={formData.name || ''}
           onChange={(e) => onFormDataChange({ name: e.target.value })}
         />
-        <Form.Text className="text-muted">
-          This name will be used to identify the event in decision outcomes.
-        </Form.Text>
       </Form.Group>
 
       <Form.Group className="mb-3">
@@ -138,7 +135,14 @@ const EventStepEditor = ({
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Resource Requirements</h6>
-          <Button size="sm" onClick={onAddResourceRequirement}>Add Resource</Button>
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddResourceRequirement}
+            className="add-step-item-btn"
+          >
+            + Add Resource
+          </Button>
         </div>
 
         <div className="step-editor-grid-container">

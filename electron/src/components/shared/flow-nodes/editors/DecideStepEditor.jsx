@@ -1,5 +1,5 @@
 import React from 'react';
-import { Form, Row, Col, Button } from 'react-bootstrap';
+import { Form, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 
 const DecideStepEditor = ({ 
@@ -29,7 +29,14 @@ const DecideStepEditor = ({
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Decision Outcomes</h6>
-          <Button size="sm" onClick={onAddOutcome}>Add Outcome</Button>
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddOutcome}
+            className="add-step-item-btn"
+          >
+            + Add Outcome
+          </Button>
         </div>
 
         <div className="step-editor-grid-container">

@@ -12,10 +12,6 @@ const ReleaseStepEditor = ({ formData, onFormDataChange }) => {
           onChange={(e) => onFormDataChange({ name: e.target.value })}
         />
       </Form.Group>
-      
-      <Form.Text className="text-muted">
-        Release steps mark the end of the flow and release all resources occupied by the entity.
-      </Form.Text>
     </>
   );
 };
