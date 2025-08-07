@@ -30,8 +30,8 @@ const App = () => {
     document.body.classList.remove('theme-light', 'theme-dark');
     document.body.classList.add(`theme-${theme}`);
     
-    // Also remove the loading overflow hidden after React is ready
-    document.body.style.overflow = 'auto';
+    // Keep body overflow hidden for app-like behavior
+    document.body.style.overflow = 'hidden';
     
     // Save theme preference to localStorage
     localStorage.setItem('theme', theme);

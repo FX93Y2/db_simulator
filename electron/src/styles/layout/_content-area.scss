@@ -1,7 +1,7 @@
 // Content Area
 .content-area {
   flex: 1;
-  overflow-y: auto;
+  overflow: hidden;
   padding: 0;
   background-color: var(--theme-bg);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);

@@ -100,7 +100,8 @@
   color: #007bff; // Standard blue color
 }
 
-.editor-canvas-panel .canvas-header > .btn-custom-toolbar {
+.editor-canvas-panel .canvas-header > .btn-custom-toolbar,
+.editor-canvas-panel .canvas-header .dropdown-toggle.btn-custom-toolbar {
   color: #007bff;
 }
 

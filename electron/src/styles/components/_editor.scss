@@ -38,7 +38,7 @@
     height: 100%; 
     display: flex; // Added to allow inner content to flex
     flex-direction: column; // Added
-    overflow: hidden; // Added to prevent content overflow
+    overflow: hidden; // Keep overflow hidden at panel level for headers
     background-color: var(--theme-editor-bg);
     color: var(--theme-text);
   }
@@ -69,12 +69,14 @@
       display: flex;
       flex-direction: column;
       height: calc(100% - 46px); // Match the header height
+      overflow: hidden; // Let Monaco handle its own scrolling
       
       .monaco-editor-container {
         flex: 1;
         min-height: 200px;
         background-color: var(--theme-editor-bg);
         border: none !important; // Force remove any border
+        overflow: hidden; // Monaco has its own scroll system
       }
     }
   }
@@ -133,7 +135,6 @@
 .editor-canvas-panel {
   .canvas-header {
     border-bottom: 1px solid var(--theme-border);
-    background-color: var(--theme-card-bg);
     
     .nav-tabs {
       border-bottom: none;
@@ -171,12 +172,12 @@
     padding: 0 20px;
     display: flex;
     align-items: center;
-    min-height: 60px;
+    min-height: 46px;
   }
   
   .canvas-content {
     width: 100%;
-    height: calc(100% - 60px);
+    height: calc(100% - 46px);
     overflow: hidden;
     background: transparent; /* Allow ReactFlow background pattern to show through */
     flex: 1; /* Ensure it takes available space in flex container */
