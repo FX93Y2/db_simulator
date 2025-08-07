@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Table, Form, Button, Modal, Row, Col } from 'react-bootstrap';
+import { Form, Button, Modal, Row, Col } from 'react-bootstrap';
 import { FiTrash2, FiSettings } from 'react-icons/fi';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import FakerGeneratorEditor from './FakerGeneratorEditor';
@@ -267,20 +267,21 @@ const AttributeTable = ({
   return (
     <>
       <div className="attribute-table-container">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <Table responsive className="attribute-table mb-0">
-            <thead>
-              <tr>
-                <th style={{ width: '40px' }}></th>
-                <th>Field Name</th>
-                <th>Type</th>
-                <th>Options</th>
-                <th style={{ width: '60px' }}></th>
-              </tr>
-            </thead>
-            <Droppable droppableId="attribute-table-body" type="ATTRIBUTE">
+        <div className="attribute-grid-container">
+          {/* Header Row */}
+          <div className="attribute-grid-header">
+            <div className="grid-header-cell"></div>
+            <div className="grid-header-cell">Field Name</div>
+            <div className="grid-header-cell">Type</div>
+            <div className="grid-header-cell">Options</div>
+            <div className="grid-header-cell"></div>
+          </div>
+          
+          {/* Data Rows */}
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <Droppable droppableId="attribute-grid-body" type="ATTRIBUTE">
               {(provided) => (
-                <tbody {...provided.droppableProps} ref={provided.innerRef}>
+                <div {...provided.droppableProps} ref={provided.innerRef}>
                   {attributes.map((attribute, index) => (
                     <Draggable
                       key={`${attribute.name}-${index}`}
@@ -288,23 +289,24 @@ const AttributeTable = ({
                       index={index}
                     >
                       {(provided, snapshot) => (
-                        <tr
+                        <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`
-                            ${snapshot.isDragging ? 'dragging' : ''} 
-                            ${isProtectedAttribute(attribute) ? 'protected-attribute' : ''}
-                          `}
+                          className={`attribute-grid-row ${
+                            snapshot.isDragging ? 'dragging' : ''
+                          } ${
+                            isProtectedAttribute(attribute) ? 'protected-attribute' : ''
+                          }`}
                         >
-                          <td>
+                          <div className="grid-cell">
                             <div
                               className="drag-handle-table"
                               {...provided.dragHandleProps}
                               title="Drag to reorder"
                             >
                             </div>
-                          </td>
-                          <td>
+                          </div>
+                          <div className="grid-cell">
                             {editingIndex === index ? (
                               <Form.Control
                                 type="text"
@@ -325,8 +327,8 @@ const AttributeTable = ({
                                 {attribute.name}
                               </span>
                             )}
-                          </td>
-                          <td>
+                          </div>
+                          <div className="grid-cell">
                             {isProtectedAttribute(attribute) ? (
                               <span className="text-muted">
                                 {attribute.type === 'event_type' ? 'Event Type' : 'DateTime'}
@@ -350,8 +352,8 @@ const AttributeTable = ({
                                 <option value="resource_type">Resource Type</option>
                               </Form.Select>
                             )}
-                          </td>
-                          <td>
+                          </div>
+                          <div className="grid-cell">
                             <div className="options-cell">
                               {shouldHaveGenerator(attribute.type) && attribute.generator && (
                                 <Button
@@ -381,8 +383,8 @@ const AttributeTable = ({
                                 <small className="text-muted">Auto-generated</small>
                               )}
                             </div>
-                          </td>
-                          <td>
+                          </div>
+                          <div className="grid-cell">
                             <Button
                               variant="outline-danger"
                               size="sm"
@@ -396,17 +398,17 @@ const AttributeTable = ({
                             >
                               <FiTrash2 />
                             </Button>
-                          </td>
-                        </tr>
+                          </div>
+                        </div>
                       )}
                     </Draggable>
                   ))}
                   {provided.placeholder}
-                </tbody>
+                </div>
               )}
             </Droppable>
-          </Table>
-        </DragDropContext>
+          </DragDropContext>
+        </div>
 
         <div className="mt-3">
           <Button

@@ -69,46 +69,60 @@
   }
 }
 
-// Attribute Table Styles (Mockaroo-style)
+// Attribute Grid Styles (CSS Grid Layout)
 .attribute-table-container {
-  .attribute-table {
-    border: 1px solid var(--theme-border) !important;
+  .attribute-grid-container {
+    border: 1px solid var(--theme-border);
     border-radius: 8px;
     overflow: hidden;
-    background-color: var(--theme-card-bg) !important;
+    background-color: var(--theme-card-bg);
+  }
+  
+  .attribute-grid-header {
+    display: grid;
+    grid-template-columns: 40px 200px 150px 1fr 60px;
+    gap: 0;
+    background-color: var(--theme-sidebar-bg);
+    border-bottom: 2px solid var(--theme-border);
     
-    thead th {
-      background-color: var(--theme-sidebar-bg) !important;
-      border-bottom: 2px solid var(--theme-border) !important;
-      font-weight: 600;
-      color: var(--theme-text) !important;
+    .grid-header-cell {
       padding: 12px 8px;
+      font-weight: 600;
+      color: var(--theme-text);
       font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+    }
+  }
+  
+  .attribute-grid-row {
+    display: grid;
+    grid-template-columns: 40px 200px 150px 1fr 60px;
+    gap: 0;
+    transition: all 0.2s ease;
+    border-bottom: 1px solid var(--theme-border);
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text);
+    
+    &:hover {
+      background-color: var(--theme-hover-bg);
     }
     
-    tbody tr {
-      transition: all 0.2s ease;
-      border-bottom: 1px solid var(--theme-border) !important;
-      background-color: var(--theme-card-bg) !important;
-      color: var(--theme-text) !important;
-      
-      &:hover {
-        background-color: var(--theme-hover-bg) !important;
-      }
-      
-      &.dragging {
-        background-color: var(--theme-hover-bg) !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        transform: translateY(-2px);
-      }
+    &.dragging {
+      background-color: var(--theme-hover-bg);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
     }
     
-    tbody td {
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .grid-cell {
       padding: 8px;
-      vertical-align: middle;
-      border: none !important;
-      background-color: inherit !important;
-      color: inherit !important;
+      display: flex;
+      align-items: center;
+      min-height: 44px;
     }
   }
   
@@ -167,6 +181,8 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
+    width: 100%;
+    overflow: hidden;
   }
   
   .add-attribute-btn {
