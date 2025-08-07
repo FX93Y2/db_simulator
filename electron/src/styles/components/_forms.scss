@@ -102,20 +102,16 @@
         opacity: 0.9;
         display: table-row !important;
         width: 100% !important;
-        table-layout: fixed !important;
         
         td {
           display: table-cell !important;
           box-sizing: border-box !important;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
           
           &:nth-child(1) { width: 40px !important; }
           &:nth-child(2) { width: 200px !important; }
           &:nth-child(3) { width: 150px !important; }
-          &:nth-child(4) { min-width: 250px !important; }
-          &:nth-child(5) { width: 60px !important; }
+          &:nth-child(4) { min-width: 456px !important; width: auto !important; }
+          &:nth-child(5) { width: 60px !important; min-width: 60px !important; }
         }
       }
     }
