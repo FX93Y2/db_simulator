@@ -200,5 +200,131 @@
   }
 }
 
+// Step Editor Grid Styles (for NodeEditModal components)
+.step-editor-grid-container {
+  border: 1px solid var(--theme-border);
+  border-radius: 8px;
+  overflow: hidden;
+  background-color: var(--theme-card-bg);
+  margin-bottom: 1rem;
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+}
+
+.step-editor-grid-header {
+  display: grid;
+  gap: 0;
+  background-color: var(--theme-sidebar-bg);
+  border-bottom: 2px solid var(--theme-border);
+  
+  .grid-header-cell {
+    padding: 8px 12px;
+    font-weight: 600;
+    color: var(--theme-text);
+    font-size: 0.875rem;
+    display: flex;
+    align-items: center;
+  }
+  
+  // Decision outcomes grid (probability mode)
+  &.decide-probability {
+    grid-template-columns: 1fr 120px 60px;
+  }
+  
+  // Decision outcomes grid (condition mode)
+  &.decide-condition {
+    grid-template-columns: 1fr 2fr 60px;
+  }
+  
+  // Assignment attributes grid
+  &.assign-attributes {
+    grid-template-columns: 200px 1fr 200px 60px;
+  }
+  
+  // Resource requirements grid
+  &.resource-requirements {
+    grid-template-columns: 1fr 1fr 120px 60px;
+  }
+}
+
+.step-editor-grid-row {
+  display: grid;
+  gap: 0;
+  transition: all 0.2s ease;
+  border-bottom: 1px solid var(--theme-border);
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
+  
+  &:hover {
+    background-color: var(--theme-hover-bg);
+  }
+  
+  &:last-child {
+    border-bottom: none;
+  }
+  
+  .grid-cell {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    min-height: 44px;
+    
+    &.cell-center {
+      justify-content: center;
+    }
+    
+    &.cell-end {
+      justify-content: flex-end;
+    }
+  }
+  
+  // Decision outcomes grid (probability mode)
+  &.decide-probability {
+    grid-template-columns: 1fr 120px 60px;
+  }
+  
+  // Decision outcomes grid (condition mode)  
+  &.decide-condition {
+    grid-template-columns: 1fr 2fr 60px;
+    
+    .condition-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr 1fr;
+      gap: 8px;
+      width: 100%;
+    }
+  }
+  
+  // Assignment attributes grid
+  &.assign-attributes {
+    grid-template-columns: 200px 1fr 200px 60px;
+  }
+  
+  // Resource requirements grid
+  &.resource-requirements {
+    grid-template-columns: 1fr 1fr 120px 60px;
+  }
+}
+
+// Step editor specific components styling
+.step-editor-section {
+  margin-bottom: 1.5rem;
+  
+  .section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    
+    h6 {
+      margin: 0;
+      font-weight: 600;
+      color: var(--theme-text);
+    }
+  }
+}
+
 // Note: Dark theme support is now handled automatically through 
 // the app's --theme-* variables defined in _themes.scss

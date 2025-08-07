@@ -26,20 +26,31 @@ const DecideStepEditor = ({
       </Form.Group>
 
       <hr />
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h6>Decision Outcomes</h6>
-        <Button size="sm" onClick={onAddOutcome}>Add Outcome</Button>
-      </div>
+      <div className="step-editor-section">
+        <div className="section-header">
+          <h6>Decision Outcomes</h6>
+          <Button size="sm" onClick={onAddOutcome}>Add Outcome</Button>
+        </div>
 
-      {outcomes.map((outcome, index) => (
-        <div key={index} className="border p-3 mb-3 rounded">
-          <Row>
-            <Col md={formData.decision_type === 'condition' ? 6 : 8}>
-              <Form.Group className="mb-2">
-                <Form.Label>Next Step</Form.Label>
+        <div className="step-editor-grid-container">
+          {/* Header */}
+          <div className={`step-editor-grid-header ${formData.decision_type === 'condition' ? 'decide-condition' : 'decide-probability'}`}>
+            <div className="grid-header-cell">Next Step</div>
+            <div className="grid-header-cell">
+              {formData.decision_type === 'condition' ? 'Condition' : 'Probability'}
+            </div>
+            <div className="grid-header-cell"></div>
+          </div>
+          
+          {/* Data Rows */}
+          {outcomes.map((outcome, index) => (
+            <div key={index} className={`step-editor-grid-row ${formData.decision_type === 'condition' ? 'decide-condition' : 'decide-probability'}`}>
+              <div className="grid-cell">
                 <Form.Select
                   value={outcome.next_event_name || ''}
                   onChange={(e) => onOutcomeChange(index, 'next_event_name', e.target.value)}
+                  size="sm"
+                  style={{ width: '100%' }}
                 >
                   <option value="">Select next step...</option>
                   {availableSteps.map((stepName, stepIndex) => (
@@ -48,13 +59,10 @@ const DecideStepEditor = ({
                     </option>
                   ))}
                 </Form.Select>
-              </Form.Group>
-            </Col>
-
-            {formData.decision_type === 'probability' ? (
-              <Col md={3}>
-                <Form.Group className="mb-2">
-                  <Form.Label>Probability</Form.Label>
+              </div>
+              
+              {formData.decision_type === 'probability' ? (
+                <div className="grid-cell">
                   <Form.Control
                     type="number"
                     step="0.01"
@@ -62,69 +70,56 @@ const DecideStepEditor = ({
                     max="1"
                     value={outcome.probability || 0}
                     onChange={(e) => onOutcomeChange(index, 'probability', e.target.value)}
+                    size="sm"
+                    style={{ width: '100%' }}
                   />
-                </Form.Group>
-              </Col>
-            ) : (
-              <Col md={8}>
-                <Row>
-                  <Col md={3}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>If</Form.Label>
-                      <Form.Select
-                        value={outcome.if || 'Attribute'}
-                        onChange={(e) => onOutcomeChange(index, 'if', e.target.value)}
-                      >
-                        <option value="Attribute">Attribute</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Name</Form.Label>
-                      <Form.Select
-                        value={outcome.name || ''}
-                        onChange={(e) => onOutcomeChange(index, 'name', e.target.value)}
-                      >
-                        <option value="">Select attribute...</option>
-                        {availableAttributes.map(attr => (
-                          <option key={attr} value={attr}>{attr}</option>
-                        ))}
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Is</Form.Label>
-                      <Form.Select
-                        value={outcome.is || '=='}
-                        onChange={(e) => onOutcomeChange(index, 'is', e.target.value)}
-                      >
-                        <option value="==">=</option>
-                        <option value="<>">&lt;&gt;</option>
-                        <option value=">">&gt;</option>
-                        <option value=">=">&gt;=</option>
-                        <option value="<">&lt;</option>
-                        <option value="<=">&lt;=</option>
-                      </Form.Select>
-                    </Form.Group>
-                  </Col>
-                  <Col md={3}>
-                    <Form.Group className="mb-2">
-                      <Form.Label>Value</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={outcome.value || ''}
-                        onChange={(e) => onOutcomeChange(index, 'value', e.target.value)}
-                      />
-                    </Form.Group>
-                  </Col>
-                </Row>
-              </Col>
-            )}
-
-            <Col md={1}>
-              <div className="d-flex align-items-end h-100 pb-2">
+                </div>
+              ) : (
+                <div className="grid-cell">
+                  <div className="condition-fields">
+                    <Form.Select
+                      value={outcome.if || 'Attribute'}
+                      onChange={(e) => onOutcomeChange(index, 'if', e.target.value)}
+                      size="sm"
+                    >
+                      <option value="Attribute">Attribute</option>
+                    </Form.Select>
+                    
+                    <Form.Select
+                      value={outcome.name || ''}
+                      onChange={(e) => onOutcomeChange(index, 'name', e.target.value)}
+                      size="sm"
+                    >
+                      <option value="">Select attribute...</option>
+                      {availableAttributes.map(attr => (
+                        <option key={attr} value={attr}>{attr}</option>
+                      ))}
+                    </Form.Select>
+                    
+                    <Form.Select
+                      value={outcome.is || '=='}
+                      onChange={(e) => onOutcomeChange(index, 'is', e.target.value)}
+                      size="sm"
+                    >
+                      <option value="==">=</option>
+                      <option value="<>">&lt;&gt;</option>
+                      <option value=">">&gt;</option>
+                      <option value=">=">&gt;=</option>
+                      <option value="<">&lt;</option>
+                      <option value="<=">&lt;=</option>
+                    </Form.Select>
+                    
+                    <Form.Control
+                      type="text"
+                      value={outcome.value || ''}
+                      onChange={(e) => onOutcomeChange(index, 'value', e.target.value)}
+                      size="sm"
+                    />
+                  </div>
+                </div>
+              )}
+              
+              <div className="grid-cell cell-center">
                 <Button 
                   variant="outline-danger" 
                   size="sm" 
@@ -134,10 +129,10 @@ const DecideStepEditor = ({
                   <FiTrash2 />
                 </Button>
               </div>
-            </Col>
-          </Row>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
     </>
   );
 };

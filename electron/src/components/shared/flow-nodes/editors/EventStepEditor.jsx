@@ -135,61 +135,75 @@ const EventStepEditor = ({
       {renderDistributionFields()}
 
       <hr />
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h6>Resource Requirements</h6>
-        <Button size="sm" onClick={onAddResourceRequirement}>Add Resource</Button>
-      </div>
+      <div className="step-editor-section">
+        <div className="section-header">
+          <h6>Resource Requirements</h6>
+          <Button size="sm" onClick={onAddResourceRequirement}>Add Resource</Button>
+        </div>
 
-      {resourceRequirements.map((req, index) => {
-        const availableResourceTables = Object.keys(resourceDefinitions);
-        const selectedResourceTable = req.resource_table || '';
-        const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable] 
-          ? resourceDefinitions[selectedResourceTable].resourceTypes 
-          : [];
+        <div className="step-editor-grid-container">
+          {/* Header */}
+          <div className="step-editor-grid-header resource-requirements">
+            <div className="grid-header-cell">Resource Table</div>
+            <div className="grid-header-cell">Resource Type</div>
+            <div className="grid-header-cell">Count</div>
+            <div className="grid-header-cell"></div>
+          </div>
+          
+          {/* Data Rows */}
+          {resourceRequirements.map((req, index) => {
+            const availableResourceTables = Object.keys(resourceDefinitions);
+            const selectedResourceTable = req.resource_table || '';
+            const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable] 
+              ? resourceDefinitions[selectedResourceTable].resourceTypes 
+              : [];
 
-        return (
-          <div key={index} className="border p-3 mb-3 rounded">
-            <Row>
-              <Col md={4}>
-                <Form.Group className="mb-2">
-                  <Form.Label>Resource Table</Form.Label>
-                  {availableResourceTables.length > 0 ? (
-                    <Form.Select
-                      value={selectedResourceTable}
-                      onChange={(e) => {
-                        onResourceRequirementChange(index, 'resource_table', e.target.value);
-                        // Reset resource type when table changes
-                        onResourceRequirementChange(index, 'value', '');
-                      }}
-                    >
-                      <option value="">Select resource table...</option>
-                      {availableResourceTables.map((tableName) => (
-                        <option key={tableName} value={tableName}>
-                          {tableName}
-                        </option>
-                      ))}
-                    </Form.Select>
-                  ) : (
-                    <Form.Control
-                      type="text"
-                      value={selectedResourceTable}
-                      onChange={(e) => onResourceRequirementChange(index, 'resource_table', e.target.value)}
-                    />
-                  )}
-                  {availableResourceTables.length === 0 && (
-                    <Form.Text className="text-muted">
-                      No resources found in database configuration. Using text input.
-                    </Form.Text>
-                  )}
-                </Form.Group>
-              </Col>
-              <Col md={4}>
-                <Form.Group className="mb-2">
-                  <Form.Label>Resource Type</Form.Label>
+            return (
+              <div key={index} className="step-editor-grid-row resource-requirements">
+                <div className="grid-cell">
+                  <div style={{ width: '100%' }}>
+                    {availableResourceTables.length > 0 ? (
+                      <Form.Select
+                        value={selectedResourceTable}
+                        onChange={(e) => {
+                          onResourceRequirementChange(index, 'resource_table', e.target.value);
+                          // Reset resource type when table changes
+                          onResourceRequirementChange(index, 'value', '');
+                        }}
+                        size="sm"
+                        style={{ width: '100%' }}
+                      >
+                        <option value="">Select resource table...</option>
+                        {availableResourceTables.map((tableName) => (
+                          <option key={tableName} value={tableName}>
+                            {tableName}
+                          </option>
+                        ))}
+                      </Form.Select>
+                    ) : (
+                      <div>
+                        <Form.Control
+                          type="text"
+                          value={selectedResourceTable}
+                          onChange={(e) => onResourceRequirementChange(index, 'resource_table', e.target.value)}
+                          size="sm"
+                          style={{ width: '100%' }}
+                        />
+                        <Form.Text className="text-muted" style={{ fontSize: '0.75rem' }}>
+                          No resources found in database configuration.
+                        </Form.Text>
+                      </div>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="grid-cell">
                   {availableResourceTypes.length > 0 ? (
                     <Form.Select
                       value={req.value || ''}
                       onChange={(e) => onResourceRequirementChange(index, 'value', e.target.value)}
+                      size="sm"
+                      style={{ width: '100%' }}
                     >
                       <option value="">Select resource type...</option>
                       {availableResourceTypes.map((typeName) => (
@@ -204,23 +218,24 @@ const EventStepEditor = ({
                       value={req.value || ''}
                       onChange={(e) => onResourceRequirementChange(index, 'value', e.target.value)}
                       disabled={selectedResourceTable && availableResourceTypes.length === 0}
+                      size="sm"
+                      style={{ width: '100%' }}
                     />
                   )}
-                </Form.Group>
-              </Col>
-              <Col md={3}>
-                <Form.Group className="mb-2">
-                  <Form.Label>Count</Form.Label>
+                </div>
+
+                <div className="grid-cell">
                   <Form.Control
                     type="number"
                     min="1"
                     value={req.count || 1}
                     onChange={(e) => onResourceRequirementChange(index, 'count', parseInt(e.target.value) || 1)}
+                    size="sm"
+                    style={{ width: '100%' }}
                   />
-                </Form.Group>
-              </Col>
-              <Col md={1}>
-                <div className="d-flex align-items-end h-100 pb-2">
+                </div>
+                
+                <div className="grid-cell cell-center">
                   <Button 
                     variant="outline-danger" 
                     size="sm" 
@@ -229,11 +244,11 @@ const EventStepEditor = ({
                     <FiTrash2 />
                   </Button>
                 </div>
-              </Col>
-            </Row>
-          </div>
-        );
-      })}
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </>
   );
 };

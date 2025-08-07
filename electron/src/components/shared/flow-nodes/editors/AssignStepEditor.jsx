@@ -26,33 +26,40 @@ const AssignStepEditor = ({
       </Form.Group>
 
       <hr />
-      <div className="d-flex justify-content-between align-items-center mb-3">
-        <h6>Attribute Assignments</h6>
-        <Button size="sm" onClick={onAddAssignment}>Add Assignment</Button>
-      </div>
+      <div className="step-editor-section">
+        <div className="section-header">
+          <h6>Attribute Assignments</h6>
+          <Button size="sm" onClick={onAddAssignment}>Add Assignment</Button>
+        </div>
 
-      {assignments.map((assignment, index) => (
-        <div key={index} className="border p-3 mb-3 rounded">
-          <Row>
-            <Col md={4}>
-              <Form.Group className="mb-2">
-                <Form.Label>Assignment Type</Form.Label>
-                <Form.Select
-                  value={assignment.assignment_type || 'attribute'}
-                  onChange={(e) => onAssignmentChange(index, 'assignment_type', e.target.value)}
-                  disabled
-                >
-                  <option value="attribute">Attribute</option>
-                </Form.Select>
-                <Form.Text className="text-muted">
-                  Only attribute assignments are currently supported.
-                </Form.Text>
-              </Form.Group>
-            </Col>
-            <Col md={3}>
-              <Form.Group className="mb-2">
-                <Form.Label>Attribute Name</Form.Label>
-                <InputGroup>
+        <div className="step-editor-grid-container">
+          {/* Header */}
+          <div className="step-editor-grid-header assign-attributes">
+            <div className="grid-header-cell">Assignment Type</div>
+            <div className="grid-header-cell">Attribute Name</div>
+            <div className="grid-header-cell">Value</div>
+            <div className="grid-header-cell"></div>
+          </div>
+          
+          {/* Data Rows */}
+          {assignments.map((assignment, index) => (
+            <div key={index} className="step-editor-grid-row assign-attributes">
+              <div className="grid-cell">
+                <div style={{ width: '100%' }}>
+                  <Form.Select
+                    value={assignment.assignment_type || 'attribute'}
+                    onChange={(e) => onAssignmentChange(index, 'assignment_type', e.target.value)}
+                    disabled
+                    size="sm"
+                    style={{ width: '100%' }}
+                  >
+                    <option value="attribute">Attribute</option>
+                  </Form.Select>
+                </div>
+              </div>
+              
+              <div className="grid-cell">
+                <InputGroup size="sm" style={{ width: '100%' }}>
                   <Form.Control
                     type="text"
                     value={assignment.attribute_name || ''}
@@ -66,6 +73,7 @@ const AssignStepEditor = ({
                       title=""
                       id={`attribute-dropdown-${index}`}
                       align="end"
+                      size="sm"
                     >
                       {availableAttributes.map(attr => (
                         <Dropdown.Item 
@@ -77,29 +85,27 @@ const AssignStepEditor = ({
                       ))}
                     </DropdownButton>
                   )}
+                  <Form.Control.Feedback type="invalid">
+                    Attribute name is required.
+                  </Form.Control.Feedback>
                 </InputGroup>
-                <Form.Control.Feedback type="invalid">
-                  Attribute name is required.
-                </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
+              </div>
 
-            <Col md={4}>
-              <Form.Group className="mb-2">
-                <Form.Label>Value</Form.Label>
+              <div className="grid-cell">
                 <Form.Control
                   type="text"
                   value={assignment.value || ''}
                   onChange={(e) => onAssignmentChange(index, 'value', e.target.value)}
                   isInvalid={!assignment.value}
+                  size="sm"
+                  style={{ width: '100%' }}
                 />
                 <Form.Control.Feedback type="invalid">
                   Value is required.
                 </Form.Control.Feedback>
-              </Form.Group>
-            </Col>
-            <Col md={1}>
-              <div className="d-flex align-items-end h-100 pb-2">
+              </div>
+              
+              <div className="grid-cell cell-center">
                 <Button 
                   variant="outline-danger" 
                   size="sm" 
@@ -109,10 +115,10 @@ const AssignStepEditor = ({
                   <FiTrash2 />
                 </Button>
               </div>
-            </Col>
-          </Row>
+            </div>
+          ))}
         </div>
-      ))}
+      </div>
 
       <Form.Text className="text-muted">
         Assign module sets custom attributes on entities that can be used for conditional routing in Decide modules.
