@@ -29,6 +29,15 @@ export const useEntityVisualState = (canonicalEntities, onDiagramChange, generat
     if (canonicalEntities.length === 0) {
       setNodes([]);
       setEdges([]);
+      
+      // Notify parent of empty state when all entities are deleted
+      if (isInternalUpdate() && onDiagramChange) {
+        const emptyYAML = generateYAML(); // This returns "" for empty entities
+        onDiagramChange(emptyYAML);
+        setTimeout(() => {
+          resetInternalFlags();
+        }, 500);
+      }
       return;
     }
 

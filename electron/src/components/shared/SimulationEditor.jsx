@@ -116,20 +116,6 @@ const SimulationEditor = ({ yamlContent, onSimulationChange, theme }) => {
             </Row>
           </Card.Body>
         </Card>
-
-        {/* Event Simulation Section */}
-        <Card>
-          <Card.Header className="d-flex align-items-center">
-            <FiUsers className="me-2" />
-            <h5 className="mb-0">Event Simulation</h5>
-          </Card.Header>
-          <Card.Body>
-            <div className="text-muted">
-              Entity creation is now handled by Create modules in the event flows.
-              Use the "Add Module" dropdown to add Create modules to your flows.
-            </div>
-          </Card.Body>
-        </Card>
       </div>
     </div>
   );

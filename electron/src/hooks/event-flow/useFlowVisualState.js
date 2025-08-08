@@ -15,6 +15,15 @@ export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, gener
     if (canonicalSteps.length === 0) {
       setNodes([]);
       setEdges([]);
+      
+      // Notify parent of empty state when all steps are deleted
+      if (isInternalUpdate() && onDiagramChange) {
+        const emptySchema = generateYAML(); // This returns proper empty structure
+        setTimeout(() => {
+          resetInternalFlags();
+        }, 500);
+        onDiagramChange(emptySchema);
+      }
       return;
     }
 
@@ -76,17 +85,14 @@ export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, gener
     setEdges(visualEdges);
     
     // Notify parent of changes if this was an internal update
-    if (isInternalUpdate() && onDiagramChange && flowSchema) {
+    if (isInternalUpdate() && onDiagramChange) {
       const generatedSchema = generateYAML();
-      if (generatedSchema) {
-        // Set a timeout to reset the flags after the parent processes the change
-        setTimeout(() => {
-          resetInternalFlags();
-        }, 500); // Increased timeout to be more reliable
-        onDiagramChange(generatedSchema);
-      } else {
+      // Always notify parent, even if schema is empty ({})
+      // Set a timeout to reset the flags after the parent processes the change
+      setTimeout(() => {
         resetInternalFlags();
-      }
+      }, 500); // Increased timeout to be more reliable
+      onDiagramChange(generatedSchema);
     }
   }, [canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema, isInternalUpdate, resetInternalFlags]);
 

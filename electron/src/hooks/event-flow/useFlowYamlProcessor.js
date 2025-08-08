@@ -7,8 +7,24 @@ import { useCallback } from 'react';
 export const useFlowYamlProcessor = (canonicalSteps, flowSchema, setCanonicalSteps, positions) => {
 
   const generateYAML = useCallback(() => {
-    if (!flowSchema || canonicalSteps.length === 0) {
-      return null;
+    if (canonicalSteps.length === 0) {
+      // Return proper empty structure instead of {}
+      if (!flowSchema) return {};
+      
+      return {
+        ...flowSchema,
+        event_simulation: {
+          ...flowSchema.event_simulation,
+          event_flows: [{
+            ...flowSchema.event_simulation.event_flows[0],
+            steps: [] // Empty steps array
+          }]
+        }
+      };
+    }
+    
+    if (!flowSchema) {
+      return {};
     }
     
     const updatedSchema = {
@@ -69,10 +85,6 @@ export const useFlowYamlProcessor = (canonicalSteps, flowSchema, setCanonicalSte
     const newSteps = flow.steps || [];
     
     if (newSteps.length === 0) {
-      // Don't clear steps if we currently have steps - prevents accidental clearing
-      if (canonicalSteps.length > 0) {
-        return;
-      }
       setCanonicalSteps([]);
       return;
     }

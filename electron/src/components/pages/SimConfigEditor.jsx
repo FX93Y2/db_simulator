@@ -171,7 +171,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   // Handle adding a new module - uses event_flows structure only
   const handleAddModule = (moduleType) => {
     if (yamlError || !parsedYamlObject) {
-        showError('Cannot add module: Current YAML has errors or is empty.');
+        showError('Configure Simulation Duration First!');
         return;
     }
 

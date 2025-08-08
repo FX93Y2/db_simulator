@@ -9,6 +9,11 @@ import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode'
 export const useEntityYamlProcessor = (canonicalEntities, positions, setCanonicalEntities) => {
 
   const generateYAML = useCallback(() => {
+    // If no entities, return empty string
+    if (canonicalEntities.length === 0) {
+      return '';
+    }
+    
     const yamlObject = {
       entities: canonicalEntities.map(entity => ({
         name: entity.name,
@@ -66,11 +71,6 @@ export const useEntityYamlProcessor = (canonicalEntities, positions, setCanonica
       }
       
       if (newEntities.length === 0) {
-        // Don't clear entities if we currently have entities - this prevents accidental clearing
-        if (canonicalEntities.length > 0) {
-          return;
-        }
-        
         setCanonicalEntities([]);
         return;
       }
