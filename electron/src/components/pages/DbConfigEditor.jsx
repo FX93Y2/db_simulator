@@ -12,7 +12,7 @@ import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
-import { FiSave, FiPlus } from 'react-icons/fi';
+import { FiSave, FiPlus, FiUpload, FiDownload } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
 
@@ -30,9 +30,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   
   // Ref to access ERDiagram methods
   const erDiagramRef = useRef(null);
-  
-  // Track if YAML change came from ERDiagram to prevent loops
-  const yamlChangeFromDiagram = useRef(false);
+  const fileInputRef = useRef(null);
   
   // Load existing configuration or create new one for the project
   useEffect(() => {
@@ -86,19 +84,21 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     }
   }, [projectId, configId]);
 
-  // Track if ERDiagram has been initialized to prevent loops
+  // ERDiagram initialization for existing projects (one-time only)
   const [erDiagramInitialized, setERDiagramInitialized] = useState(false);
-
-  // Initialize ERDiagram with initial YAML content (only once)
+  
   useEffect(() => {
     if (yamlContent && erDiagramRef.current && !erDiagramInitialized) {
-      console.log('[DbConfigEditor] Initializing ERDiagram with YAML content, length:', yamlContent.length);
-      erDiagramRef.current.handleYAMLChange(yamlContent);
+      console.log('[DbConfigEditor] Loading existing YAML content into ERDiagram');
+      try {
+        const result = erDiagramRef.current.handleYAMLImport(yamlContent);
+        console.log('[DbConfigEditor] ERDiagram initialization result:', result);
+      } catch (error) {
+        console.log('[DbConfigEditor] ERDiagram initialization failed (expected for empty projects):', error.message);
+      }
       setERDiagramInitialized(true);
-    } else if (yamlContent && erDiagramRef.current && erDiagramInitialized) {
-      console.log('[DbConfigEditor] Skipping ERDiagram initialization - already initialized');
     }
-  }, [yamlContent, erDiagramInitialized]); // Only initialize once
+  }, [yamlContent, erDiagramInitialized]);
   
   // Legacy method to load config directly by ID
   const loadConfigById = async () => {
@@ -127,37 +127,37 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     }
   };
   
-  // Handle YAML content changes
-  const handleYamlChange = (content) => {
-    console.log('[DbConfigEditor] handleYamlChange called, content length:', content?.length);
-    console.log('[DbConfigEditor] yamlChangeFromDiagram.current:', yamlChangeFromDiagram.current);
+  // Handle YAML import from files
+  const handleYamlImport = async (content) => {
+    console.log('[DbConfigEditor] handleYamlImport called, content length:', content?.length);
     
-    setYamlContent(content);
-    
-    // Only send changes to ERDiagram if they didn't come from ERDiagram
-    // This prevents infinite loops
-    if (erDiagramRef.current && !yamlChangeFromDiagram.current) {
-      console.log('[DbConfigEditor] Sending YAML change to ERDiagram');
-      erDiagramRef.current.handleYAMLChange(content);
-    } else {
-      console.log('[DbConfigEditor] Skipping ERDiagram update - change came from diagram');
-    }
-    
-    // Reset the flag
-    yamlChangeFromDiagram.current = false;
-    
-    // Notify parent component of the change for real-time reactivity
-    if (onConfigChange) {
-      onConfigChange(content);
+    try {
+      if (erDiagramRef.current) {
+        const result = erDiagramRef.current.handleYAMLImport(content);
+        console.log('[DbConfigEditor] YAML import result:', result);
+        
+        // Update YAML content after successful import
+        const newYamlContent = erDiagramRef.current.generateYAML();
+        setYamlContent(newYamlContent);
+        
+        // Notify parent component
+        if (onConfigChange) {
+          onConfigChange(newYamlContent);
+        }
+        
+        return { success: true, message: result.message };
+      } else {
+        throw new Error('ERDiagram not ready');
+      }
+    } catch (error) {
+      console.error('[DbConfigEditor] YAML import failed:', error);
+      return { success: false, message: error.message };
     }
   };
   
-  // Handle diagram changes - now much simpler since ERDiagram generates YAML
+  // Handle diagram changes (canvas -> YAML one-way sync)
   const handleDiagramChange = useCallback((updatedYamlContent) => {
     console.log('[DbConfigEditor] Received YAML update from ERDiagram');
-    
-    // Set flag to indicate this change came from ERDiagram
-    yamlChangeFromDiagram.current = true;
     
     setYamlContent(updatedYamlContent);
     
@@ -166,6 +166,50 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       onConfigChange(updatedYamlContent);
     }
   }, [onConfigChange]);
+  
+  // Handle file import
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const result = await handleYamlImport(content);
+      if (!result.success) {
+        alert(`Import failed: ${result.message}`);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Handle file export
+  const handleExport = () => {
+    if (!yamlContent) {
+      alert('No content to export');
+      return;
+    }
+
+    const blob = new Blob([yamlContent], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'database-config.yaml';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
   
   
   // Function to save configuration with provided content
@@ -346,8 +390,29 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         <Panel defaultSize={40} minSize={20} order={1}>
           <div className="editor-yaml-panel">
             <div className="panel-header">
-              <span>YAML Editor</span>
               <div className="panel-header-actions">
+                <Button
+                  size="sm"
+                  variant="outline-primary"
+                  onClick={handleImport}
+                  disabled={loading}
+                  title="Import YAML file"
+                  className="me-2"
+                >
+                  <FiUpload className="me-1" />
+                  Import
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-secondary"
+                  onClick={handleExport}
+                  disabled={!yamlContent || loading}
+                  title="Export YAML file"
+                  className="me-2"
+                >
+                  <FiDownload className="me-1" />
+                  Export
+                </Button>
                 <Button 
                   size="sm" 
                   className="action-button btn-custom-toolbar save-config-btn"
@@ -357,6 +422,13 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 >
                   <FiSave className="save-icon" /> Save
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".yaml,.yml"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
               </div>
             </div>
             {loading && !yamlContent ? (
@@ -367,8 +439,10 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
             ) : (
               <YamlEditor 
                 initialValue={yamlContent} 
-                onChange={handleYamlChange}
                 onSave={handleSave}
+                readOnly={true}
+                showImportExport={false}
+                filename="database-config"
                 height="calc(100vh - 220px)"
                 theme={theme}
               />

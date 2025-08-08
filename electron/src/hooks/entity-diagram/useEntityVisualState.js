@@ -7,7 +7,7 @@ import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode'
  * Transforms canonical entities to visual nodes and edges
  * Handles foreign key relationship visualization
  */
-export const useEntityVisualState = (canonicalEntities, onDiagramChange, generateYAML, isInternalUpdate, resetInternalFlags, projectId) => {
+export const useEntityVisualState = (canonicalEntities, onDiagramChange, generateYAML, projectId) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [dbSchema, setDbSchema] = useState(null);
@@ -30,13 +30,10 @@ export const useEntityVisualState = (canonicalEntities, onDiagramChange, generat
       setNodes([]);
       setEdges([]);
       
-      // Notify parent of empty state when all entities are deleted
-      if (isInternalUpdate() && onDiagramChange) {
+      // Always notify parent of empty state when all entities are deleted
+      if (onDiagramChange) {
         const emptyYAML = generateYAML(); // This returns "" for empty entities
         onDiagramChange(emptyYAML);
-        setTimeout(() => {
-          resetInternalFlags();
-        }, 500);
       }
       return;
     }
@@ -104,17 +101,12 @@ export const useEntityVisualState = (canonicalEntities, onDiagramChange, generat
       }))
     });
     
-    // Notify parent of changes if this was an internal update
-    if (isInternalUpdate() && onDiagramChange) {
+    // Always notify parent of canvas changes (canvas -> YAML one-way sync)
+    if (onDiagramChange) {
       const generatedYAML = generateYAML();
       onDiagramChange(generatedYAML);
-      
-      // Set a timeout to reset the flags after the parent processes the change
-      setTimeout(() => {
-        resetInternalFlags();
-      }, 500); // Increased timeout to be more reliable
     }
-  }, [canonicalEntities, onDiagramChange, generateYAML, isInternalUpdate, resetInternalFlags]);
+  }, [canonicalEntities, onDiagramChange, generateYAML]);
 
   return {
     nodes,

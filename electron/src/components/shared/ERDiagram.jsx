@@ -43,8 +43,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     isInternalUpdate
   } = entityManager;
 
-  // YAML processing
-  const { generateYAML, handleYAMLChange } = useEntityYamlProcessor(
+  // YAML processing (canvas -> YAML only)
+  const { generateYAML, handleYAMLImport } = useEntityYamlProcessor(
     canonicalEntities, 
     positions, 
     setCanonicalEntities
@@ -64,8 +64,6 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     canonicalEntities,
     onDiagramChange,
     generateYAML,
-    isInternalUpdate,
-    resetInternalFlags,
     projectId
   );
 
@@ -167,30 +165,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     }
   }, []);
 
-  // Handle external YAML updates
-  useEffect(() => {
-    // Skip if this was triggered by internal changes
-    if (isInternalUpdate()) {
-      return;
-    }
-    
-    // Skip if no YAML content
-    if (!yamlContent) {
-      return;
-    }
-    
-    // Wait for position storage to be ready
-    if (!positions.isStorageReady()) {
-      return;
-    }
-    
-    // Wait for layoutMap to be ready from localStorage
-    if (!positions.layoutMapReady) {
-      return;
-    }
-    
-    handleYAMLChange(yamlContent);
-  }, [yamlContent, positions.layoutMapReady, handleYAMLChange, isInternalUpdate]);
+  // No longer handle external YAML updates - canvas is source of truth
+  // YAML content is now read-only, only updated from canvas changes
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -198,9 +174,9 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     updateEntity,
     deleteEntity: deleteEntityWithCleanup,
     generateYAML,
-    handleYAMLChange,
+    handleYAMLImport,
     getCanonicalEntities: () => canonicalEntities
-  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateYAML, handleYAMLChange, canonicalEntities]);
+  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateYAML, handleYAMLImport, canonicalEntities]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {

@@ -38,8 +38,8 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     isInternalUpdate
   } = stepManager;
 
-  // YAML processing
-  const { generateYAML, handleYAMLChange } = useFlowYamlProcessor(
+  // YAML processing (canvas -> YAML only)
+  const { generateYAML, handleYAMLImport } = useFlowYamlProcessor(
     canonicalSteps, 
     flowSchema, 
     setCanonicalSteps, 
@@ -59,9 +59,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     theme,
     onDiagramChange,
     generateYAML,
-    flowSchema,
-    isInternalUpdate,
-    resetInternalFlags
+    flowSchema
   );
 
   // Connection handling
@@ -111,7 +109,7 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     }
   }, []);
 
-  // Handle external YAML updates
+  // Handle initial schema load (for existing projects)
   useEffect(() => {
     // Skip if this was triggered by internal changes
     if (isInternalUpdate()) {
@@ -124,11 +122,22 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     }
     
     if (parsedSchema) {
-      // Always update flowSchema
+      // Always update flowSchema for canvas initialization
       setFlowSchema(parsedSchema);
-      handleYAMLChange(parsedSchema);
+      
+      // Only sync to canvas on initial load, not ongoing updates
+      const eventFlows = parsedSchema?.event_simulation?.event_flows;
+      if (eventFlows && eventFlows.length > 0) {
+        const flow = eventFlows[0];
+        const steps = flow.steps || [];
+        if (steps.length > 0) {
+          const updatedSteps = positions.resolvePositions(steps);
+          setCanonicalSteps(updatedSteps);
+          positions.completeInitialLoad();
+        }
+      }
     }
-  }, [parsedSchema, handleYAMLChange, positions, isInternalUpdate]);
+  }, [parsedSchema, positions, isInternalUpdate, setCanonicalSteps]);  // Removed handleYAMLChange dependency
 
   // Memoized imperative methods to prevent recreation on every render
   const imperativeMethods = useMemo(() => ({
@@ -136,9 +145,9 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     updateStep,
     deleteStep,
     generateYAML,
-    handleYAMLChange,
+    handleYAMLImport,
     getCanonicalSteps: () => canonicalSteps
-  }), [addStep, updateStep, deleteStep, generateYAML, handleYAMLChange, canonicalSteps]);
+  }), [addStep, updateStep, deleteStep, generateYAML, handleYAMLImport, canonicalSteps]);
   
   // Expose methods to parent components
   useImperativeHandle(ref, () => imperativeMethods, [imperativeMethods]);

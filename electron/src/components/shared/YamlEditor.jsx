@@ -1,20 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Button, Spinner } from 'react-bootstrap';
-import { FiSave, FiRefreshCw } from 'react-icons/fi';
+import { FiSave, FiRefreshCw, FiUpload, FiDownload } from 'react-icons/fi';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
 const YamlEditor = ({ 
   initialValue, 
   onSave, 
   onChange,
+  onImport,  // New callback for importing YAML files
   readOnly = false, 
   height = '500px',
-  theme
+  theme,
+  showImportExport = false,  // New prop to control import/export buttons
+  filename = 'config'  // Default filename for exports
 }) => {
   const [value, setValue] = useState(initialValue || '');
   const [isEditorReady, setIsEditorReady] = useState(false);
   const monacoRef = useRef(null);
   const containerRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   // Initialize editor
   useEffect(() => {
@@ -187,8 +191,89 @@ const YamlEditor = ({
     }
   };
 
+  // Handle file import
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      if (onImport) {
+        // Let parent handle validation and update
+        const result = await onImport(content);
+        if (!result.success) {
+          throw new Error(result.message || 'Import failed');
+        }
+      } else {
+        // Fallback: direct update (for read-only mode)
+        if (monacoRef.current) {
+          monacoRef.current.setValue(content);
+          setValue(content);
+        }
+      }
+    } catch (error) {
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Handle file export
+  const handleExport = () => {
+    if (!value) {
+      alert('No content to export');
+      return;
+    }
+
+    const blob = new Blob([value], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}.yaml`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className="yaml-editor">
+      {showImportExport && (
+        <div className="d-flex justify-content-end mb-2 gap-2">
+          <Button
+            size="sm"
+            variant="outline-primary"
+            onClick={handleImport}
+            title="Import YAML file"
+          >
+            <FiUpload className="me-1" />
+            Import
+          </Button>
+          <Button
+            size="sm"
+            variant="outline-secondary"
+            onClick={handleExport}
+            disabled={!value}
+            title="Export YAML file"
+          >
+            <FiDownload className="me-1" />
+            Export
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".yaml,.yml"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </div>
+      )}
       <div 
         ref={containerRef}
         className="monaco-editor-container" 

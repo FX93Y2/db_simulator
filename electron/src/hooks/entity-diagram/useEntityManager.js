@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
 
 /**
@@ -9,9 +9,7 @@ export const useEntityManager = (positions) => {
   // Canonical entity state - this is the source of truth
   const [canonicalEntities, setCanonicalEntities] = useState([]);
   
-  // Track if we're updating from internal canvas operations
-  const internalUpdateRef = useRef(false);
-  const pendingInternalUpdateRef = useRef(false);
+  // No longer need internal update tracking - canvas is source of truth
 
   // Direct entity manipulation methods - Canvas is source of truth
   const addEntity = useCallback((entityData, containerRef) => {
@@ -50,9 +48,7 @@ export const useEntityManager = (positions) => {
     // Update position in hook
     positions.updateItemPosition(entityData.name, newPosition);
     
-    // Set internal update flags to prevent YAML sync loops
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
     
     return newEntity;
   }, [canonicalEntities, positions]);
@@ -77,9 +73,7 @@ export const useEntityManager = (positions) => {
       positions.updateItemId(entityId, newData.name);
     }
     
-    // Set internal update flags
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
   }, [positions]);
 
   const deleteEntity = useCallback((entityId) => {
@@ -89,9 +83,7 @@ export const useEntityManager = (positions) => {
     // Remove position
     positions.removeItemPositions([entityId]);
     
-    // Set internal update flags
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
   }, [positions]);
 
   const updateEntityPosition = useCallback((entityId, newPosition) => {
@@ -106,15 +98,13 @@ export const useEntityManager = (positions) => {
     positions.updateItemPosition(entityId, newPosition);
   }, [positions]);
 
-  // Reset internal update flags
+  // Simplified - no internal update tracking needed
   const resetInternalFlags = useCallback(() => {
-    internalUpdateRef.current = false;
-    pendingInternalUpdateRef.current = false;
+    // No-op - keeping for API compatibility
   }, []);
 
-  // Check if update is internal
   const isInternalUpdate = useCallback(() => {
-    return internalUpdateRef.current || pendingInternalUpdateRef.current;
+    return false; // Always false - no bidirectional sync
   }, []);
 
   return {
@@ -124,8 +114,7 @@ export const useEntityManager = (positions) => {
     updateEntity,
     deleteEntity,
     updateEntityPosition,
-    internalUpdateRef,
-    pendingInternalUpdateRef,
+    // Removed internal update refs - no longer needed
     resetInternalFlags,
     isInternalUpdate
   };

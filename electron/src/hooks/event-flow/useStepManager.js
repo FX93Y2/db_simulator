@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 
 /**
  * Custom hook for managing canonical step state in ModularEventFlow
@@ -8,9 +8,7 @@ export const useStepManager = (positions) => {
   // Canonical step state - this is the source of truth
   const [canonicalSteps, setCanonicalSteps] = useState([]);
   
-  // Track if we're updating from internal canvas operations
-  const internalUpdateRef = useRef(false);
-  const pendingInternalUpdateRef = useRef(false);
+  // No longer need internal update tracking - canvas is source of truth
 
   // Direct step manipulation methods - Canvas is source of truth
   const addStep = useCallback((stepData, containerRef) => {
@@ -48,9 +46,7 @@ export const useStepManager = (positions) => {
     // Update position in hook
     positions.updateItemPosition(stepData.step_id, newPosition);
     
-    // Set internal update flags to prevent YAML sync loops
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
     
     return newStep;
   }, [canonicalSteps, positions]);
@@ -74,9 +70,7 @@ export const useStepManager = (positions) => {
       positions.updateItemId(stepId, newData.step_id);
     }
     
-    // Set internal update flags
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
   }, [positions]);
 
   const deleteStep = useCallback((stepId) => {
@@ -86,9 +80,7 @@ export const useStepManager = (positions) => {
     // Remove position
     positions.removeItemPositions([stepId]);
     
-    // Set internal update flags
-    internalUpdateRef.current = true;
-    pendingInternalUpdateRef.current = true;
+    // Canvas drives YAML - no sync loops to prevent
   }, [positions]);
 
   const updateStepPosition = useCallback((stepId, newPosition) => {
@@ -103,15 +95,13 @@ export const useStepManager = (positions) => {
     positions.updateItemPosition(stepId, newPosition);
   }, [positions]);
 
-  // Reset internal update flags
+  // Simplified - no internal update tracking needed
   const resetInternalFlags = useCallback(() => {
-    internalUpdateRef.current = false;
-    pendingInternalUpdateRef.current = false;
+    // No-op - keeping for API compatibility
   }, []);
 
-  // Check if update is internal
   const isInternalUpdate = useCallback(() => {
-    return internalUpdateRef.current || pendingInternalUpdateRef.current;
+    return false; // Always false - no bidirectional sync
   }, []);
 
   return {
@@ -121,8 +111,7 @@ export const useStepManager = (positions) => {
     updateStep,
     deleteStep,
     updateStepPosition,
-    internalUpdateRef,
-    pendingInternalUpdateRef,
+    // Removed internal update refs - no longer needed
     resetInternalFlags,
     isInternalUpdate
   };

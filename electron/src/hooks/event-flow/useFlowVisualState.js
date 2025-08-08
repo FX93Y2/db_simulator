@@ -6,7 +6,7 @@ import { useNodesState, useEdgesState } from 'reactflow';
  * Transforms canonical steps to visual nodes and edges
  * Handles step connection visualization
  */
-export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema, isInternalUpdate, resetInternalFlags) => {
+export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
@@ -16,12 +16,9 @@ export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, gener
       setNodes([]);
       setEdges([]);
       
-      // Notify parent of empty state when all steps are deleted
-      if (isInternalUpdate() && onDiagramChange) {
+      // Always notify parent of empty state when all steps are deleted
+      if (onDiagramChange) {
         const emptySchema = generateYAML(); // This returns proper empty structure
-        setTimeout(() => {
-          resetInternalFlags();
-        }, 500);
         onDiagramChange(emptySchema);
       }
       return;
@@ -84,17 +81,13 @@ export const useFlowVisualState = (canonicalSteps, theme, onDiagramChange, gener
     setNodes(visualNodes);
     setEdges(visualEdges);
     
-    // Notify parent of changes if this was an internal update
-    if (isInternalUpdate() && onDiagramChange) {
+    // Always notify parent of canvas changes (canvas -> YAML one-way sync)
+    if (onDiagramChange) {
       const generatedSchema = generateYAML();
       // Always notify parent, even if schema is empty ({})
-      // Set a timeout to reset the flags after the parent processes the change
-      setTimeout(() => {
-        resetInternalFlags();
-      }, 500); // Increased timeout to be more reliable
       onDiagramChange(generatedSchema);
     }
-  }, [canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema, isInternalUpdate, resetInternalFlags]);
+  }, [canonicalSteps, theme, onDiagramChange, generateYAML, flowSchema]);
 
   return {
     nodes,

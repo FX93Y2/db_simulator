@@ -8,8 +8,21 @@ export const useFlowYamlProcessor = (canonicalSteps, flowSchema, setCanonicalSte
 
   const generateYAML = useCallback(() => {
     if (canonicalSteps.length === 0) {
-      // Return proper empty structure instead of {}
-      if (!flowSchema) return {};
+      // Return proper empty structure
+      if (!flowSchema || !flowSchema.event_simulation || !flowSchema.event_simulation.event_flows || !flowSchema.event_simulation.event_flows[0]) {
+        return {
+          simulation: {
+            duration_days: 30
+          },
+          event_simulation: {
+            event_flows: [{
+              flow_id: 'main_flow',
+              event_table: 'Event',
+              steps: []
+            }]
+          }
+        };
+      }
       
       return {
         ...flowSchema,
@@ -23,8 +36,23 @@ export const useFlowYamlProcessor = (canonicalSteps, flowSchema, setCanonicalSte
       };
     }
     
-    if (!flowSchema) {
-      return {};
+    if (!flowSchema || !flowSchema.event_simulation || !flowSchema.event_simulation.event_flows || !flowSchema.event_simulation.event_flows[0]) {
+      // Create default structure if missing
+      return {
+        simulation: {
+          duration_days: 30
+        },
+        event_simulation: {
+          event_flows: [{
+            flow_id: 'main_flow',
+            event_table: 'Event',
+            steps: canonicalSteps.map(step => {
+              const { position, ...stepWithoutPosition } = step;
+              return stepWithoutPosition;
+            })
+          }]
+        }
+      };
     }
     
     const updatedSchema = {
@@ -67,47 +95,70 @@ export const useFlowYamlProcessor = (canonicalSteps, flowSchema, setCanonicalSte
     return { added, deleted, modified };
   }, []);
 
-  // Handle YAML changes from external sources (like YAML editor)
-  const handleYAMLChange = useCallback((newSchema) => {
-    if (!newSchema?.event_simulation?.event_flows) {
-      setCanonicalSteps([]);
-      return;
+  // Handle YAML import from files (one-way sync: file -> canvas)
+  const handleYAMLImport = useCallback((yamlContent) => {
+    // Ensure we have a string
+    if (typeof yamlContent !== 'string') {
+      throw new Error('Invalid YAML content: expected string');
     }
     
-    const eventFlows = newSchema.event_simulation.event_flows;
-    if (eventFlows.length === 0) {
-      setCanonicalSteps([]);
-      return;
-    }
-    
-    // Use first flow
-    const flow = eventFlows[0];
-    const newSteps = flow.steps || [];
-    
-    if (newSteps.length === 0) {
-      setCanonicalSteps([]);
-      return;
-    }
-    
-    // Use position hook to resolve positions
-    const updatedSteps = positions.resolvePositions(newSteps);
-    
-    // Check for structural changes
-    const hasStructuralChanges = JSON.stringify(canonicalSteps.map(s => {
-      const { position, ...step } = s;
-      return step;
-    })) !== JSON.stringify(newSteps);
-    
-    if (hasStructuralChanges || canonicalSteps.length !== updatedSteps.length) {
+    try {
+      const newSchema = typeof yamlContent === 'string' ? 
+        require('yaml').parse(yamlContent) : yamlContent;
+      
+      // Validate this is simulation YAML (not database YAML)
+      if (!newSchema?.event_simulation && !newSchema?.steps) {
+        throw new Error('Invalid YAML: This appears to be database configuration, not simulation configuration');
+      }
+      
+      if (!newSchema?.event_simulation?.event_flows) {
+        throw new Error('Invalid YAML: Simulation configuration must contain "event_simulation.event_flows" section');
+      }
+      
+      const eventFlows = newSchema.event_simulation.event_flows;
+      if (!Array.isArray(eventFlows) || eventFlows.length === 0) {
+        throw new Error('Invalid YAML: "event_flows" must be a non-empty array');
+      }
+      
+      // Use first flow
+      const flow = eventFlows[0];
+      if (!flow.steps || !Array.isArray(flow.steps)) {
+        throw new Error('Invalid YAML: Event flow must contain a "steps" array');
+      }
+      
+      const newSteps = flow.steps;
+      
+      // Validate steps structure
+      for (const step of newSteps) {
+        if (!step.step_id) {
+          throw new Error('Invalid YAML: All steps must have a "step_id" field');
+        }
+        if (!step.step_type) {
+          throw new Error(`Invalid YAML: Step "${step.step_id}" must have a "step_type" field`);
+        }
+      }
+      
+      if (newSteps.length === 0) {
+        setCanonicalSteps([]);
+        return { success: true, message: 'Empty simulation configuration imported' };
+      }
+      
+      // Use position hook to resolve positions
+      const updatedSteps = positions.resolvePositions(newSteps);
+      
       setCanonicalSteps(updatedSteps);
       positions.completeInitialLoad();
+      
+      return { success: true, message: `Successfully imported ${newSteps.length} steps` };
+      
+    } catch (error) {
+      throw new Error(`YAML parsing failed: ${error.message}`);
     }
-    
-  }, [canonicalSteps, positions, setCanonicalSteps]);
+  }, [positions, setCanonicalSteps]);
 
   return {
     generateYAML,
-    handleYAMLChange,
+    handleYAMLImport,
     detectStepChanges
   };
 };

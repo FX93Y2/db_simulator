@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Row,
@@ -18,7 +18,7 @@ import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
-import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
 
@@ -42,6 +42,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const [dbConfigs, setDbConfigs] = useState([]);
   const [selectedDbConfig, setSelectedDbConfig] = useState('');
   const [activeVisualizationTab, setActiveVisualizationTab] = useState('event-flow');
+  const fileInputRef = useRef(null);
   
   // Load existing configuration if editing
   useEffect(() => {
@@ -139,15 +140,82 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     }
   }, [yamlContent]);
   
-  // Handle YAML content changes from editor
-  const handleYamlChange = useCallback((content) => {
-     setYamlContent(content);
-     // Notify parent of config changes
-     if (onConfigChange) {
-       onConfigChange(content);
-     }
-     // Parsing happens in the useEffect above
+  // Handle YAML import from files
+  const handleYamlImport = useCallback(async (content) => {
+    try {
+      // Parse and validate the imported content
+      const doc = yaml.parseDocument(content);
+      if (doc.errors && doc.errors.length > 0) {
+        throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
+      }
+      
+      const parsedObj = doc.toJSON();
+      
+      // Validate this is simulation YAML
+      if (!parsedObj?.event_simulation && !parsedObj?.simulation) {
+        throw new Error('Invalid YAML: This appears to be database configuration, not simulation configuration');
+      }
+      
+      // Update content and parsed object
+      setYamlContent(content);
+      setParsedYamlObject(parsedObj);
+      setYamlError(null);
+      
+      // Notify parent of config changes
+      if (onConfigChange) {
+        onConfigChange(content);
+      }
+      
+      return { success: true, message: 'Simulation configuration imported successfully' };
+    } catch (error) {
+      console.error('YAML import failed:', error);
+      return { success: false, message: error.message };
+    }
   }, [onConfigChange]);
+  
+  // Handle file import
+  const handleImport = () => {
+    fileInputRef.current?.click();
+  };
+
+  // Handle file input change
+  const handleFileChange = async (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
+      const content = await file.text();
+      const result = await handleYamlImport(content);
+      if (!result.success) {
+        alert(`Import failed: ${result.message}`);
+      } else {
+        alert(result.message);
+      }
+    } catch (error) {
+      alert(`Import failed: ${error.message}`);
+    } finally {
+      // Reset file input
+      event.target.value = '';
+    }
+  };
+
+  // Handle file export
+  const handleExport = () => {
+    if (!yamlContent) {
+      alert('No content to export');
+      return;
+    }
+
+    const blob = new Blob([yamlContent], { type: 'text/yaml' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'simulation-config.yaml';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
   
   // Handle diagram changes - expects object, stringifies it
   const handleDiagramChange = useCallback((updatedDiagramData) => {
@@ -538,8 +606,29 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         <Panel defaultSize={40} minSize={20} order={1}>
           <div className="editor-yaml-panel">
             <div className="panel-header">
-              <span>YAML Editor</span>
               <div className="panel-header-actions">
+                <Button
+                  size="sm"
+                  variant="outline-primary"
+                  onClick={handleImport}
+                  disabled={loading}
+                  title="Import YAML file"
+                  className="me-2"
+                >
+                  <FiUpload className="me-1" />
+                  Import
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline-secondary"
+                  onClick={handleExport}
+                  disabled={!yamlContent || loading}
+                  title="Export YAML file"
+                  className="me-2"
+                >
+                  <FiDownload className="me-1" />
+                  Export
+                </Button>
                 <Button 
                   size="sm" 
                   className="action-button btn-custom-toolbar save-config-btn"
@@ -549,6 +638,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                 >
                   <FiSave className="save-icon" /> Save
                 </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".yaml,.yml"
+                  style={{ display: 'none' }}
+                  onChange={handleFileChange}
+                />
               </div>
             </div>
             {loading && !yamlContent ? (
@@ -559,8 +655,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             ) : (
               <YamlEditor 
                 initialValue={yamlContent} 
-                onChange={handleYamlChange}
                 onSave={null}
+                readOnly={true}
+                showImportExport={false}
+                filename="simulation-config"
                 height="calc(100vh - 160px)"
                 theme={theme}
               />

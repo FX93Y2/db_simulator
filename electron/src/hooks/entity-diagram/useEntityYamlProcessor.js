@@ -49,71 +49,61 @@ export const useEntityYamlProcessor = (canonicalEntities, positions, setCanonica
     return { added, deleted, modified };
   }, []);
 
-  // Handle YAML changes from external sources (like YAML editor)
-  const handleYAMLChange = useCallback((newYAMLContent) => {
-    // CRITICAL: Don't process YAML until positions are ready
-    if (!positions.isStorageReady() || !positions.layoutMapReady) {
-      return;
-    }
-    
+  // Handle YAML import from files (one-way sync: file -> canvas)
+  const handleYAMLImport = useCallback((newYAMLContent) => {
     // Ensure we have a string
     if (typeof newYAMLContent !== 'string') {
-      return;
+      throw new Error('Invalid YAML content: expected string');
     }
     
     try {
       const parsedYAML = yaml.parse(newYAMLContent);
       const newEntities = parsedYAML?.entities || [];
       
-      // Skip if this looks like simulation YAML (has steps) rather than database YAML
-      if (parsedYAML?.steps) {
-        return;
+      // Validate this is database YAML (not simulation YAML)
+      if (parsedYAML?.event_simulation || parsedYAML?.steps) {
+        throw new Error('Invalid YAML: This appears to be simulation configuration, not database configuration');
       }
       
+      if (!parsedYAML?.entities) {
+        throw new Error('Invalid YAML: Database configuration must contain "entities" section');
+      }
+      
+      // Validate entities structure
+      for (const entity of newEntities) {
+        if (!entity.name) {
+          throw new Error('Invalid YAML: All entities must have a "name" field');
+        }
+        if (!entity.attributes || !Array.isArray(entity.attributes)) {
+          throw new Error(`Invalid YAML: Entity "${entity.name}" must have an "attributes" array`);
+        }
+      }
+      
+      // If validation passes, update canvas
       if (newEntities.length === 0) {
         setCanonicalEntities([]);
-        return;
+        return { success: true, message: 'Empty database configuration imported' };
       }
       
-      // Use position hook to resolve positions
+      // Use position hook to resolve positions for new entities
       const updatedEntities = positions.resolvePositions(newEntities.map(entity => ({
         ...entity,
         attributes: sortAttributes(entity.attributes || []) // Sort attributes
       })));
       
-      // Check for structural changes
-      const hasStructuralChanges = JSON.stringify(canonicalEntities.map(e => {
-        const { position, ...entity } = e;
-        return entity;
-      })) !== JSON.stringify(newEntities);
+      setCanonicalEntities(updatedEntities);
+      positions.completeInitialLoad();
       
-      if (hasStructuralChanges || canonicalEntities.length !== updatedEntities.length) {
-        setCanonicalEntities(updatedEntities);
-        // Only complete initial load if we successfully loaded and applied saved positions
-        // OR if there were no saved positions to begin with
-        const hasSavedPositions = Object.keys(positions.layoutMap).length > 0;
-        const appliedSavedPositions = hasSavedPositions && updatedEntities.some(e => 
-          positions.layoutMap[e.name] && 
-          e.position.x === positions.layoutMap[e.name].x && 
-          e.position.y === positions.layoutMap[e.name].y
-        );
-        
-        if (!hasSavedPositions || appliedSavedPositions) {
-          positions.completeInitialLoad();
-        }
-      }
-      
-      return parsedYAML;
+      return { success: true, message: `Successfully imported ${newEntities.length} entities` };
       
     } catch (error) {
-      // Invalid YAML, ignore changes
-      return null;
+      throw new Error(`YAML parsing failed: ${error.message}`);
     }
-  }, [canonicalEntities, positions, setCanonicalEntities]);
+  }, [positions, setCanonicalEntities]);
 
   return {
     generateYAML,
-    handleYAMLChange,
+    handleYAMLImport,
     detectEntityChanges
   };
 };
