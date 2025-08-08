@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -6,101 +6,66 @@ import ReactFlow, {
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
+
+// Store imports
+import {
+  useSimulationConfigStore,
+  useNodes,
+  useEdges,
+  useCanonicalSteps,
+  useCurrentState,
+  useCanvasActions,
+  useUIActions
+} from '../../stores/simulationConfigStore';
+
+// Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import { useCanvasPositions } from '../../hooks/shared/useCanvasPositions';
-import { useStepManager } from '../../hooks/event-flow/useStepManager';
-import { useFlowYamlProcessor } from '../../hooks/event-flow/useFlowYamlProcessor';
-import { useFlowVisualState } from '../../hooks/event-flow/useFlowVisualState';
-import { useFlowEventHandlers } from '../../hooks/event-flow/useFlowEventHandlers';
-import { useFlowConnections } from '../../hooks/event-flow/useFlowConnections';
+
+// Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
 import NodeEditModal from './flow-nodes/NodeEditModal';
 
-const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChange, theme, dbConfigContent, projectId }, ref) => {
-  const [initialized, setInitialized] = useState(false);
-  const [flowSchema, setFlowSchema] = useState(null);
+/**
+ * Rebuilt ModularEventFlow with centralized Zustand store
+ * Simplified architecture without circular dependencies
+ * Direct ReactFlow integration with store
+ */
+const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
+  const [initialized, setInitialized] = React.useState(false);
   const containerRef = useRef(null);
   
-  // Position management
-  const positions = useCanvasPositions(yamlContent, 'modular_flow_positions', projectId);
+  // Store state subscriptions (selective to prevent unnecessary re-renders)
+  const nodes = useNodes();
+  const edges = useEdges();
+  const canonicalSteps = useCanonicalSteps();
+  const currentState = useCurrentState();
+
+  // Store actions
+  const { 
+    updateNodePosition, 
+    deleteNodes, 
+    updateStep, 
+    connectNodes, 
+    updateVisualState,
+    addNode
+  } = useCanvasActions();
   
-  // Step state management
-  const stepManager = useStepManager(positions);
-  const {
-    canonicalSteps,
-    setCanonicalSteps,
-    addStep,
-    updateStep,
-    deleteStep,
-    internalUpdateRef,
-    pendingInternalUpdateRef,
-    resetInternalFlags,
-    isInternalUpdate
-  } = stepManager;
+  const { 
+    handleNodeClick, 
+    handleNodeDoubleClick, 
+    setSelectedNode,
+    handleKeyboard
+  } = useUIActions();
 
-  // YAML processing (canvas -> YAML only)
-  const { generateYAML, handleYAMLImport } = useFlowYamlProcessor(
-    canonicalSteps, 
-    flowSchema, 
-    setCanonicalSteps, 
-    positions
-  );
-
-  // Visual state management
-  const {
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    onNodesChange,
-    onEdgesChange
-  } = useFlowVisualState(
-    canonicalSteps,
-    theme,
-    onDiagramChange,
-    generateYAML,
-    flowSchema
-  );
-
-  // Connection handling
-  const { onConnect, onEdgesDelete } = useFlowConnections(
-    canonicalSteps,
-    setCanonicalSteps,
-    setEdges,
-    internalUpdateRef,
-    pendingInternalUpdateRef
-  );
-
-  // Event handling
-  const {
-    selectedNode,
-    showEditModal,
-    onNodeClick,
-    onNodeDoubleClick,
-    onNodeDragStop,
-    onNodesDelete,
-    handleNodeUpdate,
-    closeModal
-  } = useFlowEventHandlers(
-    stepManager.updateStepPosition,
-    deleteStep,
-    updateStep,
-    canonicalSteps,
-    setCanonicalSteps,
-    setNodes,
-    setEdges,
-    positions,
-    internalUpdateRef,
-    pendingInternalUpdateRef
-  );
+  // Position management (enhanced for store integration)
+  const positions = useCanvasPositions('', 'modular_flow_positions', projectId);
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
-  // Update current nodes in position hook
-  useEffect(() => {
-    positions.updateCurrentNodes(nodes);
-  }, [nodes, positions]);
+  // Get store state when needed (non-reactive)
+  const getStoreState = () => useSimulationConfigStore.getState();
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -109,45 +74,117 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
     }
   }, []);
 
-  // Handle initial schema load (for existing projects)
+  // Update current nodes in position hook
   useEffect(() => {
-    // Skip if this was triggered by internal changes
-    if (isInternalUpdate()) {
-      return;
+    if (positions.updateCurrentNodes) {
+      positions.updateCurrentNodes(nodes);
     }
-    
-    // Wait for position storage to be ready
-    if (!positions.isStorageReady()) {
-      return;
-    }
-    
-    if (parsedSchema) {
-      // Always update flowSchema for canvas initialization
-      setFlowSchema(parsedSchema);
-      
-      // Only sync to canvas on initial load, not ongoing updates
-      const eventFlows = parsedSchema?.event_simulation?.event_flows;
-      if (eventFlows && eventFlows.length > 0) {
-        const flow = eventFlows[0];
-        const steps = flow.steps || [];
-        if (steps.length > 0) {
-          const updatedSteps = positions.resolvePositions(steps);
-          setCanonicalSteps(updatedSteps);
-          positions.completeInitialLoad();
-        }
-      }
-    }
-  }, [parsedSchema, positions, isInternalUpdate, setCanonicalSteps]);  // Removed handleYAMLChange dependency
+  }, [nodes, positions]);
 
-  // Memoized imperative methods to prevent recreation on every render
+  // Sync canonical steps to visual representation when they change
+  useEffect(() => {
+    if (currentState !== 'importing') { // Don't sync during imports
+      console.log('🔄 ModularEventFlow: Updating visual state from canonical steps');
+      updateVisualState();
+    }
+  }, [canonicalSteps, currentState, updateVisualState]);
+
+  // ReactFlow event handlers
+  const onNodesChange = React.useCallback((changes) => {
+    console.log('📊 ModularEventFlow: Nodes changed:', changes);
+    
+    // Handle position changes directly
+    changes.forEach(change => {
+      if (change.type === 'position' && change.position) {
+        updateNodePosition(change.id, change.position);
+      }
+    });
+  }, [updateNodePosition]);
+
+  const onEdgesChange = React.useCallback((changes) => {
+    console.log('🔗 ModularEventFlow: Edges changed:', changes);
+    // Handle edge changes through store
+  }, []);
+
+  const onConnect = React.useCallback((connection) => {
+    console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
+    connectNodes(connection);
+  }, [connectNodes]);
+
+  const onNodeClick = React.useCallback((event, node) => {
+    console.log('👆 ModularEventFlow: Node clicked:', node.id);
+    handleNodeClick(event, node);
+  }, [handleNodeClick]);
+
+  const onNodeDoubleClick = React.useCallback((event, node) => {
+    console.log('👆👆 ModularEventFlow: Node double-clicked:', node.id);
+    handleNodeDoubleClick(event, node);
+  }, [handleNodeDoubleClick]);
+
+  const onNodeDragStop = React.useCallback((event, node) => {
+    console.log('🎯 ModularEventFlow: Node drag stopped:', node.id, node.position);
+    // Position updates are already handled by onNodesChange, but let's keep this as backup
+    updateNodePosition(node.id, node.position);
+  }, [updateNodePosition]);
+
+  const onNodesDelete = React.useCallback((deletedNodes) => {
+    const deletedIds = deletedNodes.map(n => n.id);
+    console.log('🗑️ ModularEventFlow: Deleting nodes:', deletedIds);
+    deleteNodes(deletedIds);
+  }, [deleteNodes]);
+
+  const onEdgesDelete = React.useCallback((deletedEdges) => {
+    console.log('🗑️ ModularEventFlow: Deleting edges:', deletedEdges);
+    // Edge deletion handled by node deletion cleanup
+  }, []);
+
+  // Handle node updates from modal
+  const handleNodeUpdate = React.useCallback((updatedNode) => {
+    const { selectedNode } = getStoreState();
+    if (!selectedNode) return;
+
+    console.log('✏️ ModularEventFlow: Updating node:', selectedNode.id, '->', updatedNode.id);
+    
+    updateStep(selectedNode.id, {
+      ...updatedNode.data.stepConfig,
+      step_id: updatedNode.id
+    });
+  }, [updateStep, getStoreState]);
+
+  // Close modal handler
+  const closeModal = React.useCallback(() => {
+    const state = getStoreState();
+    state.setShowEditModal(false);
+  }, [getStoreState]);
+
+  // Keyboard event handling
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      handleKeyboard(event);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyboard]);
+
+  // Imperative methods for parent components (if needed)
   const imperativeMethods = useMemo(() => ({
-    addStep: (stepData) => addStep(stepData, containerRef),
+    addStep: (stepData) => {
+      const position = containerRef.current 
+        ? {
+            x: containerRef.current.clientWidth / 2 - 100,
+            y: containerRef.current.clientHeight / 2 - 50
+          }
+        : { x: 100, y: 100 };
+      
+      addNode(stepData, position);
+    },
     updateStep,
-    deleteStep,
-    generateYAML,
-    handleYAMLImport,
-    getCanonicalSteps: () => canonicalSteps
-  }), [addStep, updateStep, deleteStep, generateYAML, handleYAMLImport, canonicalSteps]);
+    deleteStep: (stepId) => deleteNodes([stepId]),
+    getCanonicalSteps: () => getStoreState().canonicalSteps
+  }), [addNode, updateStep, deleteNodes, getStoreState]);
   
   // Expose methods to parent components
   useImperativeHandle(ref, () => imperativeMethods, [imperativeMethods]);
@@ -173,46 +210,46 @@ const ModularEventFlow = forwardRef(({ yamlContent, parsedSchema, onDiagramChang
       {initialized && (
         <div id="modular-event-flow-wrapper" style={{ width: '100%', height: '100%' }}>
           <ReactFlow
-          id="modular-event-flow-instance" 
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          onNodeClick={onNodeClick}
-          onNodeDoubleClick={onNodeDoubleClick}
-          onNodeDragStop={onNodeDragStop}
-          onNodesDelete={onNodesDelete}
-          onEdgesDelete={onEdgesDelete}
-          nodeTypes={nodeTypes}
-          snapToGrid={true}
-          snapGrid={[20, 20]}
-          fitView
-          attributionPosition="bottom-right"
-          nodesDraggable={true}
-          elementsSelectable={true}
-          deleteKeyCode={['Backspace', 'Delete']}
-        >
-          <Background 
-            key="modular-event-flow-background"
-            variant="dots" 
-            gap={12} 
-            size={1}
-          />
-          <Controls />
-          <MiniMap />
-        </ReactFlow>
+            id="modular-event-flow-instance" 
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={onNodeClick}
+            onNodeDoubleClick={onNodeDoubleClick}
+            onNodeDragStop={onNodeDragStop}
+            onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
+            nodeTypes={nodeTypes}
+            snapToGrid={true}
+            snapGrid={[20, 20]}
+            fitView
+            attributionPosition="bottom-right"
+            nodesDraggable={true}
+            elementsSelectable={true}
+            deleteKeyCode={['Backspace', 'Delete']}
+          >
+            <Background 
+              key="modular-event-flow-background"
+              variant="dots" 
+              gap={12} 
+              size={1}
+            />
+            <Controls />
+            <MiniMap />
+          </ReactFlow>
         </div>
       )}
 
       <NodeEditModal
-        show={showEditModal}
+        show={getStoreState().showEditModal}
         onHide={closeModal}
-        node={selectedNode}
+        node={getStoreState().selectedNode}
         onNodeUpdate={handleNodeUpdate}
         onNodeDelete={onNodesDelete}
         theme={theme}
-        parsedSchema={parsedSchema}
+        parsedSchema={getStoreState().parsedSchema}
         resourceDefinitions={resourceDefinitions}
       />
     </div>

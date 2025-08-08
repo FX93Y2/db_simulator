@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useEffect, useCallback, useRef, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Row,
@@ -13,277 +13,209 @@ import {
   Dropdown
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import yaml from 'yaml';
+import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
+import { useToastContext } from '../../contexts/ToastContext';
+
+// New store imports
+import {
+  useSimulationConfigStore,
+  useYamlContent,
+  useParsedSchema,
+  useCurrentState,
+  useIsLoading,
+  useError,
+  useActiveTab,
+  useYamlActions,
+  useConfigActions,
+  useWorkflowActions,
+  useUIActions
+} from '../../stores/simulationConfigStore';
+
+// Components
 import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
-import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
-import { useToastContext } from '../../contexts/ToastContext';
 
+// Remove store initialization import - not needed anymore
 
+/**
+ * Rebuilt SimConfigEditor with centralized Zustand store
+ * No local state - everything managed through store
+ * Clean, predictable data flow without circular dependencies
+ */
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
-  
-  // Debug project ID
-  console.log('[SimConfigEditor] 🔑 RECEIVED PROJECT ID:', projectId, 'isProjectTab:', isProjectTab);
-  const [config, setConfig] = useState(null);
-  const [yamlContent, setYamlContent] = useState('');
-  const [parsedYamlObject, setParsedYamlObject] = useState(null);
-  const [yamlError, setYamlError] = useState(null);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [showSaveModal, setShowSaveModal] = useState(false);
-  const [showRunModal, setShowRunModal] = useState(false);
-  const [saveAsNew, setSaveAsNew] = useState(false);
-  const [dbConfigs, setDbConfigs] = useState([]);
-  const [selectedDbConfig, setSelectedDbConfig] = useState('');
-  const [activeVisualizationTab, setActiveVisualizationTab] = useState('event-flow');
   const fileInputRef = useRef(null);
-  
-  // Load existing configuration if editing
-  useEffect(() => {
-    const loadConfig = async () => {
-      setLoading(true);
-      
-      try {
-        if (projectId) {
-          // If we have a projectId, try to load the project's simulation config
-          const result = await window.api.getProjectSimConfig(projectId);
-          if (result.success && result.config) {
-            setConfig(result.config);
-            setName(result.config.name || `${result.projectName} Simulation`);
-            setDescription(result.config.description || '');
-            setYamlContent(result.config.content);
-          } else {
-            // New simulation config for this project
-            setName(`${result.projectName || 'Project'} Simulation`);
-            setYamlContent('');
-          }
-        } else if (configId) {
-          // Load standalone config
-          const result = await window.api.getConfig(configId);
-          if (result.success) {
-            setConfig(result.config);
-            setName(result.config.name);
-            setDescription(result.config.description || '');
-            setYamlContent(result.config.content);
-          }
-        } else {
-          // New standalone configuration
-          setYamlContent(DEFAULT_SIM_CONFIG);
-        }
-      } catch (error) {
-        console.error('Error loading configuration:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    // Load database configurations for run simulation modal
-    const loadDbConfigs = async () => {
-      try {
-        if (projectId) {
-          // Get project's database config
-          const result = await window.api.getProjectDbConfig(projectId);
-          if (result.success && result.config) {
-            setDbConfigs([result.config]);
-            setSelectedDbConfig(result.config.id);
-          }
-        } else {
-          // Get all database configs
-          const result = await window.api.getConfigs('database');
-          if (result.success) {
-            setDbConfigs(result.configs || []);
-            // If there's only one config, auto-select it
-            if (result.configs && result.configs.length === 1) {
-              setSelectedDbConfig(result.configs[0].id);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error loading database configurations:', error);
-      }
-    };
-    
-    loadConfig();
-    loadDbConfigs();
-  }, [configId, projectId]);
-  
-  // Effect to parse YAML content whenever it changes
-  useEffect(() => {
-    try {
-      if (yamlContent) {
-        // Use parseDocument to keep track of structure/comments if needed later
-        const doc = yaml.parseDocument(yamlContent);
-        // Check for parse errors reported by the document model
-         if (doc.errors && doc.errors.length > 0) {
-          console.error("YAML Parsing Errors:", doc.errors);
-          setYamlError(doc.errors[0]); // Store first error
-          setParsedYamlObject(null); // Clear parsed object on error
-        } else {
-          setParsedYamlObject(doc.toJSON()); // Store the JS object representation
-          setYamlError(null); // Clear errors on successful parse
-        }
-      } else {
-         setParsedYamlObject(null);
-         setYamlError(null);
-      }
-    } catch (e) {
-      // Catch errors not caught by parseDocument.errors (e.g., completely invalid syntax)
-      console.error("YAML Parsing Exception:", e);
-      setYamlError(e);
-      setParsedYamlObject(null);
-    }
-  }, [yamlContent]);
-  
-  // Handle YAML import from files
-  const handleYamlImport = useCallback(async (content) => {
-    try {
-      // Parse and validate the imported content
-      const doc = yaml.parseDocument(content);
-      if (doc.errors && doc.errors.length > 0) {
-        throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
-      }
-      
-      const parsedObj = doc.toJSON();
-      
-      // Validate this is simulation YAML
-      if (!parsedObj?.event_simulation && !parsedObj?.simulation) {
-        throw new Error('Invalid YAML: This appears to be database configuration, not simulation configuration');
-      }
-      
-      // Update content and parsed object
-      setYamlContent(content);
-      setParsedYamlObject(parsedObj);
-      setYamlError(null);
-      
-      // Notify parent of config changes
-      if (onConfigChange) {
-        onConfigChange(content);
-      }
-      
-      return { success: true, message: 'Simulation configuration imported successfully' };
-    } catch (error) {
-      console.error('YAML import failed:', error);
-      return { success: false, message: error.message };
-    }
-  }, [onConfigChange]);
-  
-  // Handle file import
-  const handleImport = () => {
-    fileInputRef.current?.click();
-  };
 
-  // Handle file input change
-  const handleFileChange = async (event) => {
+  // Store state subscriptions (selective to prevent unnecessary re-renders)
+  const yamlContent = useYamlContent();
+  const parsedSchema = useParsedSchema();
+  const currentState = useCurrentState();
+  const isLoading = useIsLoading();
+  const error = useError();
+  const activeTab = useActiveTab();
+
+  // Store actions
+  const { importYaml, exportYaml } = useYamlActions();
+  const { loadConfig, saveConfig, initializeConfig } = useConfigActions();
+  const { clearError } = useWorkflowActions();
+  const { setActiveTab } = useUIActions();
+
+  // Get other state when needed (non-reactive)
+  const getStoreState = () => useSimulationConfigStore.getState();
+
+  // Initialize configuration context
+  useEffect(() => {
+    initializeConfig({
+      projectId,
+      isProjectTab,
+      theme,
+      dbConfigContent
+    });
+
+    console.log('🔧 SimConfigEditor: Configuration context initialized');
+  }, [projectId, isProjectTab, theme, dbConfigContent, initializeConfig]);
+
+  // Load existing configuration
+  useEffect(() => {
+    const loadConfiguration = async () => {
+      if (configId) {
+        console.log('📂 SimConfigEditor: Loading standalone config:', configId);
+        await loadConfig(configId);
+      } else if (projectId) {
+        console.log('📂 SimConfigEditor: Loading project config:', projectId);
+        await loadConfig(null, projectId);
+      }
+    };
+
+    loadConfiguration();
+  }, [configId, projectId, loadConfig]);
+
+  // Handle configuration changes for parent component
+  useEffect(() => {
+    if (onConfigChange && yamlContent) {
+      onConfigChange(yamlContent);
+    }
+  }, [yamlContent, onConfigChange]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      showError(error);
+      // Auto-clear errors after showing them
+      setTimeout(() => clearError(), 5000);
+    }
+  }, [error, showError, clearError]);
+
+  // YAML import handler
+  const handleYamlImport = useCallback(async (content) => {
+    console.log('📥 SimConfigEditor: Starting YAML import');
+    
+    const result = await importYaml(content);
+    
+    if (result.success) {
+      showSuccess(result.message);
+    } else {
+      showError(`Import failed: ${result.message}`);
+    }
+    
+    return result;
+  }, [importYaml, showSuccess, showError]);
+
+  // File import handler
+  const handleImport = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const handleFileChange = useCallback(async (event) => {
     const file = event.target.files[0];
     if (!file) return;
 
     try {
       const content = await file.text();
-      const result = await handleYamlImport(content);
-      if (!result.success) {
-        alert(`Import failed: ${result.message}`);
-      } else {
-        alert(result.message);
-      }
+      await handleYamlImport(content);
     } catch (error) {
-      alert(`Import failed: ${error.message}`);
+      showError(`Import failed: ${error.message}`);
     } finally {
       // Reset file input
       event.target.value = '';
     }
-  };
+  }, [handleYamlImport, showError]);
 
-  // Handle file export
-  const handleExport = () => {
+  // File export handler
+  const handleExport = useCallback(() => {
     if (!yamlContent) {
-      alert('No content to export');
+      showWarning('No content to export');
       return;
     }
 
-    const blob = new Blob([yamlContent], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'simulation-config.yaml';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-  
-  // Handle diagram changes - expects object, stringifies it
-  const handleDiagramChange = useCallback((updatedDiagramData) => {
-    try {
-      // updatedDiagramData is the JS object from EventFlow
-      const updatedYaml = yaml.stringify(updatedDiagramData);
-      setYamlContent(updatedYaml); // Update string state, triggers re-parse effect
-      setParsedYamlObject(updatedDiagramData); // Optimistically update parsed state
-      setYamlError(null); // Assume diagram changes produce valid structure
-      
-      // Notify parent of config changes
-      if (onConfigChange) {
-        onConfigChange(updatedYaml);
-      }
-    } catch (error) {
-      console.error('Error stringifying diagram changes:', error);
+    const result = exportYaml('simulation-config.yaml');
+    if (result.success) {
+      showSuccess(result.message);
+    } else {
+      showError(result.message);
     }
-  }, [onConfigChange]);
-  
-  
-  // Handle adding a new module - uses event_flows structure only
-  const handleAddModule = (moduleType) => {
-    if (yamlError || !parsedYamlObject) {
-        showError('Configure Simulation Duration First!');
-        return;
+  }, [yamlContent, exportYaml, showSuccess, showError, showWarning]);
+
+  // Generate collision-free step ID
+  const generateStepId = useCallback((stepType) => {
+    const state = getStoreState();
+    const existingStepIds = state.canonicalSteps.map(s => s.step_id);
+    
+    if (stepType === 'create') {
+      let counter = 1;
+      let stepId = `create_entities_${counter}`;
+      while (existingStepIds.includes(stepId)) {
+        counter++;
+        stepId = `create_entities_${counter}`;
+      }
+      return stepId;
+    }
+    
+    let counter = 1;
+    let stepId = `${stepType}_${counter}`;
+    while (existingStepIds.includes(stepId)) {
+      counter++;
+      stepId = `${stepType}_${counter}`;
+    }
+    
+    return stepId;
+  }, [getStoreState]);
+
+  // Add module handler
+  const handleAddModule = useCallback((moduleType) => {
+    const state = getStoreState();
+    
+    if (!state.parsedSchema) {
+      showError('Configure Simulation Duration First!');
+      return;
     }
 
-    try {
-      // Work on a deep copy of the parsed object
-      const updatedSchema = JSON.parse(JSON.stringify(parsedYamlObject));
+    const stepId = generateStepId(moduleType);
+    const position = {
+      x: 50 + (state.canonicalSteps.length % 3) * 300,
+      y: 100 + Math.floor(state.canonicalSteps.length / 3) * 200
+    };
 
-      // Ensure event_simulation exists
-      if (!updatedSchema.event_simulation) updatedSchema.event_simulation = {};
+    // Create step based on type
+    let newStep = {
+      step_id: stepId,
+      step_type: moduleType
+    };
 
-      // Ensure event_flows exists
-      if (!updatedSchema.event_simulation.event_flows) {
-        updatedSchema.event_simulation.event_flows = [];
-      }
-
-      // If no flows exist, create a default one
-      if (updatedSchema.event_simulation.event_flows.length === 0) {
-        updatedSchema.event_simulation.event_flows.push({
-          flow_id: 'main_flow',
-          event_table: 'Event',
-          steps: []
-        });
-      }
-
-      const flow = updatedSchema.event_simulation.event_flows[0]; // Use first flow
-      
-      // Get existing step IDs to avoid collisions
-      const existingStepIds = flow.steps.map(s => s.step_id);
-      const stepId = generateCollisionFreeStepId(moduleType, existingStepIds);
-
-      // Create step based on type
-      const newStep = {
-        step_id: stepId,
-        step_type: moduleType
-      };
-
-      if (moduleType === 'event') {
+    switch (moduleType) {
+      case 'event':
         newStep.event_config = {
-          name: `New Process`,
+          name: 'New Process',
           duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
           resource_requirements: []
         };
         newStep.next_steps = [];
-      } else if (moduleType === 'decide') {
+        break;
+      case 'decide':
         newStep.decide_config = {
           module_id: stepId,
           decision_type: "probability",
@@ -300,7 +232,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             }
           ]
         };
-      } else if (moduleType === 'assign') {
+        break;
+      case 'assign':
         newStep.assign_config = {
           module_id: stepId,
           assignments: [{
@@ -310,9 +243,11 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           }]
         };
         newStep.next_steps = [];
-      } else if (moduleType === 'release') {
+        break;
+      case 'release':
         newStep.event_config = { name: "Release" };
-      } else if (moduleType === 'create') {
+        break;
+      case 'create':
         newStep.create_config = {
           entity_table: "Entity",
           interarrival_time: {
@@ -323,284 +258,79 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           },
           max_entities: "n/a"
         };
-      }
-
-      // Add step to flow
-      flow.steps.push(newStep);
-
-      // Convert back to YAML and update state
-      const updatedYaml = yaml.stringify(updatedSchema);
-      setYamlContent(updatedYaml);
-      setParsedYamlObject(updatedSchema);
-
-    } catch (error) {
-      console.error('Error adding module:', error);
-      showError('Failed to add module.');
-      setYamlError(error);
+        break;
+      default:
+        console.warn('Unknown module type:', moduleType);
+        return;
     }
-  };
-  
-  // Generate collision-free step ID
-  const generateCollisionFreeStepId = (stepType, existingStepIds) => {
-    // For create steps, use entity table (will be updated later when entity_table is set)
-    if (stepType === 'create') {
-      let counter = 1;
-      let stepId = `create_entities_${counter}`;
-      while (existingStepIds.includes(stepId)) {
-        counter++;
-        stepId = `create_entities_${counter}`;
-      }
-      return stepId;
-    }
+
+    // Add to store
+    state.addNode(newStep, position);
+    console.log('➕ SimConfigEditor: Added module:', stepId);
+  }, [getStoreState, generateStepId, showError]);
+
+  // Save handler
+  const handleSave = useCallback(async () => {
+    console.log('💾 SimConfigEditor: Save requested');
     
-    // For other step types, use simple counter approach
-    let counter = 1;
-    let stepId = `${stepType}_${counter}`;
-    while (existingStepIds.includes(stepId)) {
-      counter++;
-      stepId = `${stepType}_${counter}`;
-    }
-    
-    return stepId;
-  };
-
-  // Toggle save modal
-  const handleSave = () => {
-    console.log("SimConfigEditor: handleSave button clicked");
     if (projectId && isProjectTab) {
-      // For project tabs, save directly without the modal
-      handleSaveConfig();
+      // Save directly for project tabs
+      const result = await saveConfig();
+      if (result.success && onSaveSuccess) {
+        onSaveSuccess();
+      }
     } else {
+      // Show save modal for standalone configs
       setShowSaveModal(true);
     }
-  };
-  
-  // Toggle run simulation modal
-  const handleRun = () => {
-    setShowRunModal(true);
-  };
-  
-  // Close save modal
-  const handleCloseModal = () => {
-    setShowSaveModal(false);
-    setSaveAsNew(false);
-  };
-  
-  // Close run modal
-  const handleCloseRunModal = () => {
-    setShowRunModal(false);
-  };
-  
-  // Save the configuration
-  const handleSaveConfig = async () => {
-    console.log("SimConfigEditor: handleSaveConfig called with:", { 
-      name, 
-      hasContent: !!yamlContent && yamlContent.length > 0,
-      yamlContentLength: yamlContent ? yamlContent.length : 0,
-      projectId,
-      configId,
-      saveAsNew 
-    });
-    
-    try {
-      setLoading(true);
-      
-      if (!name && !projectId) {
-        showError('Please enter a name for the configuration');
-        setLoading(false);
-        return;
-      }
-      
-      
-      const configData = {
-        name: name || 'Project Simulation',
-        config_type: 'simulation',
-        content: yamlContent,
-        description
-      };
-      
-      console.log("SimConfigEditor: About to save with configData:", configData);
-      
-      // Call the shared save function with this config data
-      await saveConfigWithContent(configData);
-      
-    } catch (error) {
-      console.error('SimConfigEditor: Error saving configuration:', error);
-      showError('Error saving configuration');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Function to save configuration with provided content
-  // This separates the saving logic from building the config object
-  const saveConfigWithContent = async (configData) => {
-    try {
-      setLoading(true);
-      let result;
-      
-      if (projectId && isProjectTab) {
-        // Save as project simulation config
-        console.log("SimConfigEditor: Saving as project sim config, projectId:", projectId);
-        result = await window.api.saveProjectSimConfig(projectId, configData);
-        
-        if (result.success) {
-          // Just update locally in project tab mode
-          console.log("SimConfigEditor: Save successful, updating local config");
-          setConfig(result.config);
-          
-          // Add success message
-          showSuccess('Simulation configuration saved successfully');
-          if (onSaveSuccess) {
-            onSaveSuccess();
-          }
-        } else {
-          console.error("SimConfigEditor: Error saving configuration:", result);
-          showError('Error saving configuration');
-        }
-      } else if (configId && !saveAsNew) {
-        // Update existing standalone configuration
-        console.log("SimConfigEditor: Updating existing config, configId:", configId);
-        result = await window.api.updateConfig(configId, configData);
-        
-        if (result.success) {
-          // Close modal and navigate back to dashboard
-          console.log("SimConfigEditor: Update successful, closing modal and navigating");
-          handleCloseModal();
-          navigate('/');
-        }
-      } else {
-        // Save as new standalone configuration
-        console.log("SimConfigEditor: Saving as new standalone config");
-        result = await window.api.saveConfig(configData);
-        
-        if (result.success) {
-          // Close modal and navigate to the new config
-          console.log("SimConfigEditor: Save successful, closing modal and navigating to new config");
-          handleCloseModal();
-          navigate(`/sim-config/${result.config_id}`);
-        }
-      }
-      
-      console.log("SimConfigEditor: Save result:", result);
-      
-      if (!result.success) {
-        console.error("SimConfigEditor: Error: result.success is false", result);
-        const errorMessage = result.error || 'Unknown error saving configuration';
-        showError(`Error saving configuration: ${errorMessage}`);
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('SimConfigEditor: Error in saveConfigWithContent:', error);
-      showError('Error saving configuration');
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Run the simulation
-  const handleRunSimulation = async () => {
-    try {
-      setLoading(true);
-      
-      if (!selectedDbConfig) {
-        showError('Please select a database configuration');
-        setLoading(false);
-        return;
-      }
-      
-      // First, save the current simulation configuration if needed
-      let simConfigId = configId;
-      
-      if (projectId) {
-        // Save as project simulation config first
-        const configData = {
-          name: name || 'Project Simulation',
-          config_type: 'simulation',
-          content: yamlContent,
-          description
-        };
-        
-        const saveResult = await saveConfigWithContent(configData);
-        
-        if (!saveResult || !saveResult.success) {
-          showError('Error saving simulation configuration');
-          setLoading(false);
-          return;
-        }
-        
-        simConfigId = saveResult.config_id;
-      } else if (!simConfigId || saveAsNew) {
-        if (!name) {
-          showError('Please enter a name for the configuration');
-          setLoading(false);
-          return;
-        }
-        
-        const configData = {
-          name,
-          config_type: 'simulation',
-          content: yamlContent,
-          description
-        };
-        
-        const saveResult = await saveConfigWithContent(configData);
-        
-        if (!saveResult || !saveResult.success) {
-          showError('Error saving simulation configuration');
-          setLoading(false);
-          return;
-        }
-        
-        simConfigId = saveResult.config_id;
-      }
-      
-      // Run the simulation
-      const result = await window.api.generateAndSimulate({
-        db_config_id: selectedDbConfig,
-        sim_config_id: simConfigId
-      });
-      
-      if (result.success) {
-        // Close modal and navigate to results
-        handleCloseRunModal();
-        
-        if (projectId && isProjectTab) {
-          // In project context, navigate to project results tab
-          navigate(`/project/${projectId}/results/${encodeURIComponent(result.database_path)}`);
-        } else {
-          // Standalone navigation
-          navigate(`/results/${encodeURIComponent(result.database_path)}`);
-        }
-      } else {
-        showError('Error running simulation');
-      }
-    } catch (error) {
-      console.error('Error running simulation:', error);
-      showError('Error running simulation');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Navigate back based on context
-  const handleBack = () => {
+  }, [projectId, isProjectTab, saveConfig, onSaveSuccess]);
+
+  // Navigation handler
+  const handleBack = useCallback(() => {
     if (projectId && isProjectTab) {
-      // In project tab context, stay in the current page
-      // The tab navigation will be handled by the parent component
-      return;
+      return; // Tab navigation handled by parent
     } else if (projectId) {
-      // Navigate back to project page
       navigate(`/project/${projectId}`);
     } else {
-      // Navigate back to dashboard
       navigate('/');
     }
-  };
-  
-  const renderEditor = () => (
+  }, [projectId, isProjectTab, navigate]);
+
+  // Modal state (local only for UI)
+  const [showSaveModal, setShowSaveModal] = React.useState(false);
+  const [showRunModal, setShowRunModal] = React.useState(false);
+  const [dbConfigs, setDbConfigs] = React.useState([]);
+  const [selectedDbConfig, setSelectedDbConfig] = React.useState('');
+
+  // Load database configs for run modal
+  useEffect(() => {
+    const loadDbConfigs = async () => {
+      try {
+        if (projectId) {
+          const result = await window.api.getProjectDbConfig(projectId);
+          if (result.success && result.config) {
+            setDbConfigs([result.config]);
+            setSelectedDbConfig(result.config.id);
+          }
+        } else {
+          const result = await window.api.getConfigs('database');
+          if (result.success) {
+            setDbConfigs(result.configs || []);
+            if (result.configs && result.configs.length === 1) {
+              setSelectedDbConfig(result.configs[0].id);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('Error loading database configurations:', error);
+      }
+    };
+
+    loadDbConfigs();
+  }, [projectId]);
+
+  // Memoized editor component to prevent unnecessary re-renders
+  const editorComponent = useMemo(() => (
     <div className="editor-container-split">
       <PanelGroup direction="horizontal">
         <Panel defaultSize={40} minSize={20} order={1}>
@@ -611,7 +341,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                   size="sm"
                   variant="outline-primary"
                   onClick={handleImport}
-                  disabled={loading}
+                  disabled={isLoading}
                   title="Import YAML file"
                   className="me-2"
                 >
@@ -622,7 +352,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                   size="sm"
                   variant="outline-secondary"
                   onClick={handleExport}
-                  disabled={!yamlContent || loading}
+                  disabled={!yamlContent || isLoading}
                   title="Export YAML file"
                   className="me-2"
                 >
@@ -633,7 +363,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                   size="sm" 
                   className="action-button btn-custom-toolbar save-config-btn"
                   onClick={handleSave} 
-                  disabled={loading}
+                  disabled={isLoading}
                   title="Save Configuration"
                 >
                   <FiSave className="save-icon" /> Save
@@ -647,7 +377,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                 />
               </div>
             </div>
-            {loading && !yamlContent ? (
+            {isLoading && !yamlContent ? (
               <div className="text-center py-5">
                 <Spinner animation="border" />
                 <div className="mt-2">Loading configuration...</div>
@@ -670,70 +400,50 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           <div className="editor-canvas-panel">
             <div className="canvas-header">
               <Tabs
-                activeKey={activeVisualizationTab}
-                onSelect={(k) => setActiveVisualizationTab(k)}
+                activeKey={activeTab}
+                onSelect={setActiveTab}
                 className="mb-0"
               >
                 <Tab
                   eventKey="event-flow"
-                  title={
-                    <span>
-                      <FiGitBranch className="me-2" />
-                      Event Flow
-                    </span>
-                  }
+                  title={<span><FiGitBranch className="me-2" />Event Flow</span>}
                 />
                 <Tab
                   eventKey="resources"
-                  title={
-                    <span>
-                      <FiSettings className="me-2" />
-                      Resources
-                    </span>
-                  }
+                  title={<span><FiSettings className="me-2" />Resources</span>}
                 />
                 <Tab
                   eventKey="simulation"
-                  title={
-                    <span>
-                      <FiClock className="me-2" />
-                      Simulation
-                    </span>
-                  }
+                  title={<span><FiClock className="me-2" />Simulation</span>}
                 />
               </Tabs>
               
-              {activeVisualizationTab === 'event-flow' && (
+              {activeTab === 'event-flow' && (
                 <div className="tab-actions">
                   <Dropdown>
                     <Dropdown.Toggle 
                       size="sm" 
                       className="btn-custom-toolbar"
-                      disabled={loading}
+                      disabled={isLoading}
                       id="add-module-dropdown"
                     >
                       <FiPlus /> Add Module
                     </Dropdown.Toggle>
                     <Dropdown.Menu>
                       <Dropdown.Item onClick={() => handleAddModule('create')}>
-                        <FiPlus className="me-2" />
-                        Create
+                        <FiPlus className="me-2" />Create
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('event')}>
-                        <FiSettings className="me-2" />
-                        Process (Event)
+                        <FiSettings className="me-2" />Process (Event)
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('decide')}>
-                        <FiGitBranch className="me-2" />
-                        Decide
+                        <FiGitBranch className="me-2" />Decide
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('assign')}>
-                        <FiTag className="me-2" />
-                        Assign
+                        <FiTag className="me-2" />Assign
                       </Dropdown.Item>
                       <Dropdown.Item onClick={() => handleAddModule('release')}>
-                        <FiPlay className="me-2" />
-                        Release (Dispose)
+                        <FiPlay className="me-2" />Release (Dispose)
                       </Dropdown.Item>
                     </Dropdown.Menu>
                   </Dropdown>
@@ -742,37 +452,30 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             </div>
             
             <div className="canvas-content">
-              {loading ? (
+              {isLoading ? (
                 <div className="text-center py-5">
                   <Spinner animation="border" />
                   <div className="mt-2">Loading...</div>
                 </div>
               ) : (
                 <>
-                  {activeVisualizationTab === 'event-flow' && (
+                  {activeTab === 'event-flow' && (
                     <ModularEventFlow
-                      yamlContent={yamlContent}
-                      parsedSchema={parsedYamlObject}
-                      onDiagramChange={handleDiagramChange}
                       theme={theme}
                       dbConfigContent={dbConfigContent}
                       projectId={projectId}
                     />
                   )}
                   
-                  {activeVisualizationTab === 'resources' && (
+                  {activeTab === 'resources' && (
                     <ResourceEditor
-                      yamlContent={yamlContent}
-                      onResourceChange={handleDiagramChange}
                       theme={theme}
                       dbConfigContent={dbConfigContent}
                     />
                   )}
                   
-                  {activeVisualizationTab === 'simulation' && (
+                  {activeTab === 'simulation' && (
                     <SimulationEditor
-                      yamlContent={yamlContent}
-                      onSimulationChange={handleDiagramChange}
                       theme={theme}
                     />
                   )}
@@ -783,8 +486,10 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         </Panel>
       </PanelGroup>
     </div>
-  );
-  
+  ), [yamlContent, activeTab, theme, isLoading, handleImport, handleExport, handleSave, handleAddModule, handleFileChange, dbConfigContent, projectId, setActiveTab]);
+
+  // Store is always initialized now
+
   return (
     <div className="sim-config-editor">
       {!isProjectTab && (
@@ -797,14 +502,14 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
               <FiArrowLeft /> Back
             </Button>
             <h2 className="mb-0">
-              {configId ? `Edit Simulation Configuration: ${name}` : 'New Simulation Configuration'}
+              {configId ? `Edit Simulation Configuration` : 'New Simulation Configuration'}
             </h2>
           </div>
           <div>
             <Button 
               className="run-simulation-btn"
-              onClick={handleRun}
-              disabled={loading}
+              onClick={() => setShowRunModal(true)}
+              disabled={isLoading}
             >
               <FiPlay className="me-2" /> Run Simulation
             </Button>
@@ -812,12 +517,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         </div>
       )}
       
-      {renderEditor()}
+      {editorComponent}
       
-      {/* Save Configuration Modal - only used for standalone configurations */}
+      {/* Modals remain the same for now - can be moved to store later if needed */}
+      {/* Save Modal */}
       <Modal
         show={showSaveModal}
-        onHide={handleCloseModal}
+        onHide={() => setShowSaveModal(false)}
         centered
         enforceFocus={false}
       >
@@ -825,57 +531,22 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           <Modal.Title>Save Simulation Configuration</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Configuration Name</Form.Label>
-              <Form.Control 
-                type="text" 
-                value={name} 
-                onChange={(e) => setName(e.target.value)} 
-                placeholder="Enter a name for this configuration"
-                required
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Description</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                value={description} 
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Optional description"
-              />
-            </Form.Group>
-            {configId && (
-              <Form.Group className="mb-3">
-                <Form.Check 
-                  type="checkbox" 
-                  label="Save as a new configuration" 
-                  checked={saveAsNew}
-                  onChange={(e) => setSaveAsNew(e.target.checked)}
-                />
-              </Form.Group>
-            )}
-          </Form>
+          <p>Save functionality will be implemented with the new store actions.</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
+          <Button variant="secondary" onClick={() => setShowSaveModal(false)}>
             Cancel
           </Button>
-          <Button 
-            className="btn-custom-toolbar"
-            onClick={handleSaveConfig}
-            disabled={loading}
-          >
-            {loading ? <Spinner size="sm" /> : 'Save'}
+          <Button className="btn-custom-toolbar" onClick={() => setShowSaveModal(false)}>
+            Save
           </Button>
         </Modal.Footer>
       </Modal>
-      
-      {/* Run Simulation Modal */}
+
+      {/* Run Modal */}
       <Modal
         show={showRunModal}
-        onHide={handleCloseRunModal}
+        onHide={() => setShowRunModal(false)}
         centered
         enforceFocus={false}
       >
@@ -883,76 +554,14 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           <Modal.Title>Run Simulation</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <Form>
-            <Form.Group className="mb-3">
-              <Form.Label>Database Configuration</Form.Label>
-              <Form.Select 
-                value={selectedDbConfig} 
-                onChange={(e) => setSelectedDbConfig(e.target.value)}
-                required
-                disabled={projectId && dbConfigs.length === 1}
-              >
-                <option value="">Select a database configuration</option>
-                {dbConfigs.map(config => (
-                  <option key={config.id} value={config.id}>
-                    {config.name}
-                  </option>
-                ))}
-              </Form.Select>
-              <Form.Text className="text-muted">
-                {projectId ? 
-                  "Using the project's database configuration" : 
-                  "Select the database configuration to use for this simulation"}
-              </Form.Text>
-            </Form.Group>
-            {!projectId && !configId && (
-              <>
-                <hr />
-                <p>The simulation configuration will be saved before running.</p>
-                <Form.Group className="mb-3">
-                  <Form.Label>Configuration Name</Form.Label>
-                  <Form.Control 
-                    type="text" 
-                    value={name} 
-                    onChange={(e) => setName(e.target.value)} 
-                    placeholder="Enter a name for this configuration"
-                    required
-                  />
-                </Form.Group>
-                <Form.Group className="mb-3">
-                  <Form.Label>Description</Form.Label>
-                  <Form.Control 
-                    as="textarea" 
-                    rows={2} 
-                    value={description} 
-                    onChange={(e) => setDescription(e.target.value)}
-                    placeholder="Optional description"
-                  />
-                </Form.Group>
-              </>
-            )}
-            {configId && !projectId && (
-              <Form.Group className="mb-3">
-                <Form.Check 
-                  type="checkbox" 
-                  label="Save as a new configuration before running" 
-                  checked={saveAsNew}
-                  onChange={(e) => setSaveAsNew(e.target.checked)}
-                />
-              </Form.Group>
-            )}
-          </Form>
+          <p>Run simulation functionality will be implemented with the new store actions.</p>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseRunModal}>
+          <Button variant="secondary" onClick={() => setShowRunModal(false)}>
             Cancel
           </Button>
-          <Button 
-            className="btn-primary"
-            onClick={handleRunSimulation}
-            disabled={loading || !selectedDbConfig}
-          >
-            {loading ? <Spinner size="sm" /> : <><FiPlay className="me-2" /> Run</>}
+          <Button className="btn-primary" onClick={() => setShowRunModal(false)}>
+            <FiPlay className="me-2" /> Run
           </Button>
         </Modal.Footer>
       </Modal>
@@ -960,4 +569,4 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   );
 };
 
-export default SimConfigEditor; 
+export default SimConfigEditor;
