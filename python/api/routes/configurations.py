@@ -16,7 +16,6 @@ from ..utils.response_helpers import (
     success_response, error_response, not_found_response, validation_error_response,
     handle_exception, require_json_fields, log_api_request
 )
-from ..utils.validators import validate_yaml_content, validate_event_flows_structure
 
 # Create Blueprint
 configurations_bp = Blueprint('configurations', __name__)
@@ -61,26 +60,19 @@ def save_project_db_config(project_id):
         log_api_request(logger, "Save project DB config", project_id, 
                        f"Content length: {len(request.get_json().get('content', '')) if request.is_json else 'No JSON'}")
         
-        # Validate request data
-        data, validation_error = require_json_fields(request, ['content'])
-        if validation_error:
-            return validation_error
-        
         # Check if project exists
         project = config_manager.get_project(project_id)
         if not project:
             return not_found_response("Project")
         
-        # Validate the YAML content
-        yaml_validation = validate_yaml_content(data.get('content', ''))
-        if not yaml_validation['valid']:
-            return validation_error_response(f"Invalid YAML content: {yaml_validation['error']}")
+        # Get data from request
+        data = request.get_json() or {}
         
         config_id = config_manager.save_project_config(
             project_id,
             'database',
             data.get('name', f"{project['name']} DB Config"),
-            data['content'],
+            data.get('content', ''),
             data.get('description', '')
         )
         
@@ -128,34 +120,19 @@ def save_project_sim_config(project_id):
         log_api_request(logger, "Save project simulation config", project_id,
                        f"Content length: {len(request.get_json().get('content', '')) if request.is_json else 'No JSON'}")
         
-        # Validate request data
-        data, validation_error = require_json_fields(request, ['content'])
-        if validation_error:
-            return validation_error
-        
         # Check if project exists
         project = config_manager.get_project(project_id)
         if not project:
             return not_found_response("Project")
         
-        # Validate the YAML content
-        yaml_validation = validate_yaml_content(data.get('content', ''))
-        if not yaml_validation['valid']:
-            return validation_error_response(f"Invalid YAML content: {yaml_validation['error']}")
-        
-        # Validate event_flows structure if present
-        validation_result = validate_event_flows_structure(yaml_validation['parsed'])
-        if not validation_result['valid']:
-            return validation_error_response(
-                f"Invalid event flows configuration: {validation_result['error']}",
-                details=validation_result.get('details', [])
-            )
+        # Get data from request
+        data = request.get_json() or {}
         
         config_id = config_manager.save_project_config(
             project_id,
             'simulation',
             data.get('name', f"{project['name']} Simulation Config"),
-            data['content'],
+            data.get('content', ''),
             data.get('description', '')
         )
         

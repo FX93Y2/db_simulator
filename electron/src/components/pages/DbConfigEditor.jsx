@@ -15,8 +15,6 @@ import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
-// Default template for a new database configuration
-const DEFAULT_DB_CONFIG = ``;
 
 // Accept theme as a prop
 const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange, onSaveSuccess }) => {
@@ -44,7 +42,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         
         if (projectId === 'new') {
           // For a new project, set default config
-          setYamlContent(DEFAULT_DB_CONFIG);
+          setYamlContent('');
           setName('New Project - Database');
           return;
         }
@@ -57,16 +55,16 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
           // Add a fallback for name in case it's null
           setName(result.config.name || `Project Database Configuration`);
           setDescription(result.config.description || '');
-          setYamlContent(result.config.content || DEFAULT_DB_CONFIG);
+          setYamlContent(result.config.content || '');
         } else {
           // No existing config found, set default
-          setYamlContent(DEFAULT_DB_CONFIG);
+          setYamlContent('');
           setName(`Project Database Configuration`);
         }
       } catch (error) {
         console.error('Error loading configuration:', error);
         // Set defaults in case of error
-        setYamlContent(DEFAULT_DB_CONFIG);
+        setYamlContent('');
         setName(`Project Database Configuration`);
       } finally {
         setLoading(false);
@@ -83,7 +81,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       loadConfigById();
     } else {
       // Completely new configuration outside project context
-      setYamlContent(DEFAULT_DB_CONFIG);
+      setYamlContent('');
       setName('New Database Configuration');
     }
   }, [projectId, configId]);
@@ -113,16 +111,16 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         setConfig(result.config);
         setName(result.config.name || 'Database Configuration');
         setDescription(result.config.description || '');
-        setYamlContent(result.config.content || DEFAULT_DB_CONFIG);
+        setYamlContent(result.config.content || '');
       } else {
         // Handle error case
-        setYamlContent(DEFAULT_DB_CONFIG);
+        setYamlContent('');
         setName('Database Configuration');
       }
     } catch (error) {
       console.error('Error loading configuration by ID:', error);
       // Set defaults in error case
-      setYamlContent(DEFAULT_DB_CONFIG);
+      setYamlContent('');
       setName('Database Configuration');
     } finally {
       setLoading(false);
@@ -169,16 +167,6 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     }
   }, [onConfigChange]);
   
-  // Validation function using the new library
-  const validateYaml = (content) => {
-    try {
-      yaml.parse(content); // Use yaml.parse
-      return { parsed: true };
-    } catch (e) {
-      console.error("YAML validation failed:", e);
-      return { parsed: false, error: e };
-    }
-  };
   
   // Function to save configuration with provided content
   // This separates the saving logic from building the config object
@@ -330,14 +318,6 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
         return;
       }
       
-      // Validate YAML content before sending
-      const validationResult = validateYaml(yamlContent);
-      if (!validationResult.parsed) {
-        console.error("DbConfigEditor: YAML validation failed:", validationResult.error);
-        showError('The YAML content appears to be invalid. Please check your configuration.');
-        setLoading(false);
-        return;
-      }
       
       const configData = {
         name,

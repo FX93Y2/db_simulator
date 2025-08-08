@@ -430,7 +430,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         )
     
     return SimulationConfig(
-        duration_days=sim_dict.get('duration_days', 0),
+        duration_days=sim_dict.get('duration_days', 30),
         start_date=start_date,
         random_seed=sim_dict.get('random_seed'),
         event_simulation=event_simulation
@@ -650,7 +650,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         )
     
     return SimulationConfig(
-        duration_days=sim_dict.get('duration_days', 0),
+        duration_days=sim_dict.get('duration_days', 30),
         start_date=start_date,
         random_seed=sim_dict.get('random_seed'),
         event_simulation=event_simulation

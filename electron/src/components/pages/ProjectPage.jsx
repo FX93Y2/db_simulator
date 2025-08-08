@@ -145,9 +145,16 @@ const ProjectPage = ({ theme }) => {
         const content = result.config.content || '';
         setDbConfigContent(content);
         setLastSavedDbConfig(content); // Set initial saved state
+      } else {
+        // For new projects with no config, initialize both states as empty
+        setDbConfigContent('');
+        setLastSavedDbConfig('');
       }
     } catch (error) {
       console.error('Error loading database configuration content:', error);
+      // On error, also initialize as empty
+      setDbConfigContent('');
+      setLastSavedDbConfig('');
     }
   }, [projectId]);
 
@@ -161,9 +168,16 @@ const ProjectPage = ({ theme }) => {
         const content = result.config.content || '';
         setSimConfigContent(content);
         setLastSavedSimConfig(content); // Set initial saved state
+      } else {
+        // For new projects with no config, initialize both states as empty
+        setSimConfigContent('');
+        setLastSavedSimConfig('');
       }
     } catch (error) {
       console.error('Error loading simulation configuration content:', error);
+      // On error, also initialize as empty
+      setSimConfigContent('');
+      setLastSavedSimConfig('');
     }
   }, [projectId]);
 

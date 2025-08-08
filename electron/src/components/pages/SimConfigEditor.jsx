@@ -21,12 +21,6 @@ import SimulationEditor from '../shared/SimulationEditor';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
-// Default template for a new simulation configuration with Create modules
-const DEFAULT_SIM_CONFIG = `simulation:
-  duration_days: 30
-  start_date: 2024-01-01
-  random_seed: 42
-`;
 
 const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
@@ -66,7 +60,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           } else {
             // New simulation config for this project
             setName(`${result.projectName || 'Project'} Simulation`);
-            setYamlContent(DEFAULT_SIM_CONFIG);
+            setYamlContent('');
           }
         } else if (configId) {
           // Load standalone config
@@ -170,7 +164,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       }
     } catch (error) {
       console.error('Error stringifying diagram changes:', error);
-      setYamlError(error);
     }
   }, [onConfigChange]);
   
@@ -350,13 +343,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         return;
       }
       
-      // Check for YAML errors before saving
-      if (yamlError) {
-          console.error("SimConfigEditor: Cannot save due to YAML errors:", yamlError);
-          showError(`Cannot save configuration. Please fix the YAML errors first.\nError: ${yamlError.message || 'Invalid YAML'}`);
-          setLoading(false);
-          return;
-      }
       
       const configData = {
         name: name || 'Project Simulation',
