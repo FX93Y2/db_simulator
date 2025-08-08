@@ -11,113 +11,143 @@ import { createConfigActions } from './actions/configActions.js';
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
 
-/**
- * Central Zustand store for simulation configuration editor
- * Single source of truth replacing all scattered React state
- */
-export const useSimulationConfigStore = create()(
-  devtools(
-    immer((set, get) => {
-      // Create all actions immediately
-      const yamlActions = createYamlActions(set, get);
-      const canvasActions = createCanvasActions(set, get);
-      const workflowActions = createWorkflowActions(set, get);
-      const uiActions = createUIActions(set, get);
-      const configActions = createConfigActions(set, get);
+// Store instances cache - one store per project
+const storeInstances = new Map();
 
-      return {
-        // ===== CORE DATA =====
-        yamlContent: '',
-        parsedSchema: null,
-        canonicalSteps: [],
-        flowSchema: null,
-        
-        // ===== VISUAL STATE (ReactFlow) =====
-        nodes: [],
-        edges: [],
-        
-        // ===== UI STATE =====
-        activeTab: 'event-flow', // 'event-flow' | 'resources' | 'simulation'
-        selectedNode: null,
-        showEditModal: false,
-        
-        // ===== WORKFLOW STATE =====
-        currentState: 'idle', // 'idle' | 'loading' | 'importing' | 'editing' | 'saving'
-        isLoading: false,
-        error: null,
-        
-        // ===== CANVAS STATE =====
-        positions: new Map(),
-        viewportState: { x: 0, y: 0, zoom: 1 },
-        
-        // ===== CONFIG METADATA =====
-        config: null,
-        name: '',
-        description: '',
-        
-        // ===== PROJECT STATE =====
-        projectId: null,
-        isProjectTab: false,
-        
-        // ===== DATABASE CONFIG =====
-        dbConfigContent: null,
-        theme: 'light',
-        
-        // ===== ACTIONS (available immediately) =====
-        ...yamlActions,
-        ...canvasActions,
-        ...workflowActions,
-        ...uiActions,
-        ...configActions
-      };
-    }),
-    {
-      name: 'simulation-config-store', // For Redux DevTools
-      partialize: (state) => ({
-        // Only persist certain parts of state
-        yamlContent: state.yamlContent,
-        activeTab: state.activeTab,
-        positions: Array.from(state.positions.entries()), // Convert Map to array for persistence
-        viewportState: state.viewportState
-      }),
-      // Custom serializer to handle Map
-      serialize: (state) => JSON.stringify({
-        ...state,
-        positions: state.positions ? Array.from(state.positions.entries()) : []
-      }),
-      // Custom deserializer to restore Map
-      deserialize: (str) => {
-        const state = JSON.parse(str);
+/**
+ * Create a project-scoped simulation configuration store
+ * Each project gets its own isolated store instance
+ * @param {string} projectId - Project identifier for store isolation
+ * @returns {Function} - Zustand store hook for the project
+ */
+const createProjectStore = (projectId = 'default') => {
+  const storeName = projectId ? `simulation-config-${projectId}` : 'simulation-config-default';
+  
+  return create()(
+    devtools(
+      immer((set, get) => {
+        // Create all actions immediately
+        const yamlActions = createYamlActions(set, get);
+        const canvasActions = createCanvasActions(set, get);
+        const workflowActions = createWorkflowActions(set, get);
+        const uiActions = createUIActions(set, get);
+        const configActions = createConfigActions(set, get);
+
         return {
-          ...state,
-          positions: new Map(state.positions || [])
+          // ===== CORE DATA =====
+          yamlContent: '',
+          parsedSchema: null,
+          canonicalSteps: [],
+          flowSchema: null,
+          
+          // ===== VISUAL STATE (ReactFlow) =====
+          nodes: [],
+          edges: [],
+          
+          // ===== UI STATE =====
+          activeTab: 'event-flow', // 'event-flow' | 'resources' | 'simulation'
+          selectedNode: null,
+          showEditModal: false,
+          
+          // ===== WORKFLOW STATE =====
+          currentState: 'idle', // 'idle' | 'loading' | 'importing' | 'editing' | 'saving'
+          isLoading: false,
+          error: null,
+          
+          // ===== CANVAS STATE =====
+          positions: new Map(),
+          viewportState: { x: 0, y: 0, zoom: 1 },
+          
+          // ===== CONFIG METADATA =====
+          config: null,
+          name: '',
+          description: '',
+          
+          // ===== PROJECT STATE =====
+          projectId: projectId,
+          isProjectTab: false,
+          
+          // ===== DATABASE CONFIG =====
+          dbConfigContent: null,
+          theme: 'light',
+          
+          // ===== ACTIONS (available immediately) =====
+          ...yamlActions,
+          ...canvasActions,
+          ...workflowActions,
+          ...uiActions,
+          ...configActions
         };
+      }),
+      {
+        name: storeName, // Project-specific name for Redux DevTools
+        partialize: (state) => ({
+          // Only persist certain parts of state
+          yamlContent: state.yamlContent,
+          activeTab: state.activeTab,
+          positions: Array.from(state.positions.entries()), // Convert Map to array for persistence
+          viewportState: state.viewportState,
+          canonicalSteps: state.canonicalSteps // Persist steps for position restoration
+        }),
+        // Custom serializer to handle Map
+        serialize: (state) => JSON.stringify({
+          ...state,
+          positions: state.positions ? Array.from(state.positions.entries()) : []
+        }),
+        // Custom deserializer to restore Map
+        deserialize: (str) => {
+          const state = JSON.parse(str);
+          return {
+            ...state,
+            positions: new Map(state.positions || [])
+          };
+        }
       }
-    }
-  )
-);
+    )
+  );
+};
 
 /**
- * Selector hooks for specific parts of the store
+ * Get or create a project-scoped store
+ * @param {string} projectId - Project identifier
+ * @returns {Function} - Zustand store hook for the project
+ */
+export const useSimulationConfigStore = (projectId = 'default') => {
+  // Create store key
+  const storeKey = projectId || 'default';
+  
+  // Get or create store instance for this project
+  if (!storeInstances.has(storeKey)) {
+    console.log(`[Store] Creating new store instance for project: ${storeKey}`);
+    storeInstances.set(storeKey, createProjectStore(projectId));
+  }
+  
+  return storeInstances.get(storeKey);
+};
+
+/**
+ * Project-scoped selector hooks for specific parts of the store
  * Prevents unnecessary re-renders by subscribing only to needed data
+ * @param {string} projectId - Project identifier for store isolation
  */
-export const useYamlContent = () => useSimulationConfigStore(state => state.yamlContent);
-export const useParsedSchema = () => useSimulationConfigStore(state => state.parsedSchema);
-export const useCanonicalSteps = () => useSimulationConfigStore(state => state.canonicalSteps);
-export const useNodes = () => useSimulationConfigStore(state => state.nodes);
-export const useEdges = () => useSimulationConfigStore(state => state.edges);
-export const useSelectedNode = () => useSimulationConfigStore(state => state.selectedNode);
-export const useShowEditModal = () => useSimulationConfigStore(state => state.showEditModal);
-export const useCurrentState = () => useSimulationConfigStore(state => state.currentState);
-export const useIsLoading = () => useSimulationConfigStore(state => state.isLoading);
-export const useError = () => useSimulationConfigStore(state => state.error);
-export const useActiveTab = () => useSimulationConfigStore(state => state.activeTab);
+export const useYamlContent = (projectId) => useSimulationConfigStore(projectId)(state => state.yamlContent);
+export const useParsedSchema = (projectId) => useSimulationConfigStore(projectId)(state => state.parsedSchema);
+export const useCanonicalSteps = (projectId) => useSimulationConfigStore(projectId)(state => state.canonicalSteps);
+export const useNodes = (projectId) => useSimulationConfigStore(projectId)(state => state.nodes);
+export const useEdges = (projectId) => useSimulationConfigStore(projectId)(state => state.edges);
+export const useSelectedNode = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedNode);
+export const useShowEditModal = (projectId) => useSimulationConfigStore(projectId)(state => state.showEditModal);
+export const useCurrentState = (projectId) => useSimulationConfigStore(projectId)(state => state.currentState);
+export const useIsLoading = (projectId) => useSimulationConfigStore(projectId)(state => state.isLoading);
+export const useError = (projectId) => useSimulationConfigStore(projectId)(state => state.error);
+export const useActiveTab = (projectId) => useSimulationConfigStore(projectId)(state => state.activeTab);
 
 /**
- * Action hooks for specific operations
+ * Project-scoped action hooks for specific operations
+ * @param {string} projectId - Project identifier for store isolation
  */
-export const useYamlActions = () => {
-  return useSimulationConfigStore(state => ({
+export const useYamlActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
     importYaml: state.importYaml,
     exportYaml: state.exportYaml,
     updateYamlContent: state.updateYamlContent,
@@ -127,8 +157,8 @@ export const useYamlActions = () => {
   }));
 };
 
-export const useCanvasActions = () => {
-  return useSimulationConfigStore(state => ({
+export const useCanvasActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
     updateNodes: state.updateNodes,
     updateEdges: state.updateEdges,
     updateNodePosition: state.updateNodePosition,
@@ -141,8 +171,8 @@ export const useCanvasActions = () => {
   }));
 };
 
-export const useWorkflowActions = () => {
-  return useSimulationConfigStore(state => ({
+export const useWorkflowActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
     setCurrentState: state.setCurrentState,
     setLoading: state.setLoading,
     setError: state.setError,
@@ -160,8 +190,8 @@ export const useWorkflowActions = () => {
   }));
 };
 
-export const useUIActions = () => {
-  return useSimulationConfigStore(state => ({
+export const useUIActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
     setActiveTab: state.setActiveTab,
     setSelectedNode: state.setSelectedNode,
     setShowEditModal: state.setShowEditModal,
@@ -175,8 +205,8 @@ export const useUIActions = () => {
   }));
 };
 
-export const useConfigActions = () => {
-  return useSimulationConfigStore(state => ({
+export const useConfigActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
     updateConfig: state.updateConfig,
     updateName: state.updateName,
     updateDescription: state.updateDescription,
@@ -188,5 +218,22 @@ export const useConfigActions = () => {
   }));
 };
 
-// Export the raw store for advanced usage
-export const store = useSimulationConfigStore;
+/**
+ * Store cleanup utility for project switching
+ * @param {string} projectId - Project to clean up (optional, cleans all if not provided)
+ */
+export const cleanupStore = (projectId = null) => {
+  if (projectId) {
+    const storeKey = projectId || 'default';
+    if (storeInstances.has(storeKey)) {
+      console.log(`[Store] Cleaning up store instance for project: ${storeKey}`);
+      storeInstances.delete(storeKey);
+    }
+  } else {
+    console.log('[Store] Cleaning up all store instances');
+    storeInstances.clear();
+  }
+};
+
+// Export the store factory for advanced usage
+export const getProjectStore = useSimulationConfigStore;

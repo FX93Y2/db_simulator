@@ -20,7 +20,6 @@ import {
 
 // Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
-import { useCanvasPositions } from '../../hooks/shared/useCanvasPositions';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
@@ -36,10 +35,10 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   const containerRef = useRef(null);
   
   // Store state subscriptions (selective to prevent unnecessary re-renders)
-  const nodes = useNodes();
-  const edges = useEdges();
-  const canonicalSteps = useCanonicalSteps();
-  const currentState = useCurrentState();
+  const nodes = useNodes(projectId);
+  const edges = useEdges(projectId);
+  const canonicalSteps = useCanonicalSteps(projectId);
+  const currentState = useCurrentState(projectId);
 
   // Store actions
   const { 
@@ -49,23 +48,20 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
     connectNodes, 
     updateVisualState,
     addNode
-  } = useCanvasActions();
+  } = useCanvasActions(projectId);
   
   const { 
     handleNodeClick, 
     handleNodeDoubleClick, 
     setSelectedNode,
     handleKeyboard
-  } = useUIActions();
-
-  // Position management (enhanced for store integration)
-  const positions = useCanvasPositions('', 'modular_flow_positions', projectId);
+  } = useUIActions(projectId);
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
-  // Get store state when needed (non-reactive)
-  const getStoreState = () => useSimulationConfigStore.getState();
+  // Get project-specific store state when needed (non-reactive)
+  const getStoreState = () => useSimulationConfigStore(projectId).getState();
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -74,12 +70,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
     }
   }, []);
 
-  // Update current nodes in position hook
-  useEffect(() => {
-    if (positions.updateCurrentNodes) {
-      positions.updateCurrentNodes(nodes);
-    }
-  }, [nodes, positions]);
+  // Position management is now handled directly by the store
 
   // Sync canonical steps to visual representation when they change
   useEffect(() => {

@@ -51,21 +51,21 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const fileInputRef = useRef(null);
 
   // Store state subscriptions (selective to prevent unnecessary re-renders)
-  const yamlContent = useYamlContent();
-  const parsedSchema = useParsedSchema();
-  const currentState = useCurrentState();
-  const isLoading = useIsLoading();
-  const error = useError();
-  const activeTab = useActiveTab();
+  const yamlContent = useYamlContent(projectId);
+  const parsedSchema = useParsedSchema(projectId);
+  const currentState = useCurrentState(projectId);
+  const isLoading = useIsLoading(projectId);
+  const error = useError(projectId);
+  const activeTab = useActiveTab(projectId);
 
   // Store actions
-  const { importYaml, exportYaml } = useYamlActions();
-  const { loadConfig, saveConfig, initializeConfig } = useConfigActions();
-  const { clearError } = useWorkflowActions();
-  const { setActiveTab } = useUIActions();
+  const { importYaml, exportYaml } = useYamlActions(projectId);
+  const { loadConfig, saveConfig, initializeConfig } = useConfigActions(projectId);
+  const { clearError } = useWorkflowActions(projectId);
+  const { setActiveTab } = useUIActions(projectId);
 
-  // Get other state when needed (non-reactive)
-  const getStoreState = () => useSimulationConfigStore.getState();
+  // Get project-specific store state when needed (non-reactive)
+  const getStoreState = () => useSimulationConfigStore(projectId).getState();
 
   // Initialize configuration context
   useEffect(() => {
