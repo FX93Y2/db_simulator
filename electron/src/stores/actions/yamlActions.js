@@ -50,6 +50,9 @@ export const createYamlActions = (set, get) => ({
         state.error = null;
       });
 
+      // Load simulation data from the parsed schema
+      get().loadSimulationFromYaml(parsedObj);
+
       // Trigger visual state update
       get().updateVisualState();
 
@@ -153,6 +156,9 @@ export const createYamlActions = (set, get) => ({
         state.error = null;
       });
 
+      // Load simulation data from the parsed schema
+      get().loadSimulationFromYaml(parsedObj);
+
       console.log('[YamlActions] YAML parsed successfully');
     } catch (error) {
       console.error('[YamlActions] YAML parsing failed:', error);
@@ -170,15 +176,13 @@ export const createYamlActions = (set, get) => ({
    * Generate YAML from current canonical steps
    */
   generateYaml: () => {
-    const { canonicalSteps, flowSchema } = get();
+    const { canonicalSteps, flowSchema, simulationData } = get();
     
     try {
       if (canonicalSteps.length === 0) {
-        // Return proper empty structure
+        // Return proper empty structure with current simulation data
         const emptySchema = {
-          simulation: {
-            duration_days: 30
-          },
+          simulation: simulationData,
           event_simulation: {
             event_flows: [{
               flow_id: 'main_flow',
@@ -192,11 +196,9 @@ export const createYamlActions = (set, get) => ({
       }
       
       if (!flowSchema?.event_simulation?.event_flows?.[0]) {
-        // Create default structure if missing
+        // Create default structure if missing with current simulation data
         const defaultSchema = {
-          simulation: {
-            duration_days: 30
-          },
+          simulation: simulationData,
           event_simulation: {
             event_flows: [{
               flow_id: 'main_flow',
@@ -212,9 +214,10 @@ export const createYamlActions = (set, get) => ({
         return yaml.stringify(defaultSchema);
       }
       
-      // Update existing schema with current steps
+      // Update existing schema with current steps and simulation data
       const updatedSchema = {
         ...flowSchema,
+        simulation: simulationData, // Always use current simulation data from store
         event_simulation: {
           ...flowSchema.event_simulation,
           event_flows: [{

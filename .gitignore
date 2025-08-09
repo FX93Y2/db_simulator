@@ -22,6 +22,7 @@ htmlcov/
 coverage.xml
 *.cover
 instruction.txt
+backup/
 # Node.js
 node_modules/
 npm-debug.log

@@ -26,6 +26,7 @@ import {
   useIsLoading,
   useError,
   useActiveTab,
+  useHasUnsavedSimulation,
   useYamlActions,
   useCanvasActions,
   useConfigActions,
@@ -60,6 +61,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const isLoading = useIsLoading(projectId);
   const error = useError(projectId);
   const activeTab = useActiveTab(projectId);
+  const hasUnsavedSimulation = useHasUnsavedSimulation(projectId);
 
   // Store actions
   const { importYaml, exportYaml } = useYamlActions(projectId);
@@ -414,7 +416,13 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                 />
                 <Tab
                   eventKey="simulation"
-                  title={<span><FiClock className="me-2" />Simulation</span>}
+                  title={
+                    <span>
+                      <FiClock className="me-2" />
+                      Simulation
+                      {hasUnsavedSimulation && <span className="text-warning ms-2">●</span>}
+                    </span>
+                  }
                 />
               </Tabs>
               
@@ -476,7 +484,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
                   
                   {activeTab === 'simulation' && (
                     <SimulationEditor
-                      theme={theme}
+                      projectId={projectId}
                     />
                   )}
                 </>

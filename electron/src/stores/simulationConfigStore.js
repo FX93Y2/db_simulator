@@ -7,6 +7,7 @@ import { createCanvasActions } from './actions/canvasActions.js';
 import { createWorkflowActions } from './actions/workflowActions.js';
 import { createUIActions } from './actions/uiActions.js';
 import { createConfigActions } from './actions/configActions.js';
+import { createSimulationActions } from './actions/simulationActions.js';
 
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
@@ -32,6 +33,7 @@ const createProjectStore = (projectId = 'default') => {
         const workflowActions = createWorkflowActions(set, get);
         const uiActions = createUIActions(set, get);
         const configActions = createConfigActions(set, get);
+        const simulationActions = createSimulationActions(set, get);
 
         return {
           // ===== CORE DATA =====
@@ -71,12 +73,22 @@ const createProjectStore = (projectId = 'default') => {
           dbConfigContent: null,
           theme: 'light',
           
+          // ===== SIMULATION STATE =====
+          simulationData: {
+            duration_days: 30,
+            start_date: '2024-01-01',
+            random_seed: 42
+          },
+          pendingSimulationChanges: {},
+          hasUnsavedSimulation: false,
+          
           // ===== ACTIONS (available immediately) =====
           ...yamlActions,
           ...canvasActions,
           ...workflowActions,
           ...uiActions,
-          ...configActions
+          ...configActions,
+          ...simulationActions
         };
       }),
       {
@@ -215,6 +227,27 @@ export const useConfigActions = (projectId) => {
     runSimulation: state.runSimulation,
     initializeConfig: state.initializeConfig,
     clearConfig: state.clearConfig
+  }));
+};
+
+/**
+ * Simulation-specific selector hooks
+ * @param {string} projectId - Project identifier for store isolation
+ */
+export const useSimulationData = (projectId) => useSimulationConfigStore(projectId)(state => state.simulationData);
+export const usePendingSimulationChanges = (projectId) => useSimulationConfigStore(projectId)(state => state.pendingSimulationChanges);
+export const useHasUnsavedSimulation = (projectId) => useSimulationConfigStore(projectId)(state => state.hasUnsavedSimulation);
+
+export const useSimulationActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
+    updateSimulationField: state.updateSimulationField,
+    applySimulationChanges: state.applySimulationChanges,
+    resetSimulationChanges: state.resetSimulationChanges,
+    loadSimulationFromYaml: state.loadSimulationFromYaml,
+    getEffectiveSimulationData: state.getEffectiveSimulationData,
+    syncSimulationToYaml: state.syncSimulationToYaml,
+    hasFieldPendingChanges: state.hasFieldPendingChanges,
+    getFieldValue: state.getFieldValue
   }));
 };
 
