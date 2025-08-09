@@ -237,17 +237,7 @@ export const createConfigActions = (set, get) => ({
       state.theme = theme;
       state.dbConfigContent = dbConfigContent;
       
-      // Set default YAML if empty
-      if (!state.yamlContent) {
-        state.yamlContent = `simulation:
-  duration_days: 30
-
-event_simulation:
-  event_flows:
-    - flow_id: main_flow
-      event_table: Event
-      steps: []`;
-      }
+      // Leave yamlContent empty by default - users will apply simulation settings to generate YAML
     });
   },
 

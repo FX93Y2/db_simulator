@@ -65,11 +65,10 @@ const SimulationEditor = ({ projectId }) => {
                 Reset
               </Button>
               <Button
-                variant={hasUnsaved ? "primary" : "outline-primary"}
+                variant="primary"
                 size="sm"
                 onClick={handleApplyChanges}
-                title={hasUnsaved ? "Apply changes to YAML" : "No changes to apply"}
-                disabled={!hasUnsaved}
+                title="Apply current simulation settings to YAML"
               >
                 Apply
               </Button>

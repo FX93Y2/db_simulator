@@ -32,8 +32,13 @@ export const createSimulationActions = (set, get) => ({
     const { pendingSimulationChanges } = get();
     
     if (Object.keys(pendingSimulationChanges).length === 0) {
-      console.log('[SimulationActions] No pending changes to apply');
-      return { success: true, message: 'No changes to apply' };
+      console.log('[SimulationActions] No pending changes - applying current simulation data to YAML');
+      
+      // Even with no pending changes, regenerate YAML with current simulation data
+      // This is useful for fresh projects where user wants to apply default settings
+      get().syncSimulationToYaml();
+      
+      return { success: true, message: 'Current simulation settings applied to YAML' };
     }
 
     set((state) => {
@@ -123,7 +128,10 @@ export const createSimulationActions = (set, get) => ({
       state.yamlContent = generatedYaml;
     });
     
-    console.log('[SimulationActions] YAML updated with simulation data');
+    // Parse the updated YAML to update parsedSchema and flowSchema
+    get().parseYaml();
+    
+    console.log('[SimulationActions] YAML updated and parsed with simulation data');
   },
 
   /**
