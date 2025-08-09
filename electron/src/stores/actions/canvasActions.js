@@ -1,6 +1,9 @@
+import positionService from '../../services/PositionService.js';
+
 /**
  * Canvas-related actions for the simulation config store
  * Handles ReactFlow nodes, edges, positioning, and visual state
+ * Now integrated with PositionService for persistent position management
  */
 export const createCanvasActions = (set, get) => ({
   /**
@@ -48,8 +51,11 @@ export const createCanvasActions = (set, get) => ({
         state.canonicalSteps[stepIndex].position = position;
       }
       
-      // Update in positions map
+      // Update in legacy positions map (for backward compatibility)
       state.positions.set(nodeId, position);
+      
+      // Save to PositionService (memory + persistent storage)
+      positionService.setPosition(state.projectId, nodeId, position);
     });
     
     // Trigger YAML regeneration
@@ -114,7 +120,11 @@ export const createCanvasActions = (set, get) => ({
       state.canonicalSteps = remainingSteps;
       
       // Remove from positions map
-      nodeIds.forEach(id => state.positions.delete(id));
+      nodeIds.forEach(id => {
+        state.positions.delete(id);
+        // Remove from PositionService
+        positionService.removePosition(state.projectId, id);
+      });
       
       // Clear selection if deleted
       if (state.selectedNode && nodeIds.includes(state.selectedNode.id)) {
@@ -144,6 +154,9 @@ export const createCanvasActions = (set, get) => ({
       
       // Add position to map
       state.positions.set(stepData.step_id, position);
+      
+      // Save to PositionService
+      positionService.setPosition(state.projectId, stepData.step_id, position);
     });
     
     // Update visual state and sync to YAML
@@ -245,20 +258,32 @@ export const createCanvasActions = (set, get) => ({
                         step.step_type === 'assign' ? 'assign' :
                         step.step_type === 'release' ? 'release' : 'process';
         
-        // If step doesn't have a position, calculate one based on index
+        // Position priority: step.position -> PositionService -> calculated default
         let position = step.position;
+        
         if (!position) {
+          // Try to restore from PositionService
+          position = positionService.getPosition(state.projectId, step.step_id);
+        }
+        
+        if (!position) {
+          // Calculate default position based on index
           position = {
             x: 100 + (index % 3) * 300, // Spread horizontally
             y: 100 + Math.floor(index / 3) * 200 // Stack vertically
           };
           
-          // Update the step with calculated position within Immer context
-          step.position = position;
-          
-          // Update positions map
-          state.positions.set(step.step_id, position);
+          console.log(`[CanvasActions] Generated default position for ${step.step_id}:`, position);
         }
+        
+        // Update the step with resolved position within Immer context
+        step.position = position;
+        
+        // Update positions map
+        state.positions.set(step.step_id, position);
+        
+        // Ensure PositionService has the position
+        positionService.setPosition(state.projectId, step.step_id, position);
         
         return {
           id: step.step_id,

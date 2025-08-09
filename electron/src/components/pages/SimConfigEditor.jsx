@@ -21,11 +21,13 @@ import {
   useSimulationConfigStore,
   useYamlContent,
   useParsedSchema,
+  useCanonicalSteps,
   useCurrentState,
   useIsLoading,
   useError,
   useActiveTab,
   useYamlActions,
+  useCanvasActions,
   useConfigActions,
   useWorkflowActions,
   useUIActions
@@ -53,6 +55,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const yamlContent = useYamlContent(projectId);
   const parsedSchema = useParsedSchema(projectId);
+  const canonicalSteps = useCanonicalSteps(projectId);
   const currentState = useCurrentState(projectId);
   const isLoading = useIsLoading(projectId);
   const error = useError(projectId);
@@ -60,12 +63,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
 
   // Store actions
   const { importYaml, exportYaml } = useYamlActions(projectId);
+  const { addNode } = useCanvasActions(projectId);
   const { loadConfig, saveConfig, initializeConfig } = useConfigActions(projectId);
   const { clearError } = useWorkflowActions(projectId);
   const { setActiveTab } = useUIActions(projectId);
 
-  // Get project-specific store state when needed (non-reactive)
-  const getStoreState = () => useSimulationConfigStore(projectId).getState();
+  // Project-specific store now accessed through reactive hooks above
 
   // Initialize configuration context
   useEffect(() => {
@@ -162,8 +165,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
 
   // Generate collision-free step ID
   const generateStepId = useCallback((stepType) => {
-    const state = getStoreState();
-    const existingStepIds = state.canonicalSteps.map(s => s.step_id);
+    const existingStepIds = canonicalSteps.map(s => s.step_id);
     
     if (stepType === 'create') {
       let counter = 1;
@@ -183,21 +185,19 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     }
     
     return stepId;
-  }, [getStoreState]);
+  }, [canonicalSteps]);
 
   // Add module handler
   const handleAddModule = useCallback((moduleType) => {
-    const state = getStoreState();
-    
-    if (!state.parsedSchema) {
+    if (!parsedSchema) {
       showError('Configure Simulation Duration First!');
       return;
     }
 
     const stepId = generateStepId(moduleType);
     const position = {
-      x: 50 + (state.canonicalSteps.length % 3) * 300,
-      y: 100 + Math.floor(state.canonicalSteps.length / 3) * 200
+      x: 50 + (canonicalSteps.length % 3) * 300,
+      y: 100 + Math.floor(canonicalSteps.length / 3) * 200
     };
 
     // Create step based on type
@@ -265,9 +265,9 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     }
 
     // Add to store
-    state.addNode(newStep, position);
+    addNode(newStep, position);
     console.log('➕ SimConfigEditor: Added module:', stepId);
-  }, [getStoreState, generateStepId, showError]);
+  }, [parsedSchema, canonicalSteps, generateStepId, addNode, showError]);
 
   // Save handler
   const handleSave = useCallback(async () => {

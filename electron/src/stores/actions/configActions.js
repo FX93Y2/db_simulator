@@ -1,3 +1,5 @@
+import positionService from '../../services/PositionService.js';
+
 /**
  * Configuration-related actions for the simulation config store
  * Handles loading, saving, and managing configuration metadata
@@ -67,6 +69,9 @@ export const createConfigActions = (set, get) => ({
             state.isProjectTab = true;
           });
           
+          // Load positions for this project
+          positionService.loadProject(projectId);
+          
           // Load YAML content
           if (result.config.content) {
             await get().importYaml(result.config.content);
@@ -78,6 +83,9 @@ export const createConfigActions = (set, get) => ({
             state.projectId = projectId;
             state.isProjectTab = true;
           });
+          
+          // Load positions for this project (even if no config yet)
+          positionService.loadProject(projectId);
         }
       } else {
         // Load standalone config
@@ -91,6 +99,9 @@ export const createConfigActions = (set, get) => ({
             state.projectId = null;
             state.isProjectTab = false;
           });
+          
+          // Load positions for standalone config (using config ID as project ID)
+          positionService.loadProject(`config_${configId}`);
           
           // Load YAML content
           if (result.config.content) {
