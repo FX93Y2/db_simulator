@@ -8,7 +8,7 @@ import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
-import { extractDisplayNameFromStepId, convertDisplayNameToStepIdFormat } from '../../../utils/stepIdUtils';
+import { convertDisplayNameToStepIdFormat } from '../../../utils/stepIdUtils';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [] }) => {
   const [formData, setFormData] = useState({});
@@ -60,8 +60,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const eventConfig = stepConfig.event_config || {};
     const duration = eventConfig.duration?.distribution || {};
     
-    // Extract name from step_id instead of event_config.name (deprecated)
-    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    // Use displayName from step configuration
+    const displayName = stepConfig.displayName || '';
     
     setFormData({
       name: displayName,
@@ -81,8 +81,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeDecideForm = (stepConfig) => {
     const decideConfig = stepConfig.decide_config || {};
     
-    // Extract name from step_id
-    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    // Use displayName from step configuration
+    const displayName = stepConfig.displayName || '';
     
     setFormData({
       name: displayName,
@@ -134,8 +134,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeAssignForm = (stepConfig) => {
     const assignConfig = stepConfig.assign_config || {};
     
-    // Extract name from step_id
-    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    // Use displayName from step configuration
+    const displayName = stepConfig.displayName || '';
     
     setFormData({
       name: displayName,
@@ -162,8 +162,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const initializeReleaseForm = (stepConfig) => {
-    // Extract name from step_id instead of event_config.name (deprecated)
-    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || 'Release';
+    // Use displayName from step configuration
+    const displayName = stepConfig.displayName || 'Release';
     
     setFormData({
       name: displayName
@@ -174,8 +174,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const createConfig = stepConfig.create_config || {};
     const interarrivalTime = createConfig.interarrival_time?.distribution || {};
     
-    // Extract name from step_id
-    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    // Use displayName from step configuration
+    const displayName = stepConfig.displayName || '';
     
     setFormData({
       name: displayName,
@@ -361,7 +361,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const stepId = generateStepId(stepType, formData);
     const updatedStepConfig = { 
       ...node.data.stepConfig,
-      step_id: stepId
+      step_id: stepId,
+      displayName: formData.name || ''
     };
 
     if (stepType === 'event') {
@@ -518,8 +519,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepType === 'create') {
       return `Create ${formData.entity_table || 'Entities'}`;
     } else {
-      // Use formData.name if available, otherwise extract from stepId
-      return formData.name || extractDisplayNameFromStepId(stepId) || stepId;
+      // Use formData.name (displayName) directly
+      return formData.name || stepId;
     }
   };
 

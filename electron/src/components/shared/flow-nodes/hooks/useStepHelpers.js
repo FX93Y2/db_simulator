@@ -1,7 +1,6 @@
 /**
  * Custom hook for common step helper functions used across step editors
  */
-import { extractDisplayNameFromStepId } from '../../../../utils/stepIdUtils';
 
 export const useStepHelpers = (parsedSchema) => {
   // Helper function to get display name from step ID
@@ -11,8 +10,8 @@ export const useStepHelpers = (parsedSchema) => {
     const step = flow?.steps?.find(s => s.step_id === stepId);
     if (!step) return '';
     
-    // Extract display name from step_id format (all step types now use this)
-    return extractDisplayNameFromStepId(step.step_id) || step.step_id;
+    // Use displayName from step configuration
+    return step.displayName || step.step_id;
   };
 
   // Helper function to get step ID from display name
@@ -20,13 +19,12 @@ export const useStepHelpers = (parsedSchema) => {
     if (!parsedSchema?.event_simulation?.event_flows) return '';
     const flow = parsedSchema.event_simulation.event_flows[0];
     
-    // Find step where the extracted display name matches
+    // Find step where the displayName matches
     const step = flow?.steps?.find(s => {
-      const extractedName = extractDisplayNameFromStepId(s.step_id);
-      return extractedName === displayName;
+      return s.displayName === displayName;
     });
     
-    // If not found by extracted name, try direct step_id match
+    // If not found by displayName, try direct step_id match
     if (!step) {
       const directMatch = flow?.steps?.find(s => s.step_id === displayName);
       return directMatch?.step_id || '';
@@ -40,8 +38,8 @@ export const useStepHelpers = (parsedSchema) => {
     if (!parsedSchema?.event_simulation?.event_flows) return [];
     const flow = parsedSchema.event_simulation.event_flows[0];
     return flow?.steps?.map(s => {
-      // Extract display name from step_id format (all step types now use this)
-      return extractDisplayNameFromStepId(s.step_id) || s.step_id;
+      // Use displayName from step configuration
+      return s.displayName || s.step_id;
     }) || [];
   };
 

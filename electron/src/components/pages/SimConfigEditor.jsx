@@ -189,6 +189,24 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     return stepId;
   }, [canonicalSteps]);
 
+  // Helper function to get default display names for new steps
+  const getDefaultDisplayName = (moduleType) => {
+    switch (moduleType) {
+      case 'event':
+        return 'New Process';
+      case 'decide':
+        return 'New Decision';
+      case 'assign':
+        return 'New Assignment';
+      case 'release':
+        return 'Release';
+      case 'create':
+        return 'Create Entities';
+      default:
+        return 'New Step';
+    }
+  };
+
   // Add module handler
   const handleAddModule = useCallback((moduleType) => {
     if (!parsedSchema) {
@@ -202,16 +220,16 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       y: 100 + Math.floor(canonicalSteps.length / 3) * 200
     };
 
-    // Create step based on type
+    // Create step based on type with displayName
     let newStep = {
       step_id: stepId,
-      step_type: moduleType
+      step_type: moduleType,
+      displayName: getDefaultDisplayName(moduleType)
     };
 
     switch (moduleType) {
       case 'event':
         newStep.event_config = {
-          name: 'New Process',
           duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
           resource_requirements: []
         };

@@ -1,0 +1,60 @@
+simulation:
+  duration_days: 30
+  start_date: 2024-01-01
+  random_seed: 42
+event_simulation:
+  event_flows:
+    - flow_id: flow_1_create_ticket
+      event_table: Ticket
+      steps:
+        - step_id: create_ticket
+          step_type: create
+          create_config:
+            entity_table: Ticket
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            max_entities: n/a
+          next_steps:
+            - event_ticket_assignment_1
+        - step_id: event_ticket_assignment_1
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps: []
+    - flow_id: flow_2_create_phone_call
+      event_table: Phone_Call
+      steps:
+        - step_id: create_phone_call
+          step_type: create
+          create_config:
+            entity_table: Phone_Call
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            max_entities: n/a
+          next_steps:
+            - event_phone_call_1
+        - step_id: event_phone_call_1
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps: []

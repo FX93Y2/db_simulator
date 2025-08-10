@@ -183,12 +183,13 @@ export const createYamlActions = (set, get) => ({
     const flowSteps = [];
     
     /**
-     * Helper function to clean step object and remove canvas-only properties
+     * Helper function to clean step object and remove canvas/frontend-only properties
      */
     const cleanStep = (step) => {
-      const { position, ...stepWithoutPosition } = step;
+      const { position, displayName, ...stepWithoutFrontendProps } = step;
       // Deep clone to prevent YAML anchor references
-      return JSON.parse(JSON.stringify(stepWithoutPosition));
+      // displayName is frontend-only and not included in YAML
+      return JSON.parse(JSON.stringify(stepWithoutFrontendProps));
     };
     
     /**
