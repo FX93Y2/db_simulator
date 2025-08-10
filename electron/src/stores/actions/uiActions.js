@@ -78,7 +78,7 @@ export const createUIActions = (set, get) => ({
    * @param {Object} event - React event
    * @param {Object} node - Clicked node
    */
-  handleNodeClick: (event, node) => {
+  handleNodeClick: (_event, node) => {
     
     set((state) => {
       state.selectedNode = node;
@@ -90,7 +90,7 @@ export const createUIActions = (set, get) => ({
    * @param {Object} event - React event
    * @param {Object} node - Double-clicked node
    */
-  handleNodeDoubleClick: (event, node) => {
+  handleNodeDoubleClick: (_event, node) => {
     
     set((state) => {
       state.selectedNode = node;

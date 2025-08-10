@@ -54,7 +54,8 @@ class PositionService {
         const parsed = JSON.parse(savedData);
         const positionsMap = new Map(parsed.positions || []);
         
-        console.log(`[PositionService] Loaded ${positionsMap.size} positions for project: ${cacheKey}`);
+        const nodeIds = Array.from(positionsMap.keys());
+        console.log(`[PositionService] Loaded ${positionsMap.size} positions for project: ${cacheKey}`, { nodeIds });
         this.cache.set(cacheKey, {
           positions: positionsMap,
           lastAccess: Date.now(),
@@ -325,7 +326,8 @@ class PositionService {
       localStorage.setItem(storageKey, JSON.stringify(data));
       projectCache.dirty = false;
       
-      console.log(`[PositionService] Saved ${projectCache.positions.size} positions for project: ${cacheKey}`);
+      const nodeIds = Array.from(projectCache.positions.keys());
+      console.log(`[PositionService] Saved ${projectCache.positions.size} positions for project: ${cacheKey}`, { nodeIds });
     } catch (error) {
       console.error(`[PositionService] Error saving project ${cacheKey}:`, error);
       
