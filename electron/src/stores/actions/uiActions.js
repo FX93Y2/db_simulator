@@ -8,7 +8,6 @@ export const createUIActions = (set, get) => ({
    * @param {string} tab - Tab name ('event-flow', 'resources', 'simulation')
    */
   setActiveTab: (tab) => {
-    console.log('[UIActions] Switching to tab:', tab);
     
     set((state) => {
       state.activeTab = tab;
@@ -20,7 +19,6 @@ export const createUIActions = (set, get) => ({
    * @param {Object|null} node - Selected node or null to clear selection
    */
   setSelectedNode: (node) => {
-    console.log('[UIActions] Setting selected node:', node?.id || 'none');
     
     set((state) => {
       state.selectedNode = node;
@@ -31,7 +29,6 @@ export const createUIActions = (set, get) => ({
    * Clear node selection
    */
   clearSelection: () => {
-    console.log('[UIActions] Clearing node selection');
     
     set((state) => {
       state.selectedNode = null;
@@ -43,7 +40,6 @@ export const createUIActions = (set, get) => ({
    * @param {boolean} show - Whether to show the edit modal
    */
   setShowEditModal: (show) => {
-    console.log('[UIActions] Setting edit modal visibility:', show);
     
     set((state) => {
       state.showEditModal = show;
@@ -61,7 +57,6 @@ export const createUIActions = (set, get) => ({
       return;
     }
     
-    console.log('[UIActions] Opening edit modal for node:', selectedNode.id);
     
     set((state) => {
       state.showEditModal = true;
@@ -72,7 +67,6 @@ export const createUIActions = (set, get) => ({
    * Close edit modal
    */
   closeEditModal: () => {
-    console.log('[UIActions] Closing edit modal');
     
     set((state) => {
       state.showEditModal = false;
@@ -85,7 +79,6 @@ export const createUIActions = (set, get) => ({
    * @param {Object} node - Clicked node
    */
   handleNodeClick: (event, node) => {
-    console.log('[UIActions] Node clicked:', node.id);
     
     set((state) => {
       state.selectedNode = node;
@@ -98,7 +91,6 @@ export const createUIActions = (set, get) => ({
    * @param {Object} node - Double-clicked node
    */
   handleNodeDoubleClick: (event, node) => {
-    console.log('[UIActions] Node double-clicked:', node.id);
     
     set((state) => {
       state.selectedNode = node;
@@ -134,7 +126,6 @@ export const createUIActions = (set, get) => ({
       );
       
       if (!isTyping) {
-        console.log('[UIActions] Deleting selected node via keyboard:', selectedNode.id);
         get().deleteNodes([selectedNode.id]);
         get().clearSelection();
         event.preventDefault();

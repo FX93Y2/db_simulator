@@ -11,7 +11,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} nodes - New nodes array
    */
   updateNodes: (nodes) => {
-    console.log('[CanvasActions] Updating nodes:', nodes.length);
     
     set((state) => {
       state.nodes = nodes;
@@ -23,7 +22,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} edges - New edges array
    */
   updateEdges: (edges) => {
-    console.log('[CanvasActions] Updating edges:', edges.length);
     
     set((state) => {
       state.edges = edges;
@@ -36,7 +34,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} position - New position {x, y}
    */
   updateNodePosition: (nodeId, position) => {
-    console.log('[CanvasActions] Updating node position:', nodeId, position);
     
     set((state) => {
       // Update in nodes array
@@ -67,7 +64,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} nodeIds - Array of node IDs to delete
    */
   deleteNodes: (nodeIds) => {
-    console.log('[CanvasActions] Deleting nodes:', nodeIds);
     
     set((state) => {
       // Remove from nodes array
@@ -144,7 +140,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} position - Position {x, y}
    */
   addNode: (stepData, position = { x: 100, y: 100 }) => {
-    console.log('[CanvasActions] Adding node:', stepData.step_id);
     
     set((state) => {
       // Add to canonical steps
@@ -177,7 +172,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} newData - New step data
    */
   updateStep: (stepId, newData) => {
-    console.log('[CanvasActions] Updating step:', stepId);
     
     const isIdChanging = newData.step_id && newData.step_id !== stepId;
     
@@ -254,7 +248,6 @@ export const createCanvasActions = (set, get) => ({
    * Transforms canonical steps into ReactFlow nodes and edges
    */
   updateVisualState: () => {
-    console.log('[CanvasActions] Updating visual state from canonical steps');
     
     set((state) => {
       if (state.canonicalSteps.length === 0) {
@@ -285,7 +278,6 @@ export const createCanvasActions = (set, get) => ({
             y: 100 + Math.floor(index / 3) * 200 // Stack vertically
           };
           
-          console.log(`[CanvasActions] Generated default position for ${step.step_id}:`, position);
         }
         
         // Update the step with resolved position within Immer context
@@ -352,11 +344,8 @@ export const createCanvasActions = (set, get) => ({
    */
   syncCanvasToYaml: () => {
     if (get().currentState === 'importing') {
-      console.log('[CanvasActions] Skipping canvas->YAML sync during import');
       return;
     }
-    
-    console.log('[CanvasActions] Syncing canvas to YAML');
     
     const generatedYaml = get().generateYaml();
     
@@ -370,7 +359,6 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} connection - ReactFlow connection object
    */
   connectNodes: (connection) => {
-    console.log('[CanvasActions] Connecting nodes:', connection);
     
     const { source, target, sourceHandle } = connection;
     

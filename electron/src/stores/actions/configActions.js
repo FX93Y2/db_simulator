@@ -10,7 +10,6 @@ export const createConfigActions = (set, get) => ({
    * @param {Object} config - Configuration object
    */
   updateConfig: (config) => {
-    console.log('[ConfigActions] Updating config:', config?.name);
     
     set((state) => {
       state.config = config;
@@ -24,7 +23,6 @@ export const createConfigActions = (set, get) => ({
    * @param {string} name - New name
    */
   updateName: (name) => {
-    console.log('[ConfigActions] Updating name:', name);
     
     set((state) => {
       state.name = name;
@@ -36,7 +34,6 @@ export const createConfigActions = (set, get) => ({
    * @param {string} description - New description
    */
   updateDescription: (description) => {
-    console.log('[ConfigActions] Updating description');
     
     set((state) => {
       state.description = description;
@@ -49,7 +46,6 @@ export const createConfigActions = (set, get) => ({
    * @param {string} projectId - Optional project ID
    */
   loadConfig: async (configId, projectId = null) => {
-    console.log('[ConfigActions] Loading config:', configId, 'for project:', projectId);
     
     try {
       get().beginSave(); // Use save workflow for loading
@@ -127,7 +123,6 @@ export const createConfigActions = (set, get) => ({
   saveConfig: async (saveAsNew = false) => {
     const { config, projectId, isProjectTab, name, description, yamlContent } = get();
     
-    console.log('[ConfigActions] Saving config:', name, 'saveAsNew:', saveAsNew);
     
     try {
       get().beginSave();
@@ -181,7 +176,6 @@ export const createConfigActions = (set, get) => ({
   runSimulation: async (selectedDbConfig) => {
     const { config, projectId, name, description, yamlContent } = get();
     
-    console.log('[ConfigActions] Running simulation with DB config:', selectedDbConfig);
     
     try {
       get().beginSave();
@@ -229,7 +223,6 @@ export const createConfigActions = (set, get) => ({
       dbConfigContent = null
     } = options;
     
-    console.log('[ConfigActions] Initializing config with options:', options);
     
     set((state) => {
       state.projectId = projectId;
@@ -245,7 +238,6 @@ export const createConfigActions = (set, get) => ({
    * Clear all configuration state
    */
   clearConfig: () => {
-    console.log('[ConfigActions] Clearing all config state');
     
     set((state) => {
       // Reset core data

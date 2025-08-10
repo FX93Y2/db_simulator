@@ -36,7 +36,6 @@ export const initializeStoreActions = () => {
   // Initialize the store with actions
   store._initializeActions(allActions);
   
-  console.log('[StoreActions] All actions initialized successfully');
   
   return allActions;
 };

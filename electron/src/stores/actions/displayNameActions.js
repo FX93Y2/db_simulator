@@ -13,7 +13,6 @@ export const createDisplayNameActions = (set, get) => ({
   saveDisplayName: (stepId, displayName) => {
     const { projectId } = get();
     if (projectId && stepId && displayName) {
-      console.log('[DisplayNameActions] Saving display name:', { projectId, stepId, displayName });
       displayNameService.saveDisplayName(projectId, stepId, displayName);
     }
   },
@@ -38,16 +37,7 @@ export const createDisplayNameActions = (set, get) => ({
   applyStoredDisplayNames: () => {
     const { projectId, canonicalSteps } = get();
     if (projectId && canonicalSteps) {
-      console.log('[DisplayNameActions] Applying stored display names to canonical steps');
-      console.log('[DisplayNameActions] Project ID:', projectId);
-      console.log('[DisplayNameActions] Canonical steps before:', canonicalSteps);
-      
-      // Load display names for debugging
-      const storedDisplayNames = displayNameService.loadDisplayNames(projectId);
-      console.log('[DisplayNameActions] Stored display names:', storedDisplayNames);
-      
       const updatedSteps = displayNameService.applyDisplayNames(projectId, canonicalSteps);
-      console.log('[DisplayNameActions] Updated steps after applying display names:', updatedSteps);
       
       set((state) => {
         state.canonicalSteps = updatedSteps;

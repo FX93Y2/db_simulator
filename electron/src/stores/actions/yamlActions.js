@@ -10,7 +10,6 @@ export const createYamlActions = (set, get) => ({
    * @param {string} content - Raw YAML content
    */
   importYaml: async (content) => {
-    console.log('[YamlActions] Starting YAML import');
     
     try {
       // Set importing state to prevent circular updates
@@ -63,7 +62,6 @@ export const createYamlActions = (set, get) => ({
       // Trigger visual state update
       get().updateVisualState();
 
-      console.log('[YamlActions] YAML import completed successfully');
       return { success: true, message: 'Simulation configuration imported successfully' };
       
     } catch (error) {
@@ -102,7 +100,6 @@ export const createYamlActions = (set, get) => ({
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
 
-      console.log('[YamlActions] YAML exported successfully');
       return { success: true, message: 'Configuration exported successfully' };
     } catch (error) {
       console.error('[YamlActions] Export failed:', error);
@@ -115,7 +112,6 @@ export const createYamlActions = (set, get) => ({
    * @param {string} content - New YAML content
    */
   updateYamlContent: (content) => {
-    console.log('[YamlActions] Updating YAML content');
     
     set((state) => {
       state.yamlContent = content;
@@ -173,7 +169,6 @@ export const createYamlActions = (set, get) => ({
       // Apply stored display names to parsed steps
       get().applyStoredDisplayNames();
 
-      console.log('[YamlActions] YAML parsed successfully');
     } catch (error) {
       console.error('[YamlActions] YAML parsing failed:', error);
       

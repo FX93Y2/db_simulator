@@ -9,7 +9,6 @@ export const createSimulationActions = (set, get) => ({
    * @param {any} value - New value
    */
   updateSimulationField: (field, value) => {
-    console.log('[SimulationActions] Updating simulation field:', field, '=', value);
     
     set((state) => {
       // Update pending changes
@@ -19,7 +18,6 @@ export const createSimulationActions = (set, get) => ({
       const hasChanges = Object.keys(state.pendingSimulationChanges).length > 0;
       state.hasUnsavedSimulation = hasChanges;
       
-      console.log('[SimulationActions] Pending changes:', state.pendingSimulationChanges);
     });
   },
 
@@ -27,12 +25,10 @@ export const createSimulationActions = (set, get) => ({
    * Apply pending simulation changes and regenerate YAML
    */
   applySimulationChanges: () => {
-    console.log('[SimulationActions] Applying simulation changes');
     
     const { pendingSimulationChanges } = get();
     
     if (Object.keys(pendingSimulationChanges).length === 0) {
-      console.log('[SimulationActions] No pending changes - applying current simulation data to YAML');
       
       // Even with no pending changes, regenerate YAML with current simulation data
       // This is useful for fresh projects where user wants to apply default settings
@@ -51,7 +47,6 @@ export const createSimulationActions = (set, get) => ({
       state.pendingSimulationChanges = {};
       state.hasUnsavedSimulation = false;
       
-      console.log('[SimulationActions] Applied changes. New simulation data:', state.simulationData);
     });
 
     // Regenerate YAML with new simulation data
@@ -64,7 +59,6 @@ export const createSimulationActions = (set, get) => ({
    * Reset pending simulation changes (discard unsaved changes)
    */
   resetSimulationChanges: () => {
-    console.log('[SimulationActions] Resetting pending simulation changes');
     
     set((state) => {
       state.pendingSimulationChanges = {};
@@ -79,10 +73,8 @@ export const createSimulationActions = (set, get) => ({
    * @param {Object} parsedSchema - Parsed YAML object
    */
   loadSimulationFromYaml: (parsedSchema) => {
-    console.log('[SimulationActions] Loading simulation data from YAML');
     
     if (!parsedSchema?.simulation) {
-      console.log('[SimulationActions] No simulation section found in YAML');
       return;
     }
 
@@ -98,7 +90,6 @@ export const createSimulationActions = (set, get) => ({
       state.pendingSimulationChanges = {};
       state.hasUnsavedSimulation = false;
       
-      console.log('[SimulationActions] Loaded simulation data:', state.simulationData);
     });
   },
 
@@ -119,7 +110,6 @@ export const createSimulationActions = (set, get) => ({
    * Sync current simulation data to YAML (regenerate YAML with current simulation settings)
    */
   syncSimulationToYaml: () => {
-    console.log('[SimulationActions] Syncing simulation data to YAML');
     
     // Use the existing generateYaml method which will now include simulation data
     const generatedYaml = get().generateYaml();
@@ -131,7 +121,6 @@ export const createSimulationActions = (set, get) => ({
     // Parse the updated YAML to update parsedSchema and flowSchema
     get().parseYaml();
     
-    console.log('[SimulationActions] YAML updated and parsed with simulation data');
   },
 
   /**
