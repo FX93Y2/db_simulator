@@ -20,6 +20,7 @@ import {
 
 // Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
+import useEntityTables from '../../hooks/shared/useEntityTables';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
@@ -59,6 +60,9 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
+  
+  // Use the custom hook to get entity tables from database config
+  const entityTables = useEntityTables(dbConfigContent);
 
   // Get project-specific store state when needed (non-reactive)
   const getStoreState = () => useSimulationConfigStore(projectId).getState();
@@ -242,6 +246,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
         theme={theme}
         parsedSchema={getStoreState().parsedSchema}
         resourceDefinitions={resourceDefinitions}
+        entityTables={entityTables}
       />
     </div>
   );

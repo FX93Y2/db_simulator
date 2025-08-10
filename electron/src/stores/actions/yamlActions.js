@@ -173,6 +173,60 @@ export const createYamlActions = (set, get) => ({
   },
 
   /**
+   * Generate event flows from canonical steps based on Create modules
+   * Each Create module starts a new flow
+   * @param {Array} canonicalSteps - Array of step objects
+   * @returns {Array} - Array of event flow objects
+   */
+  generateEventFlowsFromSteps: (canonicalSteps) => {
+    if (!canonicalSteps || canonicalSteps.length === 0) {
+      return [];
+    }
+
+    // Find all Create modules to determine flow structure
+    const createModules = canonicalSteps.filter(step => step.step_type === 'create');
+    
+    if (createModules.length === 0) {
+      // No Create modules - create a single flow for orphaned steps
+      // This maintains backward compatibility
+      return [{
+        flow_id: 'main_flow',
+        event_table: 'Event',
+        steps: canonicalSteps.map(step => {
+          const { position, ...stepWithoutPosition } = step;
+          return stepWithoutPosition;
+        })
+      }];
+    }
+
+    // Generate flows based on Create modules
+    const flows = [];
+    let flowCounter = 1;
+
+    createModules.forEach(createModule => {
+      const flowId = `flow_${flowCounter}_${createModule.step_id}`;
+      
+      // Find all steps that belong to this flow
+      // For now, simple approach: each Create module gets its own flow with all steps
+      // TODO: Implement proper flow tracing logic
+      const flowSteps = canonicalSteps.map(step => {
+        const { position, ...stepWithoutPosition } = step;
+        return stepWithoutPosition;
+      });
+
+      flows.push({
+        flow_id: flowId,
+        event_table: createModule.create_config?.entity_table || 'Event',
+        steps: flowSteps
+      });
+
+      flowCounter++;
+    });
+
+    return flows;
+  },
+
+  /**
    * Generate YAML from current canonical steps
    */
   generateYaml: () => {
@@ -180,53 +234,39 @@ export const createYamlActions = (set, get) => ({
     
     try {
       if (canonicalSteps.length === 0) {
-        // Return proper empty structure with current simulation data
+        // Return minimal structure with empty event_flows when no modules exist
         const emptySchema = {
           simulation: simulationData,
           event_simulation: {
-            event_flows: [{
-              flow_id: 'main_flow',
-              event_table: 'Event',
-              steps: []
-            }]
+            event_flows: []
           }
         };
         
         return yaml.stringify(emptySchema);
       }
       
+      // Generate flows dynamically based on Create modules
+      const generatedFlows = get().generateEventFlowsFromSteps(canonicalSteps);
+      
       if (!flowSchema?.event_simulation?.event_flows?.[0]) {
-        // Create default structure if missing with current simulation data
+        // Create new structure with dynamically generated flows
         const defaultSchema = {
           simulation: simulationData,
           event_simulation: {
-            event_flows: [{
-              flow_id: 'main_flow',
-              event_table: 'Event',
-              steps: canonicalSteps.map(step => {
-                const { position, ...stepWithoutPosition } = step;
-                return stepWithoutPosition;
-              })
-            }]
+            event_flows: generatedFlows
           }
         };
         
         return yaml.stringify(defaultSchema);
       }
       
-      // Update existing schema with current steps and simulation data
+      // Update existing schema with dynamically generated flows and simulation data
       const updatedSchema = {
         ...flowSchema,
         simulation: simulationData, // Always use current simulation data from store
         event_simulation: {
           ...flowSchema.event_simulation,
-          event_flows: [{
-            ...flowSchema.event_simulation.event_flows[0],
-            steps: canonicalSteps.map(step => {
-              const { position, ...stepWithoutPosition } = step;
-              return stepWithoutPosition;
-            })
-          }]
+          event_flows: generatedFlows
         }
       };
       
