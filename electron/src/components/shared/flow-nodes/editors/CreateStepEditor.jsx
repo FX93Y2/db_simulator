@@ -82,15 +82,18 @@ const CreateStepEditor = ({
 
   return (
     <div className="create-step-editor">
-      {/* Display Name */}
+      {/* Name */}
       <Form.Group className="mb-4">
-        <Form.Label>Display Name</Form.Label>
+        <Form.Label>Name</Form.Label>
         <Form.Control
           type="text"
-          value={formData.display_name || ''}
-          onChange={(e) => onFormDataChange({ display_name: e.target.value })}
-          placeholder="Enter a display name for this module"
+          value={formData.name || ''}
+          onChange={(e) => onFormDataChange({ name: e.target.value })}
+          placeholder="Enter a name for this module"
         />
+        <Form.Text className="text-muted">
+          Name shown on the node and used in step ID
+        </Form.Text>
       </Form.Group>
 
       {/* Entity Table Selection */}
@@ -157,13 +160,17 @@ const CreateStepEditor = ({
         <Form.Select
           value={formData.next_step || ''}
           onChange={(e) => onFormDataChange({ next_step: e.target.value })}
-          required
         >
-          <option value="">Select next step...</option>
+          <option value="">
+            {availableSteps.length > 0 ? 'Select next step...' : 'No steps available (add other steps first)'}
+          </option>
           {availableSteps.map((stepName) => (
             <option key={stepName} value={stepName}>{stepName}</option>
           ))}
         </Form.Select>
+        <Form.Text className="text-muted">
+          {availableSteps.length === 0 ? 'Create module can be saved without next step when no other steps exist' : 'Select the next step in the flow'}
+        </Form.Text>
       </Form.Group>
     </div>
   );

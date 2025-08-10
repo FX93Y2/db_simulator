@@ -1,6 +1,8 @@
 /**
  * Custom hook for common step helper functions used across step editors
  */
+import { extractDisplayNameFromStepId } from '../../../../utils/stepIdUtils';
+
 export const useStepHelpers = (parsedSchema) => {
   // Helper function to get display name from step ID
   const getDisplayNameFromStepId = (stepId) => {
@@ -9,12 +11,8 @@ export const useStepHelpers = (parsedSchema) => {
     const step = flow?.steps?.find(s => s.step_id === stepId);
     if (!step) return '';
     
-    // For event and release steps, use their name; for others use step_id
-    if (step.step_type === 'event' || step.step_type === 'release') {
-      return step.event_config?.name || step.step_id;
-    } else {
-      return step.step_id;
-    }
+    // Extract display name from step_id format (all step types now use this)
+    return extractDisplayNameFromStepId(step.step_id) || step.step_id;
   };
 
   // Helper function to get step ID from display name
@@ -22,15 +20,16 @@ export const useStepHelpers = (parsedSchema) => {
     if (!parsedSchema?.event_simulation?.event_flows) return '';
     const flow = parsedSchema.event_simulation.event_flows[0];
     
-    // First try to find by event_config.name (for event/release steps)
-    let step = flow?.steps?.find(s => 
-      (s.step_type === 'event' || s.step_type === 'release') && 
-      s.event_config?.name === displayName
-    );
+    // Find step where the extracted display name matches
+    const step = flow?.steps?.find(s => {
+      const extractedName = extractDisplayNameFromStepId(s.step_id);
+      return extractedName === displayName;
+    });
     
-    // If not found, try to find by step_id (for all step types)
+    // If not found by extracted name, try direct step_id match
     if (!step) {
-      step = flow?.steps?.find(s => s.step_id === displayName);
+      const directMatch = flow?.steps?.find(s => s.step_id === displayName);
+      return directMatch?.step_id || '';
     }
     
     return step?.step_id || '';
@@ -41,12 +40,8 @@ export const useStepHelpers = (parsedSchema) => {
     if (!parsedSchema?.event_simulation?.event_flows) return [];
     const flow = parsedSchema.event_simulation.event_flows[0];
     return flow?.steps?.map(s => {
-      // For event and release steps, use their name; for others use step_id
-      if (s.step_type === 'event' || s.step_type === 'release') {
-        return s.event_config?.name || s.step_id;
-      } else {
-        return s.step_id;
-      }
+      // Extract display name from step_id format (all step types now use this)
+      return extractDisplayNameFromStepId(s.step_id) || s.step_id;
     }) || [];
   };
 

@@ -8,6 +8,7 @@ import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
+import { extractDisplayNameFromStepId, convertDisplayNameToStepIdFormat } from '../../../utils/stepIdUtils';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [] }) => {
   const [formData, setFormData] = useState({});
@@ -59,8 +60,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const eventConfig = stepConfig.event_config || {};
     const duration = eventConfig.duration?.distribution || {};
     
+    // Extract name from step_id instead of event_config.name (deprecated)
+    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    
     setFormData({
-      name: eventConfig.name || '',
+      name: displayName,
       distribution_type: duration.type || 'normal',
       duration_mean: duration.mean || 1,
       duration_stddev: duration.stddev || 0.1,
@@ -77,8 +81,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeDecideForm = (stepConfig) => {
     const decideConfig = stepConfig.decide_config || {};
     
+    // Extract name from step_id
+    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    
     setFormData({
-      display_name: node.data.displayName || '',
+      name: displayName,
       decision_type: decideConfig.decision_type || 'probability'
     });
     
@@ -127,8 +134,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeAssignForm = (stepConfig) => {
     const assignConfig = stepConfig.assign_config || {};
     
+    // Extract name from step_id
+    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    
     setFormData({
-      display_name: node.data.displayName || '',
+      name: displayName,
       module_id: assignConfig.module_id || stepConfig.step_id
     });
     
@@ -161,8 +171,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const createConfig = stepConfig.create_config || {};
     const interarrivalTime = createConfig.interarrival_time?.distribution || {};
     
+    // Extract name from step_id
+    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || '';
+    
     setFormData({
-      display_name: node.data.displayName || '',
+      name: displayName,
       entity_table: createConfig.entity_table || '',
       distribution_type: interarrivalTime.type || 'exponential',
       interarrival_mean: interarrivalTime.mean || 2,
@@ -284,8 +297,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   // Handle save and close
   const handleSaveAndClose = () => {
-    if (forceSave()) {
+    console.log('Save & Close clicked for step type:', node?.data.stepConfig?.step_type);
+    console.log('Current formData:', formData);
+    const saveResult = forceSave();
+    console.log('Save result:', saveResult);
+    if (saveResult) {
       onHide();
+    } else {
+      console.log('Save failed - modal will stay open');
     }
   };
 
@@ -312,9 +331,17 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
     }
     if (stepType === 'create') {
-      if (!formData.entity_table || !formData.next_step) {
+      console.log('Create module validation - formData:', formData);
+      console.log('entity_table:', formData.entity_table);
+      console.log('next_step:', formData.next_step);
+      const currentAvailableSteps = getAvailableStepNames();
+      console.log('availableSteps:', currentAvailableSteps);
+      if (!formData.entity_table) {
+        console.log('Create module validation failed - missing entity_table');
         return false; // Don't save if essential create fields are missing
       }
+      // For Create modules, next_step is optional when there are no other steps yet
+      // This allows Create to be the first step in a flow
     }
 
     try {
@@ -326,7 +353,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           ...node.data,
           stepConfig: updatedStepConfig,
           label: generateLabel(node.data.stepConfig.step_type, formData, updatedStepConfig.step_id),
-          displayName: formData.display_name || formData.name || ''
+          displayName: formData.name || ''
         }
       };
 
@@ -386,7 +413,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
     
     return {
-      name: formData.name,
       duration: { distribution: distributionConfig },
       resource_requirements: resourceRequirements
     };
@@ -469,11 +495,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       return `create_${entityTable.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
     }
     
-    // For other step types, use display_name or name if available
-    const displayName = formData.display_name || formData.name;
-    const baseName = displayName ? 
-      `${stepType}_${displayName.toLowerCase().replace(/[^a-z0-9]/g, '_')}` :
-      stepType;
+    // For other step types, use name if available
+    const displayName = formData.name;
+    const nameForId = displayName ? convertDisplayNameToStepIdFormat(displayName) : stepType;
+    const baseName = displayName ? `${stepType}_${nameForId}` : stepType;
     
     // Check for collisions and increment counter
     let counter = 1;
@@ -498,7 +523,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepType === 'create') {
       return `Create ${formData.entity_table || 'Entities'}`;
     } else {
-      return formData.name || stepId;
+      // Use formData.name if available, otherwise extract from stepId
+      return formData.name || extractDisplayNameFromStepId(stepId) || stepId;
     }
   };
 

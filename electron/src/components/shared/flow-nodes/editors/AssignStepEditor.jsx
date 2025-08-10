@@ -13,17 +13,17 @@ const AssignStepEditor = ({
 }) => {
   return (
     <>
-      {/* Display Name */}
+      {/* Name */}
       <Form.Group className="mb-4">
-        <Form.Label>Display Name</Form.Label>
+        <Form.Label>Name</Form.Label>
         <Form.Control
           type="text"
-          value={formData.display_name || ''}
-          onChange={(e) => onFormDataChange({ display_name: e.target.value })}
-          placeholder="Enter a display name for this assignment"
+          value={formData.name || ''}
+          onChange={(e) => onFormDataChange({ name: e.target.value })}
+          placeholder="Enter a name for this assignment"
         />
         <Form.Text className="text-muted">
-          User-friendly name shown on the node (optional)
+          Name shown on the node and used in step ID
         </Form.Text>
       </Form.Group>
 
