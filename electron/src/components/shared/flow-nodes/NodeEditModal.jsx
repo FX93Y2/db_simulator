@@ -162,8 +162,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const initializeReleaseForm = (stepConfig) => {
+    // Extract name from step_id instead of event_config.name (deprecated)
+    const displayName = extractDisplayNameFromStepId(stepConfig.step_id) || 'Release';
+    
     setFormData({
-      name: stepConfig.event_config?.name || 'Release'
+      name: displayName
     });
   };
 
@@ -297,14 +300,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   // Handle save and close
   const handleSaveAndClose = () => {
-    console.log('Save & Close clicked for step type:', node?.data.stepConfig?.step_type);
-    console.log('Current formData:', formData);
-    const saveResult = forceSave();
-    console.log('Save result:', saveResult);
-    if (saveResult) {
+    if (forceSave()) {
       onHide();
-    } else {
-      console.log('Save failed - modal will stay open');
     }
   };
 
@@ -331,13 +328,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
     }
     if (stepType === 'create') {
-      console.log('Create module validation - formData:', formData);
-      console.log('entity_table:', formData.entity_table);
-      console.log('next_step:', formData.next_step);
-      const currentAvailableSteps = getAvailableStepNames();
-      console.log('availableSteps:', currentAvailableSteps);
       if (!formData.entity_table) {
-        console.log('Create module validation failed - missing entity_table');
         return false; // Don't save if essential create fields are missing
       }
       // For Create modules, next_step is optional when there are no other steps yet
@@ -381,7 +372,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.assign_config = buildAssignConfig(stepId);
       updatedStepConfig.next_steps = [];
     } else if (stepType === 'release') {
-      updatedStepConfig.event_config = { name: formData.name };
+      // Release steps no longer need event_config.name
+      // Display name is derived from step_id instead
+      if (!updatedStepConfig.event_config) {
+        updatedStepConfig.event_config = {};
+      }
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
       updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];

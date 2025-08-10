@@ -173,8 +173,68 @@ export const createYamlActions = (set, get) => ({
   },
 
   /**
+   * Trace flow from a Create module following connections
+   * @param {Object} startingCreate - The Create module to start from
+   * @param {Array} allSteps - All available canonical steps
+   * @returns {Array} - Array of connected step objects in flow order
+   */
+  traceFlowFromCreate: (startingCreate, allSteps) => {
+    const visited = new Set();
+    const flowSteps = [];
+    
+    /**
+     * Helper function to clean step object and remove canvas-only properties
+     */
+    const cleanStep = (step) => {
+      const { position, ...stepWithoutPosition } = step;
+      // Deep clone to prevent YAML anchor references
+      return JSON.parse(JSON.stringify(stepWithoutPosition));
+    };
+    
+    /**
+     * Recursive function to trace connections
+     */
+    const traceFrom = (currentStep) => {
+      if (!currentStep || visited.has(currentStep.step_id)) {
+        return; // Prevent cycles and null steps
+      }
+      
+      visited.add(currentStep.step_id);
+      flowSteps.push(cleanStep(currentStep));
+      
+      // Follow next_steps connections
+      if (currentStep.next_steps && Array.isArray(currentStep.next_steps)) {
+        currentStep.next_steps.forEach(nextStepId => {
+          if (nextStepId && nextStepId.trim() !== '') {
+            const nextStep = allSteps.find(s => s.step_id === nextStepId);
+            if (nextStep) {
+              traceFrom(nextStep);
+            }
+          }
+        });
+      }
+      
+      // Handle decision nodes - follow all outcome paths
+      if (currentStep.step_type === 'decide' && currentStep.decide_config?.outcomes) {
+        currentStep.decide_config.outcomes.forEach(outcome => {
+          if (outcome.next_step_id && outcome.next_step_id.trim() !== '') {
+            const nextStep = allSteps.find(s => s.step_id === outcome.next_step_id);
+            if (nextStep) {
+              traceFrom(nextStep);
+            }
+          }
+        });
+      }
+    };
+    
+    // Start tracing from the Create module
+    traceFrom(startingCreate);
+    return flowSteps;
+  },
+
+  /**
    * Generate event flows from canonical steps based on Create modules
-   * Each Create module starts a new flow
+   * Each Create module starts a new flow with only connected steps
    * @param {Array} canonicalSteps - Array of step objects
    * @returns {Array} - Array of event flow objects
    */
@@ -187,38 +247,29 @@ export const createYamlActions = (set, get) => ({
     const createModules = canonicalSteps.filter(step => step.step_type === 'create');
     
     if (createModules.length === 0) {
-      // No Create modules - create a single flow for orphaned steps
-      // This maintains backward compatibility
-      return [{
-        flow_id: 'main_flow',
-        event_table: 'Event',
-        steps: canonicalSteps.map(step => {
-          const { position, ...stepWithoutPosition } = step;
-          return stepWithoutPosition;
-        })
-      }];
+      // No Create modules - return empty flows
+      // Unconnected steps won't appear in YAML (design workspace vs executable config)
+      return [];
     }
 
-    // Generate flows based on Create modules
+    // Generate flows based on Create modules using flow tracing
     const flows = [];
     let flowCounter = 1;
 
     createModules.forEach(createModule => {
       const flowId = `flow_${flowCounter}_${createModule.step_id}`;
       
-      // Find all steps that belong to this flow
-      // For now, simple approach: each Create module gets its own flow with all steps
-      // TODO: Implement proper flow tracing logic
-      const flowSteps = canonicalSteps.map(step => {
-        const { position, ...stepWithoutPosition } = step;
-        return stepWithoutPosition;
-      });
-
-      flows.push({
-        flow_id: flowId,
-        event_table: createModule.create_config?.entity_table || 'Event',
-        steps: flowSteps
-      });
+      // Trace connected steps from this Create module
+      const connectedSteps = get().traceFlowFromCreate(createModule, canonicalSteps);
+      
+      // Only create flow if there are connected steps
+      if (connectedSteps.length > 0) {
+        flows.push({
+          flow_id: flowId,
+          event_table: createModule.create_config?.entity_table || 'Event',
+          steps: connectedSteps
+        });
+      }
 
       flowCounter++;
     });

@@ -147,8 +147,9 @@ export const validateStep = (step) => {
   // Validate step-specific configurations
   switch (step.step_type) {
     case 'event':
-      if (!step.event_config?.name) {
-        errors.push('Event name is required');
+      // Event names are now derived from step_id, no longer stored in event_config
+      if (!step.event_config?.duration) {
+        errors.push('Event duration configuration is required');
       }
       break;
     case 'decide':

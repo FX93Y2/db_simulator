@@ -247,7 +247,9 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         newStep.next_steps = [];
         break;
       case 'release':
-        newStep.event_config = { name: "Release" };
+        // Release steps no longer need event_config.name
+        // Display name is derived from step_id instead
+        newStep.event_config = {};
         break;
       case 'create':
         newStep.create_config = {
