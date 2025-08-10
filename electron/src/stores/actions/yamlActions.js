@@ -33,10 +33,14 @@ export const createYamlActions = (set, get) => ({
         throw new Error('Invalid YAML: This appears to be database configuration, not simulation configuration');
       }
 
-      // Extract canonical steps from parsed schema
+      // Extract canonical steps from parsed schema - collect from ALL flows
       const canonicalSteps = [];
-      if (parsedObj.event_simulation?.event_flows?.[0]?.steps) {
-        canonicalSteps.push(...parsedObj.event_simulation.event_flows[0].steps);
+      if (parsedObj.event_simulation?.event_flows) {
+        parsedObj.event_simulation.event_flows.forEach(flow => {
+          if (flow.steps) {
+            canonicalSteps.push(...flow.steps);
+          }
+        });
       }
 
       // Update store state
@@ -52,6 +56,9 @@ export const createYamlActions = (set, get) => ({
 
       // Load simulation data from the parsed schema
       get().loadSimulationFromYaml(parsedObj);
+
+      // Apply stored display names to imported steps
+      get().applyStoredDisplayNames();
 
       // Trigger visual state update
       get().updateVisualState();
@@ -143,10 +150,14 @@ export const createYamlActions = (set, get) => ({
       
       const parsedObj = doc.toJSON();
       
-      // Extract canonical steps
+      // Extract canonical steps - collect from ALL flows
       const canonicalSteps = [];
-      if (parsedObj.event_simulation?.event_flows?.[0]?.steps) {
-        canonicalSteps.push(...parsedObj.event_simulation.event_flows[0].steps);
+      if (parsedObj.event_simulation?.event_flows) {
+        parsedObj.event_simulation.event_flows.forEach(flow => {
+          if (flow.steps) {
+            canonicalSteps.push(...flow.steps);
+          }
+        });
       }
 
       set((state) => {
@@ -158,6 +169,9 @@ export const createYamlActions = (set, get) => ({
 
       // Load simulation data from the parsed schema
       get().loadSimulationFromYaml(parsedObj);
+
+      // Apply stored display names to parsed steps
+      get().applyStoredDisplayNames();
 
       console.log('[YamlActions] YAML parsed successfully');
     } catch (error) {

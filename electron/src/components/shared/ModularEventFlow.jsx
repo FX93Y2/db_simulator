@@ -86,7 +86,6 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
 
   // ReactFlow event handlers
   const onNodesChange = React.useCallback((changes) => {
-    console.log('📊 ModularEventFlow: Nodes changed:', changes);
     
     // Handle position changes directly
     changes.forEach(change => {
@@ -97,7 +96,6 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   }, [updateNodePosition]);
 
   const onEdgesChange = React.useCallback((changes) => {
-    console.log('🔗 ModularEventFlow: Edges changed:', changes);
     // Handle edge changes through store
   }, []);
 
@@ -107,17 +105,14 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   }, [connectNodes]);
 
   const onNodeClick = React.useCallback((event, node) => {
-    console.log('👆 ModularEventFlow: Node clicked:', node.id);
     handleNodeClick(event, node);
   }, [handleNodeClick]);
 
   const onNodeDoubleClick = React.useCallback((event, node) => {
-    console.log('👆👆 ModularEventFlow: Node double-clicked:', node.id);
     handleNodeDoubleClick(event, node);
   }, [handleNodeDoubleClick]);
 
   const onNodeDragStop = React.useCallback((event, node) => {
-    console.log('🎯 ModularEventFlow: Node drag stopped:', node.id, node.position);
     // Position updates are already handled by onNodesChange, but let's keep this as backup
     updateNodePosition(node.id, node.position);
   }, [updateNodePosition]);

@@ -8,6 +8,7 @@ import { createWorkflowActions } from './actions/workflowActions.js';
 import { createUIActions } from './actions/uiActions.js';
 import { createConfigActions } from './actions/configActions.js';
 import { createSimulationActions } from './actions/simulationActions.js';
+import { createDisplayNameActions } from './actions/displayNameActions.js';
 
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
@@ -34,6 +35,7 @@ const createProjectStore = (projectId = 'default') => {
         const uiActions = createUIActions(set, get);
         const configActions = createConfigActions(set, get);
         const simulationActions = createSimulationActions(set, get);
+        const displayNameActions = createDisplayNameActions(set, get);
 
         return {
           // ===== CORE DATA =====
@@ -88,7 +90,8 @@ const createProjectStore = (projectId = 'default') => {
           ...workflowActions,
           ...uiActions,
           ...configActions,
-          ...simulationActions
+          ...simulationActions,
+          ...displayNameActions
         };
       }),
       {
@@ -248,6 +251,19 @@ export const useSimulationActions = (projectId) => {
     syncSimulationToYaml: state.syncSimulationToYaml,
     hasFieldPendingChanges: state.hasFieldPendingChanges,
     getFieldValue: state.getFieldValue
+  }));
+};
+
+export const useDisplayNameActions = (projectId) => {
+  return useSimulationConfigStore(projectId)(state => ({
+    saveDisplayName: state.saveDisplayName,
+    getDisplayName: state.getDisplayName,
+    applyStoredDisplayNames: state.applyStoredDisplayNames,
+    persistDisplayNames: state.persistDisplayNames,
+    saveDisplayNames: state.saveDisplayNames,
+    removeDisplayName: state.removeDisplayName,
+    clearDisplayNames: state.clearDisplayNames,
+    loadDisplayNames: state.loadDisplayNames
   }));
 };
 

@@ -100,7 +100,6 @@ class PositionService {
       const position = projectCache.positions.get(nodeId);
       
       if (position) {
-        console.log(`[PositionService] Cache hit for ${cacheKey}/${nodeId}:`, position);
         return position;
       }
     }
@@ -131,8 +130,6 @@ class PositionService {
       projectCache.positions.set(nodeId, safePosition);
       projectCache.lastAccess = Date.now();
       projectCache.dirty = true;
-      
-      console.log(`[PositionService] Set position for ${cacheKey}/${nodeId}:`, safePosition);
       
       // Debounced save to localStorage
       this._debouncedSave(projectId);

@@ -119,11 +119,13 @@ export const createCanvasActions = (set, get) => ({
       
       state.canonicalSteps = remainingSteps;
       
-      // Remove from positions map
+      // Remove from positions map and display names
       nodeIds.forEach(id => {
         state.positions.delete(id);
         // Remove from PositionService
         positionService.removePosition(state.projectId, id);
+        // Remove from DisplayNameService
+        get().removeDisplayName(id);
       });
       
       // Clear selection if deleted
@@ -157,6 +159,11 @@ export const createCanvasActions = (set, get) => ({
       
       // Save to PositionService
       positionService.setPosition(state.projectId, stepData.step_id, position);
+      
+      // Save display name to DisplayNameService if provided
+      if (stepData.displayName) {
+        get().saveDisplayName(stepData.step_id, stepData.displayName);
+      }
     });
     
     // Update visual state and sync to YAML
@@ -183,6 +190,11 @@ export const createCanvasActions = (set, get) => ({
           ...newData,
           position
         };
+        
+        // Save display name to DisplayNameService if provided
+        if (newData.displayName) {
+          get().saveDisplayName(newData.step_id, newData.displayName);
+        }
         
         // If step ID is changing, update references in other steps
         if (isIdChanging) {
