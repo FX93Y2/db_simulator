@@ -122,26 +122,17 @@ export const createEntityUIActions = (set, get) => ({
   },
 
   /**
-   * Handle keyboard shortcuts
+   * Handle keyboard shortcuts (non-destructive only)
    * @param {KeyboardEvent} event - Keyboard event
    */
   handleEntityKeyboard: (event) => {
-    const { selectedEntity } = get();
-    
-    // Delete key - delete selected entity
-    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedEntity) {
-      // Prevent default to avoid browser back navigation
-      event.preventDefault();
-      
-      get().deleteEntity(selectedEntity.id);
-      get().clearEntitySelection();
-    }
-    
     // Escape key - clear selection and close modals
     if (event.key === 'Escape') {
       get().clearEntitySelection();
       get().closeEntityModal();
     }
+    
+    // Note: Delete/Backspace shortcuts removed - entities can only be deleted via explicit button clicks
   },
 
   /**

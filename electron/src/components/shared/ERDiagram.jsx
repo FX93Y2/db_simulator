@@ -58,15 +58,12 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
     handleEntityClick,
     handleEntityDoubleClick,
     handleEntityDragStop,
-    handleEntitiesDelete,
     handleEntityUpdate,
     handleEntityDelete,
     closeEntityModal,
     handleEntityNodesChange,
     handleEntityEdgesChange,
-    handleEntityConnect,
-    handleEntityEdgesDelete,
-    handleEntityKeyboard
+    handleEntityConnect
   } = useEntityUIActions(projectId);
 
   // Use layout effect to ensure container is measured before rendering
@@ -110,30 +107,14 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
     handleEntityDragStop(event, node);
   }, [handleEntityDragStop]);
 
-  const onNodesDelete = React.useCallback((deletedNodes) => {
-    handleEntitiesDelete(deletedNodes);
-  }, [handleEntitiesDelete]);
-
-  const onEdgesDelete = React.useCallback((deletedEdges) => {
-    handleEntityEdgesDelete(deletedEdges);
-  }, [handleEntityEdgesDelete]);
+  // Node and edge deletion callbacks removed - entities can only be deleted via explicit button clicks
 
   // Enhanced delete entity for use by EntityEditor (with foreign key cleanup)
   const deleteEntityWithCleanup = React.useCallback((entityId) => {
     deleteEntity(entityId);
   }, [deleteEntity]);
 
-  // Handle keyboard events
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      handleEntityKeyboard(event);
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleEntityKeyboard]);
+  // Keyboard events removed - entities can only be deleted via explicit button clicks
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -172,8 +153,6 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
             onConnect={onConnect}
             onNodeClick={onNodeClick}
             onNodeDragStop={onNodeDragStop}
-            onNodesDelete={onNodesDelete}
-            onEdgesDelete={onEdgesDelete}
             onNodeDoubleClick={onNodeDoubleClick}
             nodeTypes={nodeTypes}
             snapToGrid={true}
@@ -182,7 +161,8 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            deleteKeyCode={['Backspace', 'Delete']}
+            nodesDeletable={false}
+            edgesDeletable={false}
           >
             <Controls position="bottom-right" />
             <Background key="er-diagram-background" variant="dots" gap={12} size={1} />
