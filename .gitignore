@@ -47,7 +47,7 @@ python/db_simulator_api.spec
 # Rules
 CLAUDE.md
 GEMINI.md
-projectplan.md
+projectplan/
 projectstructure.md
 db_simulation.md
 .png
