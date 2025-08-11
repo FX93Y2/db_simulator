@@ -1,11 +1,13 @@
 import React from 'react';
 import { Form, Row, Col } from 'react-bootstrap';
+import ValidatedNameInput from '../components/ValidatedNameInput';
 
 const CreateStepEditor = ({ 
   formData, 
   onFormDataChange,
   availableSteps,
-  availableEntityTables = [] // Entity tables from database config
+  availableEntityTables = [], // Entity tables from database config
+  nameValidation = { valid: true, error: null }
 }) => {
   const renderDistributionFields = () => {
     switch (formData.distribution_type) {
@@ -83,18 +85,17 @@ const CreateStepEditor = ({
   return (
     <div className="create-step-editor">
       {/* Name */}
-      <Form.Group className="mb-4">
-        <Form.Label>Name</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.name || ''}
-          onChange={(e) => onFormDataChange({ name: e.target.value })}
-          placeholder="Enter a name for this module"
-        />
-        <Form.Text className="text-muted">
-          Name shown on the node and used in step ID
-        </Form.Text>
-      </Form.Group>
+      <ValidatedNameInput
+        value={formData.name || ''}
+        onChange={(name) => onFormDataChange({ name })}
+        validation={nameValidation}
+        label="Create Module Name"
+        placeholder="Enter a name for this module"
+        className="mb-4"
+      />
+      <Form.Text className="text-muted mb-3 d-block">
+        Name shown on the node and used in step ID
+      </Form.Text>
 
       {/* Entity Table Selection */}
       <Form.Group className="mb-4">

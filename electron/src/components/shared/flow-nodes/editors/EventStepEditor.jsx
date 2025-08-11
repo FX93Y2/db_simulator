@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Row, Col, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
+import ValidatedNameInput from '../components/ValidatedNameInput';
 
 const EventStepEditor = ({ 
   formData, 
@@ -9,7 +10,8 @@ const EventStepEditor = ({
   onResourceRequirementChange,
   onAddResourceRequirement,
   onRemoveResourceRequirement,
-  resourceDefinitions
+  resourceDefinitions,
+  nameValidation = { valid: true, error: null }
 }) => {
   const renderDistributionFields = () => {
     switch (formData.distribution_type) {
@@ -107,14 +109,13 @@ const EventStepEditor = ({
 
   return (
     <>
-      <Form.Group className="mb-3">
-        <Form.Label>Event Name</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.name || ''}
-          onChange={(e) => onFormDataChange({ name: e.target.value })}
-        />
-      </Form.Group>
+      <ValidatedNameInput
+        value={formData.name || ''}
+        onChange={(name) => onFormDataChange({ name })}
+        validation={nameValidation}
+        label="Event Name"
+        placeholder="Enter event name"
+      />
 
       <Form.Group className="mb-3">
         <Form.Label>Duration Distribution Type</Form.Label>

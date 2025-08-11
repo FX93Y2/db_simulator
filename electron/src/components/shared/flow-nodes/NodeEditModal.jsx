@@ -16,13 +16,15 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [assignments, setAssignments] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
+  const [nameValidation, setNameValidation] = useState({ valid: true, error: null });
 
   // Use the step helpers hook
   const {
     getDisplayNameFromStepId,
     getStepIdFromDisplayName,
     getAvailableStepNames,
-    getAvailableAttributes
+    getAvailableAttributes,
+    validateStepId
   } = useStepHelpers(parsedSchema);
 
   // Initialize form data when node changes
@@ -33,6 +35,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       initializeFormData(node.data.stepConfig);
     }
   }, [node, parsedSchema, lastNodeId]);
+
+  // Validate initial name when form data is initialized
+  useEffect(() => {
+    if (formData.name !== undefined) {
+      validateStepName(formData.name);
+    }
+  }, [formData.name, node, parsedSchema]);
 
   // Reset form data whenever modal opens to ensure clean state
   useEffect(() => {
@@ -193,6 +202,23 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   // Helper function to handle form data changes
   const handleFormDataChange = (newData) => {
     setFormData({ ...formData, ...newData });
+    
+    // Validate step name when it changes
+    if (newData.name !== undefined) {
+      validateStepName(newData.name);
+    }
+  };
+
+  // Validate step name and update validation state
+  const validateStepName = (stepName) => {
+    if (!node) {
+      setNameValidation({ valid: true, error: null });
+      return;
+    }
+
+    const currentStepId = node.data.stepConfig?.step_id;
+    const validation = validateStepId(stepName, currentStepId);
+    setNameValidation(validation);
   };
 
   // Resource requirement handlers
@@ -308,6 +334,12 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const forceSave = () => {
     if (!node) {
       return false; // Don't save if no node
+    }
+    
+    // Check name validation first
+    if (!nameValidation.valid) {
+      console.warn('Cannot save step with invalid name:', nameValidation.error);
+      return false; // Don't save if name validation fails
     }
     
     // Validation depends on step type
@@ -526,6 +558,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onAddResourceRequirement={addResourceRequirement}
             onRemoveResourceRequirement={removeResourceRequirement}
             resourceDefinitions={resourceDefinitions}
+            nameValidation={nameValidation}
           />
         );
       
@@ -540,6 +573,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onRemoveOutcome={removeOutcome}
             availableSteps={availableSteps}
             availableAttributes={availableAttributes}
+            nameValidation={nameValidation}
           />
         );
       
@@ -553,6 +587,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onAddAssignment={addAssignment}
             onRemoveAssignment={removeAssignment}
             availableAttributes={availableAttributes}
+            nameValidation={nameValidation}
           />
         );
       
@@ -561,6 +596,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           <ReleaseStepEditor
             formData={formData}
             onFormDataChange={handleFormDataChange}
+            nameValidation={nameValidation}
           />
         );
       
@@ -571,6 +607,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onFormDataChange={handleFormDataChange}
             availableSteps={availableSteps}
             availableEntityTables={entityTables}
+            nameValidation={nameValidation}
           />
         );
       
@@ -598,7 +635,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
               <FiTrash2 className="me-2" /> Delete Step
             </Button>
           )}
-          <Button variant="primary" onClick={handleSaveAndClose}>Save & Close</Button>
+          <Button 
+            variant="primary" 
+            onClick={handleSaveAndClose}
+            disabled={!nameValidation.valid}
+            title={!nameValidation.valid ? nameValidation.error : 'Save & Close'}
+          >
+            Save & Close
+          </Button>
         </Modal.Footer>
       </Modal>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
+import ValidatedNameInput from '../components/ValidatedNameInput';
 
 const DecideStepEditor = ({ 
   formData, 
@@ -10,23 +11,23 @@ const DecideStepEditor = ({
   onAddOutcome,
   onRemoveOutcome,
   availableSteps,
-  availableAttributes
+  availableAttributes,
+  nameValidation = { valid: true, error: null }
 }) => {
   return (
     <>
       {/* Name */}
-      <Form.Group className="mb-4">
-        <Form.Label>Name</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.name || ''}
-          onChange={(e) => onFormDataChange({ name: e.target.value })}
-          placeholder="Enter a name for this decision"
-        />
-        <Form.Text className="text-muted">
-          Name shown on the node and used in step ID
-        </Form.Text>
-      </Form.Group>
+      <ValidatedNameInput
+        value={formData.name || ''}
+        onChange={(name) => onFormDataChange({ name })}
+        validation={nameValidation}
+        label="Decision Name"
+        placeholder="Enter a name for this decision"
+        className="mb-4"
+      />
+      <Form.Text className="text-muted mb-3 d-block">
+        Name shown on the node and used in step ID
+      </Form.Text>
 
       <Form.Group className="mb-3">
         <Form.Label>Decision Type</Form.Label>

@@ -1,17 +1,20 @@
 import React from 'react';
-import { Form } from 'react-bootstrap';
+import ValidatedNameInput from '../components/ValidatedNameInput';
 
-const ReleaseStepEditor = ({ formData, onFormDataChange }) => {
+const ReleaseStepEditor = ({ 
+  formData, 
+  onFormDataChange,
+  nameValidation = { valid: true, error: null }
+}) => {
   return (
     <>
-      <Form.Group className="mb-3">
-        <Form.Label>Release Name</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.name || ''}
-          onChange={(e) => onFormDataChange({ name: e.target.value })}
-        />
-      </Form.Group>
+      <ValidatedNameInput
+        value={formData.name || ''}
+        onChange={(name) => onFormDataChange({ name })}
+        validation={nameValidation}
+        label="Release Name"
+        placeholder="Enter release step name"
+      />
     </>
   );
 };
