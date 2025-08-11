@@ -240,6 +240,30 @@ export const createYamlActions = (set, get) => ({
   },
 
   /**
+   * Find the event table that corresponds to an entity table
+   * @param {string} entityTable - Name of the entity table
+   * @param {Object} dbConfig - Database configuration object
+   * @returns {string|null} - Event table name or null if not found
+   */
+  findEventTableForEntity: (entityTable, dbConfig) => {
+    if (!dbConfig || !dbConfig.entities || !entityTable) {
+      return null;
+    }
+
+    // Find an event table that has an entity_id attribute referencing the entity table
+    const eventTable = dbConfig.entities.find(entity => {
+      if (entity.type !== 'event') return false;
+      
+      return entity.attributes.some(attr => 
+        attr.type === 'entity_id' && 
+        attr.ref === `${entityTable}.id`
+      );
+    });
+
+    return eventTable ? eventTable.name : null;
+  },
+
+  /**
    * Generate event flows from canonical steps based on Create modules
    * Each Create module starts a new flow with only connected steps
    * @param {Array} canonicalSteps - Array of step objects
@@ -262,6 +286,20 @@ export const createYamlActions = (set, get) => ({
     // Generate flows based on Create modules using flow tracing
     const flows = [];
     let flowCounter = 1;
+    
+    // Get database config from store to map entity tables to event tables
+    const { dbConfigContent } = get();
+    let parsedDbConfig = null;
+    
+    // Parse database config if available
+    if (dbConfigContent) {
+      try {
+        const yaml = require('yaml');
+        parsedDbConfig = yaml.parse(dbConfigContent);
+      } catch (error) {
+        console.warn('[YamlActions] Failed to parse database config:', error);
+      }
+    }
 
     createModules.forEach(createModule => {
       const flowId = `flow_${flowCounter}_${createModule.step_id}`;
@@ -271,9 +309,13 @@ export const createYamlActions = (set, get) => ({
       
       // Only create flow if there are connected steps
       if (connectedSteps.length > 0) {
+        // Find the correct event table for this entity table
+        const entityTable = createModule.create_config?.entity_table;
+        const eventTable = get().findEventTableForEntity(entityTable, parsedDbConfig);
+        
         flows.push({
           flow_id: flowId,
-          event_table: createModule.create_config?.entity_table || 'Event',
+          event_table: eventTable || entityTable || 'Event',
           steps: connectedSteps
         });
       }
