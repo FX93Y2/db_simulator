@@ -1,162 +1,76 @@
-import React, { useState, useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle } from 'react';
 import ReactFlow, {
   Controls,
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import '../../styles/diagrams.css';
-import { useCanvasPositions } from '../../hooks/shared/useCanvasPositions';
-import { useEntityManager } from '../../hooks/entity-diagram/useEntityManager';
-import { useEntityYamlProcessor } from '../../hooks/entity-diagram/useEntityYamlProcessor';
-import { useEntityVisualState } from '../../hooks/entity-diagram/useEntityVisualState';
-import { useEntityConnections } from '../../hooks/entity-diagram/useEntityConnections';
-import { useEntityEventHandlers } from '../../hooks/entity-diagram/useEntityEventHandlers';
+
+// Store imports
+import {
+  useEntityNodes,
+  useEntityEdges,
+  useCanonicalEntities,
+  useSelectedEntity,
+  useShowEntityModal,
+  useEntityActions,
+  useEntityYamlActions,
+  useEntityUIActions,
+  useDatabaseCurrentState,
+} from '../../stores/databaseConfigStore';
+
 import EntityNode from './entity-nodes/EntityNode';
 import EntityEditor from './entity-nodes/editors/EntityEditor';
-import { handleTableDeletion } from './entity-nodes/ERDiagramConnectionHandler';
-import yaml from 'yaml';
 
 // Node types definition
 const nodeTypes = {
   entity: EntityNode,
 };
 
+/**
+ * Modernized ERDiagram with Zustand store integration
+ * Uses centralized state management following ModularEventFlow patterns
+ */
 const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }, ref) => {
   const containerRef = useRef(null);
-  const [initialized, setInitialized] = useState(false);
+  const [initialized, setInitialized] = React.useState(false);
   
-  // Position management
-  const positions = useCanvasPositions(yamlContent, 'er_diagram_positions', projectId);
-  
-  // Entity state management
-  const entityManager = useEntityManager(positions);
+  // Store state subscriptions (selective to prevent unnecessary re-renders)
+  const entityNodes = useEntityNodes(projectId);
+  const entityEdges = useEntityEdges(projectId);
+  const canonicalEntities = useCanonicalEntities(projectId);
+  const selectedEntity = useSelectedEntity(projectId);
+  const showEntityModal = useShowEntityModal(projectId);
+  const currentState = useDatabaseCurrentState(projectId);
+
+  // Store actions
   const {
-    canonicalEntities,
-    setCanonicalEntities,
     addEntity,
     updateEntity,
     deleteEntity,
-    updateEntityPosition,
-    internalUpdateRef,
-    pendingInternalUpdateRef,
-    resetInternalFlags,
-    isInternalUpdate
-  } = entityManager;
+    setEntityDiagramChangeCallback
+  } = useEntityActions(projectId);
 
-  // YAML processing (canvas -> YAML only)
-  const { generateYAML, handleYAMLImport } = useEntityYamlProcessor(
-    canonicalEntities, 
-    positions, 
-    setCanonicalEntities
-  );
-
-  // Visual state management
   const {
-    nodes,
-    edges,
-    setNodes,
-    setEdges,
-    onNodesChange,
-    onEdgesChange,
-    dbSchema,
-    setDbSchema
-  } = useEntityVisualState(
-    canonicalEntities,
-    onDiagramChange,
-    generateYAML,
-    projectId
-  );
+    generateEntityYaml,
+    importEntityYaml,
+    clearEntities
+  } = useEntityYamlActions(projectId);
 
-  // Connection handling
-  const { onConnect, onEdgesDelete } = useEntityConnections(
-    dbSchema,
-    setDbSchema,
-    setCanonicalEntities,
-    setNodes,
-    setEdges,
-    onDiagramChange,
-    internalUpdateRef,
-    pendingInternalUpdateRef
-  );
-
-  // Event handling
   const {
-    selectedNode,
-    showNodeModal,
-    onNodeDragStop,
-    onNodesDelete,
-    onNodeDoubleClick,
+    handleEntityClick,
+    handleEntityDoubleClick,
+    handleEntityDragStop,
+    handleEntitiesDelete,
     handleEntityUpdate,
     handleEntityDelete,
-    closeModal
-  } = useEntityEventHandlers(
-    updateEntityPosition,
-    deleteEntity,
-    updateEntity,
-    dbSchema,
-    setDbSchema,
-    setCanonicalEntities,
-    setNodes,
-    setEdges,
-    positions,
-    onDiagramChange,
-    internalUpdateRef,
-    pendingInternalUpdateRef
-  );
-
-  // Enhanced delete entity for use by EntityEditor (with foreign key cleanup)
-  const deleteEntityWithCleanup = (entityId) => {
-    if (dbSchema) {
-      handleTableDeletion(
-        [entityId], // Array of deleted table names
-        dbSchema,
-        (newSchema) => {
-          // Update internal state
-          setDbSchema(newSchema);
-          
-          // Update canonical entities to reflect the deletion and foreign key cleanup
-          setCanonicalEntities(prev => {
-            // Remove deleted entity and update remaining entities with cleaned foreign keys
-            const updatedCanonical = prev
-              .filter(entity => entity.name !== entityId) // Remove deleted entity
-              .map(entity => {
-                // Update remaining entities with cleaned foreign keys from newSchema
-                const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
-                if (updatedEntity) {
-                  return {
-                    ...entity,
-                    attributes: updatedEntity.attributes || []
-                  };
-                }
-                return entity;
-              });
-              
-            return updatedCanonical;
-          });
-          
-          // Set internal update flags to notify parent of changes
-          internalUpdateRef.current = true;
-          pendingInternalUpdateRef.current = true;
-          
-          // Notify parent component
-          if (onDiagramChange) {
-            onDiagramChange(yaml.stringify(newSchema));
-          }
-        }
-      );
-    } else {
-      // Fallback: simple deletion without foreign key cleanup if dbSchema not available
-      deleteEntity(entityId);
-    }
-    
-    // Remove position
-    positions.removeItemPositions([entityId]);
-  };
-
-  // Update current nodes in position hook
-  useEffect(() => {
-    positions.updateCurrentNodes(nodes);
-  }, [nodes, positions]);
+    closeEntityModal,
+    handleEntityNodesChange,
+    handleEntityEdgesChange,
+    handleEntityConnect,
+    handleEntityEdgesDelete,
+    handleEntityKeyboard
+  } = useEntityUIActions(projectId);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
@@ -165,18 +79,99 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     }
   }, []);
 
-  // No longer handle external YAML updates - canvas is source of truth
-  // YAML content is now read-only, only updated from canvas changes
+  // Project change detection - clear entities when projectId changes
+  useEffect(() => {
+    console.log(`[ERDiagram] Project changed to: ${projectId}, clearing entities`);
+    clearEntities();
+  }, [projectId, clearEntities]);
+
+  // Set the diagram change callback when component mounts or onDiagramChange changes
+  useEffect(() => {
+    if (onDiagramChange) {
+      setEntityDiagramChangeCallback(onDiagramChange);
+    }
+  }, [onDiagramChange, setEntityDiagramChangeCallback]);
+
+  // Handle YAML content changes (external YAML updates)
+  useEffect(() => {
+    // Skip if currently importing to avoid conflicts
+    if (currentState === 'importing') {
+      return;
+    }
+
+    if (yamlContent && typeof yamlContent === 'string' && yamlContent.trim() !== '') {
+      try {
+        console.log(`[ERDiagram] Loading YAML content for project: ${projectId}`);
+        importEntityYaml(yamlContent);
+      } catch (error) {
+        console.error('[ERDiagram] Failed to import YAML:', error);
+      }
+    } else {
+      // Clear entities when yamlContent is empty (new/empty project)
+      console.log(`[ERDiagram] Empty YAML content for project: ${projectId}, clearing entities`);
+      clearEntities();
+    }
+  }, [yamlContent, currentState, projectId, importEntityYaml, clearEntities]);
+
+  // ReactFlow event handlers
+  const onNodesChange = React.useCallback((changes) => {
+    handleEntityNodesChange(changes);
+  }, [handleEntityNodesChange]);
+
+  const onEdgesChange = React.useCallback((changes) => {
+    handleEntityEdgesChange(changes);
+  }, [handleEntityEdgesChange]);
+
+  const onConnect = React.useCallback((connection) => {
+    handleEntityConnect(connection);
+  }, [handleEntityConnect]);
+
+  const onNodeClick = React.useCallback((event, node) => {
+    handleEntityClick(event, node);
+  }, [handleEntityClick]);
+
+  const onNodeDoubleClick = React.useCallback((event, node) => {
+    handleEntityDoubleClick(event, node);
+  }, [handleEntityDoubleClick]);
+
+  const onNodeDragStop = React.useCallback((event, node) => {
+    handleEntityDragStop(event, node);
+  }, [handleEntityDragStop]);
+
+  const onNodesDelete = React.useCallback((deletedNodes) => {
+    handleEntitiesDelete(deletedNodes);
+  }, [handleEntitiesDelete]);
+
+  const onEdgesDelete = React.useCallback((deletedEdges) => {
+    handleEntityEdgesDelete(deletedEdges);
+  }, [handleEntityEdgesDelete]);
+
+  // Enhanced delete entity for use by EntityEditor (with foreign key cleanup)
+  const deleteEntityWithCleanup = React.useCallback((entityId) => {
+    deleteEntity(entityId);
+  }, [deleteEntity]);
+
+  // Handle keyboard events
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      handleEntityKeyboard(event);
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleEntityKeyboard]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
     addEntity: (entityData) => addEntity(entityData, containerRef),
     updateEntity,
     deleteEntity: deleteEntityWithCleanup,
-    generateYAML,
-    handleYAMLImport,
+    generateYAML: generateEntityYaml,
+    handleYAMLImport: importEntityYaml,
     getCanonicalEntities: () => canonicalEntities
-  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateYAML, handleYAMLImport, canonicalEntities]);
+  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateEntityYaml, importEntityYaml, canonicalEntities]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
@@ -199,11 +194,12 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
       {initialized && (
         <>
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={entityNodes}
+            edges={entityEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onNodeClick={onNodeClick}
             onNodeDragStop={onNodeDragStop}
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
@@ -215,6 +211,7 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
+            deleteKeyCode={['Backspace', 'Delete']}
           >
             <Controls position="bottom-right" />
             <Background key="er-diagram-background" variant="dots" gap={12} size={1} />
@@ -222,11 +219,11 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
         </>
       )}
       <EntityEditor
-        show={showNodeModal}
-        onHide={closeModal}
-        entity={selectedNode ? (() => {
+        show={showEntityModal}
+        onHide={closeEntityModal}
+        entity={selectedEntity ? (() => {
           // Get the most up-to-date entity data from canonicalEntities
-          const canonicalEntity = canonicalEntities.find(e => e.name === selectedNode.id);
+          const canonicalEntity = canonicalEntities.find(e => e.name === selectedEntity.id);
           if (canonicalEntity) {
             return {
               name: canonicalEntity.name,
@@ -237,10 +234,10 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
           }
           // Fallback to visual node data if not found in canonical entities
           return {
-            name: selectedNode.id,
-            type: selectedNode.data?.tableType,
-            rows: selectedNode.data?.rows,
-            attributes: selectedNode.data?.attributes || []
+            name: selectedEntity.id,
+            type: selectedEntity.data?.tableType,
+            rows: selectedEntity.data?.rows,
+            attributes: selectedEntity.data?.attributes || []
           };
         })() : null}
         onEntityUpdate={handleEntityUpdate}
