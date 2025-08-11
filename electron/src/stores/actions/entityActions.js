@@ -140,11 +140,8 @@ export const createEntityActions = (set, get) => ({
               });
           });
           
-          // Notify parent component if callback exists
-          const { onEntityDiagramChange } = get();
-          if (onEntityDiagramChange) {
-            onEntityDiagramChange(yaml.stringify(newSchema));
-          }
+          // Notify parent component through store action
+          get().updateYamlAndNotify();
         }
       );
     } else {
@@ -284,11 +281,8 @@ export const createEntityActions = (set, get) => ({
       };
     });
     
-    // Notify parent of changes
-    if (onEntityDiagramChange) {
-      const generatedYAML = get().generateEntityYaml();
-      onEntityDiagramChange(generatedYAML);
-    }
+    // Notify parent of changes through store action
+    get().updateYamlAndNotify();
   },
 
   /**
@@ -313,10 +307,8 @@ export const createEntityActions = (set, get) => ({
           state.dbSchema = newSchema;
         });
         
-        // Notify parent component
-        if (onEntityDiagramChange) {
-          onEntityDiagramChange(yaml.stringify(newSchema));
-        }
+        // Notify parent component through store action
+        get().updateYamlAndNotify();
       }
     );
     
@@ -404,10 +396,8 @@ export const createEntityActions = (set, get) => ({
             state.entityEdges = state.entityEdges.filter(edge => !deletedEdgeIds.includes(edge.id));
           });
           
-          // Notify parent component
-          if (onEntityDiagramChange) {
-            onEntityDiagramChange(yaml.stringify(newSchema));
-          }
+          // Notify parent component through store action
+          get().updateYamlAndNotify();
         }
       );
     }

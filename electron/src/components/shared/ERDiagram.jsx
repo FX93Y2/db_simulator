@@ -31,7 +31,7 @@ const nodeTypes = {
  * Modernized ERDiagram with Zustand store integration
  * Uses centralized state management following ModularEventFlow patterns
  */
-const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }, ref) => {
+const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
   const containerRef = useRef(null);
   const [initialized, setInitialized] = React.useState(false);
   
@@ -47,14 +47,11 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
   const {
     addEntity,
     updateEntity,
-    deleteEntity,
-    setEntityDiagramChangeCallback
+    deleteEntity
   } = useEntityActions(projectId);
 
   const {
-    generateEntityYaml,
-    importEntityYaml,
-    clearEntities
+    generateEntityYaml
   } = useEntityYamlActions(projectId);
 
   const {
@@ -79,39 +76,14 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     }
   }, []);
 
-  // Project change detection - clear entities when projectId changes
+  // Simple visual state sync - like ModularEventFlow
   useEffect(() => {
-    console.log(`[ERDiagram] Project changed to: ${projectId}, clearing entities`);
-    clearEntities();
-  }, [projectId, clearEntities]);
-
-  // Set the diagram change callback when component mounts or onDiagramChange changes
-  useEffect(() => {
-    if (onDiagramChange) {
-      setEntityDiagramChangeCallback(onDiagramChange);
+    if (currentState !== 'importing') { // Don't sync during imports
+      console.log('🔄 ERDiagram: Updating visual state from canonical entities');
+      // Visual state is automatically updated by the store actions
+      // No need for manual sync here - just log for debugging
     }
-  }, [onDiagramChange, setEntityDiagramChangeCallback]);
-
-  // Handle YAML content changes (external YAML updates)
-  useEffect(() => {
-    // Skip if currently importing to avoid conflicts
-    if (currentState === 'importing') {
-      return;
-    }
-
-    if (yamlContent && typeof yamlContent === 'string' && yamlContent.trim() !== '') {
-      try {
-        console.log(`[ERDiagram] Loading YAML content for project: ${projectId}`);
-        importEntityYaml(yamlContent);
-      } catch (error) {
-        console.error('[ERDiagram] Failed to import YAML:', error);
-      }
-    } else {
-      // Clear entities when yamlContent is empty (new/empty project)
-      console.log(`[ERDiagram] Empty YAML content for project: ${projectId}, clearing entities`);
-      clearEntities();
-    }
-  }, [yamlContent, currentState, projectId, importEntityYaml, clearEntities]);
+  }, [canonicalEntities, currentState]);
 
   // ReactFlow event handlers
   const onNodesChange = React.useCallback((changes) => {
@@ -169,9 +141,8 @@ const ERDiagram = forwardRef(({ yamlContent, onDiagramChange, theme, projectId }
     updateEntity,
     deleteEntity: deleteEntityWithCleanup,
     generateYAML: generateEntityYaml,
-    handleYAMLImport: importEntityYaml,
     getCanonicalEntities: () => canonicalEntities
-  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateEntityYaml, importEntityYaml, canonicalEntities]);
+  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateEntityYaml, canonicalEntities]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {

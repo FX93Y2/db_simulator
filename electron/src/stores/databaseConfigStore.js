@@ -5,6 +5,7 @@ import { enableMapSet } from 'immer'
 import { createEntityActions } from './actions/entityActions.js';
 import { createEntityYamlActions } from './actions/entityYamlActions.js';
 import { createEntityUIActions } from './actions/entityUIActions.js';
+import { createDatabaseConfigActions } from './actions/databaseConfigActions.js';
 
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
@@ -28,6 +29,7 @@ const createProjectStore = (projectId = 'default') => {
         const entityActions = createEntityActions(set, get);
         const entityYamlActions = createEntityYamlActions(set, get);
         const entityUIActions = createEntityUIActions(set, get);
+        const databaseConfigActions = createDatabaseConfigActions(set, get);
 
         return {
           // ===== PROJECT STATE =====
@@ -51,11 +53,17 @@ const createProjectStore = (projectId = 'default') => {
           // ===== DATABASE CONFIG CONTENT =====
           yamlContent: '',
           parsedSchema: null,
+          config: null,
+          name: '',
+          description: '',
+          isProjectTab: false,
+          theme: 'light',
           
           // ===== ACTIONS (available immediately) =====
           ...entityActions,
           ...entityYamlActions,
           ...entityUIActions,
+          ...databaseConfigActions,
         };
       }),
       {
@@ -104,6 +112,10 @@ export const useEntityViewportState = (projectId) => useDatabaseConfigStore(proj
 export const useDatabaseCurrentState = (projectId) => useDatabaseConfigStore(projectId)(state => state.currentState);
 export const useDatabaseIsLoading = (projectId) => useDatabaseConfigStore(projectId)(state => state.isLoading);
 export const useDatabaseError = (projectId) => useDatabaseConfigStore(projectId)(state => state.error);
+export const useDatabaseYamlContent = (projectId) => useDatabaseConfigStore(projectId)(state => state.yamlContent);
+export const useDatabaseConfig = (projectId) => useDatabaseConfigStore(projectId)(state => state.config);
+export const useDatabaseName = (projectId) => useDatabaseConfigStore(projectId)(state => state.name);
+export const useDatabaseDescription = (projectId) => useDatabaseConfigStore(projectId)(state => state.description);
 
 /**
  * Entity action hooks
@@ -156,6 +168,18 @@ export const useEntityUIActions = (projectId) => {
     resetEntityUI: state.resetEntityUI,
     setEntityViewport: state.setEntityViewport,
     toggleEntityModal: state.toggleEntityModal
+  }));
+};
+
+export const useDatabaseConfigActions = (projectId) => {
+  return useDatabaseConfigStore(projectId)(state => ({
+    loadDatabaseConfig: state.loadDatabaseConfig,
+    saveDatabaseConfig: state.saveDatabaseConfig,
+    initializeDatabaseConfig: state.initializeDatabaseConfig,
+    updateConfigMetadata: state.updateConfigMetadata,
+    clearDatabaseConfig: state.clearDatabaseConfig,
+    getCurrentYamlContent: state.getCurrentYamlContent,
+    updateYamlAndNotify: state.updateYamlAndNotify
   }));
 };
 

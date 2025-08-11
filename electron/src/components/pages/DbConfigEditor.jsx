@@ -9,22 +9,51 @@ import {
   Spinner
 } from 'react-bootstrap';
 import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
-import yaml from 'yaml';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus, FiUpload, FiDownload } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
 
+// Database store imports
+import {
+  useDatabaseYamlContent,
+  useDatabaseCurrentState,
+  useDatabaseIsLoading,
+  useDatabaseError,
+  useDatabaseName,
+  useDatabaseDescription,
+  useDatabaseConfig,
+  useDatabaseConfigActions,
+  useEntityYamlActions
+} from '../../stores/databaseConfigStore';
+
 
 // Accept theme as a prop
 const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange, onSaveSuccess }) => {
   const { configId } = useParams();
+  const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
-  const [config, setConfig] = useState(null);
-  const [yamlContent, setYamlContent] = useState('');
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
-  const [loading, setLoading] = useState(false);
+  
+  // Store state subscriptions
+  const yamlContent = useDatabaseYamlContent(projectId);
+  const currentState = useDatabaseCurrentState(projectId);
+  const isLoading = useDatabaseIsLoading(projectId);
+  const error = useDatabaseError(projectId);
+  const name = useDatabaseName(projectId);
+  const description = useDatabaseDescription(projectId);
+  const config = useDatabaseConfig(projectId);
+  
+  // Store actions
+  const {
+    loadDatabaseConfig,
+    saveDatabaseConfig,
+    initializeDatabaseConfig,
+    updateConfigMetadata
+  } = useDatabaseConfigActions(projectId);
+  
+  const { importEntityYaml } = useEntityYamlActions(projectId);
+  
+  // Local modal state only
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
   
@@ -32,140 +61,63 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   const erDiagramRef = useRef(null);
   const fileInputRef = useRef(null);
   
-  // Load existing configuration or create new one for the project
+  // Initialize database configuration context
   useEffect(() => {
-    const loadConfig = async () => {
-      try {
-        setLoading(true);
-        
-        if (projectId === 'new') {
-          // For a new project, set default config
-          setYamlContent('');
-          setName('New Project - Database');
-          return;
-        }
-        
-        // Try to load the database config for this project
-        const result = await window.api.getProjectDbConfig(projectId);
-        
-        if (result && result.success && result.config) {
-          setConfig(result.config);
-          // Add a fallback for name in case it's null
-          setName(result.config.name || `Project Database Configuration`);
-          setDescription(result.config.description || '');
-          setYamlContent(result.config.content || '');
-        } else {
-          // No existing config found, set default
-          setYamlContent('');
-          setName(`Project Database Configuration`);
-        }
-      } catch (error) {
-        console.error('Error loading configuration:', error);
-        // Set defaults in case of error
-        setYamlContent('');
-        setName(`Project Database Configuration`);
-      } finally {
-        setLoading(false);
+    initializeDatabaseConfig({
+      projectId,
+      isProjectTab,
+      theme,
+      onConfigChange
+    });
+
+    console.log('🔧 DbConfigEditor: Database configuration context initialized');
+  }, [projectId, isProjectTab, theme, onConfigChange, initializeDatabaseConfig]);
+
+  // Load existing configuration
+  useEffect(() => {
+    const loadConfiguration = async () => {
+      if (configId) {
+        console.log('📂 DbConfigEditor: Loading standalone config:', configId);
+        await loadDatabaseConfig(configId);
+      } else if (projectId) {
+        console.log('📂 DbConfigEditor: Loading project config:', projectId);
+        await loadDatabaseConfig(null, projectId);
       }
     };
-    
-    // Reset initialization flag when project/config changes
-    setERDiagramInitialized(false);
-    
-    if (projectId) {
-      loadConfig();
-    } else if (configId) {
-      // Legacy support for direct config loading by ID
-      loadConfigById();
-    } else {
-      // Completely new configuration outside project context
-      setYamlContent('');
-      setName('New Database Configuration');
-    }
-  }, [projectId, configId]);
 
-  // ERDiagram initialization for existing projects (one-time only)
-  const [erDiagramInitialized, setERDiagramInitialized] = useState(false);
-  
+    loadConfiguration();
+  }, [configId, projectId, loadDatabaseConfig]);
+
+  // Handle configuration changes for parent component
   useEffect(() => {
-    if (yamlContent && erDiagramRef.current && !erDiagramInitialized) {
-      console.log('[DbConfigEditor] Loading existing YAML content into ERDiagram');
-      try {
-        const result = erDiagramRef.current.handleYAMLImport(yamlContent);
-        console.log('[DbConfigEditor] ERDiagram initialization result:', result);
-      } catch (error) {
-        console.log('[DbConfigEditor] ERDiagram initialization failed (expected for empty projects):', error.message);
-      }
-      setERDiagramInitialized(true);
+    if (onConfigChange && yamlContent) {
+      onConfigChange(yamlContent);
     }
-  }, [yamlContent, erDiagramInitialized]);
+  }, [yamlContent, onConfigChange]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      showError(error);
+    }
+  }, [error, showError]);
   
-  // Legacy method to load config directly by ID
-  const loadConfigById = async () => {
-    if (!configId) return;
-    
-    try {
-      setLoading(true);
-      const result = await window.api.getConfig(configId);
-      if (result && result.success && result.config) {
-        setConfig(result.config);
-        setName(result.config.name || 'Database Configuration');
-        setDescription(result.config.description || '');
-        setYamlContent(result.config.content || '');
-      } else {
-        // Handle error case
-        setYamlContent('');
-        setName('Database Configuration');
-      }
-    } catch (error) {
-      console.error('Error loading configuration by ID:', error);
-      // Set defaults in error case
-      setYamlContent('');
-      setName('Database Configuration');
-    } finally {
-      setLoading(false);
-    }
-  };
   
   // Handle YAML import from files
   const handleYamlImport = async (content) => {
     console.log('[DbConfigEditor] handleYamlImport called, content length:', content?.length);
     
     try {
-      if (erDiagramRef.current) {
-        const result = erDiagramRef.current.handleYAMLImport(content);
-        console.log('[DbConfigEditor] YAML import result:', result);
-        
-        // Update YAML content after successful import
-        const newYamlContent = erDiagramRef.current.generateYAML();
-        setYamlContent(newYamlContent);
-        
-        // Notify parent component
-        if (onConfigChange) {
-          onConfigChange(newYamlContent);
-        }
-        
-        return { success: true, message: result.message };
-      } else {
-        throw new Error('ERDiagram not ready');
-      }
+      const result = await importEntityYaml(content);
+      console.log('[DbConfigEditor] YAML import result:', result);
+      
+      return result;
     } catch (error) {
       console.error('[DbConfigEditor] YAML import failed:', error);
       return { success: false, message: error.message };
     }
   };
   
-  // Handle diagram changes (canvas -> YAML one-way sync)
-  const handleDiagramChange = useCallback((updatedYamlContent) => {
-    console.log('[DbConfigEditor] Received YAML update from ERDiagram');
-    
-    setYamlContent(updatedYamlContent);
-    
-    // Notify parent component of the change for real-time reactivity
-    if (onConfigChange) {
-      onConfigChange(updatedYamlContent);
-    }
-  }, [onConfigChange]);
   
   // Handle file import
   const handleImport = () => {
@@ -216,21 +168,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   // This separates the saving logic from building the config object
   const saveConfigWithContent = async (configData) => {
     try {
-      setLoading(true);
       let result;
       
       if (projectId && isProjectTab) {
-        // Save within project context
-        console.log("DbConfigEditor: Saving with saveProjectDbConfig, projectId:", projectId);
-        result = await window.api.saveProjectDbConfig(projectId, configData);
+        // Save within project context using store action
+        console.log("DbConfigEditor: Saving with saveDatabaseConfig, projectId:", projectId);
+        result = await saveDatabaseConfig({
+          ...configData,
+          project_id: projectId
+        });
         
         if (result.success) {
-          setConfig(result.config);
           showSuccess('Database configuration saved successfully');
           
-          // Don't update YAML content from save response to prevent ERDiagram clearing
-          // The current yamlContent is already what we saved
-          console.log('[DbConfigEditor] Save successful, keeping current YAML content');
+          console.log('[DbConfigEditor] Save successful via store action');
           
           if (onSaveSuccess) {
             onSaveSuccess();
@@ -240,22 +191,25 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
           showError('Error saving configuration');
         }
       } else if (config && !saveAsNew) {
-        // Update existing configuration
-        console.log("DbConfigEditor: Updating config with updateConfig, config.id:", config.id);
-        result = await window.api.updateConfig(config.id, configData);
+        // Update existing configuration using store action
+        console.log("DbConfigEditor: Updating config with saveDatabaseConfig, config.id:", config.id);
+        result = await saveDatabaseConfig(configData);
         
         if (result.success) {
           handleCloseModal();
           navigate('/');
         }
       } else {
-        // Save as new configuration
-        console.log("DbConfigEditor: Saving as new with saveConfig");
-        result = await window.api.saveConfig(configData);
+        // Save as new configuration using store action
+        console.log("DbConfigEditor: Saving as new with saveDatabaseConfig");
+        result = await saveDatabaseConfig({
+          ...configData,
+          saveAsNew: true
+        });
         
         if (result.success) {
           handleCloseModal();
-          navigate(`/db-config/${result.config_id}`);
+          navigate(`/db-config/${result.config.id}`);
         }
       }
       
@@ -271,8 +225,6 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       console.error('DbConfigEditor: Error in saveConfigWithContent:', error);
       showError('Error saving configuration');
       throw error;
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -354,14 +306,10 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     });
     
     try {
-      setLoading(true);
-      
       if (!name) {
         showError('Please enter a name for the configuration');
-        setLoading(false);
         return;
       }
-      
       
       const configData = {
         name,
@@ -378,8 +326,6 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     } catch (error) {
       console.error('DbConfigEditor: Error saving configuration:', error);
       showError('Error saving configuration');
-    } finally {
-      setLoading(false);
     }
   };
   
@@ -395,7 +341,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                   size="sm"
                   variant="outline-primary"
                   onClick={handleImport}
-                  disabled={loading}
+                  disabled={isLoading}
                   title="Import YAML file"
                   className="me-2"
                 >
@@ -406,7 +352,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                   size="sm"
                   variant="outline-secondary"
                   onClick={handleExport}
-                  disabled={!yamlContent || loading}
+                  disabled={!yamlContent || isLoading}
                   title="Export YAML file"
                   className="me-2"
                 >
@@ -417,7 +363,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                   size="sm" 
                   className="action-button btn-custom-toolbar save-config-btn"
                   onClick={handleSave} 
-                  disabled={loading}
+                  disabled={isLoading}
                   title="Save Configuration"
                 >
                   <FiSave className="save-icon" /> Save
@@ -431,7 +377,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 />
               </div>
             </div>
-            {loading && !yamlContent ? (
+            {isLoading && !yamlContent ? (
               <div className="text-center py-5">
                 <Spinner animation="border" />
                 <div className="mt-2">Loading configuration...</div>
@@ -458,7 +404,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 size="sm"
                 className="btn-custom-toolbar"
                 onClick={handleAddTable}
-                disabled={loading}
+                disabled={isLoading}
               >
                 <FiPlus /> Add Table
               </Button>
@@ -468,12 +414,10 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
               <ERDiagram 
                 key={projectId} 
                 ref={erDiagramRef}
-                yamlContent={yamlContent} 
-                onDiagramChange={handleDiagramChange}
                 theme={theme}
                 projectId={projectId}
               />
-              {loading && (
+              {isLoading && (
                 <div className="position-absolute top-50 start-50 translate-middle">
                   <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">
                     <Spinner animation="border" />
@@ -528,7 +472,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
               <Form.Control 
                 type="text" 
                 value={name} 
-                onChange={(e) => setName(e.target.value)} 
+                onChange={(e) => updateConfigMetadata({ name: e.target.value })} 
                 placeholder="Enter a name for this configuration"
                 required
               />
@@ -539,7 +483,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 as="textarea" 
                 rows={3} 
                 value={description} 
-                onChange={(e) => setDescription(e.target.value)}
+                onChange={(e) => updateConfigMetadata({ description: e.target.value })}
                 placeholder="Optional description"
               />
             </Form.Group>
@@ -562,9 +506,9 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
           <Button 
             className="btn-custom-toolbar"
             onClick={handleSaveConfig}
-            disabled={loading}
+            disabled={isLoading}
           >
-            {loading ? <Spinner size="sm" /> : 'Save'}
+            {isLoading ? <Spinner size="sm" /> : 'Save'}
           </Button>
         </Modal.Footer>
       </Modal>
