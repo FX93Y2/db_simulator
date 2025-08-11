@@ -56,9 +56,6 @@ export const createYamlActions = (set, get) => ({
       // Load simulation data from the parsed schema
       get().loadSimulationFromYaml(parsedObj);
 
-      // Apply stored display names to imported steps
-      get().applyStoredDisplayNames();
-
       // Trigger visual state update
       get().updateVisualState();
 

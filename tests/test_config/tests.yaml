@@ -4,10 +4,10 @@ simulation:
   random_seed: 42
 event_simulation:
   event_flows:
-    - flow_id: flow_1_create_ticket
+    - flow_id: flow_1_Create_Ticket
       event_table: Ticket
       steps:
-        - step_id: create_ticket
+        - step_id: Create_Ticket
           step_type: create
           create_config:
             entity_table: Ticket
@@ -17,8 +17,8 @@ event_simulation:
                 scale: 2
             max_entities: n/a
           next_steps:
-            - event_ticket_assignment_1
-        - step_id: event_ticket_assignment_1
+            - Event_Ticket_Assignment
+        - step_id: Event_Ticket_Assignment
           step_type: event
           event_config:
             duration:
@@ -30,11 +30,15 @@ event_simulation:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
-          next_steps: []
-    - flow_id: flow_2_create_phone_call
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release
+          event_config: {}
+    - flow_id: flow_2_Create_Phone_Call
       event_table: Phone_Call
       steps:
-        - step_id: create_phone_call
+        - step_id: Create_Phone_Call
           step_type: create
           create_config:
             entity_table: Phone_Call
@@ -44,8 +48,8 @@ event_simulation:
                 scale: 2
             max_entities: n/a
           next_steps:
-            - event_phone_call_1
-        - step_id: event_phone_call_1
+            - Phone_Call
+        - step_id: Phone_Call
           step_type: event
           event_config:
             duration:
@@ -57,4 +61,8 @@ event_simulation:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
-          next_steps: []
+          next_steps:
+            - release_2
+        - step_id: release_2
+          step_type: release
+          event_config: {}

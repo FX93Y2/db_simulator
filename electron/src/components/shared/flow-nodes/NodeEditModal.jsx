@@ -8,7 +8,6 @@ import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
-import { convertDisplayNameToStepIdFormat } from '../../../utils/stepIdUtils';
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [] }) => {
   const [formData, setFormData] = useState({});
@@ -60,11 +59,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const eventConfig = stepConfig.event_config || {};
     const duration = eventConfig.duration?.distribution || {};
     
-    // Use displayName from step configuration
-    const displayName = stepConfig.displayName || '';
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || '';
     
     setFormData({
-      name: displayName,
+      name: stepName,
       distribution_type: duration.type || 'normal',
       duration_mean: duration.mean || 1,
       duration_stddev: duration.stddev || 0.1,
@@ -81,11 +80,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeDecideForm = (stepConfig) => {
     const decideConfig = stepConfig.decide_config || {};
     
-    // Use displayName from step configuration
-    const displayName = stepConfig.displayName || '';
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || '';
     
     setFormData({
-      name: displayName,
+      name: stepName,
       decision_type: decideConfig.decision_type || 'probability'
     });
     
@@ -134,11 +133,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeAssignForm = (stepConfig) => {
     const assignConfig = stepConfig.assign_config || {};
     
-    // Use displayName from step configuration
-    const displayName = stepConfig.displayName || '';
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || '';
     
     setFormData({
-      name: displayName,
+      name: stepName,
       module_id: assignConfig.module_id || stepConfig.step_id
     });
     
@@ -162,11 +161,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const initializeReleaseForm = (stepConfig) => {
-    // Use displayName from step configuration
-    const displayName = stepConfig.displayName || 'Release';
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || 'Release';
     
     setFormData({
-      name: displayName
+      name: stepName
     });
   };
 
@@ -174,11 +173,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const createConfig = stepConfig.create_config || {};
     const interarrivalTime = createConfig.interarrival_time?.distribution || {};
     
-    // Use displayName from step configuration
-    const displayName = stepConfig.displayName || '';
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || '';
     
     setFormData({
-      name: displayName,
+      name: stepName,
       entity_table: createConfig.entity_table || '',
       distribution_type: interarrivalTime.type || 'exponential',
       interarrival_mean: interarrivalTime.mean || 2,
@@ -344,7 +343,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           ...node.data,
           stepConfig: updatedStepConfig,
           label: generateLabel(node.data.stepConfig.step_type, formData, updatedStepConfig.step_id),
-          displayName: formData.name || ''
         }
       };
 
@@ -361,8 +359,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const stepId = generateStepId(stepType, formData);
     const updatedStepConfig = { 
       ...node.data.stepConfig,
-      step_id: stepId,
-      displayName: formData.name || ''
+      step_id: stepId
     };
 
     if (stepType === 'event') {
@@ -483,28 +480,21 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const generateStepId = (stepType, formData) => {
-    // Get existing step IDs to avoid collisions
-    const existingStepIds = getExistingStepIds();
+    // In the new system, step_id IS the display name
+    // So we use formData.name directly as the step_id
+    const stepName = formData.name;
     
-    if (stepType === 'create') {
-      const entityTable = formData.entity_table || 'entities';
-      return `create_${entityTable.toLowerCase().replace(/[^a-z0-9]/g, '_')}`;
+    if (!stepName || stepName.trim() === '') {
+      // Fallback to auto-generated name if empty
+      if (stepType === 'create') {
+        const entityTable = formData.entity_table || 'entities';
+        return `Create ${entityTable}`;
+      }
+      return `${stepType.charAt(0).toUpperCase() + stepType.slice(1)} Step`;
     }
     
-    // For other step types, use name if available
-    const displayName = formData.name;
-    const nameForId = displayName ? convertDisplayNameToStepIdFormat(displayName) : stepType;
-    const baseName = displayName ? `${stepType}_${nameForId}` : stepType;
-    
-    // Check for collisions and increment counter
-    let counter = 1;
-    let stepId = `${baseName}_${counter}`;
-    while (existingStepIds.includes(stepId)) {
-      counter++;
-      stepId = `${baseName}_${counter}`;
-    }
-    
-    return stepId;
+    // Return the name as-is (it's already validated in the UI)
+    return stepName.trim();
   };
 
   const getExistingStepIds = () => {
@@ -514,14 +504,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const generateLabel = (stepType, formData, stepId) => {
-    if (stepType === 'assign') {
-      return 'Assign';
-    } else if (stepType === 'create') {
-      return `Create ${formData.entity_table || 'Entities'}`;
-    } else {
-      // Use formData.name (displayName) directly
-      return formData.name || stepId;
-    }
+    // In the new system, step_id is the display name, so use it directly
+    return stepId || formData.name || `${stepType.charAt(0).toUpperCase() + stepType.slice(1)} Step`;
   };
 
   const renderStepEditor = () => {
