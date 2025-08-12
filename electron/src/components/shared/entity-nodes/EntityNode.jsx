@@ -89,28 +89,36 @@ const EntityNode = ({ data, theme }) => {
         title={getHandleTooltip('bottom', 'source')}
       />
       
-      <div className="entity-node__title">
-        {data.label}
-        {data.tableType && (
-          <span className="entity-node__type-badge">
-            {data.tableType}
-          </span>
-        )}
-      </div>
-      <div className="entity-node__attributes">
-        {sortAttributes(data.attributes).map((attr, index) => (
-          <div
-            key={index}
-            className={`entity-node__attribute ${attr.type === 'pk' ? 'primary-key' : ''} ${
-              attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
-            }`}
-            title={attr.ref ? `References: ${attr.ref}` : ''}
-          >
-            {(attr.type === 'pk') && <FiKey className="key-icon" />}
-            {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && <FiLink className="key-icon" />}
-            {attr.name}: {attr.type}
-          </div>
-        ))}
+      {/* Modern ER table structure with header and body */}
+      <div className="entity-table">
+        <div className="entity-table__header">
+          <span className="entity-table__name">{data.label}</span>
+          {data.tableType && (
+            <span className="entity-table__type-badge">
+              {data.tableType}
+            </span>
+          )}
+        </div>
+        <div className="entity-table__body">
+          {sortAttributes(data.attributes).map((attr, index) => (
+            <div
+              key={index}
+              className={`entity-table__row ${attr.type === 'pk' ? 'primary-key' : ''} ${
+                attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
+              }`}
+              title={attr.ref ? `References: ${attr.ref}` : ''}
+            >
+              <span className="entity-table__attribute-name">
+                {(attr.type === 'pk') && <FiKey className="key-icon" />}
+                {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && <FiLink className="key-icon" />}
+                {attr.name}
+              </span>
+              <span className="entity-table__attribute-type">
+                {attr.dataType || attr.type}
+              </span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
