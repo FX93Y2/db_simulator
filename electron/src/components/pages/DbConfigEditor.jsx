@@ -8,11 +8,11 @@ import {
   Modal,
   Spinner
 } from 'react-bootstrap';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import { FiSave, FiPlus, FiUpload, FiDownload } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
+import useResizableGrid from '../../hooks/shared/useResizableGrid';
 
 // Database store imports
 import {
@@ -60,6 +60,15 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   // Ref to access ERDiagram methods
   const erDiagramRef = useRef(null);
   const fileInputRef = useRef(null);
+  
+  // Resizable grid hook for panel sizing
+  const { handleMouseDown } = useResizableGrid({
+    minWidthPercent: 15,
+    maxWidthPercent: 60,
+    defaultWidthPercent: 20,
+    cssVariable: '--yaml-panel-width',
+    storageKey: 'db-editor-yaml-panel-width'
+  });
   
   // Initialize database configuration context
   useEffect(() => {
@@ -329,104 +338,110 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     }
   };
   
-  // In project tab mode, we don't show the header and back button
+  // CSS Grid-based editor layout (VS Code architecture)
   const renderEditor = () => (
-    <div className="editor-container-split" onClick={() => console.log("Editor container clicked")}>
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={40} minSize={20} order={1}>
-          <div className="editor-yaml-panel">
-            <div className="panel-header">
-              <div className="panel-header-actions">
-                <Button
-                  size="sm"
-                  className="btn-custom-toolbar me-2"
-                  onClick={handleImport}
-                  disabled={isLoading}
-                  title="Import YAML file"
-                >
-                  <FiUpload className="me-1" />
-                  Import
-                </Button>
-                <Button
-                  size="sm"
-                  className="btn-custom-toolbar me-2"
-                  onClick={handleExport}
-                  disabled={!yamlContent || isLoading}
-                  title="Export YAML file"
-                >
-                  <FiDownload className="me-1" />
-                  Export
-                </Button>
-                <Button 
-                  size="sm" 
-                  className="action-button btn-custom-toolbar save-config-btn"
-                  onClick={handleSave} 
-                  disabled={isLoading}
-                  title="Save Configuration"
-                >
-                  <FiSave className="save-icon" /> Save
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".yaml,.yml"
-                  style={{ display: 'none' }}
-                  onChange={handleFileChange}
-                />
-              </div>
-            </div>
-            {isLoading && !yamlContent ? (
-              <div className="text-center py-5">
+    <div className="editor-grid-container">
+      {/* YAML Panel Header */}
+      <div className="grid-yaml-header">
+        <div className="panel-header-actions">
+          <Button
+            size="sm"
+            className="btn-custom-toolbar me-2"
+            onClick={handleImport}
+            disabled={isLoading}
+            title="Import YAML file"
+          >
+            <FiUpload className="me-1" />
+            Import
+          </Button>
+          <Button
+            size="sm"
+            className="btn-custom-toolbar me-2"
+            onClick={handleExport}
+            disabled={!yamlContent || isLoading}
+            title="Export YAML file"
+          >
+            <FiDownload className="me-1" />
+            Export
+          </Button>
+          <Button 
+            size="sm" 
+            className="action-button btn-custom-toolbar save-config-btn"
+            onClick={handleSave} 
+            disabled={isLoading}
+            title="Save Configuration"
+          >
+            <FiSave className="save-icon" /> Save
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".yaml,.yml"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </div>
+      </div>
+
+      {/* Canvas Panel Header */}
+      <div className="grid-canvas-header">
+        <div>ER Diagram</div>
+        <Button 
+          size="sm"
+          className="btn-custom-toolbar"
+          onClick={handleAddTable}
+          disabled={isLoading}
+        >
+          <FiPlus /> Add Table
+        </Button>
+      </div>
+
+      {/* YAML Panel Content */}
+      <div className="grid-yaml-content">
+        {isLoading && !yamlContent ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+            <div className="mt-2">Loading configuration...</div>
+          </div>
+        ) : (
+          <YamlEditor 
+            initialValue={yamlContent} 
+            onSave={handleSave}
+            readOnly={true}
+            showImportExport={false}
+            filename="database-config"
+            theme={theme}
+          />
+        )}
+      </div>
+
+      {/* Canvas Panel Content */}
+      <div className="grid-canvas-content">
+        <div className="canvas-content position-relative">
+          <ERDiagram 
+            key={projectId} 
+            ref={erDiagramRef}
+            theme={theme}
+            projectId={projectId}
+          />
+          {isLoading && (
+            <div className="position-absolute top-50 start-50 translate-middle">
+              <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">
                 <Spinner animation="border" />
-                <div className="mt-2">Loading configuration...</div>
+                <div className="mt-2">Saving...</div>
               </div>
-            ) : (
-              <YamlEditor 
-                initialValue={yamlContent} 
-                onSave={handleSave}
-                readOnly={true}
-                showImportExport={false}
-                filename="database-config"
-                height="calc(100vh - 220px)"
-                theme={theme}
-              />
-            )}
-          </div>
-        </Panel>
-        <PanelResizeHandle className="editor-resize-handle" />
-        <Panel defaultSize={60} minSize={30} order={2}>
-          <div className="editor-canvas-panel">
-            <div className="canvas-header d-flex justify-content-between align-items-center">
-              <div>ER Diagram</div>
-              <Button 
-                size="sm"
-                className="btn-custom-toolbar"
-                onClick={handleAddTable}
-                disabled={isLoading}
-              >
-                <FiPlus /> Add Table
-              </Button>
             </div>
-            
-            <div className="canvas-content position-relative">
-              <ERDiagram 
-                key={projectId} 
-                ref={erDiagramRef}
-                theme={theme}
-                projectId={projectId}
-              />
-              {isLoading && (
-                <div className="position-absolute top-50 start-50 translate-middle">
-                  <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">
-                    <Spinner animation="border" />
-                    <div className="mt-2">Saving...</div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </Panel>
-      </PanelGroup>
+          )}
+        </div>
+      </div>
+
+      {/* Resize Handle */}
+      <div 
+        className="grid-resize-handle"
+        onMouseDown={handleMouseDown}
+        title="Drag to resize panels"
+      />
+
     </div>
   );
   

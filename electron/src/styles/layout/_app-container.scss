@@ -1,4 +1,92 @@
-// Layout
+// CSS Grid-based App Layout with Resizable Sidebar (VS Code Architecture)
+.app-grid-container {
+  display: grid;
+  grid-template-columns: 
+    56px                                      /* Fixed header */
+    minmax(200px, var(--sidebar-width, 15%)) /* Resizable sidebar */
+    6px                                       /* Resize handle */
+    1fr;                                      /* Main content */
+  grid-template-rows: 100vh;
+  height: 100vh;
+  width: 100%;
+  
+  grid-template-areas: "header sidebar handle content";
+  
+  // CSS containment for performance
+  contain: layout style;
+  
+  // Grid area assignments
+  .grid-header { grid-area: header; }
+  .grid-sidebar { grid-area: sidebar; }
+  .grid-sidebar-handle { grid-area: handle; }
+  .grid-content { grid-area: content; }
+  
+  // Header panel styling
+  .grid-header {
+    background-color: var(--theme-navbar-bg);
+    overflow: hidden;
+    min-width: 56px;
+    max-width: 56px;
+  }
+  
+  // Sidebar panel styling
+  .grid-sidebar {
+    overflow: hidden;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  // Sidebar resize handle
+  .grid-sidebar-handle {
+    background-color: $border-color;
+    cursor: col-resize;
+    position: relative;
+    z-index: 10;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    
+    &:hover,
+    &.dragging {
+      background-color: var(--theme-resize-handle-hover-bg);
+    }
+    
+    // Visual indicator
+    &::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 1px;
+      height: 20px;
+      background-color: var(--theme-muted-text);
+      opacity: 0.6;
+    }
+    
+    // Hover effect
+    &:hover::before {
+      opacity: 1;
+      background-color: var(--theme-text);
+    }
+  }
+  
+  // Collapsed state - hide sidebar and handle
+  &.sidebar-collapsed {
+    grid-template-columns: 56px 0 0 1fr;
+    
+    .grid-sidebar-handle {
+      display: none;
+    }
+  }
+  
+  // Content panel styling
+  .grid-content {
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+// Legacy Layout (for backward compatibility)
 .app-container {
   display: flex;
   flex-direction: column;
@@ -25,64 +113,4 @@
     flex-shrink: 0;
   }
   
-  // PanelGroup for sidebar and content
-  [data-panel-group] {
-    flex: 1;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
-  
-  [data-panel] {
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    
-    &.sidebar-panel {
-      overflow: hidden;
-      
-      &.hidden {
-        min-width: 0 !important;
-        max-width: 0 !important;
-      }
-    }
-    
-    &.content-panel {
-      flex: 1;
-    }
-  }
-  
-  // Styles for react-resizable-panels handles
-  .main-resize-handle {
-    width: 8px;
-    background-color: $border-color;
-    cursor: col-resize;
-    position: relative;
-    z-index: 10;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-
-    &.visible {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    &.hidden {
-      opacity: 0;
-      pointer-events: none;
-      width: 0;
-    }
-
-    &:hover,
-    &[data-resize-handle-state="drag"] {
-      background-color: var(--theme-resize-handle-hover-bg);
-    }
-
-    // Optional: Add visual indicators like dots or lines
-    &::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 1px;
-      height: 20px;
-      background-color: var(--theme-muted-text);
-    }
-  }
 }

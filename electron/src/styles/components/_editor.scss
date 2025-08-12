@@ -1,25 +1,106 @@
-// Editor Split Layout
-.editor-container-split {
-  height: 100%;
-  margin: 0;
-  position: relative;
-  display: flex; // Ensure PanelGroup takes full height/width
-  flex: 1;
+// CSS Grid-based Editor Layout with Resizable Panels (VS Code Architecture)
+.editor-grid-container {
+  display: grid;
+  grid-template-rows: auto 1fr;
+  height: 100vh;
+  width: 100%;
+  gap: 0;
   
-  // Styles for react-resizable-panels handles within editors
-  .editor-resize-handle {
-    width: 10px;
+  grid-template-areas:
+    "yaml-header handle canvas-header"
+    "yaml-content handle canvas-content";
+  
+  // CSS containment for performance
+  contain: layout style;
+  
+  // Hide CSS Grid debugging lines and drag artifacts
+  outline: none !important;
+  border: none !important;
+  
+  // Prevent blue selection highlights during drag
+  * {
+    outline: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+  }
+  
+  // Allow text selection in editor areas
+  .grid-yaml-content,
+  .grid-canvas-content {
+    * {
+      -webkit-user-select: text !important;
+      -khtml-user-select: text !important;
+      -moz-user-select: text !important;
+      -ms-user-select: text !important;
+      user-select: text !important;
+    }
+  }
+  
+  // Default grid columns (fallback)
+  grid-template-columns: 
+    minmax(300px, 20%) 
+    6px 
+    1fr;
+}
+
+// Database Configuration Editor specific grid
+.db-config-editor .editor-grid-container {
+  grid-template-columns: 
+    minmax(300px, var(--yaml-panel-width, 20%)) 
+    6px 
+    1fr;
+}
+
+// Simulation Configuration Editor specific grid  
+.sim-config-editor .editor-grid-container {
+  grid-template-columns: 
+    minmax(300px, var(--sim-yaml-panel-width, 20%)) 
+    6px 
+    1fr;
+}
+
+// Grid area assignments (shared for all editor containers)
+.editor-grid-container {
+  .grid-yaml-header { grid-area: yaml-header; }
+  .grid-yaml-content { grid-area: yaml-content; }
+  .grid-resize-handle { grid-area: handle; }
+  .grid-canvas-header { grid-area: canvas-header; }
+  .grid-canvas-content { grid-area: canvas-content; }
+  
+  // Unified panel styling for grid areas
+  .grid-yaml-content,
+  .grid-canvas-content {
+    overflow: hidden;
+    background-color: var(--theme-editor-bg);
+    color: var(--theme-text);
+    display: flex;
+    flex-direction: column;
+    
+    // GPU acceleration for smooth rendering
+    transform: translate3d(0, 0, 0);
+    will-change: auto;
+  }
+  
+  // Resizable handle between panels
+  .grid-resize-handle {
     background-color: $border-color;
     cursor: col-resize;
     position: relative;
-    z-index: 1;
-
+    z-index: 10;
+    user-select: none;
+    transition: background-color 0.2s ease;
+    
     &:hover,
-    &[data-resize-handle-state="drag"] {
+    &.dragging {
       background-color: var(--theme-resize-handle-hover-bg);
     }
     
-    // Optional: Add visual indicators
+    // Visual indicator
     &::before {
       content: '';
       position: absolute;
@@ -29,82 +110,118 @@
       width: 1px;
       height: 20px;
       background-color: var(--theme-muted-text);
+      opacity: 0.6;
     }
-  }
-
-  .editor-yaml-panel,
-  .editor-canvas-panel {
-    // Ensure panels take up full height within the flex container
-    height: 100%; 
-    display: flex; // Added to allow inner content to flex
-    flex-direction: column; // Added
-    overflow: hidden; // Keep overflow hidden at panel level for headers
-    background-color: var(--theme-editor-bg);
-    color: var(--theme-text);
-  }
-
-  .editor-yaml-panel {
-    padding: 0;
-    display: flex;
-    flex-direction: column;
     
-    .panel-header {
-      padding: 10px 15px;
-      font-weight: 600;
-      border-bottom: 1px solid $border-color;
-      background-color: var(--theme-sidebar-bg);
-      display: flex;
-      justify-content: flex-end;
-      align-items: center;
-      height: 46px; // Explicit height to match canvas-header
+    // Hover effect
+    &:hover::before {
+      opacity: 1;
+      background-color: var(--theme-text);
     }
+  }
+  
+  
+  // Shared header styling
+  .grid-yaml-header,
+  .grid-canvas-header {
+    padding: 10px 15px;
+    font-weight: 600;
+    border-bottom: 1px solid $border-color;
+    background-color: var(--theme-sidebar-bg);
+    height: 46px;
+    display: flex;
+    align-items: center;
+    z-index: 5;
+  }
+  
+  .grid-yaml-header {
+    justify-content: flex-end;
     
     .panel-header-actions {
       display: flex;
       gap: 5px;
     }
-
-    .yaml-editor {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: calc(100% - 46px); // Match the header height
-      overflow: hidden; // Let Monaco handle its own scrolling
+  }
+  
+  .grid-canvas-header {
+    justify-content: space-between;
+    
+    // Tab support for canvas header
+    &.has-tabs {
+      padding: 0 20px;
+      position: relative;
       
-      .monaco-editor-container {
-        flex: 1;
-        min-height: 200px;
-        background-color: var(--theme-editor-bg);
-        border: none !important; // Force remove any border
-        overflow: hidden; // Monaco has its own scroll system
+      .nav-tabs {
+        border-bottom: none;
+        margin-bottom: 0;
+        
+        .nav-link {
+          border: none;
+          border-bottom: 2px solid transparent;
+          background: none;
+          color: var(--theme-muted-text);
+          padding: 12px 16px;
+          
+          &:hover {
+            border-bottom-color: var(--theme-primary);
+            color: var(--theme-text);
+          }
+          
+          &.active {
+            border-bottom-color: var(--theme-primary);
+            color: var(--theme-primary);
+            background: none;
+          }
+        }
+      }
+      
+      .tab-actions {
+        position: absolute;
+        right: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+    }
+  }
+}
+
+// Monaco Editor optimizations for CSS Grid
+.editor-grid-container {
+  .yaml-editor {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    
+    .monaco-editor-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      background-color: var(--theme-editor-bg);
+      border: none !important;
+      overflow: hidden;
+      
+      // Critical: Let CSS Grid handle sizing, not Monaco
+      .monaco-editor {
+        width: 100% !important;
+        height: 100% !important;
       }
     }
   }
   
-  .editor-canvas-panel {
-    padding: 0;
+  // Canvas content optimization
+  .canvas-content {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    background: transparent;
     display: flex;
     flex-direction: column;
-    position: relative;
-    
-    .canvas-header {
-      padding: 10px 15px;
-      font-weight: 600;
-      border-bottom: 1px solid $border-color;
-      background-color: var(--theme-sidebar-bg);
-      z-index: 5;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      height: 46px; // Explicit height to match panel-header
-    }
     
     .er-diagram-container,
     .event-flow-container {
       flex: 1;
-      height: calc(100% - 46px) !important; /* Important to override inline styles */
-      min-height: 300px;
-      width: 100% !important; /* Important to override inline styles */
+      width: 100%;
+      height: 100%;
       position: relative;
       border: none;
       overflow: hidden;
@@ -114,14 +231,10 @@
         height: 100%;
       }
       
-      .react-flow__container {
-        height: 100%;
-        width: 100%;
-      }
-      
+      .react-flow__container,
       .react-flow__renderer {
-        width: 100%;
         height: 100%;
+        width: 100%;
       }
       
       .react-flow__controls {
@@ -131,57 +244,3 @@
   }
 }
 
-// Canvas Panel Updates for Tabs
-.editor-canvas-panel {
-  .canvas-header {
-    border-bottom: 1px solid var(--theme-border);
-    
-    .nav-tabs {
-      border-bottom: none;
-      margin-bottom: 0;
-      
-      .nav-link {
-        border: none;
-        border-bottom: 2px solid transparent;
-        background: none;
-        color: var(--theme-muted-text);
-        padding: 12px 16px;
-        
-        &:hover {
-          border-bottom-color: var(--theme-primary);
-          color: var(--theme-text);
-        }
-        
-        &.active {
-          border-bottom-color: var(--theme-primary);
-          color: var(--theme-primary);
-          background: none;
-        }
-      }
-    }
-    
-    .tab-actions {
-      position: absolute;
-      right: 20px;
-      top: 50%;
-      transform: translateY(-50%);
-    }
-    
-    // Ensure proper positioning for tab header
-    position: relative;
-    padding: 0 20px;
-    display: flex;
-    align-items: center;
-    min-height: 46px;
-  }
-  
-  .canvas-content {
-    width: 100%;
-    height: calc(100% - 46px);
-    overflow: hidden;
-    background: transparent; /* Allow ReactFlow background pattern to show through */
-    flex: 1; /* Ensure it takes available space in flex container */
-    display: flex;
-    flex-direction: column;
-  }
-}

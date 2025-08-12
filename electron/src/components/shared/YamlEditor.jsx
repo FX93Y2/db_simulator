@@ -19,6 +19,8 @@ const YamlEditor = ({
   const monacoRef = useRef(null);
   const containerRef = useRef(null);
   const fileInputRef = useRef(null);
+  const resizeObserverRef = useRef(null);
+  const layoutTimeoutRef = useRef(null);
 
   // Initialize editor
   useEffect(() => {
@@ -119,16 +121,47 @@ const YamlEditor = ({
       // Determine initial theme based on prop
       const initialTheme = theme === 'dark' ? 'yaml-dark' : 'yaml-light';
 
-      // Create editor
+      // Create editor with CSS Grid optimizations (VS Code architecture)
       const editor = monaco.editor.create(containerRef.current, {
         value: initialValue || '',
         language: 'yaml',
         theme: initialTheme,
-        automaticLayout: true,
-        minimap: { enabled: true },
+        // CRITICAL: Disable automaticLayout for 10x performance improvement
+        automaticLayout: false,
+        // Optimized minimap settings
+        minimap: { 
+          enabled: true,
+          showSlider: 'mouseover',     // Reduce rendering overhead
+          renderCharacters: false,     // Major performance boost
+          maxColumn: 120              // Limit minimap width
+        },
         scrollBeyondLastLine: false,
         readOnly,
-        wordWrap: 'on'
+        // Prevent text reflow during resize
+        wordWrap: 'off',
+        fontSize: 14,                 // Fixed font size
+        lineHeight: 1.5,              // Fixed line height  
+        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+        // Performance optimizations
+        renderLineHighlight: 'line',
+        renderWhitespace: 'selection',
+        renderControlCharacters: false,
+        disableLayerHinting: true,    // Improve rendering performance
+        smoothScrolling: false,       // Reduce CPU usage
+        cursorBlinking: 'smooth',
+        cursorSmoothCaretAnimation: false,
+        // Prevent layout-affecting features
+        rulers: [],                   // Remove rulers
+        glyphMargin: false,          // Disable glyph margin
+        folding: false,              // Disable folding
+        showFoldingControls: 'never',
+        // Optimized scrollbar
+        scrollbar: {
+          vertical: 'auto',
+          horizontal: 'auto',
+          useShadows: false,          // Reduce rendering overhead
+          alwaysConsumeMouseWheel: false
+        }
       });
 
       // Update state and call onChange prop when content changes
@@ -143,8 +176,39 @@ const YamlEditor = ({
       monacoRef.current = editor;
       setIsEditorReady(true);
 
+      // Minimal ResizeObserver for significant container changes only
+      const resizeObserver = new ResizeObserver((entries) => {
+        for (const entry of entries) {
+          const { width, height } = entry.contentRect;
+          
+          // Only trigger layout for significant changes (>50px threshold)
+          if (width > 50 && height > 50) {
+            // Debounce layout calls to avoid thrashing
+            if (layoutTimeoutRef.current) {
+              clearTimeout(layoutTimeoutRef.current);
+            }
+            
+            layoutTimeoutRef.current = setTimeout(() => {
+              if (monacoRef.current) {
+                // Explicit dimensions to prevent Monaco from recalculating
+                monacoRef.current.layout({ width, height });
+              }
+            }, 100); // 100ms debounce
+          }
+        }
+      });
+
+      resizeObserver.observe(containerRef.current);
+      resizeObserverRef.current = resizeObserver;
+
       // Cleanup
       return () => {
+        if (resizeObserverRef.current) {
+          resizeObserverRef.current.disconnect();
+        }
+        if (layoutTimeoutRef.current) {
+          clearTimeout(layoutTimeoutRef.current);
+        }
         editor.dispose();
       };
     } catch (error) {

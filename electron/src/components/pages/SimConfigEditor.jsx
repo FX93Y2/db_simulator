@@ -12,9 +12,9 @@ import {
   Tab,
   Dropdown
 } from 'react-bootstrap';
-import { Panel, PanelGroup, PanelResizeHandle } from 'react-resizable-panels';
 import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
 import { useToastContext } from '../../contexts/ToastContext';
+import useResizableGrid from '../../hooks/shared/useResizableGrid';
 
 // New store imports
 import {
@@ -52,6 +52,15 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
   const fileInputRef = useRef(null);
+
+  // Resizable grid hook for panel sizing
+  const { handleMouseDown } = useResizableGrid({
+    minWidthPercent: 15,
+    maxWidthPercent: 60,
+    defaultWidthPercent: 20,
+    cssVariable: '--sim-yaml-panel-width',
+    storageKey: 'sim-editor-yaml-panel-width'
+  });
 
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const yamlContent = useYamlContent(projectId);
@@ -333,168 +342,174 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
     loadDbConfigs();
   }, [projectId]);
 
-  // Memoized editor component to prevent unnecessary re-renders
+  // CSS Grid-based editor component (VS Code architecture)
   const editorComponent = useMemo(() => (
-    <div className="editor-container-split">
-      <PanelGroup direction="horizontal">
-        <Panel defaultSize={40} minSize={20} order={1}>
-          <div className="editor-yaml-panel">
-            <div className="panel-header">
-              <div className="panel-header-actions">
-                <Button
-                  size="sm"
-                  className="btn-custom-toolbar me-2"
-                  onClick={handleImport}
-                  disabled={isLoading}
-                  title="Import YAML file"
-                >
-                  <FiUpload className="me-1" />
-                  Import
-                </Button>
-                <Button
-                  size="sm"
-                  className="btn-custom-toolbar me-2"
-                  onClick={handleExport}
-                  disabled={!yamlContent || isLoading}
-                  title="Export YAML file"
-                >
-                  <FiDownload className="me-1" />
-                  Export
-                </Button>
-                <Button 
-                  size="sm" 
-                  className="action-button btn-custom-toolbar save-config-btn"
-                  onClick={handleSave} 
-                  disabled={isLoading}
-                  title="Save Configuration"
-                >
-                  <FiSave className="save-icon" /> Save
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".yaml,.yml"
-                  style={{ display: 'none' }}
-                  onChange={handleFileChange}
-                />
-              </div>
-            </div>
-            {isLoading && !yamlContent ? (
-              <div className="text-center py-5">
-                <Spinner animation="border" />
-                <div className="mt-2">Loading configuration...</div>
-              </div>
-            ) : (
-              <YamlEditor 
-                initialValue={yamlContent} 
-                onSave={null}
-                readOnly={true}
-                showImportExport={false}
-                filename="simulation-config"
-                height="calc(100vh - 160px)"
-                theme={theme}
-              />
-            )}
-          </div>
-        </Panel>
-        <PanelResizeHandle className="editor-resize-handle" />
-        <Panel defaultSize={60} minSize={30} order={2}>
-          <div className="editor-canvas-panel">
-            <div className="canvas-header">
-              <Tabs
-                activeKey={activeTab}
-                onSelect={setActiveTab}
-                className="mb-0"
+    <div className="editor-grid-container">
+      {/* YAML Panel Header */}
+      <div className="grid-yaml-header">
+        <div className="panel-header-actions">
+          <Button
+            size="sm"
+            className="btn-custom-toolbar me-2"
+            onClick={handleImport}
+            disabled={isLoading}
+            title="Import YAML file"
+          >
+            <FiUpload className="me-1" />
+            Import
+          </Button>
+          <Button
+            size="sm"
+            className="btn-custom-toolbar me-2"
+            onClick={handleExport}
+            disabled={!yamlContent || isLoading}
+            title="Export YAML file"
+          >
+            <FiDownload className="me-1" />
+            Export
+          </Button>
+          <Button 
+            size="sm" 
+            className="action-button btn-custom-toolbar save-config-btn"
+            onClick={handleSave} 
+            disabled={isLoading}
+            title="Save Configuration"
+          >
+            <FiSave className="save-icon" /> Save
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".yaml,.yml"
+            style={{ display: 'none' }}
+            onChange={handleFileChange}
+          />
+        </div>
+      </div>
+
+      {/* Canvas Panel Header with Tabs */}
+      <div className="grid-canvas-header has-tabs">
+        <Tabs
+          activeKey={activeTab}
+          onSelect={setActiveTab}
+          className="mb-0"
+        >
+          <Tab
+            eventKey="event-flow"
+            title={<span><FiGitBranch className="me-2" />Event Flow</span>}
+          />
+          <Tab
+            eventKey="resources"
+            title={<span><FiSettings className="me-2" />Resources</span>}
+          />
+          <Tab
+            eventKey="simulation"
+            title={
+              <span>
+                <FiClock className="me-2" />
+                Simulation
+                {hasUnsavedSimulation && <span className="text-warning ms-2">●</span>}
+              </span>
+            }
+          />
+        </Tabs>
+        
+        {activeTab === 'event-flow' && (
+          <div className="tab-actions">
+            <Dropdown>
+              <Dropdown.Toggle 
+                size="sm" 
+                className="btn-custom-toolbar"
+                disabled={isLoading}
+                id="add-module-dropdown"
               >
-                <Tab
-                  eventKey="event-flow"
-                  title={<span><FiGitBranch className="me-2" />Event Flow</span>}
-                />
-                <Tab
-                  eventKey="resources"
-                  title={<span><FiSettings className="me-2" />Resources</span>}
-                />
-                <Tab
-                  eventKey="simulation"
-                  title={
-                    <span>
-                      <FiClock className="me-2" />
-                      Simulation
-                      {hasUnsavedSimulation && <span className="text-warning ms-2">●</span>}
-                    </span>
-                  }
-                />
-              </Tabs>
-              
-              {activeTab === 'event-flow' && (
-                <div className="tab-actions">
-                  <Dropdown>
-                    <Dropdown.Toggle 
-                      size="sm" 
-                      className="btn-custom-toolbar"
-                      disabled={isLoading}
-                      id="add-module-dropdown"
-                    >
-                      <FiPlus /> Add Module
-                    </Dropdown.Toggle>
-                    <Dropdown.Menu>
-                      <Dropdown.Item onClick={() => handleAddModule('create')}>
-                        <FiPlus className="me-2" />Create
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => handleAddModule('event')}>
-                        <FiSettings className="me-2" />Process (Event)
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => handleAddModule('decide')}>
-                        <FiGitBranch className="me-2" />Decide
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => handleAddModule('assign')}>
-                        <FiTag className="me-2" />Assign
-                      </Dropdown.Item>
-                      <Dropdown.Item onClick={() => handleAddModule('release')}>
-                        <FiPlay className="me-2" />Release (Dispose)
-                      </Dropdown.Item>
-                    </Dropdown.Menu>
-                  </Dropdown>
-                </div>
-              )}
-            </div>
-            
-            <div className="canvas-content">
-              {isLoading ? (
-                <div className="text-center py-5">
-                  <Spinner animation="border" />
-                  <div className="mt-2">Loading...</div>
-                </div>
-              ) : (
-                <>
-                  {activeTab === 'event-flow' && (
-                    <ModularEventFlow
-                      theme={theme}
-                      dbConfigContent={dbConfigContent}
-                      projectId={projectId}
-                    />
-                  )}
-                  
-                  {activeTab === 'resources' && (
-                    <ResourceEditor
-                      theme={theme}
-                      dbConfigContent={dbConfigContent}
-                    />
-                  )}
-                  
-                  {activeTab === 'simulation' && (
-                    <SimulationEditor
-                      projectId={projectId}
-                    />
-                  )}
-                </>
-              )}
-            </div>
+                <FiPlus /> Add Module
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item onClick={() => handleAddModule('create')}>
+                  <FiPlus className="me-2" />Create
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => handleAddModule('event')}>
+                  <FiSettings className="me-2" />Process (Event)
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => handleAddModule('decide')}>
+                  <FiGitBranch className="me-2" />Decide
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => handleAddModule('assign')}>
+                  <FiTag className="me-2" />Assign
+                </Dropdown.Item>
+                <Dropdown.Item onClick={() => handleAddModule('release')}>
+                  <FiPlay className="me-2" />Release (Dispose)
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
           </div>
-        </Panel>
-      </PanelGroup>
+        )}
+      </div>
+
+      {/* YAML Panel Content */}
+      <div className="grid-yaml-content">
+        {isLoading && !yamlContent ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+            <div className="mt-2">Loading configuration...</div>
+          </div>
+        ) : (
+          <YamlEditor 
+            initialValue={yamlContent} 
+            onSave={null}
+            readOnly={true}
+            showImportExport={false}
+            filename="simulation-config"
+            theme={theme}
+          />
+        )}
+      </div>
+
+      {/* Canvas Panel Content */}
+      <div className="grid-canvas-content">
+        <div className="canvas-content">
+          {isLoading ? (
+            <div className="text-center py-5">
+              <Spinner animation="border" />
+              <div className="mt-2">Loading...</div>
+            </div>
+          ) : (
+            <>
+              {activeTab === 'event-flow' && (
+                <ModularEventFlow
+                  theme={theme}
+                  dbConfigContent={dbConfigContent}
+                  projectId={projectId}
+                />
+              )}
+              
+              {activeTab === 'resources' && (
+                <ResourceEditor
+                  theme={theme}
+                  dbConfigContent={dbConfigContent}
+                />
+              )}
+              
+              {activeTab === 'simulation' && (
+                <SimulationEditor
+                  projectId={projectId}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Resize Handle */}
+      <div 
+        className="grid-resize-handle"
+        onMouseDown={handleMouseDown}
+        title="Drag to resize panels"
+      />
+
     </div>
-  ), [yamlContent, activeTab, theme, isLoading, handleImport, handleExport, handleSave, handleAddModule, handleFileChange, dbConfigContent, projectId, setActiveTab]);
+  ), [yamlContent, activeTab, theme, isLoading, handleImport, handleExport, handleSave, handleAddModule, handleFileChange, dbConfigContent, projectId, setActiveTab, hasUnsavedSimulation, handleMouseDown]);
 
   // Store is always initialized now
 
