@@ -9,12 +9,18 @@
   .entity-node {
     padding: 10px;
     border-radius: 4px;
-    // Use theme card background for nodes
-    background-color: var(--theme-card-bg); 
     color: var(--theme-text);
     border: 1px solid var(--theme-border); // Use theme border
     width: 180px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    
+    // Light theme: FloralWhite (#FFFAF0)
+    // Dark theme: DarkSlateGrey (#2F4F4F)
+    background-color: #FFFAF0;
+    
+    .theme-dark & {
+      background-color: #2F4F4F;
+    }
     
     &__title {
       font-weight: bold;

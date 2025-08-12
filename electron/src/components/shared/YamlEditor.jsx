@@ -118,8 +118,8 @@ const YamlEditor = ({
         });
       }
 
-      // Determine initial theme based on prop
-      const initialTheme = theme === 'dark' ? 'yaml-dark' : 'yaml-light';
+      // Always use dark theme for YAML editor
+      const initialTheme = 'yaml-dark';
 
       // Create editor with CSS Grid optimizations (VS Code architecture)
       const editor = monaco.editor.create(containerRef.current, {
@@ -223,22 +223,16 @@ const YamlEditor = ({
     }
   }, [initialValue]);
 
-  // Update theme when theme prop changes
+  // Always use dark theme for YAML editor (ignore theme prop changes)
   useEffect(() => {
-    console.log('[YamlEditor] Theme prop changed:', theme);
-    if (monacoRef.current && theme) {
-      const newThemeName = theme === 'dark' ? 'yaml-dark' : 'yaml-light';
-      console.log(`[YamlEditor] Attempting to set Monaco theme to: ${newThemeName}`);
+    if (monacoRef.current) {
       try {
-        monaco.editor.setTheme(newThemeName);
-        console.log(`[YamlEditor] Successfully called setTheme: ${newThemeName}`);
+        monaco.editor.setTheme('yaml-dark');
       } catch (error) {
-        console.error(`[YamlEditor] Error calling monaco.editor.setTheme:`, error);
+        console.error('[YamlEditor] Error setting dark theme:', error);
       }
-    } else {
-      console.log('[YamlEditor] Monaco editor not ready or theme prop missing.');
     }
-  }, [theme]);
+  }, [monacoRef.current]);
 
   // Handle save
   const handleSave = () => {

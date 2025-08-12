@@ -14,11 +14,17 @@
   min-width: 200px;
   max-width: 300px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  background-color: white;
+  /* Light theme: FloralWhite, Dark theme: DarkSlateGrey */
+  background-color: #FFFAF0;
   border-radius: 4px;
   padding: 10px;
   border: 1px solid #ddd;
   position: relative;
+}
+
+/* Dark theme entity nodes */
+.theme-dark .entity-node {
+  background-color: #2F4F4F;
 }
 
 /* Enhanced connection handle styles */
