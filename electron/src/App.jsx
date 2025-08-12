@@ -5,6 +5,8 @@ import { Container } from 'react-bootstrap';
 // Layout Components
 import Header from './components/layout/Header';
 import ProjectSidebar from './components/layout/Sidebar';
+import NavigationSidebar from './components/layout/NavigationSidebar';
+import GuideOverlay from './components/shared/GuideOverlay';
 
 // Pages
 import ConfigurationGuide from './components/pages/ConfigurationGuide';
@@ -57,20 +59,65 @@ const App = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
   };
 
-  // Sidebar visibility state
+  // Sidebar state management (supports multiple sidebar types)
+  const [sidebarMode, setSidebarMode] = useState(() => {
+    const savedMode = localStorage.getItem('sidebarMode');
+    return savedMode || 'database'; // 'database', 'navigation', or 'none'
+  });
+  
   const [sidebarVisible, setSidebarVisible] = useState(() => {
     const savedVisibility = localStorage.getItem('sidebarVisible');
     return savedVisibility !== null ? savedVisibility === 'true' : true;
   });
 
-  // Save sidebar visibility to localStorage when it changes
+  // Save sidebar state to localStorage when it changes
   useEffect(() => {
     localStorage.setItem('sidebarVisible', sidebarVisible.toString());
-  }, [sidebarVisible]);
+    localStorage.setItem('sidebarMode', sidebarMode);
+  }, [sidebarVisible, sidebarMode]);
 
-  // Toggle sidebar visibility
+  // Toggle sidebar visibility (main toggle)
   const toggleSidebar = () => {
     setSidebarVisible(prev => !prev);
+  };
+
+  // Toggle navigation sidebar (for help/guide)
+  const toggleNavigationSidebar = () => {
+    if (sidebarMode === 'navigation' && sidebarVisible) {
+      // If navigation sidebar is open, close it
+      setSidebarVisible(false);
+    } else {
+      // Switch to navigation mode and ensure sidebar is visible
+      setSidebarMode('navigation');
+      setSidebarVisible(true);
+    }
+  };
+
+  // Toggle database explorer (enhanced to properly handle both open and close)
+  const toggleDatabaseExplorer = () => {
+    if (sidebarMode === 'database' && sidebarVisible) {
+      // If database explorer is open, close sidebar
+      setSidebarVisible(false);
+    } else {
+      // Switch to database mode and ensure sidebar is visible
+      setSidebarMode('database');
+      setSidebarVisible(true);
+    }
+  };
+
+  // Guide overlay state
+  const [guideOverlayVisible, setGuideOverlayVisible] = useState(false);
+  const [activeGuideSection, setActiveGuideSection] = useState('introduction');
+
+  // Handle guide section selection from navigation sidebar
+  const handleGuideSectionSelect = (sectionId) => {
+    setActiveGuideSection(sectionId);
+    setGuideOverlayVisible(true);
+  };
+
+  // Close guide overlay
+  const closeGuideOverlay = () => {
+    setGuideOverlayVisible(false);
   };
 
   // Sidebar resize functionality
@@ -91,13 +138,24 @@ const App = () => {
             currentTheme={theme} 
             onToggleTheme={toggleTheme} 
             sidebarVisible={sidebarVisible}
-            onToggleSidebar={toggleSidebar}
+            sidebarMode={sidebarMode}
+            onToggleSidebar={toggleDatabaseExplorer}
+            onToggleNavigationSidebar={toggleNavigationSidebar}
           />
         </div>
         
         {/* Sidebar Panel */}
         <div className="grid-sidebar">
-          <ProjectSidebar theme={theme} visible={sidebarVisible} />
+          {sidebarMode === 'database' ? (
+            <ProjectSidebar theme={theme} visible={sidebarVisible} />
+          ) : (
+            <NavigationSidebar 
+              theme={theme} 
+              visible={sidebarVisible} 
+              onSectionSelect={handleGuideSectionSelect}
+              activeSection={activeGuideSection}
+            />
+          )}
         </div>
         
         {/* Sidebar Resize Handle */}
@@ -137,6 +195,14 @@ const App = () => {
             </Container>
           </div>
         </div>
+
+        {/* Guide Overlay */}
+        <GuideOverlay 
+          visible={guideOverlayVisible}
+          activeSection={activeGuideSection}
+          onClose={closeGuideOverlay}
+          theme={theme}
+        />
       </div>
     </ToastProvider>
   );

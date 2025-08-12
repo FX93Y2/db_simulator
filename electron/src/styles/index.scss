@@ -8,12 +8,14 @@
 @import 'layout/app-container';
 @import 'layout/header';
 @import 'layout/sidebar';
+@import 'layout/navigation-sidebar';
 @import 'layout/content-area';
 
 // Component styles (alphabetical for maintainability)
 @import 'components/buttons';
 @import 'components/cards';
 @import 'components/configuration-guide';
+@import 'components/guide-overlay';
 @import 'components/diagrams';
 @import 'components/editor';
 @import 'components/entity-editor';
@@ -26,6 +28,7 @@
 @import 'components/tables';
 @import 'components/toasts';
 @import 'components/welcome';
+@import 'components/welcome-page';
 
 // Utilities (should come last)
 @import 'utilities/utilities';

@@ -2,26 +2,40 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FiSun, FiMoon, FiHelpCircle, FiFile } from 'react-icons/fi';
 
-const Header = ({ currentTheme, onToggleTheme, sidebarVisible, onToggleSidebar }) => {
-  const navigate = useNavigate();
-
+const Header = ({ currentTheme, onToggleTheme, sidebarVisible, onToggleSidebar, onToggleNavigationSidebar, sidebarMode }) => {
   const handleHelpClick = () => {
-    navigate('/');
+    if (onToggleNavigationSidebar) {
+      onToggleNavigationSidebar();
+    }
+  };
+
+  const handleSidebarToggle = () => {
+    if (sidebarVisible && sidebarMode === 'database') {
+      // If database explorer is already open, close sidebar
+      if (onToggleSidebar) {
+        onToggleSidebar();
+      }
+    } else {
+      // Show database explorer
+      if (onToggleSidebar) {
+        onToggleSidebar();
+      }
+    }
   };
 
   return (
     <div className="app-header-vertical">
       <div className="header-nav-items">
         <div 
-          className={`sidebar-toggle-button ${sidebarVisible ? 'active' : ''}`}
-          onClick={onToggleSidebar}
-          title={sidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
+          className={`sidebar-toggle-button ${sidebarVisible && sidebarMode === 'database' ? 'active' : ''}`}
+          onClick={handleSidebarToggle}
+          title={sidebarVisible && sidebarMode === 'database' ? 'Hide Database Explorer' : 'Show Database Explorer'}
         >
           <FiFile className="toggle-icon" />
         </div>
         
         <div 
-          className="help-button"
+          className={`help-button ${sidebarVisible && sidebarMode === 'navigation' ? 'active' : ''}`}
           onClick={handleHelpClick}
           title="Help & Configuration Guide"
         >

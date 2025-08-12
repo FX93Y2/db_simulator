@@ -23,8 +23,10 @@
     margin-bottom: 8px;
   }
   
-  // Styles for the sidebar toggle button
-  .sidebar-toggle-button {
+  // Universal header button styling
+  .sidebar-toggle-button,
+  .help-button,
+  .header-nav-button {
     padding: 8px;
     display: flex;
     align-items: center;
@@ -49,31 +51,9 @@
       color: white;
     }
     
-    .toggle-icon {
+    svg, .toggle-icon {
       font-size: 20px;
       transition: transform 0.2s ease-in-out;
-    }
-  }
-
-  // VS Code-style Help button
-  .help-button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 32px;
-    height: 32px;
-    cursor: pointer;
-    border-radius: 4px;
-    transition: all 0.2s ease-in-out;
-    color: var(--theme-muted-text);
-    
-    svg {
-      font-size: 18px;
-    }
-    
-    &:hover {
-      background-color: var(--theme-accent);
-      color: white;
     }
   }
   
