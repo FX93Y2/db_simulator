@@ -339,22 +339,20 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
               <div className="panel-header-actions">
                 <Button
                   size="sm"
-                  variant="outline-primary"
+                  className="btn-custom-toolbar me-2"
                   onClick={handleImport}
                   disabled={isLoading}
                   title="Import YAML file"
-                  className="me-2"
                 >
                   <FiUpload className="me-1" />
                   Import
                 </Button>
                 <Button
                   size="sm"
-                  variant="outline-secondary"
+                  className="btn-custom-toolbar me-2"
                   onClick={handleExport}
                   disabled={!yamlContent || isLoading}
                   title="Export YAML file"
-                  className="me-2"
                 >
                   <FiDownload className="me-1" />
                   Export

@@ -54,7 +54,7 @@
       border-bottom: 1px solid $border-color;
       background-color: var(--theme-sidebar-bg);
       display: flex;
-      justify-content: space-between;
+      justify-content: flex-end;
       align-items: center;
       height: 46px; // Explicit height to match canvas-header
     }

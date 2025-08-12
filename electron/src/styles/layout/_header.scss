@@ -1,39 +1,57 @@
-// Header
-.app-header {
+// Vertical Header Navigation
+.app-header-vertical {
   background-color: var(--theme-navbar-bg);
   color: var(--theme-navbar-text);
-  padding: 4px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  padding: 8px 4px;
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+  
+  .header-nav-items {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+  }
+  
+  .header-theme-toggle {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 8px;
+  }
   
   // Styles for the sidebar toggle button
   .sidebar-toggle-button {
-    padding: 1px;
+    padding: 8px;
     display: flex;
     align-items: center;
     justify-content: center;
-    height: auto;
+    width: 40px;
+    height: 40px;
     cursor: pointer;
     border-radius: 6px;
     transition: all 0.2s ease-in-out;
-    margin-right: 8px;
     background: transparent;
     border: none;
     outline: none;
+    color: var(--theme-navbar-text);
     
     &:hover {
       background-color: rgba(255, 255, 255, 0.1);
+      color: white;
     }
     
     &.active {
       background-color: rgba(255, 255, 255, 0.1);
+      color: white;
     }
     
-    .app-icon {
-      height: 32px;
-      width: 32px;
+    .toggle-icon {
+      font-size: 20px;
       transition: transform 0.2s ease-in-out;
-      border-radius: 4px;
-      display: block;
     }
   }
 
@@ -59,13 +77,13 @@
     }
   }
   
-  // Theme toggle switch styles
+  // Theme toggle switch styles (vertical layout)
   .theme-toggle-switch {
     position: relative;
-    width: 60px;
-    height: 28px;
+    width: 24px;
+    height: 48px;
     background-color: rgba(255, 255, 255, 0.2);
-    border-radius: 14px;
+    border-radius: 12px;
     cursor: pointer;
     overflow: hidden;
     transition: all 0.3s ease;
@@ -78,15 +96,16 @@
       width: 100%;
       height: 100%;
       display: flex;
+      flex-direction: column;
       justify-content: space-between;
       align-items: center;
-      padding: 0 6px;
+      padding: 4px 0;
       z-index: 1;
       pointer-events: none;
       
       .theme-icon {
         color: white;
-        font-size: 16px;
+        font-size: 12px;
         opacity: 0.9;
         
         &.sun {
@@ -101,10 +120,10 @@
     
     .theme-toggle-slider {
       position: absolute;
-      top: 4px;
-      left: 4px;
-      width: 20px;
-      height: 20px;
+      top: 3px;
+      left: 3px;
+      width: 18px;
+      height: 18px;
       background-color: white;
       border-radius: 50%;
       transition: transform 0.3s ease;
@@ -112,7 +131,7 @@
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
       
       &.active {
-        transform: translateX(32px);
+        transform: translateY(24px);
       }
     }
     

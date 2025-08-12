@@ -105,9 +105,10 @@ const App = () => {
 
   // Save sidebar width percentage to localStorage when layout changes
   // The onLayout prop gives an array of panel sizes in percentages.
+  // Panel order in PanelGroup: Sidebar (0), Content (1)
   const handleLayoutChange = (sizes) => {
     if (sidebarVisible && sizes[0] && sizes[0] > 0) {
-      const newSidebarSize = sizes[0]; // Assuming sidebar is the first panel
+      const newSidebarSize = sizes[0]; // Sidebar is the first panel in PanelGroup
       const percentage = Math.round(newSidebarSize);
       setSidebarSizePercentage(percentage);
       localStorage.setItem('sidebarSizePercentage', percentage.toString());
@@ -117,34 +118,42 @@ const App = () => {
   return (
     <ToastProvider>
       <div className="app-container">
-        <Header 
-          currentTheme={theme} 
-          onToggleTheme={toggleTheme} 
-          sidebarVisible={sidebarVisible}
-          onToggleSidebar={toggleSidebar}
-        />
         <div className="main-content">
-          <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
-            <Panel
-              ref={sidebarPanelRef}
-              defaultSize={sidebarVisible ? sidebarSizePercentage : 0}
-              minSize={0}
-              maxSize={50}
-              order={1}
-              className={`sidebar-panel ${sidebarVisible ? 'visible' : 'hidden'}`}
-            >
-              <ProjectSidebar theme={theme} visible={sidebarVisible} />
-            </Panel>
-            <PanelResizeHandle className={`main-resize-handle ${sidebarVisible ? 'visible' : 'hidden'}`} />
-            <Panel
-              ref={contentPanelRef}
-              minSize={50}
-              order={2}
-              className="content-panel"
-            >
-              <div className="content-area">
-                <Container fluid className="p-0 h-100">
-                  <Routes>
+          <div className="app-layout-horizontal">
+            {/* Fixed Header Navigation */}
+            <div className="header-panel-fixed">
+              <Header 
+                currentTheme={theme} 
+                onToggleTheme={toggleTheme} 
+                sidebarVisible={sidebarVisible}
+                onToggleSidebar={toggleSidebar}
+              />
+            </div>
+            
+            {/* Resizable Content Area */}
+            <PanelGroup direction="horizontal" onLayout={handleLayoutChange}>
+              {/* Project Sidebar Panel */}
+              <Panel
+                ref={sidebarPanelRef}
+                defaultSize={sidebarVisible ? sidebarSizePercentage : 0}
+                minSize={0}
+                maxSize={50}
+                order={1}
+                className={`sidebar-panel ${sidebarVisible ? 'visible' : 'hidden'}`}
+              >
+                <ProjectSidebar theme={theme} visible={sidebarVisible} />
+              </Panel>
+              <PanelResizeHandle className={`main-resize-handle ${sidebarVisible ? 'visible' : 'hidden'}`} />
+              {/* Content Panel */}
+              <Panel
+                ref={contentPanelRef}
+                minSize={50}
+                order={2}
+                className="content-panel"
+              >
+                <div className="content-area">
+                  <Container fluid className="p-0 h-100">
+                    <Routes>
                     {/* Welcome and dashboard */}
                     <Route path="/" element={<ConfigurationGuide />} />
                     
@@ -164,11 +173,12 @@ const App = () => {
                     
                     {/* Default catch-all route */}
                     <Route path="*" element={<Navigate to="/" replace />} />
-                  </Routes>
-                </Container>
-              </div>
-            </Panel>
-          </PanelGroup>
+                    </Routes>
+                  </Container>
+                </div>
+              </Panel>
+            </PanelGroup>
+          </div>
         </div>
       </div>
     </ToastProvider>

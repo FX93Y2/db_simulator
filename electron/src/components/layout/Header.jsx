@@ -1,8 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Container, Navbar } from 'react-bootstrap';
-import { FiSun, FiMoon, FiHelpCircle } from 'react-icons/fi';
-import appIcon from '../../../public/icon.png';
+import { FiSun, FiMoon, FiHelpCircle, FiFile } from 'react-icons/fi';
 
 const Header = ({ currentTheme, onToggleTheme, sidebarVisible, onToggleSidebar }) => {
   const navigate = useNavigate();
@@ -12,45 +10,39 @@ const Header = ({ currentTheme, onToggleTheme, sidebarVisible, onToggleSidebar }
   };
 
   return (
-    <Navbar expand="lg" className="app-header">
-      <Container fluid>
-        <div className="d-flex align-items-center">
-          <div 
-            className={`sidebar-toggle-button ${sidebarVisible ? 'active' : ''}`}
-            onClick={onToggleSidebar}
-            title={sidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
-          >
-            <img 
-              src={appIcon}
-              alt="Toggle Sidebar" 
-              className="app-icon" 
-            />
-          </div>
-          
-          <div 
-            className="help-button"
-            onClick={handleHelpClick}
-            title="Help & Configuration Guide"
-          >
-            <FiHelpCircle />
-          </div>
+    <div className="app-header-vertical">
+      <div className="header-nav-items">
+        <div 
+          className={`sidebar-toggle-button ${sidebarVisible ? 'active' : ''}`}
+          onClick={onToggleSidebar}
+          title={sidebarVisible ? 'Hide Sidebar' : 'Show Sidebar'}
+        >
+          <FiFile className="toggle-icon" />
         </div>
         
-        <div className="ms-auto">
-          <div 
-            className="theme-toggle-switch"
-            onClick={onToggleTheme}
-            title={currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-          >
-            <div className="theme-icons">
-              <FiSun className="theme-icon sun" />
-              <FiMoon className="theme-icon moon" />
-            </div>
-            <div className={`theme-toggle-slider ${currentTheme === 'dark' ? 'active' : ''}`}></div>
-          </div>
+        <div 
+          className="help-button"
+          onClick={handleHelpClick}
+          title="Help & Configuration Guide"
+        >
+          <FiHelpCircle />
         </div>
-      </Container>
-    </Navbar>
+      </div>
+      
+      <div className="header-theme-toggle">
+        <div 
+          className="theme-toggle-switch"
+          onClick={onToggleTheme}
+          title={currentTheme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          <div className="theme-icons">
+            <FiSun className="theme-icon sun" />
+            <FiMoon className="theme-icon moon" />
+          </div>
+          <div className={`theme-toggle-slider ${currentTheme === 'dark' ? 'active' : ''}`}></div>
+        </div>
+      </div>
+    </div>
   );
 };
 
