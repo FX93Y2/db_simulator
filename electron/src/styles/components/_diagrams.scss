@@ -2,9 +2,15 @@
 .er-diagram-container {
   background-color: var(--theme-editor-bg);
   position: relative;
+  
   // Ensure the React Flow viewport inherits or gets the theme background
   .react-flow__viewport {
     background-color: transparent;
+  }
+  
+  // Lighter background for dark theme ReactFlow canvas
+  .theme-dark & {
+    background-color: #414141; // Lighter than default dark theme background
   }
   
   // Entity node styles now handled by diagrams.css
@@ -16,9 +22,15 @@
   height: 500px;
   border: 1px solid $border-color;
   border-radius: 4px;
+  
   // Ensure the React Flow viewport inherits or gets the theme background
   .react-flow__viewport {
     background-color: transparent;
+  }
+  
+  // Lighter background for dark theme ReactFlow canvas - same as ER diagram
+  .theme-dark & {
+    background-color: #414141; // Lighter than default dark theme background
   }
   
   .event-node {

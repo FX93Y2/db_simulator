@@ -59,14 +59,7 @@ const EntityNode = ({ data, theme }) => {
 
   return (
     <div className={`entity-node ${getNodeTypeClass()}`}>
-      {/* Connection handles with enhanced styling and tooltips */}
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id="target-top"
-        className="connection-handle connection-handle--target"
-        title={getHandleTooltip('top', 'target')}
-      />
+      {/* Connection handles - Left and Right only for ER connections */}
       <Handle 
         type="source" 
         position={Position.Right} 
@@ -80,13 +73,6 @@ const EntityNode = ({ data, theme }) => {
         id="target-left"
         className="connection-handle connection-handle--target"
         title={getHandleTooltip('left', 'target')}
-      />
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="source-bottom"
-        className="connection-handle connection-handle--source"
-        title={getHandleTooltip('bottom', 'source')}
       />
       
       {/* Modern ER table structure with header and body */}

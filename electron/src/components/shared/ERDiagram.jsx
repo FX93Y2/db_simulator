@@ -107,6 +107,11 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
     handleEntityDragStop(event, node);
   }, [handleEntityDragStop]);
 
+  const onPaneClick = React.useCallback((event) => {
+    // Clear selection when clicking on the canvas
+    handleEntityClick(null, null);
+  }, [handleEntityClick]);
+
   // Node and edge deletion callbacks removed - entities can only be deleted via explicit button clicks
 
   // Enhanced delete entity for use by EntityEditor (with foreign key cleanup)
@@ -154,6 +159,7 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
             onNodeClick={onNodeClick}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={onNodeDoubleClick}
+            onPaneClick={onPaneClick}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}

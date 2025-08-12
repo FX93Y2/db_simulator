@@ -337,11 +337,24 @@
   stroke-width: 3px;
 }
 
-/* Node selection styles */
-.react-flow__node.selected .entity-node,
+/* ReactFlow Node Selection Override - Remove default selection styling */
+.react-flow__node.selected {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+/* Custom Node selection styles with rounded corners */
+.react-flow__node.selected .entity-table {
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
 .react-flow__node.selected .event-node,
 .react-flow__node.selected .decision-node > div {
-  box-shadow: 0 0 0 2px #3498db;
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
 }
 
 /* Controls and minimap styles */
@@ -362,6 +375,16 @@
   cursor: grabbing;
 }
 
+/* Maintain selection highlighting during drag */
+.react-flow__node.dragging.selected {
+  opacity: 0.8;
+}
+
+.react-flow__node.dragging.selected .entity-table {
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
 /* Edge connecting styles */
 .react-flow__edge.connecting {
   stroke: #3498db;
@@ -376,10 +399,19 @@
 }
 
 /* Node dragging preview styles */
-.react-flow__node.dragging .entity-node,
+.react-flow__node.dragging .entity-table {
+  transform: scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
 .react-flow__node.dragging .event-node {
   transform: scale(1.02);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Ensure selection highlight takes priority during drag */
+.react-flow__node.dragging.selected .entity-table {
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
 }
 
 /* Handle connection styles */
