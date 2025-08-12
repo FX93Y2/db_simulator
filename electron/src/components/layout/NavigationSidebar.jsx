@@ -79,7 +79,7 @@ const NavigationSidebar = ({ theme = 'light', visible = true, onSectionSelect, a
   return (
     <div className={`navigation-sidebar ${visible ? 'visible' : 'hidden'}`}>
       <div className="sidebar-header">
-        <h5 className="m-0">Configuration Guide</h5>
+        <h5 className="sidebar-title">Configuration Guide</h5>
       </div>
       
       <div className="sidebar-content">

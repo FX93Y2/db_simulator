@@ -20,75 +20,26 @@
     pointer-events: auto;
   }
   
-  .sidebar-header {
-    height: $header-height;
-    padding: 0 10px;
-    display: flex;
+  // Sidebar header styling is now handled by global _sidebar-header.scss
+
+  // Legacy button styling (kept for backward compatibility)
+  .btn {
+    border-color: var(--theme-primary);
+    color: var(--theme-primary);
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: inline-flex;
     align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid $border-color;
-    color: var(--theme-sidebar-text);
-    
-    h5 {
-      max-width: calc(100% - 40px);
+    justify-content: center;
+
+    svg {
+      font-size: 16px;
     }
 
-    // Create database button with flat design
-    .create-db-button {
-      position: relative;
+    &:hover {
+      background-color: rgba(var(--theme-primary), 0.1);
       color: var(--theme-primary);
-      width: 32px;
-      height: 32px;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      transition: transform 0.2s ease;
-
-      .db-icon {
-        font-size: 20px;
-      }
-
-      .plus-icon {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        font-size: 12px;
-        background-color: var(--theme-primary);
-        color: white;
-        border-radius: 50%;
-        width: 14px;
-        height: 14px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-
-      &:hover {
-        transform: scale(1.15);
-        color: var(--theme-primary);
-      }
-    }
-
-    // Style the Add Project button for better icon alignment (kept for backward compatibility)
-    .btn {
-      border-color: var(--theme-primary);
-      color: var(--theme-primary);
-      width: 28px;
-      height: 28px;
-      padding: 0;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-
-      svg {
-        font-size: 16px;
-      }
-
-      &:hover {
-        background-color: rgba(var(--theme-primary), 0.1);
-        color: var(--theme-primary);
-      }
     }
   }
   
@@ -305,7 +256,7 @@
           }
           
           .table-item-name {
-            font-family: monospace;
+            font-family: var(--font-family-code);
             min-width: 0; // Important for text truncation to work
             flex: 1;
           }

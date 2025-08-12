@@ -11,18 +11,7 @@
     display: none;
   }
 
-  .sidebar-header {
-    padding: 1rem;
-    border-bottom: 1px solid var(--theme-border);
-    background-color: var(--theme-sidebar-bg);
-    
-    h5 {
-      color: var(--theme-text);
-      margin: 0;
-      font-weight: 600;
-      font-size: 1rem;
-    }
-  }
+  // Sidebar header styling is now handled by global _sidebar-header.scss
 
   .sidebar-content {
     flex: 1;

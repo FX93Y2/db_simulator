@@ -583,18 +583,20 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   return (
     <div className={`app-sidebar ${visible ? 'visible' : 'hidden'}`}>
       <div className="sidebar-header">
-        <h5 className={`m-0 ${isCompact ? 'text-truncate' : ''}`}>
+        <h5 className={`sidebar-title ${isCompact ? 'text-truncate' : ''}`}>
           {isCompact ? 'Explorer' : 'Database Explorer'}
         </h5>
-        <div className="d-flex">
-          <div 
-            className="create-db-button"
+        <div className="sidebar-header-actions">
+          <button 
+            className="sidebar-action-button"
             onClick={handleOpenCreateModal}
             title="Create New Database"
           >
-            <FiDatabase className="db-icon" />
-            <FiPlus className="plus-icon" />
-          </div>
+            <div className="compound-icon">
+              <FiDatabase className="base-icon" />
+              <FiPlus className="overlay-icon" />
+            </div>
+          </button>
         </div>
       </div>
       

@@ -141,7 +141,7 @@ const YamlEditor = ({
         wordWrap: 'off',
         fontSize: 14,                 // Fixed font size
         lineHeight: 1.5,              // Fixed line height  
-        fontFamily: 'Monaco, Menlo, "Ubuntu Mono", monospace',
+        fontFamily: 'SF Mono, Monaco, Inconsolata, Roboto Mono, Consolas, Courier New, monospace',
         // Performance optimizations
         renderLineHighlight: 'line',
         renderWhitespace: 'selection',
