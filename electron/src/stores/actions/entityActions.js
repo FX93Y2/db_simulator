@@ -5,8 +5,8 @@ import {
   validateConnection,
   handleTableDeletion
 } from '../../components/shared/entity-nodes/ERDiagramConnectionHandler';
-import yaml from 'yaml';
 import positionService from '../../services/PositionService';
+import { pushToHistory } from '../middleware/historyActions.js';
 
 /**
  * Entity-related actions for the simulation config store
@@ -20,6 +20,9 @@ export const createEntityActions = (set, get) => ({
    * @returns {Object} - Created entity with position
    */
   addEntity: (entityData, containerRef = null) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'database', 'ADD', { entityName: entityData.name });
+    
     const { canonicalEntities, projectId } = get();
     
     // Calculate viewport-centered position for new entity
@@ -111,6 +114,9 @@ export const createEntityActions = (set, get) => ({
    * @param {string} entityId - Entity identifier
    */
   deleteEntity: (entityId) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'database', 'DELETE', { entityName: entityId });
+    
     const { projectId, dbSchema } = get();
     
     if (dbSchema) {
@@ -408,9 +414,59 @@ export const createEntityActions = (set, get) => ({
    * @param {Array} entityIds - Array of entity IDs to delete
    */
   deleteEntities: (entityIds) => {
+    // Push current state to history before bulk deletion
+    pushToHistory(set, get, 'database', 'DELETE', { entityNames: entityIds });
+    
+    // Delete entities without individual history tracking
     entityIds.forEach(entityId => {
-      get().deleteEntity(entityId);
+      const { projectId, dbSchema } = get();
+      
+      if (dbSchema) {
+        // Use enhanced deletion with foreign key cleanup
+        handleTableDeletion(
+          [entityId],
+          dbSchema,
+          (newSchema) => {
+            // Update dbSchema
+            set((state) => {
+              state.dbSchema = newSchema;
+            });
+            
+            // Update canonical entities to reflect deletion and FK cleanup
+            set((state) => {
+              state.canonicalEntities = state.canonicalEntities
+                .filter(entity => entity.name !== entityId)
+                .map(entity => {
+                  const updatedEntity = newSchema.entities.find(e => e.name === entity.name);
+                  if (updatedEntity) {
+                    return {
+                      ...entity,
+                      attributes: updatedEntity.attributes || []
+                    };
+                  }
+                  return entity;
+                });
+            });
+            
+            // Notify parent component through store action
+            get().updateYamlAndNotify();
+          }
+        );
+      } else {
+        // Simple deletion fallback
+        set((state) => {
+          state.canonicalEntities = state.canonicalEntities.filter(entity => entity.name !== entityId);
+        });
+      }
+      
+      // Remove position
+      if (projectId) {
+        positionService.removePosition(projectId, entityId);
+      }
     });
+    
+    // Update visual state after all deletions
+    get().updateEntityVisualState();
   },
 
   /**

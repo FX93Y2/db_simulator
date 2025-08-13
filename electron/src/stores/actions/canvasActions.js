@@ -1,4 +1,5 @@
 import positionService from '../../services/PositionService.js';
+import { pushToHistory } from '../middleware/historyActions.js';
 
 /**
  * Canvas-related actions for the simulation config store
@@ -64,6 +65,8 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} nodeIds - Array of node IDs to delete
    */
   deleteNodes: (nodeIds) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'simulation', 'DELETE', { stepIds: nodeIds });
     
     set((state) => {
       // Remove from nodes array
@@ -138,6 +141,8 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} position - Position {x, y}
    */
   addNode: (stepData, position = { x: 100, y: 100 }) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'simulation', 'ADD', { stepId: stepData.step_id });
     
     set((state) => {
       // Add to canonical steps

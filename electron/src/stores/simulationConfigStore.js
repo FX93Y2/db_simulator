@@ -8,6 +8,7 @@ import { createWorkflowActions } from './actions/workflowActions.js';
 import { createUIActions } from './actions/uiActions.js';
 import { createConfigActions } from './actions/configActions.js';
 import { createSimulationActions } from './actions/simulationActions.js';
+import { performUndo, performRedo, canUndo, canRedo } from './middleware/historyActions.js';
 
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
@@ -82,6 +83,13 @@ const createProjectStore = (projectId = 'default') => {
           pendingSimulationChanges: {},
           hasUnsavedSimulation: false,
           
+          // ===== HISTORY STATE (Undo/Redo) =====
+          nodeHistory: {
+            past: [],    // Array of previous states
+            future: [],  // Array of states for redo
+            lastAction: null
+          },
+          
           // ===== ACTIONS (available immediately) =====
           ...yamlActions,
           ...canvasActions,
@@ -89,6 +97,12 @@ const createProjectStore = (projectId = 'default') => {
           ...uiActions,
           ...configActions,
           ...simulationActions,
+          
+          // ===== UNDO/REDO ACTIONS =====
+          undo: () => performUndo(set, get, 'simulation'),
+          redo: () => performRedo(set, get, 'simulation'),
+          canUndo: () => canUndo(get()),
+          canRedo: () => canRedo(get()),
         };
       }),
       {
@@ -227,11 +241,11 @@ export const useConfigActions = (projectId) => {
     runSimulation: state.runSimulation,
     initializeConfig: state.initializeConfig,
     clearConfig: state.clearConfig,
-    // Placeholder undo/redo functions - to be implemented later
-    undo: () => { console.log('Undo functionality to be implemented'); },
-    redo: () => { console.log('Redo functionality to be implemented'); },
-    canUndo: () => false,
-    canRedo: () => false
+    // Undo/redo functions
+    undo: state.undo,
+    redo: state.redo,
+    canUndo: state.canUndo,
+    canRedo: state.canRedo
   }));
 };
 

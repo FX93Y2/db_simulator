@@ -117,6 +117,44 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       showError(error);
     }
   }, [error, showError]);
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Only handle shortcuts when focused on the component
+      if (event.ctrlKey || event.metaKey) {
+        switch (event.key.toLowerCase()) {
+          case 'z':
+            if (event.shiftKey) {
+              // Ctrl+Shift+Z for redo
+              event.preventDefault();
+              if (canRedo()) {
+                redo();
+              }
+            } else {
+              // Ctrl+Z for undo
+              event.preventDefault();
+              if (canUndo()) {
+                undo();
+              }
+            }
+            break;
+          case 'y':
+            // Ctrl+Y for redo (alternative)
+            event.preventDefault();
+            if (canRedo()) {
+              redo();
+            }
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [undo, redo, canUndo, canRedo]);
   
   
   // Handle YAML import from files

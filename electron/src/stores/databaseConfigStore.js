@@ -6,6 +6,7 @@ import { createEntityActions } from './actions/entityActions.js';
 import { createEntityYamlActions } from './actions/entityYamlActions.js';
 import { createEntityUIActions } from './actions/entityUIActions.js';
 import { createDatabaseConfigActions } from './actions/databaseConfigActions.js';
+import { performUndo, performRedo, canUndo, canRedo } from './middleware/historyActions.js';
 
 // Enable Immer MapSet plugin for Map and Set support
 enableMapSet();
@@ -59,11 +60,24 @@ const createProjectStore = (projectId = 'default') => {
           isProjectTab: false,
           theme: 'light',
           
+          // ===== HISTORY STATE (Undo/Redo) =====
+          nodeHistory: {
+            past: [],    // Array of previous states
+            future: [],  // Array of states for redo
+            lastAction: null
+          },
+          
           // ===== ACTIONS (available immediately) =====
           ...entityActions,
           ...entityYamlActions,
           ...entityUIActions,
           ...databaseConfigActions,
+          
+          // ===== UNDO/REDO ACTIONS =====
+          undo: () => performUndo(set, get, 'database'),
+          redo: () => performRedo(set, get, 'database'),
+          canUndo: () => canUndo(get()),
+          canRedo: () => canRedo(get()),
         };
       }),
       {
@@ -181,11 +195,11 @@ export const useDatabaseConfigActions = (projectId) => {
     clearDatabaseConfig: state.clearDatabaseConfig,
     getCurrentYamlContent: state.getCurrentYamlContent,
     updateYamlAndNotify: state.updateYamlAndNotify,
-    // Placeholder undo/redo functions - to be implemented later
-    undo: () => { console.log('Undo functionality to be implemented'); },
-    redo: () => { console.log('Redo functionality to be implemented'); },
-    canUndo: () => false,
-    canRedo: () => false
+    // Undo/redo functions
+    undo: state.undo,
+    redo: state.redo,
+    canUndo: state.canUndo,
+    canRedo: state.canRedo
   }));
 };
 
