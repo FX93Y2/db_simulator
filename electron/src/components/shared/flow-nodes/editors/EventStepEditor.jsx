@@ -136,14 +136,6 @@ const EventStepEditor = ({
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Resource Requirements</h6>
-          <Button 
-            variant="outline-primary"
-            size="sm" 
-            onClick={onAddResourceRequirement}
-            className="add-step-item-btn"
-          >
-            + Add Resource
-          </Button>
         </div>
 
         <div className="step-editor-grid-container">
@@ -252,6 +244,17 @@ const EventStepEditor = ({
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-3">
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddResourceRequirement}
+            className="add-step-item-btn"
+          >
+            + Add Resource
+          </Button>
         </div>
       </div>
     </>

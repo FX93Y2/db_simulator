@@ -20,8 +20,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   // Use the step helpers hook
   const {
-    getDisplayNameFromStepId,
-    getStepIdFromDisplayName,
     getAvailableStepNames,
     getAvailableAttributes,
     validateStepId
@@ -97,14 +95,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       decision_type: decideConfig.decision_type || 'probability'
     });
     
-    // Convert outcomes to use display names instead of step IDs
+    // Convert outcomes to use step IDs as display names (step_id is the display name)
     const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
       const nextStepId = outcome.next_step_id;
-      const nextDisplayName = getDisplayNameFromStepId(nextStepId);
       const condition = outcome.conditions?.[0] || {};
       
       const convertedOutcome = {
-        next_event_name: nextDisplayName
+        next_event_name: nextStepId || ''
       };
 
       if (condition.if && condition.if.toLowerCase() === 'probability') {
@@ -448,7 +445,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const convertedOutcomes = outcomes.map((outcome, index) => {
       const baseOutcome = {
         outcome_id: `outcome_${index + 1}`,
-        next_step_id: getStepIdFromDisplayName(outcome.next_event_name)
+        next_step_id: outcome.next_event_name
       };
 
       if (formData.decision_type === 'probability') {

@@ -41,14 +41,6 @@ const AssignStepEditor = ({
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Attribute Assignments</h6>
-          <Button 
-            variant="outline-primary"
-            size="sm" 
-            onClick={onAddAssignment}
-            className="add-step-item-btn"
-          >
-            + Add Assignment
-          </Button>
         </div>
 
         <div className="step-editor-grid-container">
@@ -136,6 +128,17 @@ const AssignStepEditor = ({
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-3">
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddAssignment}
+            className="add-step-item-btn"
+          >
+            + Add Assignment
+          </Button>
         </div>
       </div>
     </>

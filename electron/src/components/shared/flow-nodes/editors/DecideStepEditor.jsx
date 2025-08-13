@@ -44,14 +44,6 @@ const DecideStepEditor = ({
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Decision Outcomes</h6>
-          <Button 
-            variant="outline-primary"
-            size="sm" 
-            onClick={onAddOutcome}
-            className="add-step-item-btn"
-          >
-            + Add Outcome
-          </Button>
         </div>
 
         <div className="step-editor-grid-container">
@@ -153,6 +145,17 @@ const DecideStepEditor = ({
               </div>
             </div>
           ))}
+        </div>
+
+        <div className="mt-3">
+          <Button 
+            variant="outline-primary"
+            size="sm" 
+            onClick={onAddOutcome}
+            className="add-step-item-btn"
+          >
+            + Add Outcome
+          </Button>
         </div>
       </div>
     </>

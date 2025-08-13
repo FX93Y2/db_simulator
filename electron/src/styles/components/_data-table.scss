@@ -1,0 +1,180 @@
+// Reusable Data Table Styles (Based on AttributeTable Design)
+// This provides consistent table styling across all table components
+
+.data-table-container {
+  .data-grid-container {
+    border: 1px solid var(--theme-border);
+    border-radius: 8px;
+    overflow: hidden;
+    background-color: var(--theme-card-bg);
+  }
+  
+  .data-grid-header {
+    background-color: var(--theme-sidebar-bg);
+    border-bottom: 2px solid var(--theme-border);
+    
+    .grid-header-cell {
+      padding: 12px 8px;
+      font-weight: 600;
+      color: var(--theme-text);
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+    }
+  }
+  
+  .data-grid-body {
+    .data-grid-row {
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--theme-border);
+      background-color: var(--theme-card-bg);
+      color: var(--theme-text);
+      
+      &:hover {
+        background-color: var(--theme-hover-bg);
+      }
+      
+      &:last-child {
+        border-bottom: none;
+      }
+      
+      .grid-cell {
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        min-height: 44px;
+      }
+    }
+  }
+}
+
+// Resource-specific section styling
+.resource-section {
+  &:not(:first-child) {
+    margin-top: 24px;
+  }
+  
+  .section-title {
+    margin-bottom: 8px;
+    font-weight: 600;
+    color: var(--theme-text);
+    font-size: 1rem;
+  }
+}
+
+// Grid layout variations
+.data-grid-3-col {
+  .data-grid-header,
+  .data-grid-row {
+    display: grid;
+    grid-template-columns: 1fr 150px 60px;
+    gap: 0;
+  }
+}
+
+.data-grid-4-col {
+  .data-grid-header,
+  .data-grid-row {
+    display: grid;
+    grid-template-columns: 200px 150px 1fr 60px;
+    gap: 0;
+  }
+}
+
+.data-grid-5-col {
+  .data-grid-header,
+  .data-grid-row {
+    display: grid;
+    grid-template-columns: 40px 200px 150px 1fr 60px;
+    gap: 0;
+  }
+}
+
+// Common cell content styles
+.cell-content {
+  &.code-text {
+    font-family: var(--bs-font-monospace);
+    color: var(--theme-primary);
+    font-size: 0.875rem;
+  }
+  
+  &.mono-text {
+    font-family: var(--bs-font-monospace);
+    font-size: 0.875rem;
+  }
+  
+  &.medium-text {
+    font-weight: 500;
+  }
+  
+  &.muted-text {
+    color: var(--theme-muted-text);
+  }
+}
+
+// Action buttons styling
+.cell-actions {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+// Drag handle styling (if drag & drop is needed)
+.drag-handle {
+  cursor: grab;
+  padding: 8px 6px;
+  border-radius: 4px;
+  color: var(--theme-muted-text);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    color: var(--theme-text);
+    background-color: var(--theme-hover-bg);
+  }
+  
+  &:active {
+    cursor: grabbing;
+  }
+  
+  // Create hamburger menu style with CSS
+  &::before {
+    content: '';
+    width: 12px;
+    height: 2px;
+    background-color: currentColor;
+    border-radius: 1px;
+    box-shadow: 
+      0 -4px 0 currentColor,
+      0 4px 0 currentColor;
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .data-table-container {
+    .data-grid-container {
+      border-radius: 4px;
+    }
+    
+    .data-grid-header .grid-header-cell,
+    .data-grid-body .grid-cell {
+      padding: 6px 4px;
+      font-size: 0.8rem;
+    }
+    
+    .resource-section .section-title {
+      font-size: 0.9rem;
+    }
+  }
+  
+  // Adjust grid columns for mobile
+  .data-grid-3-col {
+    .data-grid-header,
+    .data-grid-row {
+      grid-template-columns: 1fr 80px 50px;
+    }
+  }
+}

@@ -163,9 +163,6 @@ export const createYamlActions = (set, get) => ({
       // Load simulation data from the parsed schema
       get().loadSimulationFromYaml(parsedObj);
 
-      // Apply stored display names to parsed steps
-      get().applyStoredDisplayNames();
-
     } catch (error) {
       console.error('[YamlActions] YAML parsing failed:', error);
       
