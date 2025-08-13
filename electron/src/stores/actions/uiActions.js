@@ -115,24 +115,6 @@ export const createUIActions = (set, get) => ({
   handleKeyboard: (event) => {
     const { selectedNode } = get();
     
-    // Delete/Backspace: Delete selected node
-    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedNode) {
-      // Check if user is not typing in an input field
-      const activeElement = document.activeElement;
-      const isTyping = activeElement && (
-        activeElement.tagName === 'INPUT' ||
-        activeElement.tagName === 'TEXTAREA' ||
-        activeElement.contentEditable === 'true'
-      );
-      
-      if (!isTyping) {
-        get().deleteNodes([selectedNode.id]);
-        get().clearSelection();
-        event.preventDefault();
-      }
-    }
-    
-    // Escape: Clear selection or close modal
     if (event.key === 'Escape') {
       if (get().showEditModal) {
         get().closeEditModal();
