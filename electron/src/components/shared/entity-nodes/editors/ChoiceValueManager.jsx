@@ -54,17 +54,14 @@ const ChoiceValueManager = ({
             </Col>
             {showWeights && (
               <Col md={4}>
-                <InputGroup>
-                  <Form.Control
-                    type="number"
-                    step="0.1"
-                    min="0"
-                    max="1"
-                    value={weights[index] || 0}
-                    onChange={(e) => handleChoiceValueChange(index, 'weight', e.target.value)}
-                  />
-                  <InputGroup.Text>%</InputGroup.Text>
-                </InputGroup>
+                <Form.Control
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="1"
+                  value={weights[index] || 0}
+                  onChange={(e) => handleChoiceValueChange(index, 'weight', e.target.value)}
+                />
               </Col>
             )}
             <Col md={showWeights ? 2 : 4}>

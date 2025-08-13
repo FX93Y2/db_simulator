@@ -121,9 +121,14 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const handleDeleteAttribute = (index) => {
     const attributeToDelete = attributes[index];
     
-    // Prevent deletion of protected auto-generated date columns
+    // Prevent deletion of protected auto-generated columns
     if (entityType === 'bridging' && 
         (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) {
+      return; // Do nothing for protected columns
+    }
+    
+    // Prevent deletion of resource_type in resource entities
+    if (entityType === 'resource' && attributeToDelete.type === 'resource_type') {
       return; // Do nothing for protected columns
     }
     
@@ -173,6 +178,26 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       }
     } else if (entityType === 'event') {
       updatedAttributes = updatedAttributes.filter(attr => attr.type !== 'event_type');
+    }
+
+    // Handle resource table resource_type column
+    if (newType === 'resource') {
+      if (!updatedAttributes.some(attr => attr.type === 'resource_type')) {
+        updatedAttributes.push({ 
+          name: 'resource_type', 
+          type: 'resource_type',
+          generator: {
+            type: 'distribution',
+            distribution: {
+              type: 'choice',
+              values: ['Type1', 'Type2', 'Type3'],
+              weights: [0.4, 0.3, 0.3]
+            }
+          }
+        });
+      }
+    } else if (entityType === 'resource') {
+      updatedAttributes = updatedAttributes.filter(attr => attr.type !== 'resource_type');
     }
 
     setAttributes(updatedAttributes);

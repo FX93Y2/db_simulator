@@ -360,12 +360,16 @@
   }
 }
 
-// Step Editor Modal Styles (matches AttributeEditor styling)
+// Step Editor Modal Styles (allow Bootstrap size classes to work)
 .step-editor-modal {
-  .modal-dialog {
+  // Only override large modals to be extra wide for tables
+  &.modal-lg .modal-dialog {
     max-width: 960px;
     width: 90vw;
   }
+  
+  // Let Bootstrap handle default and medium sizes normally
+  // Default: ~500px, Medium: ~800px, Large: custom 960px above
   
   .modal-content {
     background-color: var(--theme-sidebar-bg) !important;

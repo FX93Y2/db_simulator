@@ -19,8 +19,15 @@ const AttributeTable = ({
   const [showGeneratorModal, setShowGeneratorModal] = useState(false);
   const [selectedAttributeIndex, setSelectedAttributeIndex] = useState(-1);
 
-  // Helper function to check if an attribute is protected
+  // Helper function to check if an attribute is protected (cannot be deleted)
   const isProtectedAttribute = (attribute) => {
+    return entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date') ||
+           attribute.type === 'event_type' ||
+           entityType === 'resource' && attribute.type === 'resource_type';
+  };
+
+  // Helper function to check if an attribute is fully protected (cannot be edited at all)
+  const isFullyProtectedAttribute = (attribute) => {
     return entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date') ||
            attribute.type === 'event_type';
   };
@@ -321,15 +328,15 @@ const AttributeTable = ({
                               />
                             ) : (
                               <span
-                                className={`attribute-name-cell ${isProtectedAttribute(attribute) ? 'protected' : 'editable'}`}
-                                onClick={() => !isProtectedAttribute(attribute) && setEditingIndex(index)}
+                                className={`attribute-name-cell ${isFullyProtectedAttribute(attribute) ? 'protected' : 'editable'}`}
+                                onClick={() => !isFullyProtectedAttribute(attribute) && setEditingIndex(index)}
                               >
                                 {attribute.name}
                               </span>
                             )}
                           </div>
                           <div className="grid-cell">
-                            {isProtectedAttribute(attribute) ? (
+                            {isFullyProtectedAttribute(attribute) ? (
                               <span className="text-muted">
                                 {attribute.type === 'event_type' ? 'Event Type' : 'DateTime'}
                               </span>

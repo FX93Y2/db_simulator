@@ -289,7 +289,7 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
         <ResourceDataTable
           sections={resourceSections}
           defaultColumns={columns}
-          defaultGridColumns="1fr 150px 60px"
+          defaultGridColumns="200px 150px 80px"
           renderCell={renderCell}
           className="data-grid-3-col"
         />

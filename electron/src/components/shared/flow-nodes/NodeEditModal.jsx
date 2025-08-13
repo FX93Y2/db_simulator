@@ -613,9 +613,27 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   };
 
+  // Determine modal size based on step type complexity
+  const getModalSize = () => {
+    const stepType = node?.data?.stepConfig?.step_type;
+    switch (stepType) {
+      case 'release':
+        return undefined; // Default modal size for single input field
+      case 'create':
+        return 'md'; // Medium size for create step
+      case 'assign':
+        return 'md'; // Medium size for assign step  
+      case 'event':
+      case 'decide':
+        return 'lg'; // Keep large for complex editors with tables
+      default:
+        return 'md'; // Default to medium
+    }
+  };
+
   return (
     <>
-      <Modal show={show} onHide={onHide} centered size="lg" className="step-editor-modal">
+      <Modal show={show} onHide={onHide} centered size={getModalSize()} className="step-editor-modal">
         <Modal.Header closeButton>
           <Modal.Title>Edit {node?.data.stepConfig?.step_type || 'Step'} Step</Modal.Title>
         </Modal.Header>
