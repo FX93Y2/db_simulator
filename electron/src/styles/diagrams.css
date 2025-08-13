@@ -7,6 +7,48 @@
   min-height: 400px;
   /* background-color: #f8f9fa; */ /* REMOVED */
   /* margin: 1rem 0; */ /* REMOVED */
+  
+  /* Prevent text selection during dragging */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+/* ReactFlow text selection prevention */
+.react-flow__viewport,
+.react-flow__node,
+.react-flow__edge,
+.react-flow__handle,
+.react-flow__connectionline {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Prevent text selection during dragging operations */
+.react-flow__pane.dragging,
+.react-flow__pane.connecting {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+/* Global text selection prevention during connection */
+body.react-flow-connecting {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+body.react-flow-connecting * {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
 }
 
 /* ReactFlow Node Override - Remove default ReactFlow node styling */
@@ -16,6 +58,7 @@
   border-radius: 0 !important;
   padding: 0 !important;
   box-shadow: none !important;
+  user-select: none !important;
 }
 
 /* Modern Entity Table Styles */
@@ -25,6 +68,10 @@
   background-color: transparent;
   position: relative;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .entity-table {
@@ -35,6 +82,10 @@
   background-color: var(--theme-card-bg, #ffffff);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
   transition: box-shadow 0.2s ease;
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
 }
 
 .entity-table:hover {
@@ -156,6 +207,11 @@
   background: white !important;
   border-radius: 50% !important;
   transition: all 0.2s ease !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+  cursor: crosshair !important;
 }
 
 .connection-handle:hover {

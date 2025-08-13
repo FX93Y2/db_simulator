@@ -118,6 +118,17 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
     handleEdgeClick(event, edge);
   }, [handleEdgeClick]);
 
+  const onConnectStart = React.useCallback((event, { nodeId, handleType }) => {
+    // Prevent default text selection during edge dragging
+    event.preventDefault();
+    document.body.classList.add('react-flow-connecting');
+  }, []);
+
+  const onConnectEnd = React.useCallback((event) => {
+    // Re-enable text selection after edge dragging
+    document.body.classList.remove('react-flow-connecting');
+  }, []);
+
   // Node and edge deletion callbacks removed - entities can only be deleted via explicit button clicks
 
   // Enhanced delete entity for use by EntityEditor (with foreign key cleanup)
@@ -162,6 +173,8 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
             onNodeClick={onNodeClick}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={onNodeDoubleClick}
