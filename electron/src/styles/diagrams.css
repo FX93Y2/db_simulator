@@ -357,6 +357,13 @@
   border-radius: 8px !important;
 }
 
+/* Ensure event node selection during drag */
+.react-flow__node.dragging.selected .event-node {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+  transform: scale(1.02) !important;
+}
+
 /* Controls and minimap styles */
 .react-flow__controls {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -380,6 +387,7 @@
   opacity: 0.8;
 }
 
+/* Ensure basic selection styling is preserved during drag */
 .react-flow__node.dragging.selected .entity-table {
   box-shadow: 0 0 0 2px #3498db !important;
   border-radius: 8px !important;
@@ -393,25 +401,46 @@
 
 /* Edge selected styles */
 .react-flow__edge.selected .react-flow__edge-path {
-  stroke-width: 3;
-  stroke-dasharray: none;
-  stroke: #3498db;
+  stroke-width: 3px !important;
+  stroke-dasharray: none !important;
+  stroke: #4ea1ff !important;
 }
 
-/* Node dragging preview styles */
-.react-flow__node.dragging .entity-table {
+/* Ensure edge selection is visible over other elements */
+.react-flow__edge.selected {
+  z-index: 1000;
+}
+
+/* Edge hover effect for better UX */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 2.5px;
+  stroke: #4ea1ff;
+  opacity: 0.8;
+}
+
+/* Don't apply hover when already selected */
+.react-flow__edge.selected:hover .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke: #4ea1ff !important;
+  opacity: 1 !important;
+}
+
+/* Node dragging preview styles - Non-selected nodes */
+.react-flow__node.dragging:not(.selected) .entity-table {
   transform: scale(1.02);
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15);
 }
 
-.react-flow__node.dragging .event-node {
+.react-flow__node.dragging:not(.selected) .event-node {
   transform: scale(1.02);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Ensure selection highlight takes priority during drag */
+/* Selected nodes during drag - Higher specificity with selection border */
 .react-flow__node.dragging.selected .entity-table {
+  transform: scale(1.02) !important;
   box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
 }
 
 /* Handle connection styles */

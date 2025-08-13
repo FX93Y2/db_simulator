@@ -154,6 +154,7 @@ export const useEntityUIActions = (projectId) => {
     openEntityModal: state.openEntityModal,
     closeEntityModal: state.closeEntityModal,
     handleEntityClick: state.handleEntityClick,
+    handleEdgeClick: state.handleEdgeClick,
     handleEntityDoubleClick: state.handleEntityDoubleClick,
     handleEntityDragStop: state.handleEntityDragStop,
     handleEntitiesDelete: state.handleEntitiesDelete,

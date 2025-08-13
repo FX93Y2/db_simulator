@@ -42,6 +42,47 @@ export const createEntityUIActions = (set, get) => ({
   handleEntityClick: (event, node) => {
     set((state) => {
       state.selectedEntity = node;
+      // Update React Flow's selection state
+      state.entityNodes = state.entityNodes.map(n => ({
+        ...n,
+        selected: n.id === node?.id
+      }));
+      
+      // Highlight connected edges when node is selected
+      if (node) {
+        state.entityEdges = state.entityEdges.map(edge => ({
+          ...edge,
+          selected: edge.source === node.id || edge.target === node.id
+        }));
+      } else {
+        // Clear all edge selections when no node is selected
+        state.entityEdges = state.entityEdges.map(edge => ({
+          ...edge,
+          selected: false
+        }));
+      }
+    });
+  },
+
+  /**
+   * Handle edge click (for selection)
+   * @param {Event} event - Click event
+   * @param {Object} edge - Clicked edge object
+   */
+  handleEdgeClick: (event, edge) => {
+    set((state) => {
+      // Clear node selection when edge is clicked
+      state.selectedEntity = null;
+      state.entityNodes = state.entityNodes.map(node => ({
+        ...node,
+        selected: false
+      }));
+      
+      // Set only the clicked edge as selected
+      state.entityEdges = state.entityEdges.map(e => ({
+        ...e,
+        selected: e.id === edge.id
+      }));
     });
   },
 
@@ -118,6 +159,16 @@ export const createEntityUIActions = (set, get) => ({
   clearEntitySelection: () => {
     set((state) => {
       state.selectedEntity = null;
+      // Also clear React Flow's internal selection by setting all nodes to selected: false
+      state.entityNodes = state.entityNodes.map(node => ({
+        ...node,
+        selected: false
+      }));
+      // Clear edge selection as well
+      state.entityEdges = state.entityEdges.map(edge => ({
+        ...edge,
+        selected: false
+      }));
     });
   },
 
@@ -136,7 +187,7 @@ export const createEntityUIActions = (set, get) => ({
   },
 
   /**
-   * Handle ReactFlow nodes change (for position updates)
+   * Handle ReactFlow nodes change (for position updates and selection)
    * @param {Array} changes - Array of node changes
    */
   handleEntityNodesChange: (changes) => {
@@ -152,6 +203,20 @@ export const createEntityUIActions = (set, get) => ({
         
         // Also update in canonical entities and PositionService
         get().updateEntityPosition(change.id, change.position);
+      } else if (change.type === 'select') {
+        // Handle selection changes from React Flow
+        set((state) => {
+          const nodeIndex = state.entityNodes.findIndex(node => node.id === change.id);
+          if (nodeIndex !== -1) {
+            state.entityNodes[nodeIndex].selected = change.selected;
+            // Sync with selectedEntity state
+            if (change.selected) {
+              state.selectedEntity = state.entityNodes[nodeIndex];
+            } else if (state.selectedEntity?.id === change.id) {
+              state.selectedEntity = null;
+            }
+          }
+        });
       }
     });
   },
@@ -161,8 +226,32 @@ export const createEntityUIActions = (set, get) => ({
    * @param {Array} changes - Array of edge changes
    */
   handleEntityEdgesChange: (changes) => {
-    // Handle edge changes if needed
-    // Currently most edge operations are handled by connection/deletion methods
+    changes.forEach(change => {
+      if (change.type === 'select') {
+        // Handle edge selection changes from React Flow
+        set((state) => {
+          const edgeIndex = state.entityEdges.findIndex(edge => edge.id === change.id);
+          if (edgeIndex !== -1) {
+            state.entityEdges[edgeIndex].selected = change.selected;
+            
+            // If edge is being selected, clear node selection
+            if (change.selected) {
+              state.selectedEntity = null;
+              state.entityNodes = state.entityNodes.map(node => ({
+                ...node,
+                selected: false
+              }));
+              // Also clear other edge selections (only one edge selected at a time)
+              state.entityEdges = state.entityEdges.map(edge => ({
+                ...edge,
+                selected: edge.id === change.id
+              }));
+            }
+          }
+        });
+      }
+      // Handle other edge change types if needed in the future
+    });
   },
 
   /**
