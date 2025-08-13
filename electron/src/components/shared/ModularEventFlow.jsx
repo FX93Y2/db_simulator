@@ -5,7 +5,6 @@ import ReactFlow, {
   Background,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import '../../styles/diagrams.css';
 
 // Store imports
 import {

@@ -1,57 +1,11 @@
-// ER Diagram
-.er-diagram-container {
-  background-color: var(--theme-editor-bg);
-  position: relative;
-  
-  // Ensure the React Flow viewport inherits or gets the theme background
-  .react-flow__viewport {
-    background-color: transparent;
-  }
-  
-  // Lighter background for dark theme ReactFlow canvas
-  .theme-dark & {
-    background-color: #414141; // Lighter than default dark theme background
-  }
-  
-  // Entity node styles now handled by diagrams.css
-  // Modern table-based design with proper header/body structure
-}
+// Legacy diagram styles - most content moved to specialized files
+// This file kept for compatibility and will eventually be removed
 
-// Event Flow
-.event-flow-container {
-  height: 500px;
-  border: 1px solid $border-color;
-  border-radius: 4px;
-  
-  // Ensure the React Flow viewport inherits or gets the theme background
-  .react-flow__viewport {
-    background-color: transparent;
-  }
-  
-  // Lighter background for dark theme ReactFlow canvas - same as ER diagram
-  .theme-dark & {
-    background-color: #414141; // Lighter than default dark theme background
-  }
-  
-  .event-node {
-     // Update event node styles for theming
-     padding: 10px;
-     border-radius: 4px;
-     // Use theme card background or a secondary color accent
-     background-color: var(--theme-card-bg);
-     color: var(--theme-text);
-     border: 1px solid var(--theme-secondary, #2ecc71); // Use secondary color for border
-     width: 150px;
-     text-align: center;
-    
-    &__title {
-      font-weight: bold;
-    }
-    
-    &__info {
-      font-size: 12px;
-      margin-top: 5px;
-      color: var(--theme-muted-text);
-    }
-  }
-}
+// Note: Diagram styles have been refactored into specialized files:
+// - _react-flow-base.scss - Base React Flow container styles
+// - _entity-nodes.scss - Entity table styling
+// - _event-decision-nodes.scss - Event and decision node styling  
+// - _react-flow-selection.scss - Selection and interaction behaviors
+// - _react-flow-edges.scss - Edge styling and behaviors
+// - _connection-handles.scss - Connection handle styling
+// - _text-selection-prevention.scss - Text selection prevention utilities

@@ -1,0 +1,25 @@
+// Text Selection Prevention Utilities
+// Mixins for preventing text selection during drag operations
+
+@mixin prevent-text-selection {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+}
+
+@mixin prevent-text-selection-important {
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  -moz-user-select: none !important;
+  -ms-user-select: none !important;
+}
+
+// Global text selection prevention during connection
+body.react-flow-connecting {
+  @include prevent-text-selection-important;
+  
+  * {
+    @include prevent-text-selection-important;
+  }
+}

@@ -131,3 +131,57 @@ body.theme-dark {
     }
   }
 }
+
+// Node Details Modal (for diagram nodes)
+.node-details-modal {
+  .modal-header {
+    background-color: var(--theme-sidebar-bg);
+    color: var(--theme-text);
+    border-bottom: 1px solid var(--theme-border);
+  }
+
+  .modal-content {
+    background-color: var(--theme-card-bg);
+    color: var(--theme-text);
+    border: 1px solid var(--theme-border);
+  }
+
+  .modal-body {
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+
+  .form-label {
+    color: var(--theme-text);
+  }
+
+  .form-control,
+  .form-select,
+  .input-group-text {
+    background-color: var(--theme-bg);
+    color: var(--theme-text);
+    border-color: var(--theme-border);
+
+    &:focus {
+      background-color: var(--theme-bg);
+      color: var(--theme-text);
+      border-color: var(--theme-primary);
+      box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
+    }
+  }
+
+  .modal-footer {
+    border-top: 1px solid var(--theme-border);
+  }
+
+  .attribute-item,
+  .resource-item {
+    transition: all 0.2s ease;
+    padding: 8px;
+    border-radius: 4px;
+
+    &:hover {
+      background-color: var(--theme-hover-bg);
+    }
+  }
+}

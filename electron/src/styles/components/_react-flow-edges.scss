@@ -1,0 +1,93 @@
+// React Flow Edge Styles
+// Edge styling, selection, hover effects, and connection styles
+
+// Base edge styles
+.react-flow__edge-path {
+  stroke-width: 2;
+}
+
+.react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+// Edge connecting styles
+.react-flow__edge.connecting {
+  stroke: #3498db;
+  stroke-width: 2;
+}
+
+// Edge selected styles
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke-dasharray: none !important;
+  stroke: #4ea1ff !important;
+}
+
+// Ensure edge selection is visible over other elements
+.react-flow__edge.selected {
+  z-index: 1000;
+}
+
+// Edge hover effect for better UX
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke-width: 2.5px;
+  stroke: #4ea1ff;
+  opacity: 0.8;
+}
+
+// Don't apply hover when already selected
+.react-flow__edge.selected:hover .react-flow__edge-path {
+  stroke-width: 3px !important;
+  stroke: #4ea1ff !important;
+  opacity: 1 !important;
+}
+
+// Edge deletion styles
+.react-flow__edge.deleting {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+// Edge updating styles
+.react-flow__edge.updating {
+  stroke-dasharray: 5;
+  animation: dash 1s linear infinite;
+}
+
+@keyframes dash {
+  to {
+    stroke-dashoffset: 10;
+  }
+}
+
+// Step edge styles
+.react-flow__edge.step-edge .react-flow__edge-path {
+  stroke-width: 2;
+  fill: none;
+}
+
+// Custom edge label background
+.react-flow__edge.step-edge .react-flow__edge-text,
+.react-flow__edge.smoothstep-edge .react-flow__edge-text {
+  background-color: white;
+  padding: 3px;
+  border-radius: 3px;
+  font-size: 12px;
+  font-weight: 500;
+  fill: #333;
+  paint-order: stroke;
+  stroke: white;
+  stroke-width: 3px;
+}
+
+// Edge label styles
+.react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 500;
+  fill: #333;
+  background-color: white;
+  padding: 2px 4px;
+  border-radius: 3px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}

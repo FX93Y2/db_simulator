@@ -1,0 +1,82 @@
+// React Flow Selection and Interaction Styles
+// Node selection, dragging, and interaction behaviors
+
+// ReactFlow Node Selection Override - Remove default selection styling
+.react-flow__node.selected {
+  box-shadow: none !important;
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+}
+
+// Custom Node selection styles with rounded corners
+.react-flow__node.selected .entity-table {
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__node.selected .event-node,
+.react-flow__node.selected .decision-node > div {
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
+// Ensure event node selection during drag
+.react-flow__node.dragging.selected .event-node {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+  transform: scale(1.02) !important;
+}
+
+// Node dragging styles
+.react-flow__node.dragging {
+  opacity: 0.8;
+  cursor: grabbing;
+}
+
+// Maintain selection highlighting during drag
+.react-flow__node.dragging.selected {
+  opacity: 0.8;
+}
+
+// Ensure basic selection styling is preserved during drag
+.react-flow__node.dragging.selected .entity-table {
+  box-shadow: 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
+// Node dragging preview styles - Non-selected nodes
+.react-flow__node.dragging:not(.selected) .entity-table {
+  transform: scale(1.02);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.react-flow__node.dragging:not(.selected) .event-node {
+  transform: scale(1.02);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+// Selected nodes during drag - Higher specificity with selection border
+.react-flow__node.dragging.selected .entity-table {
+  transform: scale(1.02) !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  border-radius: 8px !important;
+}
+
+// Node deletion styles
+.react-flow__node.deleting {
+  opacity: 0.5;
+  transition: opacity 0.2s;
+}
+
+// Node resizing styles
+.react-flow__node.resizing {
+  opacity: 0.8;
+  cursor: nwse-resize;
+}
+
+// Node rotation styles
+.react-flow__node.rotating {
+  opacity: 0.8;
+  cursor: grabbing;
+}

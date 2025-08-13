@@ -138,3 +138,50 @@
     color: white;
   }
 }
+
+// Project list buttons in sidebar
+.project-edit-btn,
+.project-delete-btn {
+  padding: 2px 6px;
+  margin-left: 4px;
+  vertical-align: middle;
+  height: 28px;
+  min-width: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none !important;
+  box-shadow: none !important;
+  background: none !important;
+  transition: background 0.15s, color 0.15s;
+
+  &:focus, &:active {
+    box-shadow: none !important;
+    outline: none !important;
+    background: none !important;
+  }
+}
+
+.project-edit-btn {
+  color: #90a4ae !important;
+
+  &:hover, &:focus, &:active {
+    background: rgba(128, 128, 128, 0.15) !important;
+    border-radius: 8px;
+  }
+}
+
+.project-delete-btn {
+  color: #ff4d4f !important;
+
+  &:hover, &:focus, &:active {
+    background: rgba(128, 128, 128, 0.15) !important;
+    border-radius: 8px;
+  }
+}
+
+// Ensure the button container aligns items center
+.project-item {
+  display: flex;
+  align-items: center;
+}

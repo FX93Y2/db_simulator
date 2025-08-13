@@ -1,0 +1,85 @@
+// Base React Flow Styles
+// Container styles and basic React Flow overrides
+
+@import '../base/variables';
+@import 'text-selection-prevention';
+
+// Common styles for diagram containers
+.er-diagram-container,
+.event-flow-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 400px;
+  background-color: var(--theme-editor-bg);
+  
+  @include prevent-text-selection;
+  
+  // Lighter background for dark theme ReactFlow canvas
+  .theme-dark & {
+    background-color: #414141; // Lighter than default dark theme background
+  }
+}
+
+// Event flow specific sizing
+.event-flow-container {
+  height: 500px;
+  border: 1px solid $border-color;
+  border-radius: 4px;
+}
+
+// ReactFlow base element text selection prevention
+.react-flow__viewport,
+.react-flow__node,
+.react-flow__edge,
+.react-flow__handle,
+.react-flow__connectionline {
+  @include prevent-text-selection-important;
+}
+
+// Prevent text selection during dragging operations
+.react-flow__pane.dragging,
+.react-flow__pane.connecting {
+  @include prevent-text-selection-important;
+}
+
+// ReactFlow Node Override - Remove default ReactFlow node styling
+.react-flow__node-entity {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  @include prevent-text-selection-important;
+}
+
+// Controls and minimap styles
+.react-flow__controls {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.react-flow__minimap {
+  background-color: var(--theme-card-bg, #f8f9fa);
+  border: 1px solid var(--theme-border, #ddd);
+  border-radius: 4px;
+}
+
+// Zoom controls styles
+.react-flow__controls-zoom {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  background-color: white;
+  
+  button {
+    border: none;
+    background: none;
+    padding: 5px;
+    cursor: pointer;
+    color: #666;
+    
+    &:hover {
+      color: #333;
+      background-color: #f5f5f5;
+    }
+  }
+}
