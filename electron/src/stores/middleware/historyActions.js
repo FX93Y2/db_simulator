@@ -31,16 +31,21 @@ export const createStateSnapshot = (state, storeType) => {
 /**
  * Restore state from history snapshot
  * @param {Function} set - Zustand set function
+ * @param {Function} get - Zustand get function
  * @param {Object} snapshot - History snapshot to restore
  * @param {string} storeType - Type of store ('database' | 'simulation')
  */
-export const restoreStateSnapshot = (set, snapshot, storeType) => {
+export const restoreStateSnapshot = (set, get, snapshot, storeType) => {
   if (storeType === 'database') {
     set((state) => {
       state.canonicalEntities = [...snapshot.canonicalEntities];
       state.entityNodes = [...snapshot.entityNodes];
       state.entityEdges = [...snapshot.entityEdges];
     });
+    
+    // Trigger YAML regeneration after restoring state
+    // This ensures the YAML content stays in sync with the visual state
+    get().updateEntityVisualState();
   } else if (storeType === 'simulation') {
     set((state) => {
       state.canonicalSteps = [...snapshot.canonicalSteps];
@@ -48,6 +53,11 @@ export const restoreStateSnapshot = (set, snapshot, storeType) => {
       state.edges = [...snapshot.edges];
       state.positions = new Map(snapshot.positions);
     });
+    
+    // Trigger YAML regeneration after restoring state
+    // This ensures the YAML content stays in sync with the visual state
+    get().updateVisualState();
+    get().syncCanvasToYaml();
   } else {
     throw new Error(`Unknown store type: ${storeType}`);
   }
@@ -119,7 +129,7 @@ export const performUndo = (set, get, storeType) => {
   });
   
   // Restore previous state
-  restoreStateSnapshot(set, lastHistoryEntry.snapshot, storeType);
+  restoreStateSnapshot(set, get, lastHistoryEntry.snapshot, storeType);
   
   return true;
 };
@@ -158,7 +168,7 @@ export const performRedo = (set, get, storeType) => {
   });
   
   // Restore future state
-  restoreStateSnapshot(set, nextHistoryEntry.snapshot, storeType);
+  restoreStateSnapshot(set, get, nextHistoryEntry.snapshot, storeType);
   
   return true;
 };
