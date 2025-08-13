@@ -8,32 +8,26 @@ import {
   Modal,
   Spinner,
   InputGroup,
-  Tabs,
-  Tab,
   Dropdown
 } from 'react-bootstrap';
-import { FiSave, FiArrowLeft, FiPlay, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlay, FiSettings, FiGitBranch, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
 import { VscEmptyWindow } from 'react-icons/vsc';
-import { LuUndo2, LuRedo2 } from 'react-icons/lu';
+import { LuUndo2, LuRedo2, LuPackage, LuCalendar } from 'react-icons/lu';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
 
 // New store imports
 import {
-  useSimulationConfigStore,
   useYamlContent,
   useParsedSchema,
   useCanonicalSteps,
-  useCurrentState,
   useIsLoading,
   useError,
-  useActiveTab,
   useHasUnsavedSimulation,
   useYamlActions,
   useCanvasActions,
   useConfigActions,
-  useWorkflowActions,
-  useUIActions
+  useWorkflowActions
 } from '../../stores/simulationConfigStore';
 
 // Components
@@ -69,10 +63,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const yamlContent = useYamlContent(projectId);
   const parsedSchema = useParsedSchema(projectId);
   const canonicalSteps = useCanonicalSteps(projectId);
-  const currentState = useCurrentState(projectId);
   const isLoading = useIsLoading(projectId);
   const error = useError(projectId);
-  const activeTab = useActiveTab(projectId);
   const hasUnsavedSimulation = useHasUnsavedSimulation(projectId);
 
   // Store actions
@@ -80,7 +72,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   const { addNode } = useCanvasActions(projectId);
   const { loadConfig, saveConfig, initializeConfig, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
   const { clearError } = useWorkflowActions(projectId);
-  const { setActiveTab } = useUIActions(projectId);
 
   // Project-specific store now accessed through reactive hooks above
 
@@ -353,6 +344,8 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   // Modal state (local only for UI)
   const [showSaveModal, setShowSaveModal] = React.useState(false);
   const [showRunModal, setShowRunModal] = React.useState(false);
+  const [showResourceModal, setShowResourceModal] = React.useState(false);
+  const [showSimulationModal, setShowSimulationModal] = React.useState(false);
   const [dbConfigs, setDbConfigs] = React.useState([]);
   const [selectedDbConfig, setSelectedDbConfig] = React.useState('');
 
@@ -428,32 +421,12 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
         </div>
       </div>
 
-      {/* Canvas Panel Header with Tabs */}
-      <div className="grid-canvas-header has-tabs">
-        <Tabs
-          activeKey={activeTab}
-          onSelect={setActiveTab}
-          className="mb-0"
-        >
-          <Tab
-            eventKey="event-flow"
-            title={<span><FiGitBranch className="me-2" />Event Flow</span>}
-          />
-          <Tab
-            eventKey="resources"
-            title={<span><FiSettings className="me-2" />Resources</span>}
-          />
-          <Tab
-            eventKey="simulation"
-            title={
-              <span>
-                <FiClock className="me-2" />
-                Simulation
-                {hasUnsavedSimulation && <span className="text-warning ms-2">●</span>}
-              </span>
-            }
-          />
-        </Tabs>
+      {/* Canvas Panel Header */}
+      <div className="grid-canvas-header">
+        <div>
+          <FiGitBranch className="me-2" />
+          Event Flow
+        </div>
       </div>
 
       {/* YAML Panel Content */}
@@ -484,92 +457,94 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
               <div className="mt-2">Loading...</div>
             </div>
           ) : (
-            <>
-              {activeTab === 'event-flow' && (
-                <div className="position-relative" style={{ height: '100%' }}>
-                  <ModularEventFlow
-                    theme={theme}
-                    dbConfigContent={dbConfigContent}
-                    projectId={projectId}
-                  />
-                  
-                  {/* Floating Toolbar for Event Flow */}
-                  <FloatingToolbar
-                    items={[
+            <div className="position-relative" style={{ height: '100%' }}>
+              <ModularEventFlow
+                theme={theme}
+                dbConfigContent={dbConfigContent}
+                projectId={projectId}
+              />
+              
+              {/* Floating Toolbar for Event Flow */}
+              <FloatingToolbar
+                items={[
+                  {
+                    type: 'dropdown',
+                    icon: <VscEmptyWindow />,
+                    disabled: isLoading,
+                    variant: 'primary',
+                    tooltip: 'Add Module',
+                    dropDirection: 'end',
+                    children: [
                       {
-                        type: 'dropdown',
                         icon: <VscEmptyWindow />,
-                        disabled: isLoading,
-                        variant: 'primary',
-                        tooltip: 'Add Module',
-                        dropDirection: 'end',
-                        children: [
-                          {
-                            icon: <VscEmptyWindow />,
-                            label: 'Create',
-                            onClick: () => handleAddModule('create')
-                          },
-                          {
-                            icon: <FiSettings />,
-                            label: 'Process (Event)',
-                            onClick: () => handleAddModule('event')
-                          },
-                          {
-                            icon: <FiGitBranch />,
-                            label: 'Decide',
-                            onClick: () => handleAddModule('decide')
-                          },
-                          {
-                            icon: <FiTag />,
-                            label: 'Assign',
-                            onClick: () => handleAddModule('assign')
-                          },
-                          {
-                            icon: <FiPlay />,
-                            label: 'Release (Dispose)',
-                            onClick: () => handleAddModule('release')
-                          }
-                        ]
+                        label: 'Create',
+                        onClick: () => handleAddModule('create')
                       },
                       {
-                        type: 'separator'
+                        icon: <FiSettings />,
+                        label: 'Process (Event)',
+                        onClick: () => handleAddModule('event')
                       },
                       {
-                        type: 'button',
-                        icon: <LuUndo2 />,
-                        onClick: undo,
-                        disabled: isLoading || !canUndo(),
-                        variant: 'primary',
-                        tooltip: 'Undo'
+                        icon: <FiGitBranch />,
+                        label: 'Decide',
+                        onClick: () => handleAddModule('decide')
                       },
                       {
-                        type: 'button',
-                        icon: <LuRedo2 />,
-                        onClick: redo,
-                        disabled: isLoading || !canRedo(),
-                        variant: 'primary',
-                        tooltip: 'Redo'
+                        icon: <FiTag />,
+                        label: 'Assign',
+                        onClick: () => handleAddModule('assign')
+                      },
+                      {
+                        icon: <FiPlay />,
+                        label: 'Release (Dispose)',
+                        onClick: () => handleAddModule('release')
                       }
-                    ]}
-                    position="left"
-                    theme={theme}
-                  />
-                </div>
-              )}
-              
-              {activeTab === 'resources' && (
-                <ResourceEditor
-                  theme={theme}
-                  dbConfigContent={dbConfigContent}
-                />
-              )}
-              
-              {activeTab === 'simulation' && (
-                <SimulationEditor
-                  projectId={projectId}
-                />
-              )}
-            </>
+                    ]
+                  },
+                  {
+                    type: 'separator'
+                  },
+                  {
+                    type: 'button',
+                    icon: <LuPackage />,
+                    onClick: () => setShowResourceModal(true),
+                    disabled: isLoading,
+                    variant: 'primary',
+                    tooltip: 'Resource Capacity Config'
+                  },
+                  {
+                    type: 'button',
+                    icon: <LuCalendar />,
+                    onClick: () => setShowSimulationModal(true),
+                    disabled: isLoading,
+                    variant: 'primary',
+                    tooltip: 'Simulation Duration Config'
+                  },
+                  {
+                    type: 'separator'
+                  },
+                  {
+                    type: 'button',
+                    icon: <LuUndo2 />,
+                    onClick: undo,
+                    disabled: isLoading || !canUndo(),
+                    variant: 'primary',
+                    tooltip: 'Undo'
+                  },
+                  {
+                    type: 'button',
+                    icon: <LuRedo2 />,
+                    onClick: redo,
+                    disabled: isLoading || !canRedo(),
+                    variant: 'primary',
+                    tooltip: 'Redo'
+                  }
+                ]}
+                position="left"
+                theme={theme}
+              />
+            </div>
           )}
         </div>
       </div>
@@ -582,7 +557,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
       />
 
     </div>
-  ), [yamlContent, activeTab, theme, isLoading, handleImport, handleExport, handleSave, handleAddModule, handleFileChange, dbConfigContent, projectId, setActiveTab, hasUnsavedSimulation, handleMouseDown]);
+  ), [yamlContent, theme, isLoading, handleImport, handleExport, handleSave, handleAddModule, handleFileChange, dbConfigContent, projectId, undo, redo, canUndo, canRedo, handleMouseDown]);
 
   // Store is always initialized now
 
@@ -660,6 +635,51 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             <FiPlay className="me-2" /> Run
           </Button>
         </Modal.Footer>
+      </Modal>
+
+      {/* Resource Configuration Modal */}
+      <Modal
+        show={showResourceModal}
+        onHide={() => setShowResourceModal(false)}
+        size="lg"
+        centered
+        enforceFocus={false}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <LuPackage className="me-2" />
+            Resource Capacity Configuration
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <ResourceEditor
+            yamlContent={yamlContent}
+            onResourceChange={() => {}} // Placeholder - resources are managed through store
+            theme={theme}
+            dbConfigContent={dbConfigContent}
+          />
+        </Modal.Body>
+      </Modal>
+
+      {/* Simulation Configuration Modal */}
+      <Modal
+        show={showSimulationModal}
+        onHide={() => setShowSimulationModal(false)}
+        size="lg"
+        centered
+        enforceFocus={false}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            <LuCalendar className="me-2" />
+            Simulation Duration Configuration
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <SimulationEditor
+            projectId={projectId}
+          />
+        </Modal.Body>
       </Modal>
     </div>
   );
