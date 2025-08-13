@@ -10,7 +10,10 @@ import {
 } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
-import { FiSave, FiPlus, FiUpload, FiDownload } from 'react-icons/fi';
+import FloatingToolbar from '../shared/FloatingToolbar';
+import { FiSave, FiUpload, FiDownload } from 'react-icons/fi';
+import { VscEmptyWindow } from 'react-icons/vsc';
+import { LuUndo2, LuRedo2 } from 'react-icons/lu';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
 
@@ -48,7 +51,11 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
     loadDatabaseConfig,
     saveDatabaseConfig,
     initializeDatabaseConfig,
-    updateConfigMetadata
+    updateConfigMetadata,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   } = useDatabaseConfigActions(projectId);
   
   const { importEntityYaml } = useEntityYamlActions(projectId);
@@ -386,14 +393,6 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
       {/* Canvas Panel Header */}
       <div className="grid-canvas-header">
         <div>ER Diagram</div>
-        <Button 
-          size="sm"
-          className="btn-custom-toolbar"
-          onClick={handleAddTable}
-          disabled={isLoading}
-        >
-          <FiPlus /> Add Table
-        </Button>
       </div>
 
       {/* YAML Panel Content */}
@@ -424,6 +423,42 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
             theme={theme}
             projectId={projectId}
           />
+          
+          {/* Floating Toolbar */}
+          <FloatingToolbar
+            items={[
+              {
+                type: 'button',
+                icon: <VscEmptyWindow />,
+                onClick: handleAddTable,
+                disabled: isLoading,
+                variant: 'primary',
+                tooltip: 'Add Table'
+              },
+              {
+                type: 'separator'
+              },
+              {
+                type: 'button',
+                icon: <LuUndo2 />,
+                onClick: undo,
+                disabled: isLoading || !canUndo(),
+                variant: 'primary',
+                tooltip: 'Undo'
+              },
+              {
+                type: 'button',
+                icon: <LuRedo2 />,
+                onClick: redo,
+                disabled: isLoading || !canRedo(),
+                variant: 'primary',
+                tooltip: 'Redo'
+              }
+            ]}
+            position="left"
+            theme={theme}
+          />
+          
           {isLoading && (
             <div className="position-absolute top-50 start-50 translate-middle">
               <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">

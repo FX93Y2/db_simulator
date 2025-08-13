@@ -1,0 +1,300 @@
+// Floating Toolbar Styles
+// Vertical toolbar positioned on canvas edges
+
+@import '../base/variables';
+
+.floating-toolbar {
+  position: absolute;
+  z-index: 100;
+  pointer-events: none; // Allow canvas interactions to pass through
+  
+  // Position variants
+  &--left {
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  &--right {
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  
+  &--top {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    .floating-toolbar__container {
+      flex-direction: row;
+    }
+  }
+  
+  &--bottom {
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    .floating-toolbar__container {
+      flex-direction: row;
+    }
+  }
+}
+
+.floating-toolbar__container {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px;
+  background-color: var(--theme-card-bg, #ffffff);
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+  pointer-events: auto; // Re-enable interactions for toolbar content
+  
+  // Dark theme adjustments
+  .theme-dark & {
+    background-color: var(--theme-card-bg, #2d2d2d);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.floating-toolbar__item {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--theme-card-bg, #ffffff);
+  border: none;
+  border-radius: 6px;
+  color: var(--theme-text, #333333);
+  font-size: 0.875rem;
+  transition: background-color 0.15s ease;
+  text-decoration: none;
+  cursor: pointer;
+  
+  // Icon-only button adjustments
+  &:not(:has(.floating-toolbar__label)) {
+    padding: 8px;
+    min-width: 35px;
+    min-height: 35px;
+  }
+  
+  // Icon and label layout
+  .floating-toolbar__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+    line-height: 1;
+    
+    // Ensure proper icon alignment in icon-only buttons
+    .floating-toolbar__item:not(:has(.floating-toolbar__label)) & {
+      margin: 0;
+    }
+  }
+  
+  .floating-toolbar__label {
+    margin-left: 6px;
+    font-weight: 500;
+    white-space: nowrap;
+  }
+  
+  // Hide labels for compact toolbar
+  .floating-toolbar--compact & {
+    .floating-toolbar__label {
+      display: none;
+    }
+  }
+  
+  // Toolbar variant styling - matches entity table row hover
+  &--toolbar {
+    &:hover:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      color: var(--theme-text, #333333);
+    }
+    
+    &:active:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
+    }
+    
+    &:focus-visible {
+      outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      outline-offset: 2px;
+    }
+    
+    // Dark theme hover
+    .theme-dark &:hover:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
+    }
+    
+    .theme-dark &:active:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
+    }
+  }
+  
+  // Primary variant - same background as entity table with subtle accent
+  &--primary {
+    background-color: var(--theme-card-bg, #ffffff);
+    color: var(--theme-text, #333333);
+    
+    &:hover:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      color: var(--theme-text, #333333);
+    }
+    
+    &:active:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
+      color: var(--theme-text, #333333);
+    }
+    
+    &:focus-visible {
+      outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      outline-offset: 2px;
+    }
+    
+    // Dark theme styling
+    .theme-dark & {
+      background-color: var(--theme-card-bg, #2d2d2d);
+      color: var(--theme-text, #ffffff);
+      
+      &:hover:not(:disabled) {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
+      }
+      
+      &:active:not(:disabled) {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
+      }
+    }
+  }
+  
+  // Disabled state
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+  }
+}
+
+// Dropdown specific styling
+.floating-toolbar__dropdown {
+  .dropdown-toggle {
+    @extend .floating-toolbar__item;
+    
+    // Hide default Bootstrap caret for icon-only dropdowns
+    &::after {
+      display: none;
+    }
+    
+    // Apply primary styling if specified
+    &.floating-toolbar__item--primary {
+      @extend .floating-toolbar__item--primary;
+    }
+    
+    // Apply toolbar styling if specified
+    &.floating-toolbar__item--toolbar {
+      @extend .floating-toolbar__item--toolbar;
+    }
+  }
+  
+  .dropdown-menu {
+    background-color: var(--theme-card-bg, #ffffff);
+    border: none;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+    padding: 4px;
+    min-width: 180px;
+    
+    .theme-dark & {
+      background-color: var(--theme-card-bg, #2d2d2d);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    
+    // Custom positioning for right-opening dropdown
+    &[data-popper-placement^="right"] {
+      margin-left: var(--floating-toolbar-dropdown-offset, 12px);
+    }
+  
+    
+    .dropdown-item {
+      padding: 8px 12px;
+      border-radius: 4px;
+      color: var(--theme-text, #333333);
+      display: flex;
+      align-items: center;
+      transition: background-color 0.15s ease;
+      background-color: transparent;
+      border: none;
+      
+      &:hover {
+        background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+        color: var(--theme-text, #333333);
+      }
+      
+      &:active {
+        background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
+        color: var(--theme-text, #333333);
+      }
+      
+      // Dark theme hover
+      .theme-dark &:hover {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
+      }
+      
+      .theme-dark &:active {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
+      }
+    }
+  }
+}
+
+// Separator styling
+.floating-toolbar__separator {
+  height: 1px;
+  background-color: var(--theme-border, #e0e0e0);
+  margin: 2px 0;
+  
+  .theme-dark & {
+    background-color: var(--theme-border, #404040);
+  }
+}
+
+// Responsive adjustments
+@media (max-width: 768px) {
+  .floating-toolbar {
+    &--left,
+    &--right {
+      .floating-toolbar__label {
+        display: none;
+      }
+    }
+    
+    .floating-toolbar__container {
+      padding: 8px;
+      gap: 6px;
+    }
+    
+    .floating-toolbar__item {
+      min-width: 36px;
+      min-height: 36px;
+      padding: 6px 8px;
+    }
+  }
+}
+
+// Stable positioning without animation to prevent reload jump
+.floating-toolbar--left,
+.floating-toolbar--right {
+  .floating-toolbar__container {
+    // Remove animation that can cause positioning issues on reload
+    opacity: 1;
+    
+    // Ensure stable initial positioning
+    position: relative;
+    transform: none;
+  }
+}

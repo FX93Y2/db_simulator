@@ -225,8 +225,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
               gap={12} 
               size={1}
             />
-            <Controls />
-            <MiniMap />
+            <Controls position="bottom-right" />
           </ReactFlow>
         </div>
       )}

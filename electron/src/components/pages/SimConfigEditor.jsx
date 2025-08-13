@@ -12,7 +12,9 @@ import {
   Tab,
   Dropdown
 } from 'react-bootstrap';
-import { FiSave, FiArrowLeft, FiPlay, FiPlus, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSave, FiArrowLeft, FiPlay, FiSettings, FiGitBranch, FiClock, FiTag, FiUpload, FiDownload } from 'react-icons/fi';
+import { VscEmptyWindow } from 'react-icons/vsc';
+import { LuUndo2, LuRedo2 } from 'react-icons/lu';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
 
@@ -39,6 +41,7 @@ import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../shared/ModularEventFlow';
 import ResourceEditor from '../shared/ResourceEditor';
 import SimulationEditor from '../shared/SimulationEditor';
+import FloatingToolbar from '../shared/FloatingToolbar';
 
 // Remove store initialization import - not needed anymore
 
@@ -75,7 +78,7 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
   // Store actions
   const { importYaml, exportYaml } = useYamlActions(projectId);
   const { addNode } = useCanvasActions(projectId);
-  const { loadConfig, saveConfig, initializeConfig } = useConfigActions(projectId);
+  const { loadConfig, saveConfig, initializeConfig, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
   const { clearError } = useWorkflowActions(projectId);
   const { setActiveTab } = useUIActions(projectId);
 
@@ -413,38 +416,6 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
             }
           />
         </Tabs>
-        
-        {activeTab === 'event-flow' && (
-          <div className="tab-actions">
-            <Dropdown>
-              <Dropdown.Toggle 
-                size="sm" 
-                className="btn-custom-toolbar"
-                disabled={isLoading}
-                id="add-module-dropdown"
-              >
-                <FiPlus /> Add Module
-              </Dropdown.Toggle>
-              <Dropdown.Menu>
-                <Dropdown.Item onClick={() => handleAddModule('create')}>
-                  <FiPlus className="me-2" />Create
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => handleAddModule('event')}>
-                  <FiSettings className="me-2" />Process (Event)
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => handleAddModule('decide')}>
-                  <FiGitBranch className="me-2" />Decide
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => handleAddModule('assign')}>
-                  <FiTag className="me-2" />Assign
-                </Dropdown.Item>
-                <Dropdown.Item onClick={() => handleAddModule('release')}>
-                  <FiPlay className="me-2" />Release (Dispose)
-                </Dropdown.Item>
-              </Dropdown.Menu>
-            </Dropdown>
-          </div>
-        )}
       </div>
 
       {/* YAML Panel Content */}
@@ -477,11 +448,75 @@ const SimConfigEditor = ({ projectId, isProjectTab, theme, dbConfigContent, onCo
           ) : (
             <>
               {activeTab === 'event-flow' && (
-                <ModularEventFlow
-                  theme={theme}
-                  dbConfigContent={dbConfigContent}
-                  projectId={projectId}
-                />
+                <div className="position-relative" style={{ height: '100%' }}>
+                  <ModularEventFlow
+                    theme={theme}
+                    dbConfigContent={dbConfigContent}
+                    projectId={projectId}
+                  />
+                  
+                  {/* Floating Toolbar for Event Flow */}
+                  <FloatingToolbar
+                    items={[
+                      {
+                        type: 'dropdown',
+                        icon: <VscEmptyWindow />,
+                        disabled: isLoading,
+                        variant: 'primary',
+                        tooltip: 'Add Module',
+                        dropDirection: 'end',
+                        children: [
+                          {
+                            icon: <VscEmptyWindow />,
+                            label: 'Create',
+                            onClick: () => handleAddModule('create')
+                          },
+                          {
+                            icon: <FiSettings />,
+                            label: 'Process (Event)',
+                            onClick: () => handleAddModule('event')
+                          },
+                          {
+                            icon: <FiGitBranch />,
+                            label: 'Decide',
+                            onClick: () => handleAddModule('decide')
+                          },
+                          {
+                            icon: <FiTag />,
+                            label: 'Assign',
+                            onClick: () => handleAddModule('assign')
+                          },
+                          {
+                            icon: <FiPlay />,
+                            label: 'Release (Dispose)',
+                            onClick: () => handleAddModule('release')
+                          }
+                        ]
+                      },
+                      {
+                        type: 'separator'
+                      },
+                      {
+                        type: 'button',
+                        icon: <LuUndo2 />,
+                        onClick: undo,
+                        disabled: isLoading || !canUndo(),
+                        variant: 'primary',
+                        tooltip: 'Undo'
+                      },
+                      {
+                        type: 'button',
+                        icon: <LuRedo2 />,
+                        onClick: redo,
+                        disabled: isLoading || !canRedo(),
+                        variant: 'primary',
+                        tooltip: 'Redo'
+                      }
+                    ]}
+                    position="left"
+                    theme={theme}
+                  />
+                </div>
               )}
               
               {activeTab === 'resources' && (

@@ -226,7 +226,12 @@ export const useConfigActions = (projectId) => {
     saveConfig: state.saveConfig,
     runSimulation: state.runSimulation,
     initializeConfig: state.initializeConfig,
-    clearConfig: state.clearConfig
+    clearConfig: state.clearConfig,
+    // Placeholder undo/redo functions - to be implemented later
+    undo: () => { console.log('Undo functionality to be implemented'); },
+    redo: () => { console.log('Redo functionality to be implemented'); },
+    canUndo: () => false,
+    canRedo: () => false
   }));
 };
 

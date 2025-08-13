@@ -1,5 +1,5 @@
 // Theme Variables Definition
-:root { // Light theme defaults (can be refined later)
+:root { // Light theme defaults
   --theme-bg: #f8f9fa;
   --theme-text: #333;
   --theme-muted-text: #6c757d;
@@ -11,7 +11,7 @@
   --theme-card-bg: #ffffff;
   --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
   --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
-  --theme-editor-bg: #ffffff;
+  --theme-editor-bg: #e7ece2;
   --theme-primary: #3498db;
   --theme-primary-text: #ffffff;
   --theme-resize-handle-hover-bg: #c7c7c7;

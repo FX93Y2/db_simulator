@@ -56,6 +56,48 @@
 // Controls and minimap styles
 .react-flow__controls {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  
+  // Make zoom controls horizontal
+  &.react-flow__controls {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    background: var(--theme-card-bg, #ffffff);
+    border: none;
+    border-radius: 6px;
+    padding: 4px;
+    
+    .theme-dark & {
+      background: var(--theme-card-bg, #2d2d2d);
+    }
+    
+    .react-flow__controls-button {
+      margin: 0;
+      border: none;
+      background: transparent;
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      color: var(--theme-text, #333333);
+      transition: background-color 0.15s ease;
+      
+      &:hover {
+        background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      }
+      
+      .theme-dark &:hover {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
+      }
+      
+      svg {
+        width: 16px;
+        height: 16px;
+      }
+    }
+  }
 }
 
 .react-flow__minimap {

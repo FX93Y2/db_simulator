@@ -180,7 +180,12 @@ export const useDatabaseConfigActions = (projectId) => {
     updateConfigMetadata: state.updateConfigMetadata,
     clearDatabaseConfig: state.clearDatabaseConfig,
     getCurrentYamlContent: state.getCurrentYamlContent,
-    updateYamlAndNotify: state.updateYamlAndNotify
+    updateYamlAndNotify: state.updateYamlAndNotify,
+    // Placeholder undo/redo functions - to be implemented later
+    undo: () => { console.log('Undo functionality to be implemented'); },
+    redo: () => { console.log('Redo functionality to be implemented'); },
+    canUndo: () => false,
+    canRedo: () => false
   }));
 };
 
