@@ -114,7 +114,9 @@ const YamlEditor = ({
             { token: 'delimiter.comma.yaml', foreground: 'd4d4d4' },
             { token: 'tag.yaml', foreground: 'dcdcaa' }
           ],
-          colors: {}
+          colors: {
+            'editor.background': '#282828'  // VS Code style dark background
+          }
         });
       }
 

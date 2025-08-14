@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Container, Tab, Nav, Button, Spinner, Modal, Form } from 'react-bootstrap';
-import { FiDatabase, FiActivity, FiBarChart2, FiArrowLeft, FiEdit, FiPlay } from 'react-icons/fi';
+import { Container, Button, Spinner, Modal, Form } from 'react-bootstrap';
+import { FiBarChart2, FiArrowLeft, FiEdit, FiPlay } from 'react-icons/fi';
 
 import DbConfigEditor from './DbConfigEditor';
 import SimConfigEditor from './SimConfigEditor';
@@ -552,65 +552,34 @@ const ProjectPage = ({ theme }) => {
       {resultId ? (
         <ResultsViewer projectId={projectId} isProjectTab={false} />
       ) : (
-        <Tab.Container 
-          activeKey={currentTab}
-          onSelect={handleTabChange}
-        >
-          <div className="project-tabs-wrapper">
-            <div className="d-flex justify-content-between align-items-center border-bottom">
-              <Nav variant="tabs" className="project-tabs flex-grow-1">
-                <Nav.Item>
-                  <Nav.Link eventKey="database">
-                    <FiDatabase className="me-2" /> Database Configuration
-                  </Nav.Link>
-                </Nav.Item>
-                <Nav.Item>
-                  <Nav.Link eventKey="simulation">
-                    <FiActivity className="me-2" /> Simulation Configuration
-                  </Nav.Link>
-                </Nav.Item>
-              </Nav>
-              <Button
-                className="ms-auto run-simulation-btn"
-                onClick={handleRunSimulation}
-                disabled={runningSimulation}
-              >
-                {runningSimulation ? (
-                  <>
-                    <Spinner size="sm" className="me-2" animation="border" />
-                    Running...
-                  </>
-                ) : (
-                  <>
-                    <FiPlay className="me-2" /> Run Simulation
-                  </>
-                )}
-              </Button>
-            </div>
-
-            <Tab.Content className="project-tab-content">
-              <Tab.Pane eventKey="database">
-                <DbConfigEditor
-                  projectId={projectId}
-                  isProjectTab={true}
-                  theme={theme}
-                  onConfigChange={handleDbConfigChange}
-                  onSaveSuccess={handleDbConfigSaveSuccess}
-                />
-              </Tab.Pane>
-              <Tab.Pane eventKey="simulation">
-                <SimConfigEditor
-                  projectId={projectId}
-                  isProjectTab={true}
-                  theme={theme}
-                  dbConfigContent={dbConfigContent}
-                  onConfigChange={handleSimConfigChange}
-                  onSaveSuccess={handleSimConfigSaveSuccess}
-                />
-              </Tab.Pane>
-            </Tab.Content>
-          </div>
-        </Tab.Container>
+        <div className="project-content-wrapper">
+          {currentTab === 'database' ? (
+            <DbConfigEditor
+              projectId={projectId}
+              isProjectTab={true}
+              theme={theme}
+              currentTab={currentTab}
+              onTabChange={handleTabChange}
+              onRunSimulation={handleRunSimulation}
+              runningSimulation={runningSimulation}
+              onConfigChange={handleDbConfigChange}
+              onSaveSuccess={handleDbConfigSaveSuccess}
+            />
+          ) : (
+            <SimConfigEditor
+              projectId={projectId}
+              isProjectTab={true}
+              theme={theme}
+              currentTab={currentTab}
+              onTabChange={handleTabChange}
+              onRunSimulation={handleRunSimulation}
+              runningSimulation={runningSimulation}
+              dbConfigContent={dbConfigContent}
+              onConfigChange={handleSimConfigChange}
+              onSaveSuccess={handleSimConfigSaveSuccess}
+            />
+          )}
+        </div>
       )}
 
       {/* Edit Project Modal */}

@@ -2,12 +2,13 @@
 .editor-grid-container {
   display: grid;
   grid-template-rows: auto 1fr;
-  height: 100vh;
+  height: 100%;
   width: 100%;
   gap: 0;
+  flex: 1;
   
   grid-template-areas:
-    "yaml-header handle canvas-header"
+    "yaml-header handle canvas-content"
     "yaml-content handle canvas-content";
   
   // CSS containment for performance
@@ -48,18 +49,11 @@
     1fr;
 }
 
-// Database Configuration Editor specific grid
-.db-config-editor .editor-grid-container {
-  grid-template-columns: 
-    minmax(300px, var(--yaml-panel-width, 20%)) 
-    6px 
-    1fr;
-}
-
-// Simulation Configuration Editor specific grid  
+// Unified Configuration Editor grid - shared by both database and simulation editors
+.db-config-editor .editor-grid-container,
 .sim-config-editor .editor-grid-container {
   grid-template-columns: 
-    minmax(300px, var(--sim-yaml-panel-width, 20%)) 
+    minmax(300px, var(--yaml-panel-width, 20%)) 
     6px 
     1fr;
 }
@@ -69,11 +63,21 @@
   .grid-yaml-header { grid-area: yaml-header; }
   .grid-yaml-content { grid-area: yaml-content; }
   .grid-resize-handle { grid-area: handle; }
-  .grid-canvas-header { grid-area: canvas-header; }
   .grid-canvas-content { grid-area: canvas-content; }
   
-  // Unified panel styling for grid areas
-  .grid-yaml-content,
+  // Panel styling for grid areas
+  .grid-yaml-content {
+    overflow: hidden;
+    background-color: var(--theme-yaml-editor-bg);
+    color: var(--theme-text);
+    display: flex;
+    flex-direction: column;
+    
+    // GPU acceleration for smooth rendering
+    transform: translate3d(0, 0, 0);
+    will-change: auto;
+  }
+  
   .grid-canvas-content {
     overflow: hidden;
     background-color: var(--theme-editor-bg);
@@ -121,30 +125,112 @@
   }
   
   
-  // Shared header styling
-  .grid-yaml-header,
-  .grid-canvas-header {
-    padding: 10px 15px;
-    font-weight: 600;
-    border-bottom: 1px solid $border-color;
-    background-color: var(--theme-sidebar-bg);
-    height: 46px;
-    display: flex;
-    align-items: center;
-    z-index: 5;
-  }
-  
+  // YAML header styling (VS Code style with integrated tabs)
   .grid-yaml-header {
-    justify-content: flex-end;
+    background-color: var(--theme-navbar-bg); // Use black sidebar color instead of grey
+    border-bottom: none; // Remove underline border
+    height: 48px;
+    display: flex;
+    align-items: stretch;
+    z-index: 5;
+    padding: 0;
+    position: relative;
     
-    .panel-header-actions {
+    .yaml-header-container {
+      width: 100%;
+      height: 100%;
       display: flex;
-      gap: 5px;
+      align-items: stretch;
+      
+      // VS Code style tabs section
+      .vscode-tabs {
+        display: flex;
+        align-items: stretch;
+        
+        .tab-item {
+          height: 100%;
+          display: flex;
+          align-items: center;
+          padding: 0 16px;
+          cursor: pointer;
+          font-size: 0.875rem;
+          font-weight: 400;
+          border: none !important; // Override any Bootstrap borders
+          border-radius: 0;
+          transition: background-color 0.15s ease;
+          
+          // Inactive tab - matches navbar (black) color
+          background-color: var(--theme-navbar-bg) !important;
+          color: var(--theme-muted-text) !important;
+          
+          // Active tab - matches YAML editor background (seamless connection)
+          &.active {
+            background-color: var(--theme-yaml-editor-bg) !important;
+            color: var(--theme-text) !important;
+            border-bottom: none !important;
+          }
+          
+          // Hover effect for inactive tabs - use #282828 (same as YAML editor)
+          &:not(.active):hover {
+            background-color: var(--theme-yaml-editor-bg) !important;
+            color: var(--theme-text) !important;
+          }
+          
+          // Icon spacing
+          .tab-icon {
+            margin-right: 8px;
+            font-size: 0.875rem;
+          }
+        }
+      }
+      
+      // Action buttons section (right side)
+      .yaml-actions {
+        position: absolute;
+        right: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        z-index: 10; // Ensure buttons stay on top of tabs when narrowed
+        
+        .yaml-action-btn {
+          width: 28px;
+          height: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background-color: transparent;
+          border: none;
+          border-radius: 4px;
+          color: var(--theme-muted-text);
+          cursor: pointer;
+          transition: all 0.15s ease;
+          padding: 0;
+          font-size: 0.875rem;
+          
+          &:hover:not(:disabled) {
+            background-color: var(--theme-hover-bg);
+            color: var(--theme-text);
+          }
+          
+          &:active:not(:disabled) {
+            background-color: var(--theme-active-bg);
+          }
+          
+          &:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+          }
+        }
+      }
     }
   }
   
   .grid-canvas-header {
-    justify-content: space-between;
+    justify-content: stretch;
+    padding: 0; // Unified header handles its own padding
     
     // Tab support for canvas header
     &.has-tabs {
@@ -196,7 +282,7 @@
       flex: 1;
       width: 100%;
       height: 100%;
-      background-color: var(--theme-editor-bg);
+      background-color: var(--theme-yaml-editor-bg);
       border: none !important;
       overflow: hidden;
       

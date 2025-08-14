@@ -11,7 +11,7 @@ import {
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import FloatingToolbar from '../shared/FloatingToolbar';
-import { FiSave, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSave, FiUpload, FiDownload, FiDatabase, FiSettings } from 'react-icons/fi';
 import { VscEmptyWindow } from 'react-icons/vsc';
 import { LuUndo2, LuRedo2 } from 'react-icons/lu';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -31,8 +31,18 @@ import {
 } from '../../stores/databaseConfigStore';
 
 
-// Accept theme as a prop
-const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange, onSaveSuccess }) => {
+// Accept theme and unified header props
+const DbConfigEditor = ({ 
+  projectId, 
+  isProjectTab = false, 
+  theme, 
+  currentTab, 
+  onTabChange, 
+  onRunSimulation, 
+  runningSimulation,
+  onConfigChange, 
+  onSaveSuccess 
+}) => {
   const { configId } = useParams();
   const navigate = useNavigate();
   const { showSuccess, showError, showWarning } = useToastContext();
@@ -68,13 +78,13 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   const erDiagramRef = useRef(null);
   const fileInputRef = useRef(null);
   
-  // Resizable grid hook for panel sizing
+  // Resizable grid hook for panel sizing - unified across both editors
   const { handleMouseDown } = useResizableGrid({
     minWidthPercent: 15,
     maxWidthPercent: 60,
     defaultWidthPercent: 20,
     cssVariable: '--yaml-panel-width',
-    storageKey: 'db-editor-yaml-panel-width'
+    storageKey: 'unified-yaml-panel-width'
   });
   
   // Initialize database configuration context
@@ -386,51 +396,63 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
   // CSS Grid-based editor layout (VS Code architecture)
   const renderEditor = () => (
     <div className="editor-grid-container">
-      {/* YAML Panel Header */}
+      {/* YAML Header with VS Code style tabs */}
       <div className="grid-yaml-header">
-        <div className="panel-header-actions">
-          <Button
-            size="sm"
-            className="btn-custom-toolbar me-2"
-            onClick={handleImport}
-            disabled={isLoading}
-            title="Import YAML file"
-          >
-            <FiUpload className="me-1" />
-            Import
-          </Button>
-          <Button
-            size="sm"
-            className="btn-custom-toolbar me-2"
-            onClick={handleExport}
-            disabled={!yamlContent || isLoading}
-            title="Export YAML file"
-          >
-            <FiDownload className="me-1" />
-            Export
-          </Button>
-          <Button 
-            size="sm" 
-            className="action-button btn-custom-toolbar save-config-btn"
-            onClick={handleSave} 
-            disabled={isLoading}
-            title="Save Configuration"
-          >
-            <FiSave className="save-icon" /> Save
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".yaml,.yml"
-            style={{ display: 'none' }}
-            onChange={handleFileChange}
-          />
+        <div className="yaml-header-container">
+          {/* VS Code style tabs */}
+          <div className="vscode-tabs">
+            <div 
+              className={`tab-item ${currentTab === 'database' ? 'active' : ''}`}
+              onClick={() => onTabChange('database')}
+            >
+              <FiDatabase className="tab-icon" />
+              DB Config
+            </div>
+            <div 
+              className={`tab-item ${currentTab === 'simulation' ? 'active' : ''}`}
+              onClick={() => onTabChange('simulation')}
+            >
+              <FiSettings className="tab-icon" />
+              Sim Config
+            </div>
+          </div>
+          
+          {/* Action buttons on the right - icon only */}
+          <div className="yaml-actions">
+            <button
+              className="yaml-action-btn"
+              onClick={handleImport}
+              disabled={isLoading}
+              title="Import YAML"
+            >
+              <FiUpload />
+            </button>
+            <button
+              className="yaml-action-btn"
+              onClick={handleExport}
+              disabled={!yamlContent || isLoading}
+              title="Export YAML"
+            >
+              <FiDownload />
+            </button>
+            <button
+              className="yaml-action-btn"
+              onClick={handleSave}
+              disabled={isLoading}
+              title="Save Configuration"
+            >
+              <FiSave />
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Canvas Panel Header */}
-      <div className="grid-canvas-header">
-        <div>ER Diagram</div>
+        
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".yaml,.yml"
+          style={{ display: 'none' }}
+          onChange={handleFileChange}
+        />
       </div>
 
       {/* YAML Panel Content */}
@@ -493,7 +515,7 @@ const DbConfigEditor = ({ projectId, isProjectTab = false, theme, onConfigChange
                 tooltip: 'Redo'
               }
             ]}
-            position="left"
+            position="top"
             theme={theme}
           />
           

@@ -12,6 +12,7 @@
   --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
   --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
   --theme-editor-bg: #e7ece2;
+  --theme-yaml-editor-bg: #f8f9fa;
   --theme-primary: #3498db;
   --theme-primary-text: #ffffff;
   --theme-resize-handle-hover-bg: #c7c7c7;
@@ -33,6 +34,7 @@ body.theme-dark { // Dark theme overrides
   --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
   --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
   --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
+  --theme-yaml-editor-bg: #282828; // Darker grey for YAML editor (VS Code style)
   --theme-primary: #3498db; // Keep primary blue for accents
   --theme-primary-text: #ffffff;
   --theme-resize-handle-hover-bg: #3a3a3a;

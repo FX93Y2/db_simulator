@@ -10,85 +10,30 @@
     padding: 0;
   }
   
-  .project-tabs-wrapper {
+  // New unified interface - no separate tab navigation
+  .project-content-wrapper {
     display: flex;
     flex-direction: column;
     flex: 1;
-    
-    .project-tabs {
-      border-bottom: none; // Remove bottom border from tabs container
-      
-      .nav-link {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        
-        color: var(--theme-muted-text);
-        background-color: transparent;
-        border: none; // Remove all borders
-        border-bottom: 1px solid var(--theme-border); // Only keep bottom border for inactive tabs
-        border-radius: 0;
-        margin-bottom: 0;
-        padding: 0.75rem 1.25rem; // Slightly increased padding
-
-        &:hover {
-          color: var(--theme-text);
-          border-bottom-color: var(--theme-border);
-          background-color: rgba(var(--theme-primary-rgb), 0.03);
-        }
-        
-        &.active {
-          color: var(--theme-primary);
-          background-color: var(--theme-sidebar-bg); // Match editor header color
-          border: none; // Remove all borders
-          position: relative;
-          padding-bottom: calc(0.75rem + 1px); // Account for removed border
-          font-weight: 600;
-          
-          // Create seamless connection to content below
-          &::after {
-            content: '';
-            position: absolute;
-            bottom: -1px;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background-color: var(--theme-primary); // Active tab indicator
-          }
-        }
-        
-        svg {
-          font-size: 16px;
-        }
-      }
-    }
-    
-    .project-tab-content {
-      flex: 1;
-      overflow-y: auto;
-      background-color: var(--theme-bg);
-      border-top: 1px solid var(--theme-border); // Add top border to content
-      margin-top: -1px; // Pull up to overlap with tabs
-      
-      .tab-pane {
-        height: 100%;
-        padding: 0; // Remove any default padding
-        margin: 0; // Remove any default margin
-      }
-    }
+    height: 100vh;
+    overflow: hidden;
   }
 }
 
-// Project-specific editor adjustments
-.project-tab-content {
+// Project-specific editor adjustments for unified interface
+.project-content-wrapper {
   .db-config-editor,
   .sim-config-editor {
-    height: 100%;
+    height: 100vh;
     padding: 0;
     margin: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
     
-    .editor-container-split {
+    .editor-grid-container {
       height: 100%;
+      flex: 1;
     }
   }
 }
