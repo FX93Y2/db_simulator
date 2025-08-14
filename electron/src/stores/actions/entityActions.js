@@ -1,10 +1,10 @@
-import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/database/entity-nodes/EntityNode';
 import { 
   handleTableConnection, 
   handleEdgeDeletion, 
   validateConnection,
   handleTableDeletion
-} from '../../components/shared/entity-nodes/ERDiagramConnectionHandler';
+} from '../../components/database/entity-nodes/ERDiagramConnectionHandler';
 import positionService from '../../services/PositionService';
 import { pushToHistory } from '../middleware/historyActions.js';
 

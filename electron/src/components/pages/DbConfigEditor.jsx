@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { Form, Button, Modal, Spinner } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
-import ERDiagram from '../shared/ERDiagram';
+import ERDiagram from '../database/ERDiagram';
 import FloatingToolbar from '../shared/FloatingToolbar';
 import EditorHeader from '../shared/EditorHeader';
 import EditorLayout from '../shared/EditorLayout';

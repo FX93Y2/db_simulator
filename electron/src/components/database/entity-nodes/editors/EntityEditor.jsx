@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
 import { FiTrash2, FiPlus } from 'react-icons/fi';
 import AttributeTable from './AttributeTable';
-import ConfirmationModal from '../../ConfirmationModal';
+import ConfirmationModal from '../../../shared/ConfirmationModal';
 
 const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, theme }) => {
   const [name, setName] = useState('');

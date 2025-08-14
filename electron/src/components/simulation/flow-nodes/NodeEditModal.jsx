@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
-import ConfirmationModal from '../ConfirmationModal';
+import ConfirmationModal from '../../shared/ConfirmationModal';
 import { useStepHelpers } from './hooks/useStepHelpers';
 import EventStepEditor from './editors/EventStepEditor';
 import DecideStepEditor from './editors/DecideStepEditor';

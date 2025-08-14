@@ -3,7 +3,7 @@ import { Button, Modal, Form, Row, Col } from 'react-bootstrap';
 import { FiEdit2 } from 'react-icons/fi';
 import yaml from 'yaml';
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
-import { ResourceDataTable } from './DataTable';
+import { ResourceDataTable } from '../shared/DataTable';
 
 const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
   const [parsedData, setParsedData] = useState(null);

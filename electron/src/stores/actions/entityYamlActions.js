@@ -1,5 +1,5 @@
 import yaml from 'yaml';
-import { sortAttributes } from '../../components/shared/entity-nodes/EntityNode';
+import { sortAttributes } from '../../components/database/entity-nodes/EntityNode';
 import positionService from '../../services/PositionService';
 
 /**
