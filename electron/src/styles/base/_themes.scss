@@ -15,9 +15,12 @@
   --theme-table-header-bg: #f5f5f5;    // Table/grid headers
   --theme-dropdown-bg: #ffffff;        // Dropdown buttons
   --theme-guide-bg: #f8f9fa;           // Guide overlays
+  --theme-input-bg: #ffffff;           // Form inputs (input, select, textarea)
+  --theme-input-border: #ced4da;       // Input border color
+  --theme-input-focus-border: #86b7fe; // Input focus border
   --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
   --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
-  --theme-editor-bg: #e7ece2;
+  --theme-editor-bg: #ffffff;
   --theme-yaml-editor-bg: #f8f9fa;
   --theme-primary: #3498db;
   --theme-primary-text: #ffffff;
@@ -38,14 +41,17 @@ body.theme-dark { // Dark theme overrides
   --theme-sidebar-text: #e0e0e0;
   --theme-card-bg: #383838; // Dark card background
   // Semantic theme variables for better separation of concerns
-  --theme-modal-bg: #333333;           // Keep current modal color
-  --theme-modal-header-bg: #333333;    // Modal headers
+  --theme-modal-bg: #282828;           // Keep current modal color
+  --theme-modal-header-bg: #282828;    // Modal headers
   --theme-table-header-bg: #2d2d2d;    // Slightly darker for contrast
-  --theme-dropdown-bg: #333333;        // Dropdown buttons
+  --theme-dropdown-bg: #282828;        // Dropdown buttons
   --theme-guide-bg: #2a2a2a;           // Guide overlays
+  --theme-input-bg: #404040;           // Form inputs (darker for dark theme)
+  --theme-input-border: #555555;       // Input border color
+  --theme-input-focus-border: #3498db; // Input focus border (primary color)
   --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
   --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
-  --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
+  --theme-editor-bg: #303030; // Dark grey (like cards), changed from #1e1e1e
   --theme-yaml-editor-bg: #282828; // Darker grey for YAML editor (VS Code style)
   --theme-primary: #3498db; // Keep primary blue for accents
   --theme-primary-text: #ffffff;
@@ -233,18 +239,36 @@ body.theme-dark { // Dark theme overrides
     }
   }
 
-  // Form select styling for dark theme
-  .form-select {
-    background-color: var(--theme-dropdown-bg);
-    border-color: var(--theme-border);
+  // Form controls styling for dark theme
+  .form-control, .form-select {
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
     color: var(--theme-text);
     
     &:focus {
-      background-color: var(--theme-dropdown-bg);
-      border-color: var(--theme-primary);
+      background-color: var(--theme-input-bg);
+      border-color: var(--theme-input-focus-border);
       color: var(--theme-text);
       box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
     }
+    
+    &::placeholder {
+      color: var(--theme-muted-text);
+    }
+    
+    &:disabled,
+    &[readonly] {
+      background-color: var(--theme-table-header-bg);
+      border-color: var(--theme-input-border);
+      color: var(--theme-muted-text);
+      opacity: 0.8;
+    }
+  }
+  
+  // Textarea specific styling
+  textarea.form-control {
+    resize: vertical;
+    min-height: 60px;
   }
 }
 

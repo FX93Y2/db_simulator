@@ -6,7 +6,7 @@
     border: 1px solid var(--theme-border);
     border-radius: 8px;
     overflow: hidden;
-    background-color: var(--theme-card-bg);
+    background-color: var(--theme-editor-bg);
   }
   
   .data-grid-header {
@@ -27,7 +27,7 @@
     .data-grid-row {
       transition: all 0.2s ease;
       border-bottom: 1px solid var(--theme-border);
-      background-color: var(--theme-card-bg);
+      background-color: var(--theme-editor-bg);
       color: var(--theme-text);
       
       &:hover {

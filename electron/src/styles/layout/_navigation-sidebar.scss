@@ -36,14 +36,14 @@
         
         .search-input {
           padding-left: 2rem;
-          background-color: var(--theme-card-bg);
-          border-color: var(--theme-border);
+          background-color: var(--theme-input-bg);
+          border-color: var(--theme-input-border);
           color: var(--theme-text);
           font-size: 0.875rem;
           
           &:focus {
-            background-color: var(--theme-card-bg);
-            border-color: var(--theme-primary);
+            background-color: var(--theme-input-bg);
+            border-color: var(--theme-input-focus-border);
             color: var(--theme-text);
             box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
           }

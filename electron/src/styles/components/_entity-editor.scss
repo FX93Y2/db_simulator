@@ -53,13 +53,13 @@
   }
 
   .form-control, .form-select {
-    background-color: var(--theme-editor-bg);
-    border-color: var(--theme-border);
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
     color: var(--theme-text);
     
     &:focus {
-      background-color: var(--theme-editor-bg);
-      border-color: var(--theme-primary);
+      background-color: var(--theme-input-bg);
+      border-color: var(--theme-input-focus-border);
       color: var(--theme-text);
       box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
     }
@@ -235,13 +235,13 @@
   }
 
   .form-control, .form-select {
-    background-color: var(--theme-editor-bg);
-    border-color: var(--theme-border);
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
     color: var(--theme-text);
     
     &:focus {
-      background-color: var(--theme-editor-bg);
-      border-color: var(--theme-primary);
+      background-color: var(--theme-input-bg);
+      border-color: var(--theme-input-focus-border);
       color: var(--theme-text);
       box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
     }
@@ -256,8 +256,8 @@
     
     // Read-only form controls styling
     &.form-control-readonly {
-      background-color: var(--theme-editor-bg);
-      border-color: var(--theme-border);
+      background-color: var(--theme-table-header-bg);
+      border-color: var(--theme-input-border);
       color: var(--theme-text);
       opacity: 0.8;
       cursor: not-allowed;
@@ -372,13 +372,13 @@ body.theme-dark {
 // Chart view styling for dark theme
 .chart-container {
   .form-select {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-border);
     color: var(--theme-text);
     
     &:focus {
-      background-color: var(--theme-card-bg);
-      border-color: var(--theme-primary);
+      background-color: var(--theme-input-bg);
+      border-color: var(--theme-input-focus-border);
       color: var(--theme-text);
       box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
     }

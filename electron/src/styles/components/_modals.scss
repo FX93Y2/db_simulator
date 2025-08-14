@@ -19,13 +19,13 @@
     }
     
     .form-control, .form-select {
-      background-color: var(--theme-editor-bg);
-      border-color: var(--theme-border);
+      background-color: var(--theme-input-bg);
+      border-color: var(--theme-input-border);
       color: var(--theme-text);
       
       &:focus {
-        background-color: var(--theme-editor-bg);
-        border-color: var(--theme-primary);
+        background-color: var(--theme-input-bg);
+        border-color: var(--theme-input-focus-border);
         color: var(--theme-text);
         box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
       }
@@ -158,14 +158,14 @@ body.theme-dark {
   .form-control,
   .form-select,
   .input-group-text {
-    background-color: var(--theme-bg);
+    background-color: var(--theme-input-bg);
     color: var(--theme-text);
-    border-color: var(--theme-border);
+    border-color: var(--theme-input-border);
 
     &:focus {
-      background-color: var(--theme-bg);
+      background-color: var(--theme-input-bg);
       color: var(--theme-text);
-      border-color: var(--theme-primary);
+      border-color: var(--theme-input-focus-border);
       box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
     }
   }
