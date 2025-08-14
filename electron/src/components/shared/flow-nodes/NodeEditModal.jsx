@@ -622,7 +622,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       case 'create':
         return 'md'; // Medium size for create step
       case 'assign':
-        return 'md'; // Medium size for assign step  
+        return 'lg'; // Large size for assign step to accommodate attribute table  
       case 'event':
       case 'decide':
         return 'lg'; // Keep large for complex editors with tables

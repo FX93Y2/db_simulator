@@ -13,7 +13,8 @@ const AttributeTable = ({
   onAddAttribute, 
   onDeleteAttribute,
   entityType = '', 
-  theme = 'light'
+  theme = 'light',
+  onGeneratorModalChange
 }) => {
   const [editingIndex, setEditingIndex] = useState(-1);
   const [showGeneratorModal, setShowGeneratorModal] = useState(false);
@@ -111,6 +112,13 @@ const AttributeTable = ({
   const openGeneratorModal = (index) => {
     setSelectedAttributeIndex(index);
     setShowGeneratorModal(true);
+    onGeneratorModalChange?.(true);
+  };
+
+  // Close generator configuration modal
+  const closeGeneratorModal = () => {
+    setShowGeneratorModal(false);
+    onGeneratorModalChange?.(false);
   };
 
   // Handle generator configuration changes
@@ -432,9 +440,9 @@ const AttributeTable = ({
       {/* Generator Configuration Modal */}
       <Modal
         show={showGeneratorModal}
-        onHide={() => setShowGeneratorModal(false)}
-        size="lg"
+        onHide={closeGeneratorModal}
         centered
+        className="generator-config-modal"
       >
         <Modal.Header closeButton>
           <Modal.Title>
@@ -475,7 +483,7 @@ const AttributeTable = ({
           )}
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="primary" onClick={() => setShowGeneratorModal(false)}>
+          <Button variant="primary" onClick={closeGeneratorModal}>
             Done
           </Button>
         </Modal.Footer>

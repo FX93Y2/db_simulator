@@ -20,6 +20,81 @@
   }
 }
 
+// Generator Configuration Modal - More compact than EntityEditor
+.generator-config-modal {
+  .modal-dialog {
+    max-width: 700px;
+    width: 70vw;
+  }
+  
+  .modal-content {
+    background-color: var(--theme-sidebar-bg) !important;
+  }
+  
+  .modal-header {
+    background-color: var(--theme-sidebar-bg) !important;
+    border-bottom: 1px solid var(--theme-border);
+  }
+  
+  .modal-body {
+    padding: 1.5rem;
+    background-color: var(--theme-sidebar-bg) !important;
+  }
+  
+  // Inherit form styling from entity-editor-modal
+  .form-label {
+    font-weight: 500;
+    color: var(--theme-text);
+    margin-bottom: 0.5rem;
+    
+    svg {
+      color: var(--theme-primary);
+    }
+  }
+
+  .form-control, .form-select {
+    background-color: var(--theme-editor-bg);
+    border-color: var(--theme-border);
+    color: var(--theme-text);
+    
+    &:focus {
+      background-color: var(--theme-editor-bg);
+      border-color: var(--theme-primary);
+      color: var(--theme-text);
+      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+    }
+    
+    &::placeholder {
+      color: var(--theme-muted-text);
+    }
+  }
+
+  .form-text {
+    color: var(--theme-muted-text);
+    font-size: 0.875rem;
+  }
+}
+
+// Generator modal overlay effect
+.entity-editor-modal.generator-modal-open {
+  .modal-content::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+  
+  .modal-content {
+    position: relative;
+  }
+}
+
 .attribute-editor-card {
   border: 1px solid var(--theme-border);
   background-color: var(--theme-card-bg);
@@ -88,32 +163,18 @@
     }
     
     .distribution-optional-card {
-      border: 1px solid var(--theme-border);
-      background-color: var(--theme-editor-bg);
+      border: 1px solid var(--theme-border) !important;
+      background-color: var(--theme-editor-bg) !important;
       
       .card-header {
-        background-color: rgba(var(--theme-primary-rgb), 0.05);
-        border-bottom: 1px solid var(--theme-border);
+        background-color: rgba(var(--theme-primary-rgb), 0.05) !important;
+        border-bottom: 1px solid var(--theme-border) !important;
+        color: var(--theme-text) !important;
       }
       
       .card-body {
-        background-color: var(--theme-editor-bg);
-        color: var(--theme-text);
-      }
-    }
-    
-    .distribution-optional-card {
-      border: 1px solid var(--theme-border);
-      background-color: var(--theme-editor-bg);
-      
-      .card-header {
-        background-color: rgba(var(--theme-primary-rgb), 0.05);
-        border-bottom: 1px solid var(--theme-border);
-      }
-      
-      .card-body {
-        background-color: var(--theme-editor-bg);
-        color: var(--theme-text);
+        background-color: var(--theme-editor-bg) !important;
+        color: var(--theme-text) !important;
       }
     }
   }

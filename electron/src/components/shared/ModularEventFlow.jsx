@@ -217,7 +217,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            deleteKeyCode={['Backspace', 'Delete']}
+            deleteKeyCode={null}
           >
             <Background 
               key="modular-event-flow-background"

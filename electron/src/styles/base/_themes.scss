@@ -43,9 +43,30 @@ body.theme-dark { // Dark theme overrides
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
   --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
-  // Add other Bootstrap variable overrides here if needed (e.g., --bs-body-bg, --bs-body-color)
+  --bs-body-bg: var(--theme-card-bg); // Override Bootstrap's body background for cards
+  --bs-body-color: var(--theme-text); // Override Bootstrap's body text color
+  --bs-card-bg: var(--theme-card-bg); // Override Bootstrap's card background directly
+  --bs-card-border-color: var(--theme-border); // Override Bootstrap's card border color
 
   // --- Component Specific Dark Theme Overrides ---
+
+  // Bootstrap Cards - Ensure all cards use dark theme properly
+  .card {
+    background-color: var(--theme-card-bg) !important;
+    border-color: var(--theme-border) !important;
+    color: var(--theme-text) !important;
+    
+    .card-header {
+      background-color: var(--theme-card-bg) !important;
+      border-bottom-color: var(--theme-border) !important;
+      color: var(--theme-text) !important;
+    }
+    
+    .card-body {
+      background-color: var(--theme-card-bg) !important;
+      color: var(--theme-text) !important;
+    }
+  }
 
   // Table (Assuming a common structure, adjust selector if needed)
   .table > tbody > tr {

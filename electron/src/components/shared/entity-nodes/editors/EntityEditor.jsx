@@ -13,6 +13,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const [validationErrors, setValidationErrors] = useState([]);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [lastEntityName, setLastEntityName] = useState(null);
+  const [showGeneratorModal, setShowGeneratorModal] = useState(false);
 
   // Initialize form when entity changes
   useEffect(() => {
@@ -279,7 +280,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       onHide={onHide}
       centered
       backdrop="static"
-      className="entity-editor-modal"
+      className={`entity-editor-modal ${showGeneratorModal ? 'generator-modal-open' : ''}`}
     >
       <Modal.Header closeButton>
         <Modal.Title>
@@ -408,6 +409,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
               onDeleteAttribute={handleDeleteAttribute}
               entityType={entityType}
               theme={theme}
+              onGeneratorModalChange={setShowGeneratorModal}
             />
           </div>
         </Form>
