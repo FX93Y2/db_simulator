@@ -9,6 +9,12 @@
   --theme-sidebar-bg: #ffffff;
   --theme-sidebar-text: #333;
   --theme-card-bg: #ffffff;
+  // Semantic theme variables for better separation of concerns
+  --theme-modal-bg: #ffffff;           // Modal backgrounds
+  --theme-modal-header-bg: #ffffff;    // Modal headers
+  --theme-table-header-bg: #f5f5f5;    // Table/grid headers
+  --theme-dropdown-bg: #ffffff;        // Dropdown buttons
+  --theme-guide-bg: #f8f9fa;           // Guide overlays
   --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
   --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
   --theme-editor-bg: #e7ece2;
@@ -28,9 +34,15 @@ body.theme-dark { // Dark theme overrides
   --theme-border: #444444; // Darker border
   --theme-navbar-bg: #1e1e1e; // Very dark grey/black navbar
   --theme-navbar-text: #ffffff;
-  --theme-sidebar-bg: #333333; // Dark sidebar
+  --theme-sidebar-bg: #1e1e1e; // NOW matches yaml-editor-bg!
   --theme-sidebar-text: #e0e0e0;
   --theme-card-bg: #383838; // Dark card background
+  // Semantic theme variables for better separation of concerns
+  --theme-modal-bg: #333333;           // Keep current modal color
+  --theme-modal-header-bg: #333333;    // Modal headers
+  --theme-table-header-bg: #2d2d2d;    // Slightly darker for contrast
+  --theme-dropdown-bg: #333333;        // Dropdown buttons
+  --theme-guide-bg: #2a2a2a;           // Guide overlays
   --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
   --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
   --theme-editor-bg: #383838; // Dark grey (like cards), changed from #1e1e1e
@@ -49,6 +61,10 @@ body.theme-dark { // Dark theme overrides
   --bs-body-color: var(--theme-text); // Override Bootstrap's body text color
   --bs-card-bg: var(--theme-card-bg); // Override Bootstrap's card background directly
   --bs-card-border-color: var(--theme-border); // Override Bootstrap's card border color
+  // Modal variable overrides
+  --bs-modal-bg: var(--theme-modal-bg);
+  --bs-modal-header-bg: var(--theme-modal-header-bg);
+  --bs-modal-footer-bg: var(--theme-modal-bg);
 
   // --- Component Specific Dark Theme Overrides ---
 
@@ -119,7 +135,7 @@ body.theme-dark { // Dark theme overrides
   }
   // React Flow Controls specific buttons
   .react-flow__controls-button {
-     background: var(--theme-sidebar-bg);
+     background: var(--theme-dropdown-bg);
      border-bottom: 1px solid var(--theme-border);
      fill: var(--theme-text); // Icon color
      color: var(--theme-text); // Text color if any
@@ -199,7 +215,7 @@ body.theme-dark { // Dark theme overrides
 
   // Dropdown button styling
   .dropdown-button, .btn-outline-secondary {
-    background-color: var(--theme-sidebar-bg);
+    background-color: var(--theme-dropdown-bg);
     border-color: var(--theme-border);
     color: var(--theme-text);
     
@@ -219,12 +235,12 @@ body.theme-dark { // Dark theme overrides
 
   // Form select styling for dark theme
   .form-select {
-    background-color: var(--theme-sidebar-bg);
+    background-color: var(--theme-dropdown-bg);
     border-color: var(--theme-border);
     color: var(--theme-text);
     
     &:focus {
-      background-color: var(--theme-sidebar-bg);
+      background-color: var(--theme-dropdown-bg);
       border-color: var(--theme-primary);
       color: var(--theme-text);
       box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);

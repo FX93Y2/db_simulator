@@ -21,7 +21,7 @@
     max-width: 240px;
     height: 100vh;
     overflow-y: auto;
-    background-color: var(--theme-sidebar-bg);
+    background-color: var(--theme-guide-bg);
     border-right: 1px solid var(--theme-border);
     padding: 0;
     
@@ -283,7 +283,7 @@
 body.theme-dark {
   .configuration-guide {
     .sidebar-nav {
-      background-color: var(--theme-sidebar-bg);
+      background-color: var(--theme-table-header-bg);
     }
     
     .main-content {

@@ -82,7 +82,7 @@
     display: grid;
     grid-template-columns: 40px 200px 150px 1fr 60px;
     gap: 0;
-    background-color: var(--theme-sidebar-bg);
+    background-color: var(--theme-table-header-bg);
     border-bottom: 2px solid var(--theme-border);
     
     .grid-header-cell {
@@ -216,7 +216,7 @@
 .step-editor-grid-header {
   display: grid;
   gap: 0;
-  background-color: var(--theme-sidebar-bg);
+  background-color: var(--theme-table-header-bg);
   border-bottom: 2px solid var(--theme-border);
   
   .grid-header-cell {
@@ -372,21 +372,21 @@
   // Default: ~500px, Medium: ~800px, Large: custom 960px above
   
   .modal-content {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
   
   .modal-header {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-header-bg) !important;
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
   
   .modal-footer {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
     border-top: 1px solid var(--theme-border);
   }
 }

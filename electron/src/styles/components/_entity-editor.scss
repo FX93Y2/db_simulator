@@ -6,17 +6,17 @@
   }
   
   .modal-content {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
   
   .modal-header {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-header-bg) !important;
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
 }
 
@@ -28,17 +28,17 @@
   }
   
   .modal-content {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
   
   .modal-header {
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-header-bg) !important;
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-sidebar-bg) !important;
+    background-color: var(--theme-modal-bg) !important;
   }
   
   // Inherit form styling from entity-editor-modal

@@ -38,7 +38,7 @@
     // InputGroup dropdown button styling in modals
     .input-group {
       .dropdown-toggle {
-        background-color: var(--theme-sidebar-bg);
+        background-color: var(--theme-dropdown-bg);
         border-color: var(--theme-border);
         color: var(--theme-text);
         
@@ -135,7 +135,7 @@ body.theme-dark {
 // Node Details Modal (for diagram nodes)
 .node-details-modal {
   .modal-header {
-    background-color: var(--theme-sidebar-bg);
+    background-color: var(--theme-modal-header-bg);
     color: var(--theme-text);
     border-bottom: 1px solid var(--theme-border);
   }
