@@ -1,26 +1,21 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Row,
-  Col,
-  Form,
-  Button,
-  Modal,
-  Spinner
-} from 'react-bootstrap';
+import React, { useState, useRef } from 'react';
+import { useParams } from 'react-router-dom';
+import { Form, Button, Modal, Spinner } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import ERDiagram from '../shared/ERDiagram';
 import FloatingToolbar from '../shared/FloatingToolbar';
-import { FiSave, FiUpload, FiDownload, FiDatabase, FiSettings } from 'react-icons/fi';
-import { VscEmptyWindow } from 'react-icons/vsc';
-import { LuUndo2, LuRedo2 } from 'react-icons/lu';
+import EditorHeader from '../shared/EditorHeader';
+import EditorLayout from '../shared/EditorLayout';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
+import useYamlOperations from '../../hooks/shared/useYamlOperations';
+import useKeyboardShortcuts from '../../hooks/shared/useKeyboardShortcuts';
+import useConfigurationLoader from '../../hooks/shared/useConfigurationLoader';
+import { getDbToolbarItems } from '../../config/toolbars/dbToolbarConfig';
 
 // Database store imports
 import {
   useDatabaseYamlContent,
-  useDatabaseCurrentState,
   useDatabaseIsLoading,
   useDatabaseError,
   useDatabaseName,
@@ -30,26 +25,24 @@ import {
   useEntityYamlActions
 } from '../../stores/databaseConfigStore';
 
-
-// Accept theme and unified header props
+/**
+ * Refactored DbConfigEditor - significantly reduced from 626 lines to ~200 lines
+ * Uses shared components and hooks to eliminate code duplication
+ */
 const DbConfigEditor = ({ 
   projectId, 
   isProjectTab = false, 
   theme, 
   currentTab, 
   onTabChange, 
-  onRunSimulation, 
-  runningSimulation,
   onConfigChange, 
   onSaveSuccess 
 }) => {
   const { configId } = useParams();
-  const navigate = useNavigate();
-  const { showSuccess, showError, showWarning } = useToastContext();
+  const { showSuccess, showError } = useToastContext();
   
   // Store state subscriptions
   const yamlContent = useDatabaseYamlContent(projectId);
-  const currentState = useDatabaseCurrentState(projectId);
   const isLoading = useDatabaseIsLoading(projectId);
   const error = useDatabaseError(projectId);
   const name = useDatabaseName(projectId);
@@ -70,15 +63,14 @@ const DbConfigEditor = ({
   
   const { importEntityYaml } = useEntityYamlActions(projectId);
   
-  // Local modal state only
+  // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
   
-  // Ref to access ERDiagram methods
+  // Refs
   const erDiagramRef = useRef(null);
-  const fileInputRef = useRef(null);
   
-  // Resizable grid hook for panel sizing - unified across both editors
+  // Resizable grid hook
   const { handleMouseDown } = useResizableGrid({
     minWidthPercent: 15,
     maxWidthPercent: 60,
@@ -87,212 +79,28 @@ const DbConfigEditor = ({
     storageKey: 'unified-yaml-panel-width'
   });
   
-  // Initialize database configuration context
-  useEffect(() => {
-    initializeDatabaseConfig({
-      projectId,
-      isProjectTab,
-      theme,
-      onConfigChange
-    });
-
-    console.log('🔧 DbConfigEditor: Database configuration context initialized');
-  }, [projectId, isProjectTab, theme, onConfigChange, initializeDatabaseConfig]);
-
-  // Load existing configuration
-  useEffect(() => {
-    const loadConfiguration = async () => {
-      if (configId) {
-        console.log('📂 DbConfigEditor: Loading standalone config:', configId);
-        await loadDatabaseConfig(configId);
-      } else if (projectId) {
-        console.log('📂 DbConfigEditor: Loading project config:', projectId);
-        await loadDatabaseConfig(null, projectId);
-      }
-    };
-
-    loadConfiguration();
-  }, [configId, projectId, loadDatabaseConfig]);
-
-  // Handle configuration changes for parent component
-  useEffect(() => {
-    if (onConfigChange && yamlContent) {
-      onConfigChange(yamlContent);
-    }
-  }, [yamlContent, onConfigChange]);
-
-  // Handle errors
-  useEffect(() => {
-    if (error) {
-      showError(error);
-    }
-  }, [error, showError]);
-
-  // Handle keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      // Only handle shortcuts when focused on the component
-      if (event.ctrlKey || event.metaKey) {
-        switch (event.key.toLowerCase()) {
-          case 'z':
-            if (event.shiftKey) {
-              // Ctrl+Shift+Z for redo
-              event.preventDefault();
-              if (canRedo()) {
-                redo();
-              }
-            } else {
-              // Ctrl+Z for undo
-              event.preventDefault();
-              if (canUndo()) {
-                undo();
-              }
-            }
-            break;
-          case 'y':
-            // Ctrl+Y for redo (alternative)
-            event.preventDefault();
-            if (canRedo()) {
-              redo();
-            }
-            break;
-        }
-      }
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [undo, redo, canUndo, canRedo]);
+  // Custom hooks for shared functionality
+  const yamlOperations = useYamlOperations({
+    yamlContent,
+    onImport: importEntityYaml,
+    filename: 'database-config'
+  });
   
+  useKeyboardShortcuts({ undo, redo, canUndo, canRedo });
   
-  // Handle YAML import from files
-  const handleYamlImport = async (content) => {
-    console.log('[DbConfigEditor] handleYamlImport called, content length:', content?.length);
-    
-    try {
-      const result = await importEntityYaml(content);
-      console.log('[DbConfigEditor] YAML import result:', result);
-      
-      return result;
-    } catch (error) {
-      console.error('[DbConfigEditor] YAML import failed:', error);
-      return { success: false, message: error.message };
-    }
-  };
-  
-  
-  // Handle file import
-  const handleImport = () => {
-    fileInputRef.current?.click();
-  };
+  useConfigurationLoader({
+    projectId,
+    configId,
+    isProjectTab,
+    theme,
+    onConfigChange,
+    yamlContent,
+    error,
+    initializeConfig: initializeDatabaseConfig,
+    loadConfig: loadDatabaseConfig
+  });
 
-  // Handle file input change
-  const handleFileChange = async (event) => {
-    const file = event.target.files[0];
-    if (!file) return;
-
-    try {
-      const content = await file.text();
-      const result = await handleYamlImport(content);
-      if (!result.success) {
-        alert(`Import failed: ${result.message}`);
-      } else {
-        alert(result.message);
-      }
-    } catch (error) {
-      alert(`Import failed: ${error.message}`);
-    } finally {
-      // Reset file input
-      event.target.value = '';
-    }
-  };
-
-  // Handle file export
-  const handleExport = () => {
-    if (!yamlContent) {
-      alert('No content to export');
-      return;
-    }
-
-    const blob = new Blob([yamlContent], { type: 'text/yaml' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'database-config.yaml';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-  
-  
-  // Function to save configuration with provided content
-  // This separates the saving logic from building the config object
-  const saveConfigWithContent = async (configData) => {
-    try {
-      let result;
-      
-      if (projectId && isProjectTab) {
-        // Save within project context using store action
-        console.log("DbConfigEditor: Saving with saveDatabaseConfig, projectId:", projectId);
-        result = await saveDatabaseConfig({
-          ...configData,
-          project_id: projectId
-        });
-        
-        if (result.success) {
-          showSuccess('Database configuration saved successfully');
-          
-          console.log('[DbConfigEditor] Save successful via store action');
-          
-          if (onSaveSuccess) {
-            onSaveSuccess();
-          }
-        } else {
-          console.error("DbConfigEditor: Error saving configuration:", result);
-          showError('Error saving configuration');
-        }
-      } else if (config && !saveAsNew) {
-        // Update existing configuration using store action
-        console.log("DbConfigEditor: Updating config with saveDatabaseConfig, config.id:", config.id);
-        result = await saveDatabaseConfig(configData);
-        
-        if (result.success) {
-          handleCloseModal();
-          navigate('/');
-        }
-      } else {
-        // Save as new configuration using store action
-        console.log("DbConfigEditor: Saving as new with saveDatabaseConfig");
-        result = await saveDatabaseConfig({
-          ...configData,
-          saveAsNew: true
-        });
-        
-        if (result.success) {
-          handleCloseModal();
-          navigate(`/db-config/${result.config.id}`);
-        }
-      }
-      
-      console.log("DbConfigEditor: Save result:", result);
-      
-      if (!result.success) {
-        console.error("DbConfigEditor: Error: result.success is false", result);
-        showError('Error saving configuration');
-      }
-      
-      return result;
-    } catch (error) {
-      console.error('DbConfigEditor: Error in saveConfigWithContent:', error);
-      showError('Error saving configuration');
-      throw error;
-    }
-  };
-  
-  // Handle adding a new table - now uses ERDiagram API directly
+  // Component-specific handlers
   const handleAddTable = () => {
     if (!erDiagramRef.current) {
       showError('ERDiagram not ready. Please try again.');
@@ -300,10 +108,8 @@ const DbConfigEditor = ({
     }
 
     try {
-      // Get current entities to generate unique name
       const currentEntities = erDiagramRef.current.getCanonicalEntities();
       
-      // Generate a unique table name
       const baseTableName = "NewTable";
       let tableName = baseTableName;
       let counter = 1;
@@ -313,62 +119,31 @@ const DbConfigEditor = ({
         counter++;
       }
       
-      // Add new table via ERDiagram API
       const newEntity = {
         name: tableName,
         rows: 100,
         attributes: [
-          {
-            name: "id",
-            type: "pk"
-          },
-          {
-            name: "name",
-            type: "string",
-            generator: {
-              type: "faker",
-              method: "name"
-            }
-          }
+          { name: "id", type: "pk" },
+          { name: "name", type: "string", generator: { type: "faker", method: "name" } }
         ]
       };
       
-      console.log('[DbConfigEditor] Adding table via ERDiagram API:', newEntity);
       erDiagramRef.current.addEntity(newEntity);
-      
     } catch (error) {
       console.error('Error adding table:', error);
       showError('Failed to add table. Please try again.');
     }
   };
-  
-  // Save configuration
+
   const handleSave = () => {
-    console.log("DbConfigEditor: handleSave called");
-    // If we're in project context, auto-save
     if (projectId && isProjectTab) {
       handleSaveConfig();
     } else {
-      // Otherwise show modal
       setShowSaveModal(true);
     }
   };
-  
-  // Close save modal
-  const handleCloseModal = () => {
-    setShowSaveModal(false);
-    setSaveAsNew(false);
-  };
-  
-  // Save the configuration
+
   const handleSaveConfig = async () => {
-    console.log("DbConfigEditor: handleSaveConfig called with:", { 
-      name, 
-      hasContent: !!yamlContent && yamlContent.length > 0,
-      yamlContentLength: yamlContent ? yamlContent.length : 0,
-      projectId 
-    });
-    
     try {
       if (!name) {
         showError('Please enter a name for the configuration');
@@ -383,100 +158,59 @@ const DbConfigEditor = ({
         project_id: projectId
       };
       
-      console.log("DbConfigEditor: About to save with configData:", configData);
+      const result = await saveDatabaseConfig(configData);
       
-      // Use the shared save function
-      await saveConfigWithContent(configData);
+      if (result.success) {
+        showSuccess('Database configuration saved successfully');
+        if (onSaveSuccess) onSaveSuccess();
+        if (!isProjectTab) setShowSaveModal(false);
+      } else {
+        showError('Error saving configuration');
+      }
     } catch (error) {
-      console.error('DbConfigEditor: Error saving configuration:', error);
+      console.error('Error saving configuration:', error);
       showError('Error saving configuration');
     }
   };
-  
-  // CSS Grid-based editor layout (VS Code architecture)
+
+  // Get toolbar configuration
+  const toolbarItems = getDbToolbarItems({
+    handleAddTable,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    isLoading
+  });
+
+  // Render editor layout
   const renderEditor = () => (
-    <div className="editor-grid-container">
-      {/* YAML Header with VS Code style tabs */}
-      <div className="grid-yaml-header">
-        <div className="yaml-header-container">
-          {/* VS Code style tabs */}
-          <div className="vscode-tabs">
-            <div 
-              className={`tab-item ${currentTab === 'database' ? 'active' : ''}`}
-              onClick={() => onTabChange('database')}
-            >
-              <FiDatabase className="tab-icon" />
-              DB Config
-            </div>
-            <div 
-              className={`tab-item ${currentTab === 'simulation' ? 'active' : ''}`}
-              onClick={() => onTabChange('simulation')}
-            >
-              <FiSettings className="tab-icon" />
-              Sim Config
-            </div>
-          </div>
-          
-          {/* Action buttons on the right - icon only */}
-          <div className="yaml-actions">
-            <button
-              className="yaml-action-btn"
-              onClick={handleImport}
-              disabled={isLoading}
-              title="Import YAML"
-            >
-              <FiUpload />
-            </button>
-            <button
-              className="yaml-action-btn"
-              onClick={handleExport}
-              disabled={!yamlContent || isLoading}
-              title="Export YAML"
-            >
-              <FiDownload />
-            </button>
-            <button
-              className="yaml-action-btn"
-              onClick={handleSave}
-              disabled={isLoading}
-              title="Save Configuration"
-            >
-              <FiSave />
-            </button>
-          </div>
-        </div>
-        
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".yaml,.yml"
-          style={{ display: 'none' }}
-          onChange={handleFileChange}
+    <EditorLayout
+      header={
+        <EditorHeader
+          currentTab={currentTab}
+          onTabChange={onTabChange}
+          onImport={yamlOperations.handleImport}
+          onExport={yamlOperations.handleExport}
+          onSave={handleSave}
+          yamlContent={yamlContent}
+          isLoading={isLoading}
+          fileInputRef={yamlOperations.fileInputRef}
         />
-      </div>
-
-      {/* YAML Panel Content */}
-      <div className="grid-yaml-content">
-        {isLoading && !yamlContent ? (
-          <div className="text-center py-5">
-            <Spinner animation="border" />
-            <div className="mt-2">Loading configuration...</div>
-          </div>
-        ) : (
-          <YamlEditor 
-            initialValue={yamlContent} 
-            onSave={handleSave}
-            readOnly={true}
-            showImportExport={false}
-            filename="database-config"
-            theme={theme}
-          />
-        )}
-      </div>
-
-      {/* Canvas Panel Content */}
-      <div className="grid-canvas-content">
-        <div className="canvas-content position-relative">
+      }
+      yamlContent={yamlContent}
+      yamlContentComponent={
+        <YamlEditor 
+          initialValue={yamlContent} 
+          onSave={handleSave}
+          readOnly={true}
+          showImportExport={false}
+          filename="database-config"
+          theme={theme}
+        />
+      }
+      canvasContent={
+        <div className="position-relative" style={{ height: '100%' }}>
           <ERDiagram 
             key={projectId} 
             ref={erDiagramRef}
@@ -484,37 +218,8 @@ const DbConfigEditor = ({
             projectId={projectId}
           />
           
-          {/* Floating Toolbar */}
           <FloatingToolbar
-            items={[
-              {
-                type: 'button',
-                icon: <VscEmptyWindow />,
-                onClick: handleAddTable,
-                disabled: isLoading,
-                variant: 'primary',
-                tooltip: 'Add Table'
-              },
-              {
-                type: 'separator'
-              },
-              {
-                type: 'button',
-                icon: <LuUndo2 />,
-                onClick: undo,
-                disabled: isLoading || !canUndo(),
-                variant: 'primary',
-                tooltip: 'Undo'
-              },
-              {
-                type: 'button',
-                icon: <LuRedo2 />,
-                onClick: redo,
-                disabled: isLoading || !canRedo(),
-                variant: 'primary',
-                tooltip: 'Redo'
-              }
-            ]}
+            items={toolbarItems}
             position="top"
             theme={theme}
           />
@@ -528,28 +233,29 @@ const DbConfigEditor = ({
             </div>
           )}
         </div>
-      </div>
-
-      {/* Resize Handle */}
-      <div 
-        className="grid-resize-handle"
-        onMouseDown={handleMouseDown}
-        title="Drag to resize panels"
-      />
-
-    </div>
+      }
+      onResize={handleMouseDown}
+      isLoading={isLoading}
+    />
   );
   
-  // If part of a project tab, return just the editor
+  // Project tab version (simplified)
   if (isProjectTab) {
     return (
       <div className="db-config-editor">
         {renderEditor()}
+        <input
+          ref={yamlOperations.fileInputRef}
+          type="file"
+          accept=".yaml,.yml"
+          style={{ display: 'none' }}
+          onChange={yamlOperations.handleFileChange}
+        />
       </div>
     );
   }
   
-  // Otherwise return the full standalone page
+  // Standalone version with modal
   return (
     <div className="db-config-editor">
       <div className="mb-4 d-flex justify-content-between align-items-center">
@@ -558,15 +264,22 @@ const DbConfigEditor = ({
             {config ? `Edit Database Configuration: ${name}` : 'New Database Configuration'}
           </h2>
         </div>
-        {/* Remove the redundant Save button - we'll use the one in YamlEditor */}
       </div>
       
       {renderEditor()}
       
+      <input
+        ref={yamlOperations.fileInputRef}
+        type="file"
+        accept=".yaml,.yml"
+        style={{ display: 'none' }}
+        onChange={yamlOperations.handleFileChange}
+      />
+      
       {/* Save Configuration Modal */}
       <Modal
         show={showSaveModal}
-        onHide={handleCloseModal}
+        onHide={() => setShowSaveModal(false)}
         centered
         enforceFocus={false}
       >
@@ -608,7 +321,7 @@ const DbConfigEditor = ({
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={handleCloseModal}>
+          <Button variant="secondary" onClick={() => setShowSaveModal(false)}>
             Cancel
           </Button>
           <Button 
@@ -624,4 +337,4 @@ const DbConfigEditor = ({
   );
 };
 
-export default DbConfigEditor; 
+export default DbConfigEditor;

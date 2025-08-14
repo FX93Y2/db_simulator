@@ -1,0 +1,80 @@
+import React from 'react';
+import { FiDatabase, FiSettings, FiUpload, FiDownload, FiSave } from 'react-icons/fi';
+
+/**
+ * Shared EditorHeader component for both DbConfigEditor and SimConfigEditor
+ * Contains VS Code-style tabs and action buttons
+ */
+const EditorHeader = ({
+  currentTab,
+  onTabChange,
+  onImport,
+  onExport,
+  onSave,
+  yamlContent,
+  isLoading,
+  fileInputRef
+}) => {
+  return (
+    <div className="grid-yaml-header">
+      <div className="yaml-header-container">
+        {/* VS Code style tabs */}
+        <div className="vscode-tabs">
+          <div 
+            className={`tab-item ${currentTab === 'database' ? 'active' : ''}`}
+            onClick={() => onTabChange('database')}
+          >
+            <FiDatabase className="tab-icon" />
+            DB Config
+          </div>
+          <div 
+            className={`tab-item ${currentTab === 'simulation' ? 'active' : ''}`}
+            onClick={() => onTabChange('simulation')}
+          >
+            <FiSettings className="tab-icon" />
+            Sim Config
+          </div>
+        </div>
+        
+        {/* Action buttons on the right - icon only */}
+        <div className="yaml-actions">
+          <button
+            className="yaml-action-btn"
+            onClick={onImport}
+            disabled={isLoading}
+            title="Import YAML"
+          >
+            <FiUpload />
+          </button>
+          <button
+            className="yaml-action-btn"
+            onClick={onExport}
+            disabled={!yamlContent || isLoading}
+            title="Export YAML"
+          >
+            <FiDownload />
+          </button>
+          <button
+            className="yaml-action-btn"
+            onClick={onSave}
+            disabled={isLoading}
+            title="Save Configuration"
+          >
+            <FiSave />
+          </button>
+        </div>
+      </div>
+      
+      {fileInputRef && (
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".yaml,.yml"
+          style={{ display: 'none' }}
+        />
+      )}
+    </div>
+  );
+};
+
+export default EditorHeader;
