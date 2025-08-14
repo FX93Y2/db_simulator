@@ -132,16 +132,16 @@
 }
 
 .primary-key .key-icon {
-  color: #ffc107;
+  color: var(--bs-warning, #ffc107);
 }
 
 .foreign-key .key-icon {
-  color: #6c757d;
+  color: var(--theme-muted-text);
 }
 
 // Table type specific styling - Integrated into header
 .entity-node.entity-type .entity-table__header {
-  background: linear-gradient(135deg, #3498db, #2980b9);
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-primary));
   color: #ffffff;
 }
 
@@ -151,6 +151,6 @@
 }
 
 .entity-node.resource-type .entity-table__header {
-  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  background: linear-gradient(135deg, var(--theme-secondary), var(--theme-secondary));
   color: #ffffff;
 }

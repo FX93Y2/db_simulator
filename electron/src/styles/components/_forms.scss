@@ -372,24 +372,108 @@
   // Default: ~500px, Medium: ~800px, Large: custom 960px above
   
   .modal-content {
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
   }
   
   .modal-header {
-    background-color: var(--theme-modal-header-bg) !important;
+    background-color: var(--theme-modal-header-bg);
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
   }
   
   .modal-footer {
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
     border-top: 1px solid var(--theme-border);
   }
 }
 
 // Note: Dark theme support is now handled automatically through 
 // the app's --theme-* variables defined in _themes.scss
+
+// ============================================
+// CONSOLIDATED FORM STYLES
+// ============================================
+// Unified form control styling across all components
+// These styles apply globally to ensure consistency
+
+.form-label {
+  font-weight: 500;
+  color: var(--theme-text);
+  margin-bottom: 0.5rem;
+  
+  svg {
+    color: var(--theme-primary);
+  }
+}
+
+.form-control, 
+.form-select {
+  background-color: var(--theme-input-bg);
+  border-color: var(--theme-input-border);
+  color: var(--theme-text);
+  
+  &:focus {
+    background-color: var(--theme-input-bg);
+    border-color: var(--theme-input-focus-border);
+    color: var(--theme-text);
+    box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
+  }
+  
+  &::placeholder {
+    color: var(--theme-muted-text);
+  }
+  
+  &.is-invalid {
+    border-color: var(--bs-danger, #dc3545);
+  }
+  
+  &:disabled,
+  &[readonly],
+  &.form-control-readonly {
+    background-color: var(--theme-table-header-bg);
+    border-color: var(--theme-input-border);
+    color: var(--theme-muted-text);
+    opacity: 0.8;
+    cursor: not-allowed;
+  }
+}
+
+// Textarea specific styling
+textarea.form-control {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.form-text {
+  color: var(--theme-muted-text);
+  font-size: 0.875rem;
+}
+
+.input-group-text {
+  background-color: var(--theme-editor-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+}
+
+// Alert styles within forms
+.alert {
+  background-color: var(--theme-card-bg);
+  border-color: var(--theme-border);
+  color: var(--theme-text);
+  
+  &.alert-danger {
+    background-color: rgba(220, 53, 69, 0.1);
+    border-color: rgba(220, 53, 69, 0.3);
+    color: var(--bs-danger, #dc3545);
+  }
+  
+  &.alert-info {
+    background-color: rgba(13, 202, 240, 0.1);
+    border-color: rgba(13, 202, 240, 0.3);
+    color: var(--bs-info, #0dcaf0);
+  }
+}

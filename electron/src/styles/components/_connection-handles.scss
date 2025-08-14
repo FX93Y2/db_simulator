@@ -7,8 +7,8 @@
 .connection-handle {
   width: 10px !important;
   height: 10px !important;
-  border: 2px solid #666 !important;
-  background: white !important;
+  border: 2px solid var(--theme-muted-text) !important;
+  background: var(--theme-card-bg) !important;
   border-radius: 50% !important;
   transition: all 0.2s ease !important;
   cursor: crosshair !important;
@@ -17,18 +17,18 @@
   &:hover {
     width: 14px !important;
     height: 14px !important;
-    border-color: #3498db !important;
-    background: #3498db !important;
-    box-shadow: 0 0 8px rgba(52, 152, 219, 0.5) !important;
+    border-color: var(--theme-primary) !important;
+    background: var(--theme-primary) !important;
+    box-shadow: 0 0 8px rgba(var(--theme-primary-rgb), 0.5) !important;
   }
 
   &--source {
-    border-color: #2ecc71 !important;
+    border-color: var(--theme-secondary) !important;
 
     &:hover {
-      border-color: #2ecc71 !important;
-      background: #2ecc71 !important;
-      box-shadow: 0 0 8px rgba(46, 204, 113, 0.5) !important;
+      border-color: var(--theme-secondary) !important;
+      background: var(--theme-secondary) !important;
+      box-shadow: 0 0 8px rgba(var(--theme-secondary-rgb), 0.5) !important;
     }
   }
 
@@ -46,7 +46,7 @@
 // Connection hint text
 .entity-node__connection-hint {
   font-size: 10px;
-  color: #666;
+  color: var(--theme-muted-text);
   font-style: italic;
   margin-top: 2px;
   opacity: 0.7;
@@ -61,16 +61,16 @@
 .react-flow__handle {
   width: 8px;
   height: 8px;
-  background-color: #3498db;
-  border: 2px solid white;
-  box-shadow: 0 0 0 2px #3498db;
+  background-color: var(--theme-primary);
+  border: 2px solid var(--theme-card-bg);
+  box-shadow: 0 0 0 2px var(--theme-primary);
 
   &:hover {
-    background-color: #2980b9;
+    background-color: var(--theme-primary);
   }
 
   &.connecting {
-    background-color: #2980b9;
-    box-shadow: 0 0 0 2px #2980b9;
+    background-color: var(--theme-primary);
+    box-shadow: 0 0 0 2px var(--theme-primary);
   }
 }

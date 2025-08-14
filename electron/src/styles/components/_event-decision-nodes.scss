@@ -10,13 +10,13 @@
   border-radius: 4px;
   background-color: var(--theme-card-bg);
   color: var(--theme-text);
-  border: 1px solid var(--theme-secondary, #2ecc71);
+  border: 1px solid var(--theme-secondary);
   width: 150px;
   text-align: center;
 
   &__title {
     font-weight: bold;
-    border-bottom: 1px solid #eee;
+    border-bottom: 1px solid var(--theme-border);
     padding-bottom: 5px;
     margin-bottom: 8px;
   }
@@ -31,17 +31,17 @@
     transition: background-color 0.2s;
 
     &:hover {
-      background-color: #f5f5f5;
+      background-color: var(--theme-hover-bg);
     }
   }
 }
 
 // Assign node styles - Green rectangular shape for Arena assignments
 .assign-step-node {
-  background-color: #2ecc71;
-  border: 2px solid #27ae60;
+  background-color: var(--theme-secondary);
+  border: 2px solid var(--theme-secondary);
   border-radius: 8px;
-  color: white;
+  color: var(--theme-primary-text);
   min-width: 120px;
   min-height: 80px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
@@ -52,14 +52,14 @@
   padding: 15px;
 
   &:hover {
-    background-color: #27ae60;
-    border-color: #229954;
+    background-color: var(--theme-secondary);
+    border-color: var(--theme-secondary);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
   }
 
   &.selected {
-    border-color: #3498db;
-    box-shadow: 0 0 0 2px #3498db;
+    border-color: var(--theme-primary);
+    box-shadow: 0 0 0 2px var(--theme-primary);
   }
 
   .node-content {

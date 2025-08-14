@@ -13,7 +13,7 @@
 
 // Edge connecting styles
 .react-flow__edge.connecting {
-  stroke: #3498db;
+  stroke: var(--theme-primary);
   stroke-width: 2;
 }
 
@@ -21,7 +21,7 @@
 .react-flow__edge.selected .react-flow__edge-path {
   stroke-width: 3px !important;
   stroke-dasharray: none !important;
-  stroke: #4ea1ff !important;
+  stroke: var(--theme-primary) !important;
 }
 
 // Ensure edge selection is visible over other elements
@@ -32,14 +32,14 @@
 // Edge hover effect for better UX
 .react-flow__edge:hover .react-flow__edge-path {
   stroke-width: 2.5px;
-  stroke: #4ea1ff;
+  stroke: var(--theme-primary);
   opacity: 0.8;
 }
 
 // Don't apply hover when already selected
 .react-flow__edge.selected:hover .react-flow__edge-path {
   stroke-width: 3px !important;
-  stroke: #4ea1ff !important;
+  stroke: var(--theme-primary) !important;
   opacity: 1 !important;
 }
 
@@ -70,14 +70,14 @@
 // Custom edge label background
 .react-flow__edge.step-edge .react-flow__edge-text,
 .react-flow__edge.smoothstep-edge .react-flow__edge-text {
-  background-color: white;
+  background-color: var(--theme-card-bg);
   padding: 3px;
   border-radius: 3px;
   font-size: 12px;
   font-weight: 500;
-  fill: #333;
+  fill: var(--theme-text);
   paint-order: stroke;
-  stroke: white;
+  stroke: var(--theme-card-bg);
   stroke-width: 3px;
 }
 
@@ -85,8 +85,8 @@
 .react-flow__edge-text {
   font-size: 12px;
   font-weight: 500;
-  fill: #333;
-  background-color: white;
+  fill: var(--theme-text);
+  background-color: var(--theme-card-bg);
   padding: 2px 4px;
   border-radius: 3px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);

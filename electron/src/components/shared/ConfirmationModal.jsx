@@ -46,7 +46,7 @@ const ConfirmationModal = ({
       
       <Modal.Footer>
         <Button 
-          variant="outline-secondary" 
+          variant="secondary" 
           onClick={onHide}
         >
           {cancelText}

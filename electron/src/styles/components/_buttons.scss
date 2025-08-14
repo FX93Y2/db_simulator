@@ -1,3 +1,67 @@
+// ============================================
+// CENTRALIZED BUTTON STYLE SYSTEM
+// ============================================
+// Consistent button styling across all modals and components
+// These override Bootstrap defaults to use our theme system
+
+// Standard Bootstrap button variants with theme support
+.btn-primary {
+  background-color: var(--theme-primary);
+  border-color: var(--theme-primary);
+  color: var(--theme-primary-text);
+  
+  &:hover, &:focus, &:active, &.active {
+    background-color: var(--theme-primary);
+    border-color: var(--theme-primary);
+    color: var(--theme-primary-text);
+    opacity: 0.9;
+  }
+  
+  &:disabled {
+    background-color: var(--theme-primary);
+    border-color: var(--theme-primary);
+    opacity: 0.5;
+  }
+}
+
+.btn-secondary {
+  background-color: var(--theme-muted-text);
+  border-color: var(--theme-muted-text);
+  color: var(--theme-primary-text);
+  
+  &:hover, &:focus, &:active, &.active {
+    background-color: var(--theme-muted-text);
+    border-color: var(--theme-muted-text);
+    color: var(--theme-primary-text);
+    opacity: 0.9;
+  }
+  
+  &:disabled {
+    background-color: var(--theme-muted-text);
+    border-color: var(--theme-muted-text);
+    opacity: 0.5;
+  }
+}
+
+.btn-danger {
+  background-color: var(--bs-danger, #dc3545);
+  border-color: var(--bs-danger, #dc3545);
+  color: var(--theme-primary-text);
+  
+  &:hover, &:focus, &:active, &.active {
+    background-color: var(--bs-danger, #dc3545);
+    border-color: var(--bs-danger, #dc3545);
+    color: var(--theme-primary-text);
+    opacity: 0.9;
+  }
+  
+  &:disabled {
+    background-color: var(--bs-danger, #dc3545);
+    border-color: var(--bs-danger, #dc3545);
+    opacity: 0.5;
+  }
+}
+
 // Custom Button Styles
 .btn-custom-toolbar {
   background-color: transparent;
@@ -97,12 +161,12 @@
 }
 
 .editor-yaml-panel .panel-header .save-config-btn {
-  color: #007bff; // Standard blue color
+  color: var(--theme-primary);
 }
 
 .editor-canvas-panel .canvas-header > .btn-custom-toolbar,
 .editor-canvas-panel .canvas-header .dropdown-toggle.btn-custom-toolbar {
-  color: #007bff;
+  color: var(--theme-primary);
 }
 
 // Button improvements
@@ -113,7 +177,7 @@
   &:hover {
     background-color: var(--theme-primary);
     border-color: var(--theme-primary);
-    color: white;
+    color: var(--theme-primary-text);
   }
 }
 
@@ -124,18 +188,18 @@
   &:hover {
     background-color: var(--theme-muted-text);
     border-color: var(--theme-muted-text);
-    color: white;
+    color: var(--theme-primary-text);
   }
 }
 
 .btn-outline-danger {
-  border-color: #dc3545;
-  color: #dc3545;
+  border-color: var(--bs-danger, #dc3545);
+  color: var(--bs-danger, #dc3545);
   
   &:hover {
-    background-color: #dc3545;
-    border-color: #dc3545;
-    color: white;
+    background-color: var(--bs-danger, #dc3545);
+    border-color: var(--bs-danger, #dc3545);
+    color: var(--theme-primary-text);
   }
 }
 
@@ -163,7 +227,7 @@
 }
 
 .project-edit-btn {
-  color: #90a4ae !important;
+  color: var(--theme-muted-text) !important;
 
   &:hover, &:focus, &:active {
     background: rgba(128, 128, 128, 0.15) !important;
@@ -172,7 +236,7 @@
 }
 
 .project-delete-btn {
-  color: #ff4d4f !important;
+  color: var(--bs-danger, #ff4d4f) !important;
 
   &:hover, &:focus, &:active {
     background: rgba(128, 128, 128, 0.15) !important;

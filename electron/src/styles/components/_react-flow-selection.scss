@@ -11,19 +11,19 @@
 
 // Custom Node selection styles with rounded corners
 .react-flow__node.selected .entity-table {
-  box-shadow: 0 0 0 2px #3498db !important;
+  box-shadow: 0 0 0 2px var(--theme-primary) !important;
   border-radius: 8px !important;
 }
 
 .react-flow__node.selected .event-node,
 .react-flow__node.selected .decision-node > div {
-  box-shadow: 0 0 0 2px #3498db !important;
+  box-shadow: 0 0 0 2px var(--theme-primary) !important;
   border-radius: 8px !important;
 }
 
 // Ensure event node selection during drag
 .react-flow__node.dragging.selected .event-node {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--theme-primary) !important;
   border-radius: 8px !important;
   transform: scale(1.02) !important;
 }
@@ -41,7 +41,7 @@
 
 // Ensure basic selection styling is preserved during drag
 .react-flow__node.dragging.selected .entity-table {
-  box-shadow: 0 0 0 2px #3498db !important;
+  box-shadow: 0 0 0 2px var(--theme-primary) !important;
   border-radius: 8px !important;
 }
 
@@ -59,7 +59,7 @@
 // Selected nodes during drag - Higher specificity with selection border
 .react-flow__node.dragging.selected .entity-table {
   transform: scale(1.02) !important;
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px #3498db !important;
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2), 0 2px 4px rgba(0, 0, 0, 0.15), 0 0 0 2px var(--theme-primary) !important;
   border-radius: 8px !important;
 }
 

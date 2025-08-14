@@ -1,3 +1,18 @@
+// ============================================
+// THEME SYSTEM DOCUMENTATION
+// ============================================
+// This file defines the theming system with CSS custom properties
+// 
+// Variable Naming Convention:
+// --theme-*  : Custom theme variables used throughout the app
+// --bs-*     : Bootstrap variable overrides for Bootstrap components
+//
+// Usage:
+// - Use --theme-* variables for custom components
+// - Bootstrap components will automatically use --bs-* overrides
+// - Always provide fallback values for critical colors
+// ============================================
+
 // Theme Variables Definition
 :root { // Light theme defaults
   --theme-bg: #f8f9fa;
@@ -24,6 +39,7 @@
   --theme-yaml-editor-bg: #f8f9fa;
   --theme-primary: #3498db;
   --theme-primary-text: #ffffff;
+  --theme-secondary: #2ecc71;
   --theme-resize-handle-hover-bg: #c7c7c7;
   --theme-er-node-bg: #85c6f3; // lighten(#3498db, 30%)
   --theme-primary-rgb: 52, 152, 219;
@@ -55,6 +71,7 @@ body.theme-dark { // Dark theme overrides
   --theme-yaml-editor-bg: #282828; // Darker grey for YAML editor (VS Code style)
   --theme-primary: #3498db; // Keep primary blue for accents
   --theme-primary-text: #ffffff;
+  --theme-secondary: #2ecc71; // Keep secondary green for accents
   --theme-resize-handle-hover-bg: #3a3a3a;
   --theme-er-node-bg: #404040; // Dark greyish background for nodes
   --theme-primary-rgb: 52, 152, 219;
@@ -62,11 +79,13 @@ body.theme-dark { // Dark theme overrides
   --theme-text-rgb: 224, 224, 224; // Explicitly define for dark theme based on #e0e0e0
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
-  --bs-border-color: var(--theme-border); // Tell Bootstrap utilities to use our theme border color
-  --bs-body-bg: var(--theme-card-bg); // Override Bootstrap's body background for cards
-  --bs-body-color: var(--theme-text); // Override Bootstrap's body text color
-  --bs-card-bg: var(--theme-card-bg); // Override Bootstrap's card background directly
-  --bs-card-border-color: var(--theme-border); // Override Bootstrap's card border color
+  // Strategy: Override Bootstrap CSS variables to use our theme system
+  // This ensures Bootstrap components automatically adapt to our theme
+  --bs-border-color: var(--theme-border); 
+  --bs-body-bg: var(--theme-card-bg); 
+  --bs-body-color: var(--theme-text); 
+  --bs-card-bg: var(--theme-card-bg); 
+  --bs-card-border-color: var(--theme-border); 
   // Modal variable overrides
   --bs-modal-bg: var(--theme-modal-bg);
   --bs-modal-header-bg: var(--theme-modal-header-bg);
@@ -239,37 +258,7 @@ body.theme-dark { // Dark theme overrides
     }
   }
 
-  // Form controls styling for dark theme
-  .form-control, .form-select {
-    background-color: var(--theme-input-bg);
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-input-bg);
-      border-color: var(--theme-input-focus-border);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    &::placeholder {
-      color: var(--theme-muted-text);
-    }
-    
-    &:disabled,
-    &[readonly] {
-      background-color: var(--theme-table-header-bg);
-      border-color: var(--theme-input-border);
-      color: var(--theme-muted-text);
-      opacity: 0.8;
-    }
-  }
-  
-  // Textarea specific styling
-  textarea.form-control {
-    resize: vertical;
-    min-height: 60px;
-  }
+  // Form control styling is now handled in _forms.scss
 }
 
 // React Flow Global Styles (apply to both light and dark themes)

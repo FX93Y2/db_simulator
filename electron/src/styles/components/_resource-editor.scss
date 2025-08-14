@@ -40,16 +40,16 @@
     }
     
     &.bg-info {
-      background-color: #17a2b8 !important;
+      background-color: var(--bs-info, #17a2b8) !important;
     }
     
     &.bg-warning {
-      background-color: #ffc107 !important;
-      color: #000 !important;
+      background-color: var(--bs-warning, #ffc107) !important;
+      color: var(--bs-dark, #000) !important;
     }
     
     &.bg-secondary {
-      background-color: #6c757d !important;
+      background-color: var(--theme-muted-text) !important;
     }
   }
   

@@ -6,17 +6,22 @@
   }
   
   .modal-content {
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
   }
   
   .modal-header {
-    background-color: var(--theme-modal-header-bg) !important;
+    background-color: var(--theme-modal-header-bg);
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
+  }
+  
+  .modal-footer {
+    background-color: var(--theme-modal-header-bg);
+    border-top: 1px solid var(--theme-border);
   }
 }
 
@@ -28,51 +33,25 @@
   }
   
   .modal-content {
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
   }
   
   .modal-header {
-    background-color: var(--theme-modal-header-bg) !important;
+    background-color: var(--theme-modal-header-bg);
     border-bottom: 1px solid var(--theme-border);
   }
   
   .modal-body {
     padding: 1.5rem;
-    background-color: var(--theme-modal-bg) !important;
+    background-color: var(--theme-modal-bg);
   }
   
-  // Inherit form styling from entity-editor-modal
-  .form-label {
-    font-weight: 500;
-    color: var(--theme-text);
-    margin-bottom: 0.5rem;
-    
-    svg {
-      color: var(--theme-primary);
-    }
+  .modal-footer {
+    background-color: var(--theme-modal-header-bg);
+    border-top: 1px solid var(--theme-border);
   }
-
-  .form-control, .form-select {
-    background-color: var(--theme-input-bg);
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-input-bg);
-      border-color: var(--theme-input-focus-border);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    &::placeholder {
-      color: var(--theme-muted-text);
-    }
-  }
-
-  .form-text {
-    color: var(--theme-muted-text);
-    font-size: 0.875rem;
-  }
+  
+  // Form styles are now handled by consolidated styles in _forms.scss
 }
 
 // Generator modal overlay effect
@@ -163,18 +142,18 @@
     }
     
     .distribution-optional-card {
-      border: 1px solid var(--theme-border) !important;
-      background-color: var(--theme-editor-bg) !important;
+      border: 1px solid var(--theme-border);
+      background-color: var(--theme-editor-bg);
       
       .card-header {
-        background-color: rgba(var(--theme-primary-rgb), 0.05) !important;
-        border-bottom: 1px solid var(--theme-border) !important;
-        color: var(--theme-text) !important;
+        background-color: rgba(var(--theme-primary-rgb), 0.05);
+        border-bottom: 1px solid var(--theme-border);
+        color: var(--theme-text);
       }
       
       .card-body {
-        background-color: var(--theme-editor-bg) !important;
-        color: var(--theme-text) !important;
+        background-color: var(--theme-editor-bg);
+        color: var(--theme-text);
       }
     }
   }
@@ -222,83 +201,8 @@
   }
 }
 
-// Form styling improvements for dark theme
-.entity-editor-modal, .attribute-editor-card {
-  .form-label {
-    font-weight: 500;
-    color: var(--theme-text);
-    margin-bottom: 0.5rem;
-    
-    svg {
-      color: var(--theme-primary);
-    }
-  }
-
-  .form-control, .form-select {
-    background-color: var(--theme-input-bg);
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-input-bg);
-      border-color: var(--theme-input-focus-border);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    &::placeholder {
-      color: var(--theme-muted-text);
-    }
-    
-    &.is-invalid {
-      border-color: #dc3545;
-    }
-    
-    // Read-only form controls styling
-    &.form-control-readonly {
-      background-color: var(--theme-table-header-bg);
-      border-color: var(--theme-input-border);
-      color: var(--theme-text);
-      opacity: 0.8;
-      cursor: not-allowed;
-      
-      &:focus {
-        background-color: var(--theme-editor-bg);
-        border-color: var(--theme-border);
-        box-shadow: none;
-      }
-    }
-  }
-
-  .form-text {
-    color: var(--theme-muted-text);
-    font-size: 0.875rem;
-  }
-
-  .input-group-text {
-    background-color: var(--theme-editor-bg);
-    border-color: var(--theme-border);
-    color: var(--theme-text);
-  }
-  
-  .alert {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
-    color: var(--theme-text);
-    
-    &.alert-danger {
-      background-color: rgba(220, 53, 69, 0.1);
-      border-color: rgba(220, 53, 69, 0.3);
-      color: #dc3545;
-    }
-    
-    &.alert-info {
-      background-color: rgba(13, 202, 240, 0.1);
-      border-color: rgba(13, 202, 240, 0.3);
-      color: #0dcaf0;
-    }
-  }
-}
+// Form styles are now consolidated in _forms.scss
+// Only keep entity-editor specific overrides if needed
 
 // Button improvements for entity editor
 .entity-editor-modal {
@@ -336,28 +240,11 @@
   }
 }
 
-// Dark theme specific adjustments
+// Dark theme close button adjustment
 body.theme-dark {
   .entity-editor-modal, .attribute-editor-card {
-    .modal-content {
-      background-color: var(--theme-card-bg);
-      border-color: var(--theme-border);
-    }
-    
-    .modal-header {
-      border-bottom-color: var(--theme-border);
-      
-      .modal-title {
-        color: var(--theme-text);
-      }
-      
-      .btn-close {
-        filter: invert(1);
-      }
-    }
-    
-    .modal-footer {
-      border-top-color: var(--theme-border);
+    .btn-close {
+      filter: invert(1);
     }
   }
 }
