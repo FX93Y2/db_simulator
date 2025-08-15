@@ -40,19 +40,20 @@
   }
 
   .card {
-    background-color: var(--theme-card-bg);
-    border-color: var(--theme-border);
+    background-color: var(--theme-modal-bg);
+    border: none;
     
     .card-header {
-      background-color: rgba(var(--theme-primary-rgb), 0.1);
-      border-bottom: 1px solid var(--theme-border);
+      background-color: var(--theme-modal-header-bg);
+      border-bottom: none;
       
       h5, h6 {
-        color: var(--theme-primary);
+        color: var(--theme-text);
       }
     }
     
     .card-body {
+      background-color: var(--theme-modal-bg);
       color: var(--theme-text);
     }
   }

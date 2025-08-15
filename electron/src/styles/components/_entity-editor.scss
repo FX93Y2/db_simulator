@@ -11,7 +11,7 @@
   
   .modal-header {
     background-color: var(--theme-modal-header-bg);
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none;
   }
   
   .modal-body {
@@ -38,7 +38,7 @@
   
   .modal-header {
     background-color: var(--theme-modal-header-bg);
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none;
   }
   
   .modal-body {
@@ -80,7 +80,7 @@
   
   .card-header {
     background-color: rgba(var(--theme-primary-rgb), 0.08);
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none;
     color: var(--theme-text);
     padding: 0.75rem 1rem;
     
@@ -147,7 +147,7 @@
       
       .card-header {
         background-color: rgba(var(--theme-primary-rgb), 0.05);
-        border-bottom: 1px solid var(--theme-border);
+        border-bottom: none;
         color: var(--theme-text);
       }
       

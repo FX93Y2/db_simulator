@@ -1,10 +1,10 @@
 // Modal improvements for resource editing
 .modal-content {
   background-color: var(--theme-card-bg);
-  border-color: var(--theme-border);
+  border: none;
   
   .modal-header {
-    border-bottom-color: var(--theme-border);
+    border-bottom: none;
     
     .modal-title {
       color: var(--theme-text);
@@ -39,7 +39,7 @@
   }
   
   .modal-footer {
-    border-top-color: var(--theme-border);
+    border-top: none;
   }
 }
 
@@ -71,13 +71,13 @@ body.theme-dark {
   .modal-header {
     background-color: var(--theme-modal-header-bg);
     color: var(--theme-text);
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none;
   }
 
   .modal-content {
     background-color: var(--theme-card-bg);
     color: var(--theme-text);
-    border: 1px solid var(--theme-border);
+    border: none;
   }
 
   .modal-body {

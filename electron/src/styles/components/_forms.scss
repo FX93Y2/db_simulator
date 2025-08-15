@@ -250,7 +250,7 @@
   
   .modal-header {
     background-color: var(--theme-modal-header-bg);
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none;
   }
   
   .modal-body {
@@ -260,7 +260,7 @@
   
   .modal-footer {
     background-color: var(--theme-modal-bg);
-    border-top: 1px solid var(--theme-border);
+    border-top: none;
   }
 }
 

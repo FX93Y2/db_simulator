@@ -234,11 +234,11 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   .modal-content {
     background-color: var(--theme-card-bg); // Use dark card background
     color: var(--theme-text);
-    border: 1px solid var(--theme-border);
+    border: none;
   }
 
   .modal-header {
-    border-bottom-color: var(--theme-border);
+    border-bottom: none;
   }
 
   .modal-footer {

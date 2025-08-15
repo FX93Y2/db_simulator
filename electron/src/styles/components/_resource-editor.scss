@@ -80,3 +80,31 @@
     }
   }
 }
+
+// Resource Capacity Configuration Modal
+.modal {
+  // Apply modal styles to capacity edit modal (show={showEditModal})
+  .modal-content {
+    background-color: var(--theme-modal-bg);
+    border: none;
+  }
+  
+  .modal-header {
+    background-color: var(--theme-modal-header-bg);
+    border-bottom: none;
+    
+    .modal-title {
+      color: var(--theme-text);
+    }
+  }
+  
+  .modal-body {
+    background-color: var(--theme-modal-bg);
+    color: var(--theme-text);
+  }
+  
+  .modal-footer {
+    background-color: var(--theme-modal-bg);
+    border-top: none;
+  }
+}
