@@ -195,6 +195,7 @@ export const useDatabaseConfigActions = (projectId) => {
     clearDatabaseConfig: state.clearDatabaseConfig,
     getCurrentYamlContent: state.getCurrentYamlContent,
     updateYamlAndNotify: state.updateYamlAndNotify,
+    hasContent: state.hasContent,
     // Undo/redo functions
     undo: state.undo,
     redo: state.redo,

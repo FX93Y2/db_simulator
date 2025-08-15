@@ -267,5 +267,14 @@ export const createConfigActions = (set, get) => ({
       // Clear positions
       state.positions.clear();
     });
+  },
+
+  /**
+   * Check if the store has any content
+   * @returns {boolean} - True if store has content
+   */
+  hasContent: () => {
+    const state = get();
+    return !!(state.yamlContent || state.canonicalSteps.length > 0 || state.config);
   }
 });

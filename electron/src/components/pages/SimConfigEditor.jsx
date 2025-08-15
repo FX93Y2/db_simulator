@@ -64,7 +64,7 @@ const SimConfigEditor = ({
   // Store actions
   const { importYaml, updateYamlContent } = useYamlActions(projectId);
   const { addNode } = useCanvasActions(projectId);
-  const { loadConfig, saveConfig, initializeConfig, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
+  const { loadConfig, saveConfig, initializeConfig, hasContent, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
   const { syncSimulationToYaml } = useSimulationActions(projectId);
 
   // Local modal state
@@ -91,7 +91,8 @@ const SimConfigEditor = ({
     yamlContent,
     error,
     initializeConfig,
-    loadConfig
+    loadConfig,
+    hasContent
   });
 
   // Generate collision-free step ID

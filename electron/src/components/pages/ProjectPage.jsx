@@ -11,6 +11,10 @@ import { useToastContext } from '../../contexts/ToastContext';
 import { useNavigationBlocker } from '../../hooks/shared/useNavigationBlocker';
 import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
+// Store cleanup imports
+import { cleanupStore } from '../../stores/simulationConfigStore';
+import { cleanupDatabaseStore } from '../../stores/databaseConfigStore';
+
 // Cache for project data to reduce loading flicker
 const projectCache = {};
 
@@ -347,13 +351,20 @@ const ProjectPage = ({ theme }) => {
         // For reload/close, use our custom proceed function
         pendingNavigation.proceed();
       } else if (blocker.state === 'blocked') {
+        // For navigation, clean up stores after saving to ensure fresh state
+        if (projectId) {
+          console.log('🧹 Cleaning up stores for project after saving and navigating:', projectId);
+          cleanupStore(projectId);
+          cleanupDatabaseStore(projectId);
+        }
+        
         // For navigation, use the blocker's proceed function
         blocker.proceed();
       }
     } catch (error) {
       showError('Failed to save changes. Please try again.');
     }
-  }, [handleSaveAll, blocker, pendingNavigation, showError]);
+  }, [handleSaveAll, blocker, pendingNavigation, showError, projectId]);
 
   const handleDiscardAndContinue = useCallback(() => {
     // Check if this is a reload/close action or navigation
@@ -365,13 +376,19 @@ const ProjectPage = ({ theme }) => {
       // Use our custom proceed function to reload or close
       pendingNavigation.proceed();
     } else {
-      // For navigation, just proceed without saving
+      // For navigation, clean up stores to discard changes before proceeding
+      if (projectId) {
+        console.log('🧹 Cleaning up stores for project before navigation:', projectId);
+        cleanupStore(projectId);
+        cleanupDatabaseStore(projectId);
+      }
+      
       setShowUnsavedModal(false);
       if (blocker.state === 'blocked') {
         blocker.proceed();
       }
     }
-  }, [blocker, pendingNavigation, lastSavedDbConfig, lastSavedSimConfig]);
+  }, [blocker, pendingNavigation, lastSavedDbConfig, lastSavedSimConfig, projectId]);
 
   const handleCancelNavigation = useCallback(() => {
     setShowUnsavedModal(false);

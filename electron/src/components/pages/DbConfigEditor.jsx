@@ -55,6 +55,7 @@ const DbConfigEditor = ({
     saveDatabaseConfig,
     initializeDatabaseConfig,
     updateConfigMetadata,
+    hasContent,
     undo,
     redo,
     canUndo,
@@ -97,7 +98,8 @@ const DbConfigEditor = ({
     yamlContent,
     error,
     initializeConfig: initializeDatabaseConfig,
-    loadConfig: loadDatabaseConfig
+    loadConfig: loadDatabaseConfig,
+    hasContent
   });
 
   // Component-specific handlers

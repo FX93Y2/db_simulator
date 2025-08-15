@@ -224,5 +224,14 @@ export const createDatabaseConfigActions = (set, get) => ({
     if (onEntityDiagramChange) {
       onEntityDiagramChange(yamlContent);
     }
+  },
+
+  /**
+   * Check if the store has any content
+   * @returns {boolean} - True if store has content
+   */
+  hasContent: () => {
+    const state = get();
+    return !!(state.yamlContent || state.canonicalEntities.length > 0 || state.config);
   }
 });

@@ -241,6 +241,7 @@ export const useConfigActions = (projectId) => {
     runSimulation: state.runSimulation,
     initializeConfig: state.initializeConfig,
     clearConfig: state.clearConfig,
+    hasContent: state.hasContent,
     // Undo/redo functions
     undo: state.undo,
     redo: state.redo,
