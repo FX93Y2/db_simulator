@@ -14,7 +14,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
   const [assignments, setAssignments] = useState([]);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [lastNodeId, setLastNodeId] = useState(null);
   const [nameValidation, setNameValidation] = useState({ valid: true, error: null });
 
@@ -304,19 +303,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   };
 
-  // Handle node deletion
+  // Handle node deletion - direct delete without confirmation since undo/redo is available
   const handleDelete = () => {
-    setShowDeleteConfirm(true);
-  };
-
-  const confirmDelete = () => {
     try {
       onNodeDelete([node]); // Pass as array since onNodesDelete expects array
-      setShowDeleteConfirm(false);
       onHide();
     } catch (error) {
       console.error('Error deleting node:', error);
-      setShowDeleteConfirm(false);
     }
   };
 
@@ -661,17 +654,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         </Modal.Footer>
       </Modal>
 
-      <ConfirmationModal
-        show={showDeleteConfirm}
-        onHide={() => setShowDeleteConfirm(false)}
-        onConfirm={confirmDelete}
-        title="Delete Step"
-        message={`Are you sure you want to delete this ${node?.data.stepConfig?.step_type || 'step'}? This action cannot be undone and will remove all connections to this step.`}
-        confirmText="Delete Step"
-        cancelText="Cancel"
-        variant="danger"
-        theme={theme}
-      />
     </>
   );
 };

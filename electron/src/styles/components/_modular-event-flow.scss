@@ -37,6 +37,14 @@
   box-shadow: none !important;
 }
 
+/* Override theme-level ReactFlow node styling with higher specificity */
+.dark-theme .modular-event-flow .react-flow__node,
+.modular-event-flow .react-flow__node {
+  background-color: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
 .modular-event-flow .react-flow__node-default {
   background: transparent !important;
   border: none !important;
@@ -59,11 +67,10 @@
   width: 100%;
   height: 100%;
   
-  // Override SVG stroke and fill with theme colors
+  // Override SVG fill with theme colors (no stroke for clean look)
   path, rect, ellipse {
     fill: var(--flow-node-bg) !important;
-    stroke: var(--flow-node-outline) !important;
-    stroke-width: 2px !important;
+    stroke: none !important;
   }
   
   // Extra specificity for transparent fills

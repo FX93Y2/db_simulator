@@ -32,6 +32,18 @@ export const createUIActions = (set, get) => ({
     
     set((state) => {
       state.selectedNode = null;
+      
+      // Clear all node selections
+      state.nodes = state.nodes.map(node => ({
+        ...node,
+        selected: false
+      }));
+      
+      // Clear all edge selections
+      state.edges = state.edges.map(edge => ({
+        ...edge,
+        selected: false
+      }));
     });
   },
 
@@ -82,6 +94,26 @@ export const createUIActions = (set, get) => ({
     
     set((state) => {
       state.selectedNode = node;
+      
+      // Update node selection state in ReactFlow
+      state.nodes = state.nodes.map(n => ({
+        ...n,
+        selected: n.id === node?.id
+      }));
+      
+      // Highlight connected edges when node is selected
+      if (node) {
+        state.edges = state.edges.map(edge => ({
+          ...edge,
+          selected: edge.source === node.id || edge.target === node.id
+        }));
+      } else {
+        // Clear all edge selections when no node is selected
+        state.edges = state.edges.map(edge => ({
+          ...edge,
+          selected: false
+        }));
+      }
     });
   },
 
@@ -96,6 +128,16 @@ export const createUIActions = (set, get) => ({
       state.selectedNode = node;
       state.showEditModal = true;
     });
+  },
+
+  /**
+   * Handle pane click event (clicking on canvas background)
+   * @param {Object} event - React event
+   */
+  handlePaneClick: (_event) => {
+    
+    // Clear selection when clicking on the canvas
+    get().clearSelection();
   },
 
   /**

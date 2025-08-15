@@ -3,6 +3,8 @@ import ReactFlow, {
   MiniMap,
   Controls,
   Background,
+  applyNodeChanges,
+  applyEdgeChanges,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -43,6 +45,8 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   // Store actions
   const { 
     updateNodePosition, 
+    updateNodes,
+    updateEdges,
     deleteNodes, 
     updateStep, 
     connectNodes, 
@@ -53,6 +57,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   const { 
     handleNodeClick, 
     handleNodeDoubleClick, 
+    handlePaneClick,
     setSelectedNode,
     handleKeyboard
   } = useUIActions(projectId);
@@ -85,18 +90,50 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
 
   // ReactFlow event handlers
   const onNodesChange = React.useCallback((changes) => {
+    // Apply all changes to maintain ReactFlow state (following ER Diagram approach)
+    const currentNodes = nodes;
+    const updatedNodes = applyNodeChanges(changes, currentNodes);
+    updateNodes(updatedNodes);
     
-    // Handle position changes directly
+    // Handle selection changes to maintain edge highlighting
     changes.forEach(change => {
-      if (change.type === 'position' && change.position) {
+      if (change.type === 'select') {
+        if (change.selected) {
+          // Find the selected node and highlight its connected edges
+          const selectedNode = updatedNodes.find(n => n.id === change.id);
+          if (selectedNode) {
+            const currentEdges = edges;
+            const updatedEdges = currentEdges.map(edge => ({
+              ...edge,
+              selected: edge.source === selectedNode.id || edge.target === selectedNode.id
+            }));
+            updateEdges(updatedEdges);
+          }
+        } else {
+          // Node deselected - check if any nodes are still selected
+          const hasSelectedNodes = updatedNodes.some(n => n.selected);
+          if (!hasSelectedNodes) {
+            // No nodes selected, clear all edge highlighting
+            const currentEdges = edges;
+            const updatedEdges = currentEdges.map(edge => ({
+              ...edge,
+              selected: false
+            }));
+            updateEdges(updatedEdges);
+          }
+        }
+      } else if (change.type === 'position' && change.position) {
         updateNodePosition(change.id, change.position);
       }
     });
-  }, [updateNodePosition]);
+  }, [updateNodePosition, updateNodes, updateEdges, nodes, edges]);
 
   const onEdgesChange = React.useCallback((changes) => {
-    // Handle edge changes through store
-  }, []);
+    // Apply edge changes to maintain ReactFlow state (following ER Diagram approach)
+    const currentEdges = edges;
+    const updatedEdges = applyEdgeChanges(changes, currentEdges);
+    updateEdges(updatedEdges);
+  }, [updateEdges, edges]);
 
   const onConnect = React.useCallback((connection) => {
     console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
@@ -221,6 +258,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
             onNodeClick={onNodeClick}
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeDragStop={onNodeDragStop}
+            onPaneClick={handlePaneClick}
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
             nodeTypes={nodeTypes}

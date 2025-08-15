@@ -8,6 +8,7 @@
 $neutral: (
   50: #f8fafc,    // Lightest background
   100: #f1f5f9,   // Light background
+  150: #f8fff4,   // React flow canvas background
   200: #e2e8f0,   // Light borders
   300: #cbd5e1,   // Borders
   400: #94a3b8,   // Disabled text/icons
@@ -21,8 +22,9 @@ $neutral: (
 
 // True Gray Scale (VS Code inspired dark theme hierarchy)
 $gray: (
-  400: #6e6e6e,   // Muted text
-  500: #555555,    // dividers
+  400: #6e6e6e,    // Muted text
+  500: #555555,    // dividers, 
+  550: #4b4c50,    //reactflow background
   600: #454545,    // Borders, inactive UI, resizer bar handel
   700: #3c3c3c,    // Input box, regular hover states for table cell, buttons, drop down menu
   800: #2D2D2D,    // Secondary panel like html table wrapped inside Editor modals(Example: AttributeTable), Guide overlay background color
