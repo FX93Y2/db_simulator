@@ -64,6 +64,7 @@ export const buildNodesFromFlow = (flow, layoutMap, theme, currentPositions = {}
     if (step.step_type === 'decide') nodeType = 'decide';
     if (step.step_type === 'assign') nodeType = 'assign';
     if (step.step_type === 'release') nodeType = 'release';
+    if (step.step_type === 'create') nodeType = 'create';
 
     const node = {
       id: step.step_id,

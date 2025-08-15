@@ -256,7 +256,8 @@ export const createCanvasActions = (set, get) => ({
         const nodeType = step.step_type === 'event' ? 'process' :
                         step.step_type === 'decide' ? 'decide' :
                         step.step_type === 'assign' ? 'assign' :
-                        step.step_type === 'release' ? 'release' : 'process';
+                        step.step_type === 'release' ? 'release' :
+                        step.step_type === 'create' ? 'create' : 'process';
         
         // Position priority: step.position -> PositionService -> calculated default
         let position = step.position;

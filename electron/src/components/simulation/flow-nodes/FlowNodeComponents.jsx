@@ -1,27 +1,20 @@
 import React from 'react';
 import { Handle, Position } from 'reactflow';
+import { FiPlus, FiMinus } from 'react-icons/fi';
+import { ReactComponent as CircleSVG } from '../../../assets/svg/circle.svg';
+import { ReactComponent as RectangleSVG } from '../../../assets/svg/rectangle.svg';
+import { ReactComponent as DiamondSVG } from '../../../assets/svg/diamond.svg';
+import { ReactComponent as PentagonSVG } from '../../../assets/svg/pentagon.svg';
 
-// Process (Event) Node Component - Rectangle
+// Process (Event) Node Component - Rectangle with step_id visible
 export const ProcessNode = ({ data, selected }) => {
   return (
     <div className={`custom-node process-step-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Left} />
-      <div className="node-header">
-        <span className="node-type">Process</span>
-      </div>
-      <div className="node-content">
-        <div className="node-title">{data.stepConfig?.step_id || "Unnamed Process"}</div>
-        <div className="node-details">
-          {data.stepConfig?.event_config?.duration && (
-            <div className="detail-item">
-              <strong>Duration:</strong> {data.stepConfig.event_config.duration.distribution?.mean || 1} days
-            </div>
-          )}
-          {data.stepConfig?.event_config?.resource_requirements?.length > 0 && (
-            <div className="detail-item">
-              <strong>Resources:</strong> {data.stepConfig.event_config.resource_requirements.length}
-            </div>
-          )}
+      <div className="process-shape">
+        <RectangleSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <div className="node-label">{data.stepConfig?.step_id || "Event"}</div>
         </div>
       </div>
       <Handle type="source" position={Position.Right} />
@@ -29,7 +22,7 @@ export const ProcessNode = ({ data, selected }) => {
   );
 };
 
-// Decide Node Component - Diamond with cascading handles like Arena
+// Decide Node Component - Diamond with step_id visible and cascading handles
 export const DecideNode = ({ data, selected }) => {
   const allOutcomes = data.stepConfig?.decide_config?.outcomes || [];
   // Filter out outcomes with empty next_step_id (orphaned connections)
@@ -38,14 +31,9 @@ export const DecideNode = ({ data, selected }) => {
   const actualOutcomes = activeOutcomes.length;
   const totalHandles = actualOutcomes + 1; // +1 for the always-available handle
   
-  // Fixed diamond position - always centered in a 120px height area
-  const fixedDiamondTop = 20; // Fixed top position for diamond (20px from top)
-  const diamondHeight = 80; // Diamond height
-  const diamondCenterY = fixedDiamondTop + (diamondHeight / 2); // Center of diamond
-  
-  // Start handles closer to diamond's right angle, not below it
-  const handleStartTop = diamondCenterY + 5; // Start 5px below diamond center (right angle area)
-  const handleSpacing = 15; // Closer spacing between handles
+  // Calculate handle positions
+  const handleSpacing = 15;
+  const handleStartTop = 50; // Center of diamond area
   
   const renderHandles = () => {
     const handles = [];
@@ -60,7 +48,7 @@ export const DecideNode = ({ data, selected }) => {
           position={Position.Right}
           id={`outcome-${i}`}
           style={{ 
-            right: '-12px', 
+            right: '-6px', 
             top: `${topPosition}px`
           }}
           className="outcome-handle"
@@ -77,7 +65,7 @@ export const DecideNode = ({ data, selected }) => {
         position={Position.Right}
         id={`outcome-${actualOutcomes}`}
         style={{ 
-          right: '-12px', 
+          right: '-6px', 
           top: `${newHandleTop}px`
         }}
         className="new-outcome-handle"
@@ -88,85 +76,72 @@ export const DecideNode = ({ data, selected }) => {
   };
   
   // Calculate total height needed for the node
-  const nodeHeight = Math.max(120, handleStartTop + ((totalHandles) * handleSpacing) + 20); // Min 120px, +20 for bottom padding
+  const nodeHeight = Math.max(80, handleStartTop + ((totalHandles) * handleSpacing) + 20);
   
   return (
     <div 
       className={`custom-node decide-step-node ${selected ? 'selected' : ''}`}
       style={{ height: `${nodeHeight}px` }}
     >
-      <Handle type="target" position={Position.Left} style={{ left: '-12px', top: `${diamondCenterY}px` }} />
-      <div className="diamond-shape" style={{ top: `${fixedDiamondTop}px`, left: '50%', marginTop: '0px', marginLeft: '-60px' }}>
-        <div className="diamond-content">
-          <div className="node-title">{data.stepConfig?.step_id || "Unnamed Decision"}</div>
+      <Handle type="target" position={Position.Left} style={{ left: '-6px', top: '50%' }} />
+      <div className="decide-shape">
+        <DiamondSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <div className="node-label">{data.stepConfig?.step_id || "Decide"}</div>
         </div>
       </div>
       
-      {/* Cascading handles on the right, similar to Arena */}
+      {/* Cascading handles on the right */}
       {renderHandles()}
     </div>
   );
 };
 
-// Assign Node Component - Green rectangle for Arena-style assignments
+// Assign Node Component - Pentagon with step_id visible
 export const AssignNode = ({ data, selected }) => {
-  const assignments = data.stepConfig?.assign_config?.assignments || [];
-  
   return (
     <div className={`custom-node assign-step-node ${selected ? 'selected' : ''}`}>
       <Handle type="target" position={Position.Left} />
-      <div className="node-content">
-        <div className="node-title">{data.stepConfig?.step_id || "Unnamed Assign"}</div>
-        {assignments.length > 0 && (
-          <div className="node-subtitle">{assignments.length} assignment{assignments.length !== 1 ? 's' : ''}</div>
-        )}
+      <div className="assign-shape">
+        <PentagonSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <div className="node-label">{data.stepConfig?.step_id || "Assign"}</div>
+        </div>
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
   );
 };
 
-// Release Node Component - Dispose shape (rectangle with angled side)
+// Release Node Component - Circle with minus symbol, tooltip for step_id
 export const ReleaseNode = ({ data, selected }) => {
   return (
-    <div className={`custom-node release-step-node ${selected ? 'selected' : ''}`}>
+    <div 
+      className={`custom-node release-step-node ${selected ? 'selected' : ''}`}
+      title={data.stepConfig?.step_id || "Release"} // Tooltip
+    >
       <Handle type="target" position={Position.Left} />
-      <div className="dispose-shape">
-        <div className="dispose-content">
-          <div className="node-title">{data.stepConfig?.step_id || "Unnamed Release"}</div>
-          <div className="node-details">
-            <div className="detail-item">End of flow</div>
-          </div>
+      <div className="release-shape">
+        <CircleSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <FiMinus className="node-icon" size={24} />
         </div>
       </div>
     </div>
   );
 };
 
-// Create Node Component - Circle shape (Arena-style Create module)
+// Create Node Component - Circle with plus symbol, tooltip for step_id
 export const CreateNode = ({ data, selected }) => {
-  const createConfig = data.stepConfig?.create_config || {};
-  const entityTable = createConfig.entity_table || 'Entities';
-  const interarrivalTime = createConfig.interarrival_time?.distribution || {};
-  
   return (
-    <div className={`custom-node create-step-node ${selected ? 'selected' : ''}`}>
+    <div 
+      className={`custom-node create-step-node ${selected ? 'selected' : ''}`}
+      title={data.stepConfig?.step_id || "Create"} // Tooltip
+    >
       <div className="create-shape">
-        <div className="create-content">
-          <div className="node-title">{data.stepConfig?.step_id || "Unnamed Create"}</div>
-          <div className="node-subtitle">{entityTable}</div>
-          <div className="node-details">
-            {interarrivalTime.type && (
-              <div className="detail-item">
-                <strong>{interarrivalTime.type}</strong>
-                {interarrivalTime.scale && ` (${interarrivalTime.scale})`}
-                {interarrivalTime.mean && ` (${interarrivalTime.mean}±${interarrivalTime.stddev || 0})`}
-              </div>
-            )}
-            {createConfig.max_entities && createConfig.max_entities !== 'n/a' && (
-              <div className="detail-item">Max: {createConfig.max_entities}</div>
-            )}
-          </div>
+        <CircleSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <FiPlus className="node-icon" size={24} />
         </div>
       </div>
       <Handle type="source" position={Position.Right} />

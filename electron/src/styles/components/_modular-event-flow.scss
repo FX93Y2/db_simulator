@@ -1,10 +1,32 @@
-/* Modular Event Flow Styles */
+/* Modular Event Flow Styles - SVG-Based Minimalist Design */
 @import 'text-selection-prevention';
 
 .modular-event-flow {
   height: 100%;
   width: 100%;
   @include prevent-text-selection;
+  
+  // Node colors using theme system (light theme defaults)
+  --flow-node-bg: var(--theme-card-bg);           // White background
+  --flow-node-outline: var(--theme-text);         // Black outline
+  --flow-node-text: var(--theme-text);            // Black text
+  --flow-node-icon: var(--theme-text-muted);      // Gray for icons
+  --flow-node-shadow: rgba(0, 0, 0, 0.1);         // Light shadow
+  --flow-node-hover-shadow: rgba(0, 0, 0, 0.15);  // Hover shadow
+  --theme-tooltip-bg: #333;                       // Tooltip background
+  --theme-tooltip-text: white;                    // Tooltip text
+}
+
+// Dark theme overrides using existing theme variables
+.dark-theme .modular-event-flow {
+  --flow-node-bg: var(--theme-er-node-bg);        // Use same as ER nodes
+  --flow-node-outline: var(--theme-text-muted);   // Lighter outline
+  --flow-node-text: var(--theme-text);            // White text
+  --flow-node-icon: var(--theme-text-muted);      // Muted for icons
+  --flow-node-shadow: rgba(0, 0, 0, 0.3);         // Darker shadow
+  --flow-node-hover-shadow: rgba(0, 0, 0, 0.4);   // Darker hover shadow
+  --theme-tooltip-bg: #555;                       // Darker tooltip
+  --theme-tooltip-text: white;                    // White tooltip text
 }
 
 /* Override ReactFlow default node styling */
@@ -22,352 +44,211 @@
   box-shadow: none !important;
 }
 
-/* Process Step Node (Rectangle) */
-.process-step-node {
-  background: var(--theme-card-bg);
-  border: 2px solid #38a169;
-  border-radius: 8px;
-  padding: 0;
-  min-width: 180px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition: all 0.2s ease;
-  color: var(--theme-text);
+/* Common node styling */
+.custom-node {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  box-shadow: none !important;
   @include prevent-text-selection;
+  cursor: pointer;
 }
 
-.process-step-node:hover {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
+/* SVG node styling with theme color overrides */
+.node-svg {
+  width: 100%;
+  height: 100%;
+  
+  // Override SVG stroke and fill with theme colors
+  path, rect, ellipse {
+    fill: var(--flow-node-bg) !important;
+    stroke: var(--flow-node-outline) !important;
+    stroke-width: 2px !important;
+  }
+  
+  // Extra specificity for transparent fills
+  ellipse[fill="transparent"] {
+    fill: var(--flow-node-bg) !important;
+  }
+  
+  // Handle shadow effects
+  filter: drop-shadow(0 1px 3px var(--flow-node-shadow));
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.process-step-node.selected {
-  border-color: #38a169;
-  box-shadow: 0 0 0 3px rgba(56, 161, 105, 0.2);
-}
-
-.process-step-node .node-header {
-  background: #38a169;
-  color: white;
-  border-bottom: 1px solid #2f855a;
-  padding: 0.5rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 600;
+/* Content overlay for text/icons positioned on top of SVG */
+.node-content-overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
+  flex-direction: column;
   align-items: center;
-  @include prevent-text-selection;
+  justify-content: center;
+  pointer-events: none; // Allow clicking through to SVG for dragging
+  z-index: 2;
 }
 
-.process-step-node .node-type {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+/* Node text styling */
+.node-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--flow-node-text);
+  text-align: center;
+  line-height: 1.2;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* Decide Step Node (Diamond) */
+/* Node icon styling */
+.node-icon {
+  color: var(--flow-node-icon);
+  stroke-width: 2;
+  flex-shrink: 0;
+}
+
+/* Create Node (Circle with +) */
+.create-step-node {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.create-shape {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
+  }
+}
+
+/* Release Node (Circle with -) */
+.release-step-node {
+  width: 80px;
+  height: 80px;
+  position: relative;
+}
+
+.release-shape {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
+  }
+}
+
+/* Process/Event Node (Rectangle) */
+.process-step-node {
+  width: 130px;
+  height: 90px;
+  position: relative;
+}
+
+.process-shape {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
+  }
+}
+
+/* Decide Node (Diamond) */
 .decide-step-node {
   background: transparent !important;
   border: none !important;
   padding: 0 !important;
   margin: 0 !important;
-  width: 120px;
-  min-height: 120px;
+  width: 110px;
+  min-height: 80px;
   position: relative;
   box-shadow: none !important;
   @include prevent-text-selection;
 }
 
-.diamond-shape {
-  width: 120px;
-  height: 80px;
-  background: #ed8936;
-  border: 2px solid #dd6b20;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin-top: -40px;
-  margin-left: -60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
-  transition: all 0.2s ease;
-  @include prevent-text-selection;
-}
-
-.diamond-content {
-  text-align: center;
-  color: white;
-  padding: 0.5rem;
-  max-width: 100px;
-  line-height: 1.2;
-}
-
-.decide-step-node.selected .diamond-shape {
-  border-color: #ed8936;
-  box-shadow: 0 0 0 3px rgba(237, 137, 54, 0.3);
-}
-
-.decide-step-node:hover .diamond-shape {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-/* Release Step Node (Dispose shape) */
-.release-step-node {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 180px;
-  height: 80px;
-  position: relative;
-  box-shadow: none !important;
-  @include prevent-text-selection;
-}
-
-.dispose-shape {
-  width: 160px;
-  height: 60px;
-  background: #e53e3e;
-  border: 2px solid #c53030;
-  clip-path: polygon(0% 0%, 85% 0%, 100% 100%, 0% 100%);
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin-top: -30px;
-  margin-left: -80px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 1rem;
-  transition: all 0.2s ease;
-  @include prevent-text-selection;
-}
-
-.dispose-content {
-  color: white;
-  text-align: left;
-  line-height: 1.2;
-}
-
-.release-step-node.selected .dispose-shape {
-  border-color: #e53e3e;
-  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.3);
-}
-
-.release-step-node:hover .dispose-shape {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-/* Create Step Node (Circle) - Arena-style Create module */
-.create-step-node {
-  background: transparent !important;
-  border: none !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  width: 180px;
-  height: 180px;
-  position: relative;
-  box-shadow: none !important;
-  @include prevent-text-selection;
-}
-
-.create-shape {
-  width: 160px;
-  height: 160px;
-  background: #3182ce;
-  border: 2px solid #2c5aa0;
-  border-radius: 50%;
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  margin-top: -80px;
-  margin-left: -80px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  transition: all 0.2s ease;
-  @include prevent-text-selection;
-}
-
-.create-content {
-  color: white;
-  text-align: center;
-  line-height: 1.2;
+.decide-shape {
   width: 100%;
-}
-
-.create-content .node-title {
-  color: white;
-  font-size: 1rem;
-  margin-bottom: 0.5rem;
-  font-weight: 700;
-}
-
-.create-content .node-subtitle {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.8rem;
-  margin-bottom: 0.5rem;
-  font-weight: 600;
-}
-
-.create-content .node-details {
-  color: rgba(255, 255, 255, 0.8);
-  font-size: 0.7rem;
-}
-
-.create-content .detail-item {
-  margin-bottom: 0.15rem;
+  height: 80px;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   
-  strong {
-    color: rgba(255, 255, 255, 0.95);
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
   }
 }
 
-.create-step-node.selected .create-shape {
-  border-color: #3182ce;
-  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.3);
+/* Assign Node (Pentagon) */
+.assign-step-node {
+  width: 120px;
+  height: 80px;
+  position: relative;
 }
 
-.create-step-node:hover .create-shape {
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-  transform: translateY(-1px);
-}
-
-/* Common node content styles */
-.node-content {
-  padding: 0.75rem;
-}
-
-.node-title {
-  font-weight: 600;
-  font-size: 0.875rem;
-  margin-bottom: 0.5rem;
-  color: var(--theme-text);
-}
-
-.node-details {
-  font-size: 0.75rem;
-  color: var(--theme-text-muted);
-}
-
-.detail-item {
-  margin-bottom: 0.25rem;
+.assign-shape {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
   
-  strong {
-    font-weight: 600;
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
   }
 }
 
-.detail-item:last-child {
-  margin-bottom: 0;
-}
-
-/* For diamond and dispose shapes, adjust text colors */
-.diamond-content .node-title,
-.dispose-content .node-title {
-  color: white;
-  font-size: 0.8rem;
-  margin-bottom: 0.25rem;
-  font-weight: 700;
-}
-
-.diamond-content .node-details,
-.dispose-content .node-details {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 0.7rem;
-}
-
-.diamond-content .detail-item,
-.dispose-content .detail-item {
-  margin-bottom: 0.15rem;
-  
-  strong {
-    color: rgba(255, 255, 255, 0.95);
+/* Selection States */
+.custom-node.selected .node-svg {
+  path, rect, ellipse {
+    stroke-width: 3px !important;
+    stroke: var(--theme-primary) !important;
   }
-}
-
-/* Node Delete Button */
-.node-delete-btn {
-  position: absolute;
-  top: -10px;
-  right: -10px;
-  background: #dc3545;
-  border: 2px solid white;
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 1000;
-  color: white;
-  font-size: 12px;
-  transition: all 0.2s ease;
   
-  &:hover {
-    background: #c82333;
-    transform: scale(1.1);
-  }
+  filter: drop-shadow(0 0 6px rgba(66, 153, 225, 0.4)) drop-shadow(0 4px 8px var(--flow-node-hover-shadow));
 }
 
-/* React Flow Handle Styles for Modular Nodes */
+/* React Flow Handle Styles */
 .modular-event-flow .react-flow__handle {
-  width: 10px;
-  height: 10px;
-  background: var(--theme-primary);
-  border: 2px solid var(--theme-card-bg);
+  width: 8px;
+  height: 8px;
+  background: var(--flow-node-outline);
+  border: 1px solid var(--flow-node-bg);
   border-radius: 50%;
   
   &:hover {
-    background: var(--theme-primary-dark);
-    transform: scale(1.2);
+    background: var(--theme-primary);
+    transform: scale(1.3);
   }
 }
 
-/* Decide node handle positioning */
+/* Decide node handle positioning and colors */
 .decide-step-node .react-flow__handle {
-  background: #ed8936;
-  border: 2px solid white;
+  background: var(--flow-node-outline);
+  border: 1px solid var(--flow-node-bg);
 }
 
-.decide-step-node .react-flow__handle[data-handleid="outcome-0"] {
-  background: #38a169; /* Green for first outcome */
-}
-
-.decide-step-node .react-flow__handle[data-handleid="outcome-1"] {
-  background: #e53e3e; /* Red for second outcome */
-}
-
-.decide-step-node .react-flow__handle[data-handleid="outcome-2"] {
-  background: #3182ce; /* Blue for third outcome */
-}
-
-.decide-step-node .react-flow__handle[data-handleid="outcome-3"] {
-  background: #805ad5; /* Purple for fourth outcome */
-}
-
-.decide-step-node .react-flow__handle[data-handleid="outcome-4"] {
-  background: #d69e2e; /* Yellow for fifth outcome */
-}
-
-/* Cascading Handle Styles */
 .decide-step-node .outcome-handle {
   transition: all 0.2s ease;
 }
 
-.decide-step-node .outcome-handle.available {
-  background: #a0aec0; /* Gray for available but not connected */
-  opacity: 0.7;
-}
-
 .decide-step-node .new-outcome-handle {
-  background: #e53e3e; /* Red for the always-available handle */
-  border: 2px dashed white;
-  opacity: 0.8;
+  background: var(--flow-node-outline);
+  border: 2px dashed var(--flow-node-bg);
+  opacity: 0.7;
   
   &:hover {
     opacity: 1;
@@ -377,28 +258,27 @@
 
 /* Edge Styles */
 .modular-event-flow .react-flow__edge {
-  stroke-width: 2;
+  stroke: var(--flow-node-outline);
+  stroke-width: 1.5;
   
   &.react-flow__edge-smoothstep {
-    stroke-width: 2;
+    stroke-width: 1.5;
   }
 }
 
 .modular-event-flow .react-flow__edge-text {
   font-size: 12px;
-  font-weight: 600;
-  fill: var(--theme-text);
-  background: var(--theme-card-bg);
+  font-weight: 500;
+  fill: var(--flow-node-text);
+  background: var(--flow-node-bg);
   padding: 2px 6px;
   border-radius: 4px;
-  border: 1px solid var(--theme-border);
+  border: 1px solid var(--flow-node-outline);
 }
 
-/* Node Selection Styles */
+/* Node Selection Animation */
 .modular-event-flow .react-flow__node.selected {
-  .process-step-node,
-  .decide-step-node .diamond-shape,
-  .release-step-node .dispose-shape {
+  .node-svg {
     animation: nodeSelection 0.3s ease-out;
   }
 }
@@ -419,31 +299,55 @@
 .modular-event-flow .react-flow__node.dragging {
   opacity: 0.8;
   
-  .process-step-node {
-    transform: scale(1.02);
-  }
-  
-  .diamond-shape {
-    transform: scale(1.02);
-  }
-  
-  .dispose-shape {
+  .node-svg {
     transform: scale(1.02);
   }
 }
 
-/* Controls and Background */
-
-.modular-event-flow .react-flow__controls {
-  background: var(--theme-card-bg);
-  border: 1px solid var(--theme-border);
+/* Tooltip Styling */
+.custom-node[title]:hover::after {
+  content: attr(title);
+  position: absolute;
+  bottom: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--theme-tooltip-bg);
+  color: var(--theme-tooltip-text);
+  padding: 6px 10px;
   border-radius: 6px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  z-index: 1000;
+  pointer-events: none;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  
+  // Tooltip arrow
+  &::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid var(--theme-tooltip-bg);
+  }
+}
+
+/* Controls Styling */
+.modular-event-flow .react-flow__controls {
+  background: var(--flow-node-bg);
+  border: 1px solid var(--flow-node-outline);
+  border-radius: 6px;
+  box-shadow: 0 2px 4px var(--flow-node-shadow);
   
   button {
-    background: var(--theme-card-bg);
+    background: var(--flow-node-bg);
     border: none;
-    color: var(--theme-text);
+    color: var(--flow-node-text);
     
     &:hover {
       background: var(--theme-hover-bg);
@@ -456,49 +360,40 @@
 }
 
 .modular-event-flow .react-flow__minimap {
-  background: var(--theme-card-bg);
-  border: 1px solid var(--theme-border);
+  background: var(--flow-node-bg);
+  border: 1px solid var(--flow-node-outline);
   border-radius: 6px;
-}
-
-/* Dark Theme Adjustments */
-.dark-theme {
-  .process-step-node {
-    background: var(--theme-card-bg);
-    border-color: #4a5568;
-    
-    .node-header {
-      border-bottom-color: #4a5568;
-    }
-  }
-  
-  
-  .modular-event-flow .react-flow__edge {
-    stroke: var(--theme-text-muted);
-  }
 }
 
 /* Responsive Design */
 @media (max-width: 768px) {
-  .process-step-node,
-  .decide-step-node,
+  .create-step-node,
   .release-step-node {
-    min-width: 140px;
-    font-size: 0.875rem;
+    width: 70px;
+    height: 70px;
+    
+    .node-icon {
+      size: 20px;
+    }
   }
   
-  .diamond-shape {
-    width: 140px;
+  .process-step-node {
+    width: 110px;
     height: 70px;
   }
   
-  .dispose-shape {
-    width: 120px;
-    height: 60px;
+  .decide-step-node {
+    width: 90px;
+    height: 70px;
   }
   
-  .diamond-content,
-  .dispose-content {
-    font-size: 0.75rem;
+  .assign-step-node {
+    width: 100px;
+    height: 70px;
+  }
+  
+  .node-label {
+    font-size: 12px;
+    max-width: 80px;
   }
 }
