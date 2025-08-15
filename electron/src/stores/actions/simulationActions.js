@@ -79,11 +79,13 @@ export const createSimulationActions = (set, get) => ({
     }
 
     set((state) => {
-      // Update simulation data from YAML
+      // Update simulation data from YAML - preserve complete simulation object including resources
       state.simulationData = {
         duration_days: parsedSchema.simulation.duration_days || 30,
         start_date: parsedSchema.simulation.start_date || '2024-01-01', 
-        random_seed: parsedSchema.simulation.random_seed || 42
+        random_seed: parsedSchema.simulation.random_seed || 42,
+        // Preserve resources array if it exists
+        ...(parsedSchema.simulation.resources && { resources: parsedSchema.simulation.resources })
       };
       
       // Clear any pending changes since we're loading from source
@@ -144,5 +146,59 @@ export const createSimulationActions = (set, get) => ({
     return pendingSimulationChanges.hasOwnProperty(field) 
       ? pendingSimulationChanges[field]
       : simulationData[field];
+  },
+
+  /**
+   * Update resource capacity directly in simulationData
+   * @param {string} resourceTable - Resource table name
+   * @param {string} resourceType - Resource type
+   * @param {any} capacity - New capacity value
+   */
+  updateResourceCapacity: (resourceTable, resourceType, capacity) => {
+    
+    set((state) => {
+      // Ensure resources array exists in simulationData
+      if (!state.simulationData.resources) {
+        state.simulationData.resources = [];
+      }
+      
+      // Find or create resource entry
+      let resourceEntry = state.simulationData.resources.find(r => r.resource_table === resourceTable);
+      if (!resourceEntry) {
+        resourceEntry = {
+          resource_table: resourceTable,
+          capacities: {}
+        };
+        state.simulationData.resources.push(resourceEntry);
+      }
+      
+      // Ensure capacities object exists
+      if (!resourceEntry.capacities) {
+        resourceEntry.capacities = {};
+      }
+      
+      // Update capacity
+      resourceEntry.capacities[resourceType] = capacity;
+      
+    });
+    
+    return { success: true, message: 'Resource capacity updated' };
+  },
+
+  /**
+   * Get current resource capacity
+   * @param {string} resourceTable - Resource table name
+   * @param {string} resourceType - Resource type
+   * @returns {any} - Current capacity value or default
+   */
+  getResourceCapacity: (resourceTable, resourceType) => {
+    const { simulationData } = get();
+    
+    if (!simulationData.resources) return 1;
+    
+    const resource = simulationData.resources.find(r => r.resource_table === resourceTable);
+    if (!resource?.capacities) return 1;
+    
+    return resource.capacities[resourceType] || 1;
   }
 });

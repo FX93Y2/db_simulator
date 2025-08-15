@@ -4,8 +4,9 @@ import { FiEdit2 } from 'react-icons/fi';
 import yaml from 'yaml';
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import { ResourceDataTable } from '../shared/DataTable';
+import { useSimulationActions } from '../../stores/simulationConfigStore';
 
-const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent }) => {
+const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent, projectId }) => {
   const [parsedData, setParsedData] = useState(null);
   const [previousResourceDefinitions, setPreviousResourceDefinitions] = useState({});
   const [showEditModal, setShowEditModal] = useState(false);
@@ -15,6 +16,9 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
+  
+  // Use simulation actions for resource management
+  const { updateResourceCapacity, getResourceCapacity } = useSimulationActions(projectId);
 
   // Parse YAML content when it changes
   useEffect(() => {
@@ -47,14 +51,9 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
     setPreviousResourceDefinitions(resourceDefinitions);
   }, [resourceDefinitions, previousResourceDefinitions, parsedData]);
 
-  // Get current capacity for a resource type
+  // Get current capacity for a resource type (using store)
   const getCurrentCapacity = (resourceName, resourceType) => {
-    if (!parsedData?.simulation?.resources) return 1;
-    
-    const resource = parsedData.simulation.resources.find(r => r.resource_table === resourceName);
-    if (!resource?.capacities) return 1;
-    
-    return resource.capacities[resourceType] || 1;
+    return getResourceCapacity(resourceName, resourceType);
   };
 
   // Handle capacity edit
@@ -66,44 +65,10 @@ const ResourceEditor = ({ yamlContent, onResourceChange, theme, dbConfigContent 
     setShowEditModal(true);
   };
 
-  // Handle capacity update
+  // Handle capacity update (using store)
   const handleCapacityUpdate = (newCapacity) => {
-    if (!parsedData) return;
-
-    const updatedData = { ...parsedData };
-    
-    // Ensure simulation.resources exists
-    if (!updatedData.simulation) {
-      updatedData.simulation = {};
-    }
-    if (!updatedData.simulation.resources) {
-      updatedData.simulation.resources = [];
-    }
-
-    // Find or create resource entry
-    let resourceEntry = updatedData.simulation.resources.find(r => r.resource_table === editingResource);
-    if (!resourceEntry) {
-      resourceEntry = {
-        resource_table: editingResource,
-        capacities: {}
-      };
-      updatedData.simulation.resources.push(resourceEntry);
-    }
-
-    // Ensure capacities object exists
-    if (!resourceEntry.capacities) {
-      resourceEntry.capacities = {};
-    }
-
-    // Update capacity
-    resourceEntry.capacities[editingResourceType] = newCapacity;
-
-    // Convert back to YAML and notify parent
-    const newYamlContent = yaml.stringify(updatedData);
-    if (onResourceChange) {
-      onResourceChange(newYamlContent);
-    }
-
+    // Update capacity directly in simulationData
+    updateResourceCapacity(editingResource, editingResourceType, newCapacity);
     setShowEditModal(false);
   };
 

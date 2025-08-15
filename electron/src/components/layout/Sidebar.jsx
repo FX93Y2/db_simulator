@@ -841,8 +841,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
                     )
                   );
                   setShowEditModal(false);
-                  // Trigger sidebar refresh
-                  window.dispatchEvent(new Event('refreshProjects'));
                 } else {
                   showError('Failed to update project name');
                 }

@@ -24,7 +24,8 @@ import {
   useError,
   useYamlActions,
   useCanvasActions,
-  useConfigActions
+  useConfigActions,
+  useSimulationActions
 } from '../../stores/simulationConfigStore';
 
 /**
@@ -61,9 +62,10 @@ const SimConfigEditor = ({
   const error = useError(projectId);
 
   // Store actions
-  const { importYaml } = useYamlActions(projectId);
+  const { importYaml, updateYamlContent } = useYamlActions(projectId);
   const { addNode } = useCanvasActions(projectId);
   const { loadConfig, saveConfig, initializeConfig, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
+  const { syncSimulationToYaml } = useSimulationActions(projectId);
 
   // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -354,7 +356,7 @@ const SimConfigEditor = ({
       <Modal
         show={showResourceModal}
         onHide={() => setShowResourceModal(false)}
-        size="lg"
+        size="md"
         centered
         enforceFocus={false}
       >
@@ -366,11 +368,32 @@ const SimConfigEditor = ({
         <Modal.Body>
           <ResourceEditor
             yamlContent={yamlContent}
-            onResourceChange={() => {}} // Placeholder - resources are managed through store
+            onResourceChange={updateYamlContent}
             theme={theme}
             dbConfigContent={dbConfigContent}
+            projectId={projectId}
           />
         </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowResourceModal(false)}>
+            Close
+          </Button>
+          <Button 
+            variant="primary" 
+            onClick={async () => {
+              try {
+                // Sync resources to YAML first, then save configuration
+                syncSimulationToYaml();
+                await saveConfig();
+                setShowResourceModal(false);
+              } catch (error) {
+                showError('Failed to save resource configuration');
+              }
+            }}
+          >
+            Save Configuration
+          </Button>
+        </Modal.Footer>
       </Modal>
 
       {/* Simulation Configuration Modal */}

@@ -266,7 +266,9 @@ export const useSimulationActions = (projectId) => {
     getEffectiveSimulationData: state.getEffectiveSimulationData,
     syncSimulationToYaml: state.syncSimulationToYaml,
     hasFieldPendingChanges: state.hasFieldPendingChanges,
-    getFieldValue: state.getFieldValue
+    getFieldValue: state.getFieldValue,
+    updateResourceCapacity: state.updateResourceCapacity,
+    getResourceCapacity: state.getResourceCapacity
   }));
 };
 
