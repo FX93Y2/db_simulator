@@ -37,16 +37,10 @@ export const createCanvasActions = (set, get) => ({
   updateNodePosition: (nodeId, position) => {
     
     set((state) => {
-      // Update in nodes array
+      // Update in nodes array for immediate visual feedback
       const nodeIndex = state.nodes.findIndex(n => n.id === nodeId);
       if (nodeIndex >= 0) {
         state.nodes[nodeIndex].position = position;
-      }
-      
-      // Update in canonical steps
-      const stepIndex = state.canonicalSteps.findIndex(s => s.step_id === nodeId);
-      if (stepIndex >= 0) {
-        state.canonicalSteps[stepIndex].position = position;
       }
       
       // Update in legacy positions map (for backward compatibility)
@@ -56,8 +50,9 @@ export const createCanvasActions = (set, get) => ({
       positionService.setPosition(state.projectId, nodeId, position);
     });
     
-    // Trigger YAML regeneration
-    get().syncCanvasToYaml();
+    // Note: Not updating canonicalSteps here to avoid triggering visual state rebuild
+    // which would wipe out edge selection state. Position will be synced to canonical
+    // steps when needed (e.g., during YAML sync or manual updates)
   },
 
   /**
@@ -259,12 +254,13 @@ export const createCanvasActions = (set, get) => ({
                         step.step_type === 'release' ? 'release' :
                         step.step_type === 'create' ? 'create' : 'process';
         
-        // Position priority: step.position -> PositionService -> calculated default
-        let position = step.position;
+        // Position priority: PositionService -> step.position -> calculated default
+        // PositionService has the most recent user-dragged position
+        let position = positionService.getPosition(state.projectId, step.step_id);
         
         if (!position) {
-          // Try to restore from PositionService
-          position = positionService.getPosition(state.projectId, step.step_id);
+          // Fallback to stored position in canonical step
+          position = step.position;
         }
         
         if (!position) {
@@ -276,8 +272,10 @@ export const createCanvasActions = (set, get) => ({
           
         }
         
-        // Update the step with resolved position within Immer context
-        step.position = position;
+        // Only update the step position if it's different to avoid triggering updates
+        if (!step.position || step.position.x !== position.x || step.position.y !== position.y) {
+          step.position = position;
+        }
         
         // Update positions map
         state.positions.set(step.step_id, position);
@@ -342,6 +340,16 @@ export const createCanvasActions = (set, get) => ({
     if (get().currentState === 'importing') {
       return;
     }
+    
+    // Sync positions from visual nodes to canonical steps before generating YAML
+    set((state) => {
+      state.nodes.forEach(node => {
+        const stepIndex = state.canonicalSteps.findIndex(s => s.step_id === node.id);
+        if (stepIndex >= 0) {
+          state.canonicalSteps[stepIndex].position = node.position;
+        }
+      });
+    });
     
     const generatedYaml = get().generateYaml();
     

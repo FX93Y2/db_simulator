@@ -186,8 +186,6 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            nodesDeletable={false}
-            edgesDeletable={false}
           >
             <Controls position="bottom-right" />
             <Background key="er-diagram-background" variant="dots" gap={12} size={1} />

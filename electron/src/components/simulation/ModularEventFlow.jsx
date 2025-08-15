@@ -86,7 +86,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
       console.log('🔄 ModularEventFlow: Updating visual state from canonical steps');
       updateVisualState();
     }
-  }, [canonicalSteps, currentState, updateVisualState]);
+  }, [canonicalSteps, currentState]);
 
   // ReactFlow event handlers
   const onNodesChange = React.useCallback((changes) => {
