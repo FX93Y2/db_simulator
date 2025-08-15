@@ -281,10 +281,10 @@ const AttributeTable = ({
 
   return (
     <>
-      <div className="attribute-table-container">
-        <div className="attribute-grid-container">
+      <div className="data-table-container">
+        <div className="data-grid-container data-grid-5-col">
           {/* Header Row */}
-          <div className="attribute-grid-header">
+          <div className="data-grid-header">
             <div className="grid-header-cell"></div>
             <div className="grid-header-cell">Field Name</div>
             <div className="grid-header-cell">Type</div>
@@ -296,7 +296,7 @@ const AttributeTable = ({
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="attribute-grid-body" type="ATTRIBUTE">
               {(provided) => (
-                <div {...provided.droppableProps} ref={provided.innerRef}>
+                <div className="data-grid-body" {...provided.droppableProps} ref={provided.innerRef}>
                   {attributes.map((attribute, index) => (
                     <Draggable
                       key={`${attribute.name}-${index}`}
@@ -307,7 +307,7 @@ const AttributeTable = ({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`attribute-grid-row ${
+                          className={`data-grid-row ${
                             snapshot.isDragging ? 'dragging' : ''
                           } ${
                             isProtectedAttribute(attribute) ? 'protected-attribute' : ''
