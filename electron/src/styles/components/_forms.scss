@@ -83,6 +83,7 @@
     grid-template-columns: 40px 200px 150px 1fr 60px;
     gap: 0;
     background-color: var(--theme-table-header-bg);
+    filter: brightness(0.9); // Make slightly darker than modal body
     border-bottom: 2px solid var(--theme-border);
     
     .grid-header-cell {
@@ -217,6 +218,7 @@
   display: grid;
   gap: 0;
   background-color: var(--theme-table-header-bg);
+  filter: brightness(0.9); // Make slightly darker than modal body
   border-bottom: 2px solid var(--theme-border);
   
   .grid-header-cell {

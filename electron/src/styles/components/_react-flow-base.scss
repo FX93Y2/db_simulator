@@ -57,15 +57,15 @@
 .react-flow__controls {
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   
-  // Make zoom controls horizontal
+  // Make zoom controls vertical and smaller (20% reduction)
   &.react-flow__controls {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
     background: var(--theme-card-bg, #ffffff);
     border: none;
     border-radius: 6px;
-    padding: 4px;
+    padding: 3px;
     
     .theme-dark & {
       background: var(--theme-card-bg, #2d2d2d);
@@ -75,8 +75,8 @@
       margin: 0;
       border: none;
       background: transparent;
-      width: 32px;
-      height: 32px;
+      width: 26px;  /* 20% smaller than 32px */
+      height: 26px; /* 20% smaller than 32px */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -93,11 +93,16 @@
       }
       
       svg {
-        width: 16px;
-        height: 16px;
+        width: 13px;  /* 20% smaller than 16px */
+        height: 13px; /* 20% smaller than 16px */
       }
     }
   }
+}
+
+// Hide React Flow attribution/watermark
+.react-flow__attribution {
+  display: none !important;
 }
 
 .react-flow__minimap {
