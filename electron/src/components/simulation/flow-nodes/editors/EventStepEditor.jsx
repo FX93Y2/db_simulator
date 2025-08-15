@@ -109,16 +109,18 @@ const EventStepEditor = ({
 
   return (
     <>
-      <ValidatedNameInput
-        value={formData.name || ''}
-        onChange={(name) => onFormDataChange({ name })}
-        validation={nameValidation}
-        label="Event Name"
-        placeholder="Enter event name"
-      />
+      <div className="step-info-section">
+        <ValidatedNameInput
+          value={formData.name || ''}
+          onChange={(name) => onFormDataChange({ name })}
+          validation={nameValidation}
+          label="Event Name"
+          placeholder="Enter event name"
+          className="mb-3"
+        />
 
-      <Form.Group className="mb-3">
-        <Form.Label>Duration Distribution Type</Form.Label>
+        <Form.Group className="mb-3">
+          <Form.Label>Duration Distribution Type</Form.Label>
         <Form.Select
           value={formData.distribution_type || 'normal'}
           onChange={(e) => onFormDataChange({ distribution_type: e.target.value })}
@@ -128,11 +130,10 @@ const EventStepEditor = ({
           <option value="uniform">Uniform</option>
           <option value="choice">Choice (Discrete)</option>
         </Form.Select>
-      </Form.Group>
+        </Form.Group>
 
-      {renderDistributionFields()}
-
-      <hr />
+        {renderDistributionFields()}
+      </div>
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Resource Requirements</h6>

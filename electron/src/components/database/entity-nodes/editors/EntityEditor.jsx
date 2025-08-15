@@ -301,7 +301,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
         <Form>
           {/* Entity Basic Information */}
           <div className="entity-basic-info mb-4">
-            <h5 className="mb-3">Entity Information</h5>
             
             <div className="row">
               <div className="col-md-8">
@@ -393,7 +392,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           {/* Attributes Section */}
           <div className="entity-attributes-section">
             <div className="d-flex justify-content-between align-items-center mb-3">
-              <h5 className="mb-0">Attributes</h5>
             </div>
             
             {attributes.length === 0 ? (

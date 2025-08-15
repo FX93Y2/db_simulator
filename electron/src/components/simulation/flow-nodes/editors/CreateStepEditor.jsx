@@ -84,21 +84,20 @@ const CreateStepEditor = ({
 
   return (
     <div className="create-step-editor">
-      {/* Name */}
-      <ValidatedNameInput
-        value={formData.name || ''}
-        onChange={(name) => onFormDataChange({ name })}
-        validation={nameValidation}
-        label="Create Module Name"
-        placeholder="Enter a name for this module"
-        className="mb-4"
-      />
-      <Form.Text className="text-muted mb-3 d-block">
-        Name shown on the node and used in step ID
-      </Form.Text>
+      <div className="step-info-section">
+        <ValidatedNameInput
+          value={formData.name || ''}
+          onChange={(name) => onFormDataChange({ name })}
+          validation={nameValidation}
+          label="Create Module Name"
+          placeholder="Enter a name for this module"
+          className="mb-3"
+        />
 
-      {/* Entity Table Selection */}
-      <Form.Group className="mb-4">
+        <Row>
+          <Col md={6}>
+            {/* Entity Table Selection */}
+            <Form.Group className="mb-3">
         <Form.Label>Entity Table</Form.Label>
         {availableEntityTables.length > 0 ? (
           <Form.Select
@@ -120,11 +119,30 @@ const CreateStepEditor = ({
             required
           />
         )}
-      </Form.Group>
-
-      {/* Interarrival Time Configuration */}
-      <div className="mb-4">
-        <h6 className="mb-3">Interarrival Time</h6>
+            </Form.Group>
+          </Col>
+          
+          <Col md={6}>
+            {/* Max Entities */}
+            <Form.Group className="mb-3">
+              <Form.Label>Max Entities</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.max_entities || 'n/a'}
+                onChange={(e) => onFormDataChange({ max_entities: e.target.value })}
+                placeholder="Enter number or 'n/a' for unlimited"
+              />
+              <Form.Text className="text-muted">
+                Maximum entities to create ('n/a' for unlimited)
+              </Form.Text>
+            </Form.Group>
+          </Col>
+        </Row>
+      </div>
+      
+      {/* Interarrival Time Section */}
+      <div className="step-info-section">
+        <div className="section-title">Interarrival Time</div>
         
         <Form.Group className="mb-3">
           <Form.Label>Distribution Type</Form.Label>
@@ -140,20 +158,6 @@ const CreateStepEditor = ({
 
         {renderDistributionFields()}
       </div>
-
-      {/* Max Entities */}
-      <Form.Group className="mb-4">
-        <Form.Label>Max Entities</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.max_entities || 'n/a'}
-          onChange={(e) => onFormDataChange({ max_entities: e.target.value })}
-          placeholder="Enter number or 'n/a' for unlimited"
-        />
-        <Form.Text className="text-muted">
-          Maximum entities to create ('n/a' for unlimited)
-        </Form.Text>
-      </Form.Group>
 
       {/* Next Steps Selection */}
       <Form.Group className="mb-3">

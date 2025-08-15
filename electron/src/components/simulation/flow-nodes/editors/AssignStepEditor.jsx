@@ -15,29 +15,16 @@ const AssignStepEditor = ({
 }) => {
   return (
     <>
-      {/* Name */}
-      <ValidatedNameInput
-        value={formData.name || ''}
-        onChange={(name) => onFormDataChange({ name })}
-        validation={nameValidation}
-        label="Assignment Name"
-        placeholder="Enter a name for this assignment"
-        className="mb-4"
-      />
-      <Form.Text className="text-muted mb-3 d-block">
-        Name shown on the node and used in step ID
-      </Form.Text>
-
-      <Form.Group className="mb-3">
-        <Form.Label>Module ID</Form.Label>
-        <Form.Control
-          type="text"
-          value={formData.module_id || ''}
-          onChange={(e) => onFormDataChange({ module_id: e.target.value })}
+      <div className="step-info-section">
+        <ValidatedNameInput
+          value={formData.name || ''}
+          onChange={(name) => onFormDataChange({ name })}
+          validation={nameValidation}
+          label="Assignment Name"
+          placeholder="Enter a name for this assignment"
+          className="mb-3"
         />
-      </Form.Group>
-
-      <hr />
+      </div>
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Attribute Assignments</h6>

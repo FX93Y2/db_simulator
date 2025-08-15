@@ -16,21 +16,18 @@ const DecideStepEditor = ({
 }) => {
   return (
     <>
-      {/* Name */}
-      <ValidatedNameInput
-        value={formData.name || ''}
-        onChange={(name) => onFormDataChange({ name })}
-        validation={nameValidation}
-        label="Decision Name"
-        placeholder="Enter a name for this decision"
-        className="mb-4"
-      />
-      <Form.Text className="text-muted mb-3 d-block">
-        Name shown on the node and used in step ID
-      </Form.Text>
+      <div className="step-info-section">
+        <ValidatedNameInput
+          value={formData.name || ''}
+          onChange={(name) => onFormDataChange({ name })}
+          validation={nameValidation}
+          label="Decision Name"
+          placeholder="Enter a name for this decision"
+          className="mb-3"
+        />
 
-      <Form.Group className="mb-3">
-        <Form.Label>Decision Type</Form.Label>
+        <Form.Group className="mb-3">
+          <Form.Label>Decision Type</Form.Label>
         <Form.Select
           value={formData.decision_type || 'probability'}
           onChange={(e) => onFormDataChange({ decision_type: e.target.value })}
@@ -38,9 +35,8 @@ const DecideStepEditor = ({
           <option value="probability">Probability-based</option>
           <option value="condition">Condition-based</option>
         </Form.Select>
-      </Form.Group>
-
-      <hr />
+        </Form.Group>
+      </div>
       <div className="step-editor-section">
         <div className="section-header">
           <h6>Decision Outcomes</h6>

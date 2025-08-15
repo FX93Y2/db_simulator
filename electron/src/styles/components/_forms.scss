@@ -268,6 +268,26 @@
 // the app's --theme-* variables defined in _themes.scss
 
 // ============================================
+// STEP EDITOR SECTION STYLES
+// ============================================
+// Shared styles for step editor info sections (matching entity editor style)
+
+.step-info-section {
+  background-color: var(--theme-editor-bg);
+  border: none;
+  border-radius: 0.375rem;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  
+  .section-title {
+    color: var(--theme-text);
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+  }
+}
+
+// ============================================
 // CONSOLIDATED FORM STYLES
 // ============================================
 // Unified form control styling across all components

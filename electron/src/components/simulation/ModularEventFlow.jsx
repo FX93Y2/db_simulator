@@ -127,6 +127,17 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
     // Edge deletion handled by node deletion cleanup
   }, []);
 
+  const onConnectStart = React.useCallback((event, { nodeId, handleType }) => {
+    // Prevent default text selection during edge dragging
+    event.preventDefault();
+    document.body.classList.add('react-flow-connecting');
+  }, []);
+
+  const onConnectEnd = React.useCallback((event) => {
+    // Re-enable text selection after edge dragging
+    document.body.classList.remove('react-flow-connecting');
+  }, []);
+
   // Handle node updates from modal
   const handleNodeUpdate = React.useCallback((updatedNode) => {
     const { selectedNode } = getStoreState();
@@ -205,6 +216,8 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
+            onConnectStart={onConnectStart}
+            onConnectEnd={onConnectEnd}
             onNodeClick={onNodeClick}
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeDragStop={onNodeDragStop}
