@@ -1,0 +1,95 @@
+// ============================================
+// DESIGN TOKENS - SPACING
+// ============================================
+// Consistent spacing scale based on 4px grid system
+// Provides predictable rhythm and alignment
+
+// Base unit (4px grid system)
+$spacing-base: 4px;
+
+// Spacing scale
+$spacing: (
+  0: 0,                           // 0px
+  1: $spacing-base,               // 4px
+  2: $spacing-base * 2,           // 8px  - small gaps
+  3: $spacing-base * 3,           // 12px - medium gaps
+  4: $spacing-base * 4,           // 16px - default gaps
+  5: $spacing-base * 5,           // 20px - large gaps
+  6: $spacing-base * 6,           // 24px - section spacing
+  8: $spacing-base * 8,           // 32px - large sections
+  10: $spacing-base * 10,         // 40px - page sections
+  12: $spacing-base * 12,         // 48px - major sections
+  16: $spacing-base * 16,         // 64px - page margins
+  20: $spacing-base * 20,         // 80px - large page margins
+  24: $spacing-base * 24,         // 96px - extra large
+  32: $spacing-base * 32,         // 128px - maximum spacing
+);
+
+// Component-specific spacing
+$component-spacing: (
+  // Button padding
+  button-padding-x: map-get($spacing, 4),      // 16px
+  button-padding-y: map-get($spacing, 2),      // 8px
+  button-padding-sm-x: map-get($spacing, 3),   // 12px
+  button-padding-sm-y: map-get($spacing, 1),   // 4px
+  button-padding-lg-x: map-get($spacing, 6),   // 24px
+  button-padding-lg-y: map-get($spacing, 3),   // 12px
+  
+  // Card spacing
+  card-padding: map-get($spacing, 6),          // 24px
+  card-header-padding: map-get($spacing, 4),   // 16px
+  card-gap: map-get($spacing, 4),              // 16px
+  
+  // Modal spacing
+  modal-padding: map-get($spacing, 6),         // 24px
+  modal-header-padding: map-get($spacing, 5),  // 20px
+  modal-footer-padding: map-get($spacing, 4),  // 16px
+  
+  // Form spacing
+  form-gap: map-get($spacing, 4),              // 16px
+  input-padding-x: map-get($spacing, 3),       // 12px
+  input-padding-y: map-get($spacing, 2),       // 8px
+  label-margin-bottom: map-get($spacing, 2),   // 8px
+  
+  // Layout spacing
+  section-gap: map-get($spacing, 8),           // 32px
+  page-padding: map-get($spacing, 6),          // 24px
+  container-gap: map-get($spacing, 4),         // 16px
+  
+  // Navigation spacing
+  nav-item-padding: map-get($spacing, 3),      // 12px
+  nav-gap: map-get($spacing, 2),               // 8px
+  
+  // Table spacing
+  table-cell-padding-x: map-get($spacing, 3),  // 12px
+  table-cell-padding-y: map-get($spacing, 2),  // 8px
+  table-row-gap: map-get($spacing, 1),         // 4px
+);
+
+// Helper function for accessing spacing
+@function space($size) {
+  @return map-get($spacing, $size);
+}
+
+// Helper function for component spacing
+@function component-space($name) {
+  @return map-get($component-spacing, $name);
+}
+
+// Quick access variables for most common spacing
+$space-xs: space(1);    // 4px
+$space-sm: space(2);    // 8px
+$space-md: space(4);    // 16px
+$space-lg: space(6);    // 24px
+$space-xl: space(8);    // 32px
+$space-2xl: space(12);  // 48px
+
+// Layout variables
+$container-padding: space(6);     // 24px
+$section-spacing: space(8);       // 32px
+$component-gap: space(4);         // 16px
+
+// Responsive spacing multipliers
+$spacing-mobile-multiplier: 0.75;   // 75% spacing on mobile
+$spacing-tablet-multiplier: 0.875;  // 87.5% spacing on tablet
+$spacing-desktop-multiplier: 1;     // 100% spacing on desktop

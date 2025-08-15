@@ -1,0 +1,239 @@
+// ============================================
+// DESIGN TOKENS - INDEX
+// ============================================
+// Central import for all design tokens
+// Import this file to access the complete token system
+
+// Import all token files
+@import 'colors';
+@import 'spacing';
+@import 'typography';
+@import 'shadows';
+@import 'borders';
+
+// Generate CSS custom properties from SCSS tokens
+:root {
+  // ==========================================
+  // COLOR TOKENS
+  // ==========================================
+  
+  // Generate CSS custom properties for all color scales
+  @each $scale-name, $scale in $colors {
+    @if $scale-name != 'semantic' and $scale-name != 'brand' {
+      @each $shade, $value in $scale {
+        --color-#{$scale-name}-#{$shade}: #{$value};
+      }
+    }
+  }
+  
+  // Semantic colors
+  @each $type, $shades in map-get($colors, semantic) {
+    @each $shade, $value in $shades {
+      --color-#{$type}-#{$shade}: #{$value};
+    }
+  }
+  
+  // Brand colors
+  @each $name, $value in map-get($colors, brand) {
+    --color-#{$name}: #{$value};
+  }
+  
+  // Quick access color variables
+  --color-text: #{$color-text};
+  --color-text-muted: #{$color-text-muted};
+  --color-background: #{$color-background};
+  --color-surface: #{$color-surface};
+  --color-border: #{$color-border};
+  
+  // ==========================================
+  // SPACING TOKENS
+  // ==========================================
+  
+  // Generate CSS custom properties for spacing scale
+  @each $size, $value in $spacing {
+    --spacing-#{$size}: #{$value};
+  }
+  
+  // Component spacing
+  @each $name, $value in $component-spacing {
+    --#{$name}: #{$value};
+  }
+  
+  // Quick access spacing variables
+  --space-xs: #{$space-xs};
+  --space-sm: #{$space-sm};
+  --space-md: #{$space-md};
+  --space-lg: #{$space-lg};
+  --space-xl: #{$space-xl};
+  --space-2xl: #{$space-2xl};
+  
+  // ==========================================
+  // TYPOGRAPHY TOKENS
+  // ==========================================
+  
+  // Font families
+  @each $name, $family in $font-families {
+    --font-family-#{$name}: #{$family};
+  }
+  
+  // Font weights
+  @each $name, $weight in $font-weights {
+    --font-weight-#{$name}: #{$weight};
+  }
+  
+  // Font sizes
+  @each $size, $value in $font-sizes {
+    --font-size-#{$size}: #{$value};
+  }
+  
+  // Line heights
+  @each $name, $height in $line-heights {
+    --line-height-#{$name}: #{$height};
+  }
+  
+  // Letter spacings
+  @each $name, $spacing in $letter-spacings {
+    --letter-spacing-#{$name}: #{$spacing};
+  }
+  
+  // Quick access typography variables
+  --font-family-base: #{$font-family-base};
+  --font-family-mono: #{$font-family-mono};
+  --font-size-base: #{$font-size-base};
+  --font-weight-normal: #{$font-weight-normal};
+  --font-weight-medium: #{$font-weight-medium};
+  --font-weight-semibold: #{$font-weight-semibold};
+  --font-weight-bold: #{$font-weight-bold};
+  --line-height-base: #{$line-height-base};
+  
+  // ==========================================
+  // SHADOW TOKENS
+  // ==========================================
+  
+  // Base shadows
+  --shadow-xs: #{$shadow-xs};
+  --shadow-sm: #{$shadow-sm};
+  --shadow-md: #{$shadow-md};
+  --shadow-lg: #{$shadow-lg};
+  --shadow-xl: #{$shadow-xl};
+  --shadow-2xl: #{$shadow-2xl};
+  --shadow-inner: #{$shadow-inner};
+  --shadow-focus: #{$shadow-focus};
+  
+  // Component shadows
+  @each $name, $shadow in $component-shadows {
+    --shadow-#{$name}: #{$shadow};
+  }
+  
+  // ==========================================
+  // BORDER TOKENS
+  // ==========================================
+  
+  // Border widths
+  @each $size, $width in $border-widths {
+    --border-width-#{$size}: #{$width};
+  }
+  
+  // Border radius
+  @each $size, $radius in $border-radius {
+    --border-radius-#{$size}: #{$radius};
+  }
+  
+  // Component border radius
+  @each $name, $radius in $component-border-radius {
+    --border-radius-#{$name}: #{$radius};
+  }
+  
+  // Quick access border variables
+  --border-radius-sm: #{$border-radius-sm};
+  --border-radius-base: #{$border-radius-base};
+  --border-radius-lg: #{$border-radius-lg};
+  --border-radius-xl: #{$border-radius-xl};
+  --border-radius-full: #{$border-radius-full};
+  
+  --border-width-thin: #{$border-width-thin};
+  --border-width-normal: #{$border-width-normal};
+  --border-width-thick: #{$border-width-thick};
+}
+
+// ==========================================
+// TOKEN UTILITY CLASSES
+// ==========================================
+
+// Color utilities
+@each $scale-name, $scale in $colors {
+  @if $scale-name != 'semantic' and $scale-name != 'brand' {
+    @each $shade, $value in $scale {
+      .text-#{$scale-name}-#{$shade} {
+        color: var(--color-#{$scale-name}-#{$shade});
+      }
+      .bg-#{$scale-name}-#{$shade} {
+        background-color: var(--color-#{$scale-name}-#{$shade});
+      }
+      .border-#{$scale-name}-#{$shade} {
+        border-color: var(--color-#{$scale-name}-#{$shade});
+      }
+    }
+  }
+}
+
+// Spacing utilities (margin and padding)
+@each $size, $value in $spacing {
+  // Padding utilities
+  .p-#{$size} { padding: var(--spacing-#{$size}); }
+  .pt-#{$size} { padding-top: var(--spacing-#{$size}); }
+  .pr-#{$size} { padding-right: var(--spacing-#{$size}); }
+  .pb-#{$size} { padding-bottom: var(--spacing-#{$size}); }
+  .pl-#{$size} { padding-left: var(--spacing-#{$size}); }
+  .px-#{$size} { 
+    padding-left: var(--spacing-#{$size}); 
+    padding-right: var(--spacing-#{$size}); 
+  }
+  .py-#{$size} { 
+    padding-top: var(--spacing-#{$size}); 
+    padding-bottom: var(--spacing-#{$size}); 
+  }
+  
+  // Margin utilities
+  .m-#{$size} { margin: var(--spacing-#{$size}); }
+  .mt-#{$size} { margin-top: var(--spacing-#{$size}); }
+  .mr-#{$size} { margin-right: var(--spacing-#{$size}); }
+  .mb-#{$size} { margin-bottom: var(--spacing-#{$size}); }
+  .ml-#{$size} { margin-left: var(--spacing-#{$size}); }
+  .mx-#{$size} { 
+    margin-left: var(--spacing-#{$size}); 
+    margin-right: var(--spacing-#{$size}); 
+  }
+  .my-#{$size} { 
+    margin-top: var(--spacing-#{$size}); 
+    margin-bottom: var(--spacing-#{$size}); 
+  }
+}
+
+// Typography utilities
+@each $preset, $styles in $typography-presets {
+  .text-#{$preset} {
+    @include typography($preset);
+  }
+}
+
+// Shadow utilities
+.shadow-xs { box-shadow: var(--shadow-xs); }
+.shadow-sm { box-shadow: var(--shadow-sm); }
+.shadow-md { box-shadow: var(--shadow-md); }
+.shadow-lg { box-shadow: var(--shadow-lg); }
+.shadow-xl { box-shadow: var(--shadow-xl); }
+.shadow-2xl { box-shadow: var(--shadow-2xl); }
+.shadow-inner { box-shadow: var(--shadow-inner); }
+.shadow-none { box-shadow: none; }
+
+// Border radius utilities
+@each $size, $radius in $border-radius {
+  .rounded-#{$size} { border-radius: var(--border-radius-#{$size}); }
+}
+.rounded { border-radius: var(--border-radius-base); }
+
+// Border width utilities
+@each $size, $width in $border-widths {
+  .border-#{$size} { border-width: var(--border-width-#{$size}); }
+}

@@ -1,0 +1,152 @@
+// ============================================
+// DESIGN TOKENS - SHADOWS
+// ============================================
+// Modern shadow system for depth and elevation
+
+// Shadow scale (based on elevation levels)
+$shadows: (
+  none: none,
+  
+  // Subtle shadows for cards and panels
+  xs: (
+    0 1px 2px 0 rgba(0, 0, 0, 0.05)
+  ),
+  sm: (
+    0 1px 3px 0 rgba(0, 0, 0, 0.1),
+    0 1px 2px -1px rgba(0, 0, 0, 0.1)
+  ),
+  
+  // Default shadows for components
+  base: (
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1)
+  ),
+  md: (
+    0 4px 6px -1px rgba(0, 0, 0, 0.1),
+    0 2px 4px -2px rgba(0, 0, 0, 0.1)
+  ),
+  
+  // Elevated shadows for modals and dropdowns
+  lg: (
+    0 10px 15px -3px rgba(0, 0, 0, 0.1),
+    0 4px 6px -4px rgba(0, 0, 0, 0.1)
+  ),
+  xl: (
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 8px 10px -6px rgba(0, 0, 0, 0.1)
+  ),
+  
+  // Maximum elevation for overlays
+  2xl: (
+    0 25px 50px -12px rgba(0, 0, 0, 0.25)
+  ),
+  
+  // Special shadows
+  inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.05),
+  
+  // Focus shadows for interactive elements
+  focus-ring: 0 0 0 3px rgba(59, 130, 246, 0.5),  // Blue focus
+  focus-ring-error: 0 0 0 3px rgba(239, 68, 68, 0.5),  // Red focus
+  focus-ring-success: 0 0 0 3px rgba(34, 197, 94, 0.5)  // Green focus
+);
+
+// Component-specific shadows
+$component-shadows: (
+  // Button shadows
+  button-normal: map-get($shadows, xs),
+  button-hover: map-get($shadows, sm),
+  button-active: map-get($shadows, inner),
+  button-focus: map-get($shadows, focus-ring),
+  
+  // Card shadows
+  card-resting: map-get($shadows, sm),
+  card-elevated: map-get($shadows, lg),
+  card-floating: map-get($shadows, xl),
+  
+  // Modal shadows
+  modal-backdrop: map-get($shadows, 2xl),
+  modal-content: map-get($shadows, xl),
+  
+  // Dropdown shadows
+  dropdown-menu: map-get($shadows, lg),
+  
+  // Tooltip shadows
+  tooltip: map-get($shadows, md),
+  
+  // Navigation shadows
+  navbar: map-get($shadows, sm),
+  sidebar: map-get($shadows, lg),
+  
+  // Input shadows
+  input-normal: map-get($shadows, inner),
+  input-focus: map-get($shadows, focus-ring),
+  input-error: map-get($shadows, focus-ring-error),
+  
+  // React Flow shadows
+  node-default: map-get($shadows, sm),
+  node-selected: map-get($shadows, lg),
+  node-dragging: map-get($shadows, xl),
+  
+  // Table shadows
+  table-header: map-get($shadows, xs),
+  table-row-hover: map-get($shadows, xs)
+);
+
+// Dark mode shadow adjustments
+$shadows-dark: (
+  xs: (
+    0 1px 2px 0 rgba(0, 0, 0, 0.3)
+  ),
+  sm: (
+    0 1px 3px 0 rgba(0, 0, 0, 0.4),
+    0 1px 2px -1px rgba(0, 0, 0, 0.4)
+  ),
+  base: (
+    0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 2px 4px -2px rgba(0, 0, 0, 0.4)
+  ),
+  md: (
+    0 4px 6px -1px rgba(0, 0, 0, 0.4),
+    0 2px 4px -2px rgba(0, 0, 0, 0.4)
+  ),
+  lg: (
+    0 10px 15px -3px rgba(0, 0, 0, 0.4),
+    0 4px 6px -4px rgba(0, 0, 0, 0.4)
+  ),
+  xl: (
+    0 20px 25px -5px rgba(0, 0, 0, 0.5),
+    0 8px 10px -6px rgba(0, 0, 0, 0.5)
+  ),
+  2xl: (
+    0 25px 50px -12px rgba(0, 0, 0, 0.6)
+  )
+);
+
+// Helper function for accessing shadows
+@function shadow($size) {
+  @return map-get($shadows, $size);
+}
+
+// Helper function for component shadows
+@function component-shadow($name) {
+  @return map-get($component-shadows, $name);
+}
+
+// Mixin for applying shadows with dark mode support
+@mixin shadow($size, $dark-mode: false) {
+  @if $dark-mode {
+    box-shadow: map-get($shadows-dark, $size);
+  } @else {
+    box-shadow: map-get($shadows, $size);
+  }
+}
+
+// Quick access variables
+$shadow-xs: shadow(xs);
+$shadow-sm: shadow(sm);
+$shadow-md: shadow(md);
+$shadow-lg: shadow(lg);
+$shadow-xl: shadow(xl);
+$shadow-2xl: shadow(2xl);
+$shadow-inner: shadow(inner);
+$shadow-focus: shadow(focus-ring);

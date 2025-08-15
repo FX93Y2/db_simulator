@@ -1,0 +1,162 @@
+// ============================================
+// DESIGN TOKENS - BORDERS
+// ============================================
+// Modern border system with consistent radius and width values
+
+// Border widths
+$border-widths: (
+  0: 0,
+  1: 1px,
+  2: 2px,
+  4: 4px,
+  8: 8px
+);
+
+// Border radius scale
+$border-radius: (
+  none: 0,
+  xs: 0.125rem,   // 2px
+  sm: 0.25rem,    // 4px
+  base: 0.375rem, // 6px
+  md: 0.375rem,   // 6px (same as base)
+  lg: 0.5rem,     // 8px
+  xl: 0.75rem,    // 12px
+  2xl: 1rem,      // 16px
+  3xl: 1.5rem,    // 24px
+  full: 9999px    // Pill shape
+);
+
+// Component-specific border radius
+$component-border-radius: (
+  // Button radius
+  button-sm: map-get($border-radius, sm),    // 4px
+  button-base: map-get($border-radius, md),  // 6px
+  button-lg: map-get($border-radius, lg),    // 8px
+  button-pill: map-get($border-radius, full), // Pill shape
+  
+  // Input radius
+  input: map-get($border-radius, md),        // 6px
+  input-sm: map-get($border-radius, sm),     // 4px
+  input-lg: map-get($border-radius, lg),     // 8px
+  
+  // Card radius
+  card: map-get($border-radius, lg),         // 8px
+  card-sm: map-get($border-radius, md),      // 6px
+  card-lg: map-get($border-radius, xl),      // 12px
+  
+  // Modal radius
+  modal: map-get($border-radius, xl),        // 12px
+  modal-sm: map-get($border-radius, lg),     // 8px
+  
+  // Badge/tag radius
+  badge: map-get($border-radius, sm),        // 4px
+  badge-pill: map-get($border-radius, full), // Pill shape
+  
+  // Navigation radius
+  nav-item: map-get($border-radius, md),     // 6px
+  
+  // Avatar radius
+  avatar-sm: map-get($border-radius, sm),    // 4px
+  avatar-base: map-get($border-radius, md),  // 6px
+  avatar-lg: map-get($border-radius, lg),    // 8px
+  avatar-full: map-get($border-radius, full), // Circle
+  
+  // React Flow nodes radius
+  node-default: map-get($border-radius, lg), // 8px
+  node-rounded: map-get($border-radius, xl), // 12px
+  
+  // Table radius
+  table: map-get($border-radius, lg),        // 8px
+  table-sm: map-get($border-radius, md),     // 6px
+  
+  // Dropdown radius
+  dropdown: map-get($border-radius, lg),     // 8px
+  
+  // Toast/notification radius
+  toast: map-get($border-radius, lg),        // 8px
+  
+  // Image radius
+  image: map-get($border-radius, lg),        // 8px
+  image-sm: map-get($border-radius, md),     // 6px
+  image-lg: map-get($border-radius, xl)      // 12px
+);
+
+// Border styles
+$border-styles: (
+  solid: solid,
+  dashed: dashed,
+  dotted: dotted,
+  double: double,
+  none: none
+);
+
+// Common border combinations
+$borders: (
+  none: none,
+  thin: map-get($border-widths, 1) solid,
+  normal: map-get($border-widths, 2) solid,
+  thick: map-get($border-widths, 4) solid,
+  
+  // With default color placeholders (will be overridden by themes)
+  default: map-get($border-widths, 1) solid var(--border-color, #e5e7eb),
+  muted: map-get($border-widths, 1) solid var(--border-muted, #f3f4f6),
+  strong: map-get($border-widths, 2) solid var(--border-strong, #d1d5db)
+);
+
+// Focus outlines
+$focus-outlines: (
+  default: 2px solid var(--focus-color, #3b82f6),
+  thick: 3px solid var(--focus-color, #3b82f6),
+  offset: 2px solid var(--focus-color, #3b82f6),
+  none: none
+);
+
+// Helper functions
+@function border-width($width) {
+  @return map-get($border-widths, $width);
+}
+
+@function border-radius($size) {
+  @return map-get($border-radius, $size);
+}
+
+@function component-border-radius($component) {
+  @return map-get($component-border-radius, $component);
+}
+
+@function border-style($style) {
+  @return map-get($border-styles, $style);
+}
+
+@function border($type) {
+  @return map-get($borders, $type);
+}
+
+// Mixins for common border patterns
+@mixin border-radius($size) {
+  border-radius: border-radius($size);
+}
+
+@mixin component-border-radius($component) {
+  border-radius: component-border-radius($component);
+}
+
+@mixin border($width: 1, $style: solid, $color: var(--border-color, #e5e7eb)) {
+  border: border-width($width) border-style($style) $color;
+}
+
+@mixin focus-outline($style: default, $offset: 0) {
+  outline: map-get($focus-outlines, $style);
+  outline-offset: #{$offset}px;
+}
+
+// Quick access variables
+$border-radius-sm: border-radius(sm);
+$border-radius-base: border-radius(base);
+$border-radius-lg: border-radius(lg);
+$border-radius-xl: border-radius(xl);
+$border-radius-full: border-radius(full);
+
+$border-width-thin: border-width(1);
+$border-width-normal: border-width(2);
+$border-width-thick: border-width(4);

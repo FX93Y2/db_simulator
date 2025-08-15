@@ -1,4 +1,7 @@
-// Base styles (must come first)
+// Design tokens (must come first)
+@import 'tokens';
+
+// Base styles
 @import 'base/themes';
 @import 'base/variables';
 @import 'base/typography';

@@ -1,9 +1,21 @@
-// SCSS Variables
-$primary-color: var(--theme-primary);
-$secondary-color: var(--theme-secondary);
-$background-color: var(--theme-bg);
-$text-color: var(--theme-text);
-$border-color: var(--theme-border);
+// Import design tokens
+@import '../tokens/colors';
+@import '../tokens/spacing';
+@import '../tokens/typography';
+
+// SCSS Variables mapped to design tokens
+$primary-color: $color-primary;
+$secondary-color: $color-secondary;
+$background-color: $color-background;
+$text-color: $color-text;
+$border-color: $color-border;
+
+// Additional color mappings for backwards compatibility
+$accent-color: $color-accent;
+$success-color: $color-success;
+$warning-color: $color-warning;
+$error-color: $color-error;
+$info-color: $color-info;
 
 // Layout
 $header-height: 48px;

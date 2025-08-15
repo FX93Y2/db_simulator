@@ -3,6 +3,11 @@
 // ============================================
 // This file defines the theming system with CSS custom properties
 // 
+// Design Pattern: "Darker When Outer"
+// - Outermost containers (modals, sidebars) are darkest
+// - Nested elements get progressively lighter
+// - Creates visual hierarchy and depth
+//
 // Variable Naming Convention:
 // --theme-*  : Custom theme variables used throughout the app
 // --bs-*     : Bootstrap variable overrides for Bootstrap components
@@ -13,70 +18,109 @@
 // - Always provide fallback values for critical colors
 // ============================================
 
+// Import design tokens
+@import '../tokens/colors';
+
 // Theme Variables Definition
 :root { // Light theme defaults
-  --theme-bg: #f8f9fa;
-  --theme-text: #333;
-  --theme-muted-text: #6c757d;
-  --theme-border: #ddd;
-  --theme-navbar-bg: #3498db; // Original primary blue
-  --theme-navbar-text: #ffffff;
-  --theme-sidebar-bg: #ffffff;
-  --theme-sidebar-text: #333;
-  --theme-card-bg: #ffffff;
-  // Semantic theme variables for better separation of concerns
-  --theme-modal-bg: #ffffff;           // Modal backgrounds
-  --theme-modal-header-bg: #ffffff;    // Modal headers
-  --theme-table-header-bg: #f5f5f5;    // Table/grid headers
-  --theme-dropdown-bg: #ffffff;        // Dropdown buttons
-  --theme-guide-bg: #f8f9fa;           // Guide overlays
-  --theme-input-bg: #ffffff;           // Form inputs (input, select, textarea)
-  --theme-input-border: #ced4da;       // Input border color
-  --theme-input-focus-border: #86b7fe; // Input focus border
-  --theme-hover-bg: rgba(52, 152, 219, 0.05); // Light primary hover
-  --theme-active-bg: rgba(52, 152, 219, 0.1); // Light primary active
-  --theme-editor-bg: #ffffff;
-  --theme-yaml-editor-bg: #f8f9fa;
-  --theme-primary: #3498db;
-  --theme-primary-text: #ffffff;
-  --theme-secondary: #2ecc71;
-  --theme-resize-handle-hover-bg: #c7c7c7;
-  --theme-er-node-bg: #85c6f3; // lighten(#3498db, 30%)
-  --theme-primary-rgb: 52, 152, 219;
-  --theme-secondary-rgb: 46, 204, 113;
+  // Base page colors (lightest level)
+  --theme-bg: #{color(neutral, 50)};                    // Page background
+  --theme-text: #{color(neutral, 700)};                 // Primary text
+  --theme-muted-text: #{color(neutral, 500)};           // Secondary text
+  --theme-border: #{color(neutral, 200)};               // Default borders
+  
+  // Brand colors
+  --theme-primary: #{color(blue, 500)};                 // Primary actions
+  --theme-primary-text: #{color(neutral, 50)};          // Text on primary
+  --theme-secondary: #{color(green, 500)};              // Secondary actions
+  --theme-primary-rgb: 59, 130, 246;                    // RGB for blue-500
+  --theme-secondary-rgb: 34, 197, 94;                   // RGB for green-500
+  
+  // Layout hierarchy (darker when outer)
+  --theme-navbar-bg: #{color(blue, 600)};               // Outermost navigation
+  --theme-navbar-text: #{color(neutral, 50)};
+  
+  --theme-sidebar-bg: #{color(neutral, 100)};           // Side navigation
+  --theme-sidebar-text: #{color(neutral, 700)};
+  
+  --theme-card-bg: #{color(neutral, 50)};               // Content cards
+  
+  // Modal hierarchy (darker outer container, lighter content)
+  --theme-modal-bg: #{color(neutral, 50)};              // Modal content area
+  --theme-modal-header-bg: #{color(neutral, 100)};      // Modal header (darker than body)
+  
+  // Table hierarchy
+  --theme-table-header-bg: #{color(neutral, 100)};      // Table headers (darker than content)
+  
+  // Form elements (lightest, most inner content)
+  --theme-input-bg: #{color(neutral, 50)};              // Form inputs
+  --theme-input-border: #{color(neutral, 300)};         // Input borders
+  --theme-input-focus-border: #{color(blue, 400)};      // Focus state
+  
+  // Interactive states
+  --theme-hover-bg: #{color(neutral, 100)};             // Hover backgrounds
+  --theme-active-bg: #{color(neutral, 200)};            // Active backgrounds
+  
+  // Editor hierarchy
+  --theme-editor-bg: #{color(neutral, 50)};             // Code editor background
+  --theme-yaml-editor-bg: #{color(neutral, 100)};       // YAML editor (slightly darker)
+  
+  // Component-specific
+  --theme-dropdown-bg: #{color(neutral, 50)};           // Dropdown menus
+  --theme-guide-bg: #{color(neutral, 100)};             // Guide overlays
+  --theme-resize-handle-hover-bg: #{color(neutral, 300)};
+  --theme-er-node-bg: #{color(blue, 100)};              // Entity relationship nodes
 }
 
-body.theme-dark { // Dark theme overrides
-  --theme-bg: #2a2a2a; // Dark grey background
-  --theme-text: #e0e0e0; // Light grey text
-  --theme-muted-text: #999999;
-  --theme-border: #444444; // Darker border
-  --theme-navbar-bg: #1e1e1e; // Very dark grey/black navbar
-  --theme-navbar-text: #ffffff;
-  --theme-sidebar-bg: #1e1e1e; // NOW matches yaml-editor-bg!
-  --theme-sidebar-text: #e0e0e0;
-  --theme-card-bg: #383838; // Dark card background
-  // Semantic theme variables for better separation of concerns
-  --theme-modal-bg: #282828;           // Keep current modal color
-  --theme-modal-header-bg: #282828;    // Modal headers
-  --theme-table-header-bg: #2d2d2d;    // Slightly darker for contrast
-  --theme-dropdown-bg: #282828;        // Dropdown buttons
-  --theme-guide-bg: #2a2a2a;           // Guide overlays
-  --theme-input-bg: #404040;           // Form inputs (darker for dark theme)
-  --theme-input-border: #555555;       // Input border color
-  --theme-input-focus-border: #3498db; // Input focus border (primary color)
-  --theme-hover-bg: rgba(255, 255, 255, 0.08); // Light hover on dark
-  --theme-active-bg: rgba(255, 255, 255, 0.12); // Lighter active on dark
-  --theme-editor-bg: #303030; // Dark grey (like cards), changed from #1e1e1e
-  --theme-yaml-editor-bg: #282828; // Darker grey for YAML editor (VS Code style)
-  --theme-primary: #3498db; // Keep primary blue for accents
-  --theme-primary-text: #ffffff;
-  --theme-secondary: #2ecc71; // Keep secondary green for accents
-  --theme-resize-handle-hover-bg: #3a3a3a;
-  --theme-er-node-bg: #404040; // Dark greyish background for nodes
-  --theme-primary-rgb: 52, 152, 219;
-  --theme-secondary-rgb: 46, 204, 113;
-  --theme-text-rgb: 224, 224, 224; // Explicitly define for dark theme based on #e0e0e0
+body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
+  // Base page colors - VS Code hierarchy starting from #1a1a1a
+  --theme-bg: #{color(gray, 950)};                      // Page background - #1a1a1a (VS Code dark)
+  --theme-text: #cccccc;                                // Primary text - light gray
+  --theme-muted-text: #969696;                          // Secondary text - muted gray
+  --theme-border: #{color(gray, 700)};                  // Default borders - #3e3e42
+  
+  // Brand colors (adjusted for dark theme)
+  --theme-primary: #{color(blue, 400)};                 // Lighter blue for dark backgrounds
+  --theme-primary-text: #{color(gray, 950)};            // Dark text on light buttons
+  --theme-secondary: #{color(green, 400)};              // Lighter green for dark backgrounds
+  --theme-primary-rgb: 96, 165, 250;                    // RGB for blue-400
+  --theme-secondary-rgb: 74, 222, 128;                  // RGB for green-400
+  --theme-text-rgb: 204, 204, 204;                      // RGB for #cccccc
+  
+  // Layout hierarchy (darker when outer) - VS Code inspired progression
+  --theme-navbar-bg: #{color(gray, 950)};               // Darkest - #1a1a1a (outermost)
+  --theme-navbar-text: #cccccc;
+  
+  --theme-sidebar-bg: #{color(gray, 900)};              // Sidebar - #1e1e1e (slightly lighter)
+  --theme-sidebar-text: #cccccc;
+  
+  --theme-card-bg: #{color(gray, 800)};                 // Cards - #252526 (elevated content)
+  
+  // Modal hierarchy (darker outer container, lighter content)
+  --theme-modal-bg: #{color(gray, 800)};                // Modal body - #252526
+  --theme-modal-header-bg: #{color(gray, 900)};         // Modal header - #1e1e1e (darker)
+  
+  // Table hierarchy
+  --theme-table-header-bg: #{color(gray, 900)};         // Table headers - #1e1e1e (darker)
+  
+  // Form elements (lightest, most inner content)
+  --theme-input-bg: #{color(gray, 700)};                // Form inputs - #3e3e42
+  --theme-input-border: #{color(gray, 600)};            // Input borders - lighter
+  --theme-input-focus-border: #{color(blue, 400)};      // Focus state
+  
+  // Interactive states
+  --theme-hover-bg: #{color(gray, 700)};                // Hover - #3e3e42
+  --theme-active-bg: #{color(gray, 600)};               // Active - lighter
+  
+  // Editor hierarchy
+  --theme-editor-bg: #{color(gray, 800)};               // Code editor - #252526
+  --theme-yaml-editor-bg: #{color(gray, 900)};          // YAML editor - #1e1e1e (darker)
+  
+  // Component-specific
+  --theme-dropdown-bg: #{color(gray, 800)};             // Dropdown menus - #252526
+  --theme-guide-bg: #{color(gray, 900)};                // Guide overlays - #1e1e1e (darker)
+  --theme-resize-handle-hover-bg: #{color(gray, 600)};
+  --theme-er-node-bg: #{color(gray, 700)};              // Entity relationship nodes - #3e3e42
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
   // Strategy: Override Bootstrap CSS variables to use our theme system

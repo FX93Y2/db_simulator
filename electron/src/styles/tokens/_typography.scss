@@ -1,0 +1,227 @@
+// ============================================
+// DESIGN TOKENS - TYPOGRAPHY
+// ============================================
+// Modern type scale system with consistent sizing and spacing
+
+// Font families
+$font-families: (
+  sans: (-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif),
+  serif: (Georgia, "Times New Roman", Times, serif),
+  mono: ("SF Mono", Monaco, "Cascadia Code", "Roboto Mono", Consolas, "Courier New", monospace)
+);
+
+// Font weights
+$font-weights: (
+  thin: 100,
+  extralight: 200,
+  light: 300,
+  normal: 400,
+  medium: 500,
+  semibold: 600,
+  bold: 700,
+  extrabold: 800,
+  black: 900
+);
+
+// Type scale (based on 1.25 ratio - Major Third)
+$font-sizes: (
+  xs: 0.75rem,    // 12px
+  sm: 0.875rem,   // 14px
+  base: 1rem,     // 16px - base size
+  lg: 1.125rem,   // 18px
+  xl: 1.25rem,    // 20px
+  2xl: 1.5rem,    // 24px
+  3xl: 1.875rem,  // 30px
+  4xl: 2.25rem,   // 36px
+  5xl: 3rem,      // 48px
+  6xl: 3.75rem,   // 60px
+  7xl: 4.5rem,    // 72px
+  8xl: 6rem,      // 96px
+  9xl: 8rem       // 128px
+);
+
+// Line heights
+$line-heights: (
+  none: 1,
+  tight: 1.25,
+  snug: 1.375,
+  normal: 1.5,
+  relaxed: 1.625,
+  loose: 2
+);
+
+// Letter spacing
+$letter-spacings: (
+  tighter: -0.05em,
+  tight: -0.025em,
+  normal: 0em,
+  wide: 0.025em,
+  wider: 0.05em,
+  widest: 0.1em
+);
+
+// Typography presets for common text elements
+$typography-presets: (
+  // Display text (for hero sections, etc.)
+  display-2xl: (
+    font-size: map-get($font-sizes, 7xl),     // 72px
+    font-weight: map-get($font-weights, bold), // 700
+    line-height: map-get($line-heights, none), // 1
+    letter-spacing: map-get($letter-spacings, tight) // -0.025em
+  ),
+  display-xl: (
+    font-size: map-get($font-sizes, 6xl),     // 60px
+    font-weight: map-get($font-weights, bold),
+    line-height: map-get($line-heights, none),
+    letter-spacing: map-get($letter-spacings, tight)
+  ),
+  display-lg: (
+    font-size: map-get($font-sizes, 5xl),     // 48px
+    font-weight: map-get($font-weights, bold),
+    line-height: map-get($line-heights, tight),
+    letter-spacing: map-get($letter-spacings, tight)
+  ),
+  
+  // Headings
+  heading-1: (
+    font-size: map-get($font-sizes, 4xl),     // 36px
+    font-weight: map-get($font-weights, bold),
+    line-height: map-get($line-heights, tight),
+    letter-spacing: map-get($letter-spacings, tight)
+  ),
+  heading-2: (
+    font-size: map-get($font-sizes, 3xl),     // 30px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, tight),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  heading-3: (
+    font-size: map-get($font-sizes, 2xl),     // 24px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, snug),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  heading-4: (
+    font-size: map-get($font-sizes, xl),      // 20px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, snug),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  heading-5: (
+    font-size: map-get($font-sizes, lg),      // 18px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, snug),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  heading-6: (
+    font-size: map-get($font-sizes, base),    // 16px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  
+  // Body text
+  body-lg: (
+    font-size: map-get($font-sizes, lg),      // 18px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, relaxed),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  body-base: (
+    font-size: map-get($font-sizes, base),    // 16px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  body-sm: (
+    font-size: map-get($font-sizes, sm),      // 14px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  body-xs: (
+    font-size: map-get($font-sizes, xs),      // 12px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  
+  // UI text
+  label: (
+    font-size: map-get($font-sizes, sm),      // 14px
+    font-weight: map-get($font-weights, medium),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, normal)
+  ),
+  caption: (
+    font-size: map-get($font-sizes, xs),      // 12px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, wide)
+  ),
+  overline: (
+    font-size: map-get($font-sizes, xs),      // 12px
+    font-weight: map-get($font-weights, semibold),
+    line-height: map-get($line-heights, normal),
+    letter-spacing: map-get($letter-spacings, widest),
+    text-transform: uppercase
+  ),
+  
+  // Code text
+  code-inline: (
+    font-size: map-get($font-sizes, sm),      // 14px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, normal),
+    font-family: map-get($font-families, mono)
+  ),
+  code-block: (
+    font-size: map-get($font-sizes, sm),      // 14px
+    font-weight: map-get($font-weights, normal),
+    line-height: map-get($line-heights, relaxed),
+    font-family: map-get($font-families, mono)
+  )
+);
+
+// Helper functions
+@function font-family($family) {
+  @return map-get($font-families, $family);
+}
+
+@function font-weight($weight) {
+  @return map-get($font-weights, $weight);
+}
+
+@function font-size($size) {
+  @return map-get($font-sizes, $size);
+}
+
+@function line-height($height) {
+  @return map-get($line-heights, $height);
+}
+
+@function letter-spacing($spacing) {
+  @return map-get($letter-spacings, $spacing);
+}
+
+// Mixin for applying typography presets
+@mixin typography($preset) {
+  $styles: map-get($typography-presets, $preset);
+  
+  @if $styles {
+    @each $property, $value in $styles {
+      #{$property}: $value;
+    }
+  } @else {
+    @warn "Typography preset '#{$preset}' not found.";
+  }
+}
+
+// Quick access variables
+$font-family-base: font-family(sans);
+$font-family-mono: font-family(mono);
+$font-size-base: font-size(base);
+$font-weight-normal: font-weight(normal);
+$font-weight-medium: font-weight(medium);
+$font-weight-semibold: font-weight(semibold);
+$font-weight-bold: font-weight(bold);
+$line-height-base: line-height(normal);
