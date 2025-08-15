@@ -1,0 +1,89 @@
+// ============================================
+// GLOBAL RESIZE HANDLES
+// ============================================
+// Standardized resize handle styles for consistency across the app
+// Use these classes for all resizable elements
+
+// Base resize handle styles
+%resize-handle-base {
+  background-color: var(--theme-border);
+  cursor: col-resize;
+  position: relative;
+  z-index: 10;
+  user-select: none;
+  transition: background-color 0.2s ease;
+  
+  &:hover,
+  &.dragging {
+    background-color: var(--theme-resize-handle-hover-bg);
+  }
+  
+  // Visual indicator
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 1px;
+    height: 20px;
+    background-color: var(--theme-muted-text);
+    opacity: 0.6;
+  }
+  
+  // Hover effect
+  &:hover::before {
+    opacity: 1;
+    background-color: var(--theme-text);
+  }
+}
+
+// Vertical resize handle (for horizontal resizing)
+.resize-handle,
+.grid-resize-handle,
+.grid-sidebar-handle {
+  @extend %resize-handle-base;
+}
+
+// Horizontal resize handle (for vertical resizing)
+.resize-handle-horizontal {
+  @extend %resize-handle-base;
+  cursor: row-resize;
+  
+  &::before {
+    width: 20px;
+    height: 1px;
+  }
+}
+
+// Corner resize handle (for both directions)
+.resize-handle-corner {
+  @extend %resize-handle-base;
+  cursor: nwse-resize;
+  
+  &::before {
+    width: 12px;
+    height: 12px;
+    background: none;
+    border: 1px solid var(--theme-muted-text);
+    border-radius: 2px;
+    opacity: 0.6;
+  }
+  
+  &:hover::before {
+    border-color: var(--theme-text);
+    opacity: 1;
+  }
+}
+
+// Theme-specific adjustments
+body.theme-dark {
+  .resize-handle,
+  .grid-resize-handle,
+  .grid-sidebar-handle,
+  .resize-handle-horizontal,
+  .resize-handle-corner {
+    // Dark theme uses our defined gray-600 for borders and gray-600 for hover
+    // No additional overrides needed as theme variables handle this
+  }
+}

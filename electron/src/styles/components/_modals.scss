@@ -89,23 +89,9 @@ body.theme-dark {
     color: var(--theme-text);
   }
 
-  .form-control,
-  .form-select,
-  .input-group-text {
-    background-color: var(--theme-input-bg);
-    color: var(--theme-text);
-    border-color: var(--theme-input-border);
-
-    &:focus {
-      background-color: var(--theme-input-bg);
-      color: var(--theme-text);
-      border-color: var(--theme-input-focus-border);
-      box-shadow: 0 0 0 0.25rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-  }
 
   .modal-footer {
-    border-top: 1px solid var(--theme-border);
+    border-top: none;
   }
 
   .attribute-item,

@@ -35,38 +35,10 @@
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
   
-  // Sidebar resize handle
+  // Sidebar resize handle now uses global styles
   .grid-sidebar-handle {
-    background-color: $border-color;
-    cursor: col-resize;
-    position: relative;
-    z-index: 10;
-    user-select: none;
-    transition: background-color 0.2s ease;
-    
-    &:hover,
-    &.dragging {
-      background-color: var(--theme-resize-handle-hover-bg);
-    }
-    
-    // Visual indicator
-    &::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      width: 1px;
-      height: 20px;
-      background-color: var(--theme-muted-text);
-      opacity: 0.6;
-    }
-    
-    // Hover effect
-    &:hover::before {
-      opacity: 1;
-      background-color: var(--theme-text);
-    }
+    // All styles are handled by the global resize handle component
+    // This class is included in _resize-handles.scss
   }
   
   // Collapsed state - hide sidebar and handle

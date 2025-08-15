@@ -115,7 +115,7 @@ const YamlEditor = ({
             { token: 'tag.yaml', foreground: 'dcdcaa' }
           ],
           colors: {
-            'editor.background': '#282828'  // VS Code style dark background
+            'editor.background': '#252526'  // Use theme YAML editor background (gray-900)
           }
         });
       }

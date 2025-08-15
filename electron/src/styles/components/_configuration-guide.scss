@@ -222,7 +222,7 @@
             // Override syntax highlighter styles
             pre {
               margin: 0 !important;
-              background: #1e1e1e !important;
+              background: var(--theme-navbar-bg) !important;
               border: 1px solid var(--theme-border);
               
               code {
@@ -291,7 +291,7 @@ body.theme-dark {
     }
     
     .code-example pre {
-      background: #1e1e1e !important;
+      background: var(--theme-navbar-bg) !important;
       border-color: var(--theme-border) !important;
     }
   }
@@ -301,7 +301,7 @@ body.theme-dark {
 body:not(.theme-dark) {
   .configuration-guide {
     .code-example pre {
-      background: #f8f8f8 !important;
+      background: var(--theme-bg) !important;
       border-color: var(--theme-border) !important;
       
       code {

@@ -67,18 +67,6 @@
         color: var(--theme-text);
       }
       
-      .form-control {
-        background-color: var(--theme-input-bg);
-        border-color: var(--theme-input-border);
-        color: var(--theme-text);
-        
-        &:focus {
-          background-color: var(--theme-input-bg);
-          border-color: var(--theme-input-focus-border);
-          color: var(--theme-text);
-          box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-        }
-      }
       
       .text-muted {
         color: var(--theme-muted-text) !important;

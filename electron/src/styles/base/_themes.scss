@@ -73,11 +73,11 @@
 }
 
 body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
-  // Base page colors - VS Code hierarchy starting from #1a1a1a
-  --theme-bg: #{color(gray, 950)};                      // Page background - #1a1a1a (VS Code dark)
+  // Base page colors - VS Code hierarchy
+  --theme-bg: #{color(gray, 950)};                      // Page background - #1e1e1e (darkest)
   --theme-text: #cccccc;                                // Primary text - light gray
-  --theme-muted-text: #969696;                          // Secondary text - muted gray
-  --theme-border: #{color(gray, 700)};                  // Default borders - #3e3e42
+  --theme-muted-text: #{color(gray, 500)};              // Secondary text - #555555 (muted text)
+  --theme-border: #{color(gray, 600)};                  // Default borders - #454545
   
   // Brand colors (adjusted for dark theme)
   --theme-primary: #{color(blue, 400)};                 // Lighter blue for dark backgrounds
@@ -88,39 +88,39 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   --theme-text-rgb: 204, 204, 204;                      // RGB for #cccccc
   
   // Layout hierarchy (darker when outer) - VS Code inspired progression
-  --theme-navbar-bg: #{color(gray, 950)};               // Darkest - #1a1a1a (outermost)
+  --theme-navbar-bg: #{color(gray, 950)};               // Darkest - #1e1e1e (outermost)
   --theme-navbar-text: #cccccc;
   
-  --theme-sidebar-bg: #{color(gray, 900)};              // Sidebar - #1e1e1e (slightly lighter)
+  --theme-sidebar-bg: #{color(gray, 950)};              // Sidebar - #1e1e1e (darkest)
   --theme-sidebar-text: #cccccc;
   
-  --theme-card-bg: #{color(gray, 800)};                 // Cards - #252526 (elevated content)
+  --theme-card-bg: #{color(gray, 800)};                 // Cards - #2D2D2D (secondary panels)
   
   // Modal hierarchy (darker outer container, lighter content)
-  --theme-modal-bg: #{color(gray, 800)};                // Modal body - #252526
-  --theme-modal-header-bg: #{color(gray, 900)};         // Modal header - #1e1e1e (darker)
+  --theme-modal-bg: #{color(gray, 900)};                // Modal body - #252526
+  --theme-modal-header-bg: #{color(gray, 950)};         // Modal header - #1e1e1e (darkest)
   
   // Table hierarchy
-  --theme-table-header-bg: #{color(gray, 900)};         // Table headers - #1e1e1e (darker)
+  --theme-table-header-bg: #{color(gray, 950)};         // Table headers - #1e1e1e (darkest)
   
-  // Form elements (lightest, most inner content)
-  --theme-input-bg: #{color(gray, 700)};                // Form inputs - #3e3e42
-  --theme-input-border: #{color(gray, 600)};            // Input borders - lighter
+  // Form elements
+  --theme-input-bg: #{color(gray, 700)};                // Form inputs - #333333
+  --theme-input-border: #{color(gray, 600)};            // Input borders - #454545
   --theme-input-focus-border: #{color(blue, 400)};      // Focus state
   
   // Interactive states
-  --theme-hover-bg: #{color(gray, 700)};                // Hover - #3e3e42
-  --theme-active-bg: #{color(gray, 600)};               // Active - lighter
+  --theme-hover-bg: #{color(gray, 700)};                // Regular hover - #333333
+  --theme-active-bg: #{color(gray, 600)};               // Active states - #454545
   
   // Editor hierarchy
-  --theme-editor-bg: #{color(gray, 800)};               // Code editor - #252526
-  --theme-yaml-editor-bg: #{color(gray, 900)};          // YAML editor - #1e1e1e (darker)
+  --theme-editor-bg: #{color(gray, 800)};               // Code editor - #2D2D2D (secondary panels)
+  --theme-yaml-editor-bg: #{color(gray, 900)};          // YAML editor - #252526
   
   // Component-specific
-  --theme-dropdown-bg: #{color(gray, 800)};             // Dropdown menus - #252526
-  --theme-guide-bg: #{color(gray, 900)};                // Guide overlays - #1e1e1e (darker)
-  --theme-resize-handle-hover-bg: #{color(gray, 600)};
-  --theme-er-node-bg: #{color(gray, 700)};              // Entity relationship nodes - #3e3e42
+  --theme-dropdown-bg: #{color(gray, 700)};             // Dropdown menus - #333333
+  --theme-guide-bg: #{color(gray, 800)};                // Guide overlays - #2D2D2D (secondary panels)
+  --theme-resize-handle-hover-bg: #{color(gray, 600)};  // Resizer handles - #454545
+  --theme-er-node-bg: #{color(gray, 900)};              // React Flow node body - #252526
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
   // Strategy: Override Bootstrap CSS variables to use our theme system
@@ -185,6 +185,7 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
     border-color: transparent transparent var(--theme-border); // Still needed for specific inactive style
 
     &:hover, &:focus {
+      background-color: var(--theme-yaml-editor-bg); // Tab hover uses gray-900
       border-color: transparent transparent var(--theme-border); // Keep border consistent on hover
       color: var(--theme-text); // Slightly lighter on hover
       isolation: isolate; // Needed for hover state
@@ -193,8 +194,8 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   .nav-tabs .nav-link.active,
   .nav-tabs .nav-item.show .nav-link {
     color: var(--theme-text); // Active text color
-    background-color: var(--theme-sidebar-bg); // Dark grey background like sidebar
-    border-color: var(--theme-border) var(--theme-border) var(--theme-sidebar-bg); // Match background - Still needed for active style
+    background-color: var(--theme-yaml-editor-bg); // Blend with YAML editor - gray-900
+    border-color: var(--theme-border) var(--theme-border) var(--theme-yaml-editor-bg); // Match background
   }
 
   .react-flow__panel { // Controls and Minimap panels
@@ -241,7 +242,7 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   }
 
   .modal-footer {
-    border-top-color: var(--theme-border);
+    border-top: none;
   }
 
   // Style the close button for dark background

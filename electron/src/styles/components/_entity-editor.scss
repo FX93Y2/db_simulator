@@ -20,8 +20,8 @@
   }
   
   .modal-footer {
-    background-color: var(--theme-modal-header-bg);
-    border-top: 1px solid var(--theme-border);
+    background-color: var(--theme-modal-bg);
+    border-top: none;
   }
 }
 
@@ -47,8 +47,8 @@
   }
   
   .modal-footer {
-    background-color: var(--theme-modal-header-bg);
-    border-top: 1px solid var(--theme-border);
+    background-color: var(--theme-modal-bg);
+    border-top: none;
   }
   
   // Form styles are now handled by consolidated styles in _forms.scss
@@ -258,23 +258,6 @@ body.theme-dark {
 
 // Chart view styling for dark theme
 .chart-container {
-  .form-select {
-    background-color: var(--theme-input-bg);
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-input-bg);
-      border-color: var(--theme-input-focus-border);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    option {
-      background-color: var(--theme-card-bg);
-      color: var(--theme-text);
-    }
-  }
   
   .form-label {
     color: var(--theme-text);

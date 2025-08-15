@@ -66,52 +66,13 @@
     }
   }
 
-  .form-control, .form-select {
-    background-color: var(--theme-input-bg);
-    border-color: var(--theme-input-border);
-    color: var(--theme-text);
-    
-    &:focus {
-      background-color: var(--theme-input-bg);
-      border-color: var(--theme-input-focus-border);
-      color: var(--theme-text);
-      box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25);
-    }
-    
-    &::placeholder {
-      color: var(--theme-muted-text);
-    }
-    
-    // Fix date input styling for dark theme
-    &[type="date"] {
-      background-color: var(--theme-editor-bg);
-      color: var(--theme-text);
+  // Fix date input styling for dark theme - specific overrides only
+  .form-control[type="date"] {
+    &::-webkit-calendar-picker-indicator {
+      filter: invert(1);
       
-      &::-webkit-calendar-picker-indicator {
-        filter: invert(1);
-        
-        body:not(.theme-dark) & {
-          filter: none;
-        }
-      }
-      
-      &::-webkit-datetime-edit {
-        color: var(--theme-text);
-      }
-      
-      &::-webkit-datetime-edit-fields-wrapper {
-        background-color: var(--theme-editor-bg);
-      }
-      
-      &::-webkit-datetime-edit-text {
-        color: var(--theme-text);
-      }
-      
-      &::-webkit-datetime-edit-month-field,
-      &::-webkit-datetime-edit-day-field,
-      &::-webkit-datetime-edit-year-field {
-        color: var(--theme-text);
-        background-color: var(--theme-editor-bg);
+      body:not(.theme-dark) & {
+        filter: none;
       }
     }
   }
