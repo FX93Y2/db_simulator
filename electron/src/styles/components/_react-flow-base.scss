@@ -22,19 +22,50 @@
   border-radius: 4px;
 }
 
-// ReactFlow base element text selection prevention
+// Comprehensive ReactFlow element text selection prevention
+.react-flow,
+.react-flow__renderer,
+.react-flow__container,
+.react-flow__zoompane,
+.react-flow__pane,
 .react-flow__viewport,
+.react-flow__transformationpane,
+.react-flow__selection,
+.react-flow__selectionpane,
 .react-flow__node,
 .react-flow__edge,
 .react-flow__handle,
-.react-flow__connectionline {
+.react-flow__connectionline,
+.react-flow__background {
   @include prevent-text-selection-important;
+  
+  *, *::before, *::after {
+    @include prevent-text-selection-important;
+  }
 }
 
-// Prevent text selection during dragging operations
+// Prevent text selection during ANY dragging operations
 .react-flow__pane.dragging,
-.react-flow__pane.connecting {
+.react-flow__pane.connecting,
+.react-flow__pane.selecting,
+.react-flow__pane {
   @include prevent-text-selection-important;
+  
+  * {
+    @include prevent-text-selection-important;
+  }
+}
+
+// Extra protection for selection operations
+.react-flow__selection,
+.react-flow__selectionpane {
+  @include prevent-text-selection-important;
+  pointer-events: none;
+  
+  * {
+    @include prevent-text-selection-important;
+    pointer-events: none;
+  }
 }
 
 // ReactFlow Node Override - Remove default ReactFlow node styling

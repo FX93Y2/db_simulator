@@ -6,6 +6,8 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
+  -webkit-touch-callout: none;
+  -khtml-user-select: none;
 }
 
 @mixin prevent-text-selection-important {
@@ -13,6 +15,8 @@
   -webkit-user-select: none !important;
   -moz-user-select: none !important;
   -ms-user-select: none !important;
+  -webkit-touch-callout: none !important;
+  -khtml-user-select: none !important;
 }
 
 // Global text selection prevention during connection
@@ -22,4 +26,57 @@ body.react-flow-connecting {
   * {
     @include prevent-text-selection-important;
   }
+}
+
+
+// Permanent text selection prevention for canvas containers
+.er-diagram-container {
+  @include prevent-text-selection-important;
+  
+  *, *::before, *::after {
+    @include prevent-text-selection-important;
+  }
+}
+
+.modular-event-flow {
+  @include prevent-text-selection-important;
+  
+  *, *::before, *::after {
+    @include prevent-text-selection-important;
+  }
+}
+
+// Universal ReactFlow element text selection prevention
+.react-flow,
+.react-flow__renderer,
+.react-flow__container,
+.react-flow__zoompane,
+.react-flow__pane,
+.react-flow__viewport,
+.react-flow__transformationpane,
+.react-flow__selection,
+.react-flow__node,
+.react-flow__edge,
+.react-flow__handle,
+.react-flow__connectionline {
+  @include prevent-text-selection-important;
+  
+  *, *::before, *::after {
+    @include prevent-text-selection-important;
+  }
+}
+
+// Additional protection for text content within nodes
+.react-flow__node * {
+  @include prevent-text-selection-important;
+}
+
+// Prevent text selection during ANY interaction with ReactFlow
+.react-flow__pane {
+  @include prevent-text-selection-important;
+}
+
+// Selection rectangle prevention
+.react-flow__selection {
+  @include prevent-text-selection-important;
 }

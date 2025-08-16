@@ -27,6 +27,7 @@ import EntityEditor from './entity-nodes/editors/EntityEditor';
 
 // Shared hooks
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
+import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 
 // Node types definition
 const nodeTypes = {
@@ -104,6 +105,9 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
       handleEntityDragStop(null, { id: nodeId, position });
     }
   });
+
+  // Enhanced text selection prevention with mouse events
+  useTextSelectionPrevention(containerRef, true);
 
   const onConnect = React.useCallback((connection) => {
     handleEntityConnect(connection);

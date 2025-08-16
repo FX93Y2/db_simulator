@@ -25,6 +25,7 @@ import {
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
+import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
@@ -102,6 +103,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     updateSelected: updateSelectedNodes,
     onPositionChange: updateNodePosition
   });
+
+
+  // Enhanced text selection prevention with mouse events
+  useTextSelectionPrevention(containerRef, true);
 
   const onConnect = React.useCallback((connection) => {
     console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
