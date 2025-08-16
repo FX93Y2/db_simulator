@@ -626,7 +626,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   return (
     <>
-      <Modal show={show} onHide={onHide} centered size={getModalSize()} className="step-editor-modal">
+      <Modal show={show} onHide={onHide} centered backdrop="static" size={getModalSize()} className="step-editor-modal">
         <Modal.Header closeButton>
           <Modal.Title>Edit {node?.data.stepConfig?.step_type || 'Step'} Step</Modal.Title>
         </Modal.Header>
