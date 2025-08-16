@@ -2,6 +2,8 @@ import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHan
 import ReactFlow, {
   Controls,
   Background,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -27,12 +29,12 @@ const nodeTypes = {
 };
 
 /**
- * Modernized ERDiagram with Zustand store integration
- * Uses centralized state management following ModularEventFlow patterns
+ * Inner ERDiagram component that has access to ReactFlow context
  */
-const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
+const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const containerRef = useRef(null);
   const [initialized, setInitialized] = React.useState(false);
+  const reactFlowInstance = useReactFlow();
   
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const entityNodes = useEntityNodes(projectId);
@@ -139,12 +141,20 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
-    addEntity: (entityData) => addEntity(entityData, containerRef),
+    addEntity: (entityData) => {
+      // Get viewport center for positioning new entities
+      const viewport = reactFlowInstance.getViewport();
+      const viewportCenter = {
+        x: -viewport.x + (containerRef.current?.clientWidth || 800) / 2 / viewport.zoom,
+        y: -viewport.y + (containerRef.current?.clientHeight || 600) / 2 / viewport.zoom
+      };
+      return addEntity(entityData, containerRef, viewportCenter);
+    },
     updateEntity,
     deleteEntity: deleteEntityWithCleanup,
     generateYAML: generateEntityYaml,
     getCanonicalEntities: () => canonicalEntities
-  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateEntityYaml, canonicalEntities]);
+  }), [addEntity, updateEntity, deleteEntityWithCleanup, generateEntityYaml, canonicalEntities, reactFlowInstance]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
@@ -219,6 +229,19 @@ const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
         theme={theme}
       />
     </div>
+  );
+});
+
+ERDiagramInner.displayName = 'ERDiagramInner';
+
+/**
+ * Main ERDiagram component with ReactFlow provider
+ */
+const ERDiagram = forwardRef(({ theme, projectId }, ref) => {
+  return (
+    <ReactFlowProvider>
+      <ERDiagramInner theme={theme} projectId={projectId} ref={ref} />
+    </ReactFlowProvider>
   );
 });
 

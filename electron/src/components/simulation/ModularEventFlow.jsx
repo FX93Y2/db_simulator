@@ -5,6 +5,8 @@ import ReactFlow, {
   Background,
   applyNodeChanges,
   applyEdgeChanges,
+  useReactFlow,
+  ReactFlowProvider,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -28,13 +30,12 @@ import { nodeTypes } from './flow-nodes/FlowNodeComponents';
 import NodeEditModal from './flow-nodes/NodeEditModal';
 
 /**
- * Rebuilt ModularEventFlow with centralized Zustand store
- * Simplified architecture without circular dependencies
- * Direct ReactFlow integration with store
+ * Inner ModularEventFlow component that has access to ReactFlow context
  */
-const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
+const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
   const [initialized, setInitialized] = React.useState(false);
   const containerRef = useRef(null);
+  const reactFlowInstance = useReactFlow();
   
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const nodes = useNodes(projectId);
@@ -209,10 +210,12 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
   // Imperative methods for parent components (if needed)
   const imperativeMethods = useMemo(() => ({
     addStep: (stepData) => {
+      // Get viewport center for positioning new steps
+      const viewport = reactFlowInstance.getViewport();
       const position = containerRef.current 
         ? {
-            x: containerRef.current.clientWidth / 2 - 100,
-            y: containerRef.current.clientHeight / 2 - 50
+            x: -viewport.x + (containerRef.current.clientWidth || 800) / 2 / viewport.zoom - 100,
+            y: -viewport.y + (containerRef.current.clientHeight || 600) / 2 / viewport.zoom - 50
           }
         : { x: 100, y: 100 };
       
@@ -221,7 +224,7 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
     updateStep,
     deleteStep: (stepId) => deleteNodes([stepId]),
     getCanonicalSteps: () => getStoreState().canonicalSteps
-  }), [addNode, updateStep, deleteNodes, getStoreState]);
+  }), [addNode, updateStep, deleteNodes, getStoreState, reactFlowInstance]);
   
   // Expose methods to parent components
   useImperativeHandle(ref, () => imperativeMethods, [imperativeMethods]);
@@ -293,6 +296,19 @@ const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref)
         entityTables={entityTables}
       />
     </div>
+  );
+});
+
+ModularEventFlowInner.displayName = 'ModularEventFlowInner';
+
+/**
+ * Main ModularEventFlow component with ReactFlow provider
+ */
+const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
+  return (
+    <ReactFlowProvider>
+      <ModularEventFlowInner theme={theme} dbConfigContent={dbConfigContent} projectId={projectId} ref={ref} />
+    </ReactFlowProvider>
   );
 });
 

@@ -17,22 +17,32 @@ export const createEntityActions = (set, get) => ({
    * Add a new entity to the canvas
    * @param {Object} entityData - Entity configuration data
    * @param {Object} containerRef - Optional container ref for position calculation
+   * @param {Object} viewportCenter - Optional viewport center position {x, y}
    * @returns {Object} - Created entity with position
    */
-  addEntity: (entityData, containerRef = null) => {
+  addEntity: (entityData, containerRef = null, viewportCenter = null) => {
     // Push current state to history before making changes
     pushToHistory(set, get, 'database', 'ADD', { entityName: entityData.name });
     
     const { canonicalEntities, projectId } = get();
     
-    // Calculate viewport-centered position for new entity
+    // Calculate position for new entity
     let newPosition;
-    if (containerRef?.current) {
+    if (viewportCenter) {
+      // Use viewport center position with slight offset to avoid stacking
+      const offsetX = (canonicalEntities.length % 3 - 1) * 50;
+      const offsetY = Math.floor(canonicalEntities.length / 3) * 50;
+      
+      newPosition = {
+        x: Math.max(50, viewportCenter.x - 100 + offsetX),
+        y: Math.max(50, viewportCenter.y - 50 + offsetY)
+      };
+    } else if (containerRef?.current) {
+      // Fallback to container center positioning
       const containerRect = containerRef.current.getBoundingClientRect();
       const centerX = containerRect.width / 2;
       const centerY = containerRect.height / 2;
       
-      // Add some randomness to avoid stacking entities exactly on top of each other
       const offsetX = (canonicalEntities.length % 3 - 1) * 50;
       const offsetY = Math.floor(canonicalEntities.length / 3) * 50;
       

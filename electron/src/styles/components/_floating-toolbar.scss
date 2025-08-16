@@ -23,8 +23,8 @@
   
   &--top {
     top: 16px;
-    left: 50%;
-    transform: translateX(-50%);
+    left: 16px;
+    transform: none;
     
     .floating-toolbar__container {
       flex-direction: row;
