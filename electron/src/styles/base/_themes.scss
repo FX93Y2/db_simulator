@@ -122,7 +122,7 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   --theme-dropdown-bg: #{color(gray, 700)};             // Dropdown menus - #333333
   --theme-guide-bg: #{color(gray, 800)};                // Guide overlays - #2D2D2D (secondary panels)
   --theme-resize-handle-hover-bg: #{color(gray, 600)};  // Resizer handles - #454545
-  --theme-er-node-bg: #{color(gray, 900)};              // React Flow node body - #252526
+  --theme-er-node-bg: #{color(gray, 800)};              // React Flow node body - #252526
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
   // Strategy: Override Bootstrap CSS variables to use our theme system
@@ -216,16 +216,11 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
        background: var(--theme-hover-bg);
      }
   }
-  // React Flow Minimap node colors
-   .react-flow__minimap-node {
-     fill: var(--theme-er-node-bg); // Use node background color
-     stroke: none;
-   }
   // React Flow Node background (already has a variable, but ensure it's applied)
   .react-flow__node {
     background-color: var(--theme-er-node-bg);
     color: var(--theme-text);
-    border: 1px solid var(--theme-border);
+    border: none;
   }
   // Ensure edges are visible
   .react-flow__edge-path {

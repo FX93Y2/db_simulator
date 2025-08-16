@@ -1,6 +1,6 @@
 import React from 'react';
 import { Container, Row, Col, Card } from 'react-bootstrap';
-import { FiHelpCircle, FiBook, FiDatabase, FiSettings, FiPlay } from 'react-icons/fi';
+import { FiHelpCircle, FiFile, FiDatabase, FiSettings, FiPlay } from 'react-icons/fi';
 
 const ConfigurationGuide = () => {
   return (
@@ -21,7 +21,7 @@ const ConfigurationGuide = () => {
                   <FiDatabase className="text-primary mb-3" size={48} />
                   <h5>Database Configuration</h5>
                   <p className="text-muted">
-                    Define your database schema, entities, and relationships using YAML configuration files.
+                    Define your database schema, entities, and relationships.
                   </p>
                 </Card.Body>
               </Card>
@@ -45,7 +45,7 @@ const ConfigurationGuide = () => {
                   <FiPlay className="text-primary mb-3" size={48} />
                   <h5>Run Simulations</h5>
                   <p className="text-muted">
-                    Execute discrete event simulations and analyze results with comprehensive reporting.
+                    Execute discrete event simulations and analyze results.
                   </p>
                 </Card.Body>
               </Card>
@@ -57,7 +57,7 @@ const ConfigurationGuide = () => {
                   <FiHelpCircle className="text-primary mb-3" size={48} />
                   <h5>Get Help</h5>
                   <p className="text-muted">
-                    Access comprehensive documentation and examples by clicking the help button in the header.
+                    Access documentation and examples by clicking the help button in the header.
                   </p>
                 </Card.Body>
               </Card>
@@ -69,7 +69,7 @@ const ConfigurationGuide = () => {
               <Card.Body className="py-4">
                 <h6 className="text-primary mb-3">Quick Start</h6>
                 <p className="mb-2">
-                  1. Click the <FiDatabase className="mx-1" /> button in the header to access Database Explorer
+                  1. Click the <FiFile className="mx-1" /> button in the header to access Database Explorer
                 </p>
                 <p className="mb-2">
                   2. Create a new project or select an existing one

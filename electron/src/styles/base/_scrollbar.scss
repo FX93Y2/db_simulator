@@ -32,15 +32,14 @@ body.theme-dark {
   scrollbar-width: thin; // Firefox fallback
   scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track); // Firefox
   
-  // Webkit scrollbars
+  // Webkit scrollbars with fixed width to prevent content shift
   &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    height: var(--scrollbar-width-minimal);
-    transition: width var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+    width: var(--scrollbar-width-hover);
+    height: var(--scrollbar-width-hover);
   }
   
   &::-webkit-scrollbar-track {
-    background: var(--scrollbar-track);
+    background: transparent; // Transparent track for overlay effect
     border-radius: var(--scrollbar-border-radius);
   }
   
@@ -50,8 +49,8 @@ body.theme-dark {
     border: none;
     transition: all var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
     
-    // Smooth appearance animation
-    opacity: 0.6;
+    // Very subtle when not needed
+    opacity: 0.1;
   }
   
   &::-webkit-scrollbar-thumb:hover {
@@ -65,19 +64,7 @@ body.theme-dark {
   }
   
   &::-webkit-scrollbar-corner {
-    background: var(--scrollbar-track);
-  }
-  
-  // Hover effect on scrollable container
-  &:hover {
-    &::-webkit-scrollbar {
-      width: var(--scrollbar-width-hover);
-      height: var(--scrollbar-width-hover);
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      opacity: 1;
-    }
+    background: transparent;
   }
 }
 
@@ -87,24 +74,38 @@ body.theme-dark {
 .modal-body,
 .attributes-list,
 .entity-attributes-section .attributes-list {
-  // Enhanced scrollbar visibility for main content areas
-  &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    height: var(--scrollbar-width-minimal);
-  }
+  // Always show scrollbar to reserve space and prevent content shift
+  overflow-y: scroll;
   
-  &:hover::-webkit-scrollbar {
+  // Modern scrollbar-gutter support for stable space reservation
+  scrollbar-gutter: stable;
+  
+  // Fixed-width scrollbar
+  &::-webkit-scrollbar {
     width: var(--scrollbar-width-hover);
     height: var(--scrollbar-width-hover);
   }
   
-  // Slightly more visible on content areas
-  &::-webkit-scrollbar-thumb {
-    opacity: 0.4;
+  &::-webkit-scrollbar-track {
+    background: transparent;
   }
   
-  &:hover::-webkit-scrollbar-thumb {
+  // Very subtle when not needed, more visible when scrolling/hovering
+  &::-webkit-scrollbar-thumb {
+    opacity: 0.15; // Very subtle when inactive
+    background: var(--scrollbar-thumb);
+    transition: opacity var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
     opacity: 1;
+    background: var(--scrollbar-thumb-hover);
+  }
+  
+  // Increase visibility when actively scrolling
+  &:active &::-webkit-scrollbar-thumb,
+  &:focus &::-webkit-scrollbar-thumb {
+    opacity: 0.6;
   }
 }
 
@@ -144,22 +145,25 @@ body.theme-dark {
 // Table scrollbars (for attribute tables and data views)
 .table-responsive,
 .attribute-table-container {
-  &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    height: var(--scrollbar-width-minimal);
-  }
+  overflow: scroll;
+  scrollbar-gutter: stable;
   
-  &:hover::-webkit-scrollbar {
+  &::-webkit-scrollbar {
     width: var(--scrollbar-width-hover);
     height: var(--scrollbar-width-hover);
   }
   
-  &::-webkit-scrollbar-thumb {
-    background: var(--scrollbar-thumb);
-    opacity: 0.5;
+  &::-webkit-scrollbar-track {
+    background: transparent;
   }
   
-  &:hover::-webkit-scrollbar-thumb {
+  &::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    opacity: 0.15; // Very subtle when inactive
+    transition: opacity var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
     background: var(--scrollbar-thumb-hover);
     opacity: 1;
   }
@@ -170,13 +174,12 @@ body.theme-dark {
 .react-flow__viewport,
 .er-diagram-container {
   &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    height: var(--scrollbar-width-minimal);
-  }
-  
-  &:hover::-webkit-scrollbar {
     width: var(--scrollbar-width-hover);
     height: var(--scrollbar-width-hover);
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
@@ -244,8 +247,8 @@ body.theme-dark {
 // Body and html specific scrollbar (main page scroll)
 html, body {
   &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    background: var(--scrollbar-track);
+    width: var(--scrollbar-width-hover);
+    background: transparent;
   }
   
   &::-webkit-scrollbar-thumb {
@@ -255,12 +258,9 @@ html, body {
     transition: all var(--scrollbar-transition-duration) var(--scrollbar-transition-easing);
   }
   
-  &:hover::-webkit-scrollbar {
-    width: var(--scrollbar-width-hover);
-  }
-  
-  &:hover::-webkit-scrollbar-thumb {
+  &::-webkit-scrollbar-thumb:hover {
     opacity: 1;
+    background: var(--scrollbar-thumb-hover);
   }
 }
 
@@ -268,21 +268,22 @@ html, body {
 .app-container {
   // Ensure main app container has proper scrollbar styling
   &::-webkit-scrollbar {
-    width: var(--scrollbar-width-minimal);
-    height: var(--scrollbar-width-minimal);
-  }
-  
-  &:hover::-webkit-scrollbar {
     width: var(--scrollbar-width-hover);
     height: var(--scrollbar-width-hover);
   }
   
-  &::-webkit-scrollbar-thumb {
-    opacity: 0.4;
+  &::-webkit-scrollbar-track {
+    background: transparent;
   }
   
-  &:hover::-webkit-scrollbar-thumb {
+  &::-webkit-scrollbar-thumb {
+    opacity: 0.4;
+    background: var(--scrollbar-thumb);
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
     opacity: 1;
+    background: var(--scrollbar-thumb-hover);
   }
 }
 

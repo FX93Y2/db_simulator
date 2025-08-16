@@ -177,27 +177,11 @@
   
   .attributes-list {
     max-height: 60vh;
-    overflow-y: auto;
-    padding-right: 0.5rem;
-    
-    // Custom scrollbar for webkit browsers
-    &::-webkit-scrollbar {
-      width: 8px;
-    }
-    
-    &::-webkit-scrollbar-track {
-      background: var(--theme-editor-bg);
-      border-radius: 4px;
-    }
-    
-    &::-webkit-scrollbar-thumb {
-      background: var(--theme-border);
-      border-radius: 4px;
-      
-      &:hover {
-        background: var(--theme-muted-text);
-      }
-    }
+    // Always show scrollbar to prevent content shift
+    overflow-y: scroll;
+    // Modern scrollbar-gutter support
+    scrollbar-gutter: stable;
+    // Scrollbar styles are now handled globally in _scrollbar.scss
   }
 }
 
