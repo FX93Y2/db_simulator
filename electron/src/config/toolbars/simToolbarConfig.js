@@ -1,7 +1,7 @@
 import React from 'react';
 import { FiSettings, FiGitBranch, FiTag, FiPlay } from 'react-icons/fi';
 import { VscEmptyWindow } from 'react-icons/vsc';
-import { LuUndo2, LuRedo2, LuPackage, LuCalendar } from 'react-icons/lu';
+import { LuUndo2, LuRedo2, LuPackage, LuCalendar, LuMousePointer } from 'react-icons/lu';
 
 /**
  * Simulation Configuration Editor Toolbar Configuration
@@ -11,6 +11,8 @@ export const getSimToolbarItems = ({
   handleAddModule,
   setShowResourceModal,
   setShowSimulationModal,
+  toggleSelectionMode,
+  selectionMode,
   undo,
   redo,
   canUndo,
@@ -51,6 +53,17 @@ export const getSimToolbarItems = ({
         onClick: () => handleAddModule('release')
       }
     ]
+  },
+  {
+    type: 'separator'
+  },
+  {
+    type: 'button',
+    icon: <LuMousePointer />,
+    onClick: toggleSelectionMode,
+    disabled: isLoading,
+    variant: selectionMode ? 'active' : 'primary',
+    tooltip: selectionMode ? 'Switch to Pan Mode' : 'Switch to Selection Mode'
   },
   {
     type: 'separator'

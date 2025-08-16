@@ -26,6 +26,15 @@ export const createUIActions = (set, get) => ({
   },
 
   /**
+   * Toggle selection mode between pan and selection
+   */
+  toggleSelectionMode: () => {
+    set((state) => {
+      state.selectionMode = !state.selectionMode;
+    });
+  },
+
+  /**
    * Clear node selection
    */
   clearSelection: () => {
@@ -86,34 +95,28 @@ export const createUIActions = (set, get) => ({
   },
 
   /**
-   * Handle node click event
+   * Update selected nodes array based on current node selection states
+   */
+  updateSelectedNodes: () => {
+    set((state) => {
+      const selectedNodes = state.nodes.filter(node => node.selected);
+      state.selectedNodes = selectedNodes;
+      
+      // Keep selectedNode for backward compatibility (use first selected)
+      state.selectedNode = selectedNodes.length > 0 ? selectedNodes[0] : null;
+    });
+  },
+
+  /**
+   * Handle node click event (deprecated - use ReactFlow's native multiselection)
    * @param {Object} event - React event
    * @param {Object} node - Clicked node
    */
   handleNodeClick: (_event, node) => {
-    
+    // This function is kept for backward compatibility
+    // but should be avoided in favor of ReactFlow's native selection
     set((state) => {
       state.selectedNode = node;
-      
-      // Update node selection state in ReactFlow
-      state.nodes = state.nodes.map(n => ({
-        ...n,
-        selected: n.id === node?.id
-      }));
-      
-      // Highlight connected edges when node is selected
-      if (node) {
-        state.edges = state.edges.map(edge => ({
-          ...edge,
-          selected: edge.source === node.id || edge.target === node.id
-        }));
-      } else {
-        // Clear all edge selections when no node is selected
-        state.edges = state.edges.map(edge => ({
-          ...edge,
-          selected: false
-        }));
-      }
     });
   },
 

@@ -1,6 +1,6 @@
 import React from 'react';
 import { VscEmptyWindow } from 'react-icons/vsc';
-import { LuUndo2, LuRedo2 } from 'react-icons/lu';
+import { LuUndo2, LuRedo2, LuMousePointer } from 'react-icons/lu';
 
 /**
  * Database Configuration Editor Toolbar Configuration
@@ -8,6 +8,8 @@ import { LuUndo2, LuRedo2 } from 'react-icons/lu';
  */
 export const getDbToolbarItems = ({
   handleAddTable,
+  toggleSelectionMode,
+  selectionMode,
   undo,
   redo,
   canUndo,
@@ -21,6 +23,17 @@ export const getDbToolbarItems = ({
     disabled: isLoading,
     variant: 'primary',
     tooltip: 'Add Table'
+  },
+  {
+    type: 'separator'
+  },
+  {
+    type: 'button',
+    icon: <LuMousePointer />,
+    onClick: toggleSelectionMode,
+    disabled: isLoading,
+    variant: selectionMode ? 'active' : 'primary',
+    tooltip: selectionMode ? 'Switch to Pan Mode' : 'Switch to Selection Mode'
   },
   {
     type: 'separator'

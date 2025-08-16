@@ -41,6 +41,8 @@ const createProjectStore = (projectId = 'default') => {
           entityNodes: [],
           entityEdges: [],
           selectedEntity: null,
+          selectedEntities: [],
+          selectionMode: false,
           showEntityModal: false,
           dbSchema: null,
           entityViewportState: { x: 0, y: 0, zoom: 1 },
@@ -120,6 +122,8 @@ export const useCanonicalEntities = (projectId) => useDatabaseConfigStore(projec
 export const useEntityNodes = (projectId) => useDatabaseConfigStore(projectId)(state => state.entityNodes);
 export const useEntityEdges = (projectId) => useDatabaseConfigStore(projectId)(state => state.entityEdges);
 export const useSelectedEntity = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectedEntity);
+export const useSelectedEntities = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectedEntities);
+export const useSelectionMode = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectionMode);
 export const useShowEntityModal = (projectId) => useDatabaseConfigStore(projectId)(state => state.showEntityModal);
 export const useDbSchema = (projectId) => useDatabaseConfigStore(projectId)(state => state.dbSchema);
 export const useEntityViewportState = (projectId) => useDatabaseConfigStore(projectId)(state => state.entityViewportState);
@@ -165,6 +169,10 @@ export const useEntityYamlActions = (projectId) => {
 export const useEntityUIActions = (projectId) => {
   return useDatabaseConfigStore(projectId)(state => ({
     setSelectedEntity: state.setSelectedEntity,
+    toggleSelectionMode: state.toggleSelectionMode,
+    updateEntityNodes: state.updateEntityNodes,
+    updateEntityEdges: state.updateEntityEdges,
+    updateSelectedEntities: state.updateSelectedEntities,
     openEntityModal: state.openEntityModal,
     closeEntityModal: state.closeEntityModal,
     handleEntityClick: state.handleEntityClick,

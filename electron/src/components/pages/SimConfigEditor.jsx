@@ -22,10 +22,12 @@ import {
   useCanonicalSteps,
   useIsLoading,
   useError,
+  useSimulationSelectionMode,
   useYamlActions,
   useCanvasActions,
   useConfigActions,
-  useSimulationActions
+  useSimulationActions,
+  useUIActions
 } from '../../stores/simulationConfigStore';
 
 /**
@@ -60,12 +62,14 @@ const SimConfigEditor = ({
   const canonicalSteps = useCanonicalSteps(projectId);
   const isLoading = useIsLoading(projectId);
   const error = useError(projectId);
+  const selectionMode = useSimulationSelectionMode(projectId);
 
   // Store actions
   const { importYaml, updateYamlContent } = useYamlActions(projectId);
   const { addNode } = useCanvasActions(projectId);
   const { loadConfig, saveConfig, initializeConfig, hasContent, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
   const { syncSimulationToYaml } = useSimulationActions(projectId);
+  const { toggleSelectionMode } = useUIActions(projectId);
 
   // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -221,6 +225,8 @@ const SimConfigEditor = ({
     handleAddModule,
     setShowResourceModal,
     setShowSimulationModal,
+    toggleSelectionMode,
+    selectionMode,
     undo,
     redo,
     canUndo,

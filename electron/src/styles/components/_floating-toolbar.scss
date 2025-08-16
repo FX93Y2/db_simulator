@@ -173,6 +173,41 @@
     }
   }
   
+  // Active variant - toggled state using theme hover background
+  &--active {
+    background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+    color: var(--theme-text, #333333);
+    
+    &:hover:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
+      color: var(--theme-text, #333333);
+    }
+    
+    &:active:not(:disabled) {
+      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.12));
+      color: var(--theme-text, #333333);
+    }
+    
+    &:focus-visible {
+      outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      outline-offset: 2px;
+    }
+    
+    // Dark theme styling
+    .theme-dark & {
+      background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
+      color: var(--theme-text, #ffffff);
+      
+      &:hover:not(:disabled) {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
+      }
+      
+      &:active:not(:disabled) {
+        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.12));
+      }
+    }
+  }
+  
   // Disabled state
   &:disabled {
     opacity: 0.5;
@@ -200,6 +235,11 @@
     // Apply toolbar styling if specified
     &.floating-toolbar__item--toolbar {
       @extend .floating-toolbar__item--toolbar;
+    }
+    
+    // Apply active styling if specified
+    &.floating-toolbar__item--active {
+      @extend .floating-toolbar__item--active;
     }
   }
   

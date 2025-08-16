@@ -13,6 +13,8 @@ import {
   useEntityEdges,
   useCanonicalEntities,
   useSelectedEntity,
+  useSelectedEntities,
+  useSelectionMode,
   useShowEntityModal,
   useEntityActions,
   useEntityYamlActions,
@@ -22,6 +24,9 @@ import {
 
 import EntityNode from './entity-nodes/EntityNode';
 import EntityEditor from './entity-nodes/editors/EntityEditor';
+
+// Shared hooks
+import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 
 // Node types definition
 const nodeTypes = {
@@ -41,6 +46,8 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const entityEdges = useEntityEdges(projectId);
   const canonicalEntities = useCanonicalEntities(projectId);
   const selectedEntity = useSelectedEntity(projectId);
+  const selectedEntities = useSelectedEntities(projectId);
+  const selectionMode = useSelectionMode(projectId);
   const showEntityModal = useShowEntityModal(projectId);
   const currentState = useDatabaseCurrentState(projectId);
 
@@ -56,7 +63,10 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   } = useEntityYamlActions(projectId);
 
   const {
-    handleEntityClick,
+    setSelectedEntity,
+    updateEntityNodes,
+    updateEntityEdges,
+    updateSelectedEntities,
     handleEdgeClick,
     handleEntityDoubleClick,
     handleEntityDragStop,
@@ -64,8 +74,6 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleEntityDelete,
     closeEntityModal,
     clearEntitySelection,
-    handleEntityNodesChange,
-    handleEntityEdgesChange,
     handleEntityConnect
   } = useEntityUIActions(projectId);
 
@@ -85,22 +93,26 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     }
   }, [canonicalEntities, currentState]);
 
-  // ReactFlow event handlers
-  const onNodesChange = React.useCallback((changes) => {
-    handleEntityNodesChange(changes);
-  }, [handleEntityNodesChange]);
-
-  const onEdgesChange = React.useCallback((changes) => {
-    handleEntityEdgesChange(changes);
-  }, [handleEntityEdgesChange]);
+  // Use shared ReactFlow handlers for consistent behavior
+  const { onNodesChange, onEdgesChange } = useReactFlowHandlers({
+    nodes: entityNodes,
+    edges: entityEdges,
+    updateNodes: updateEntityNodes,
+    updateEdges: updateEntityEdges,
+    updateSelected: updateSelectedEntities,
+    onPositionChange: (nodeId, position) => {
+      handleEntityDragStop(null, { id: nodeId, position });
+    }
+  });
 
   const onConnect = React.useCallback((connection) => {
     handleEntityConnect(connection);
   }, [handleEntityConnect]);
 
-  const onNodeClick = React.useCallback((event, node) => {
-    handleEntityClick(event, node);
-  }, [handleEntityClick]);
+  // Remove onNodeClick to allow ReactFlow's native multiselection
+  // const onNodeClick = React.useCallback((event, node) => {
+  //   handleEntityClick(event, node);
+  // }, [handleEntityClick]);
 
   const onNodeDoubleClick = React.useCallback((event, node) => {
     handleEntityDoubleClick(event, node);
@@ -184,7 +196,6 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             onConnect={onConnect}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
-            onNodeClick={onNodeClick}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={onNodeDoubleClick}
             onEdgeClick={onEdgeClick}
@@ -196,6 +207,9 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
+            multiSelectionActive={selectionMode}
+            selectionOnDrag={selectionMode}
+            panOnDrag={!selectionMode}
           >
             <Controls position="bottom-right" />
             <Background key="er-diagram-background" variant="dots" gap={12} size={1} />

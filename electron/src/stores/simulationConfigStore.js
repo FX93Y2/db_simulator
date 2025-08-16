@@ -50,6 +50,8 @@ const createProjectStore = (projectId = 'default') => {
           // ===== UI STATE =====
           activeTab: 'event-flow', // 'event-flow' | 'resources' | 'simulation'
           selectedNode: null,
+          selectedNodes: [],
+          selectionMode: false,
           showEditModal: false,
           
           // ===== WORKFLOW STATE =====
@@ -162,6 +164,8 @@ export const useCanonicalSteps = (projectId) => useSimulationConfigStore(project
 export const useNodes = (projectId) => useSimulationConfigStore(projectId)(state => state.nodes);
 export const useEdges = (projectId) => useSimulationConfigStore(projectId)(state => state.edges);
 export const useSelectedNode = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedNode);
+export const useSelectedNodes = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedNodes);
+export const useSimulationSelectionMode = (projectId) => useSimulationConfigStore(projectId)(state => state.selectionMode);
 export const useShowEditModal = (projectId) => useSimulationConfigStore(projectId)(state => state.showEditModal);
 export const useCurrentState = (projectId) => useSimulationConfigStore(projectId)(state => state.currentState);
 export const useIsLoading = (projectId) => useSimulationConfigStore(projectId)(state => state.isLoading);
@@ -220,6 +224,8 @@ export const useUIActions = (projectId) => {
   return useSimulationConfigStore(projectId)(state => ({
     setActiveTab: state.setActiveTab,
     setSelectedNode: state.setSelectedNode,
+    updateSelectedNodes: state.updateSelectedNodes,
+    toggleSelectionMode: state.toggleSelectionMode,
     setShowEditModal: state.setShowEditModal,
     clearSelection: state.clearSelection,
     openEditModal: state.openEditModal,

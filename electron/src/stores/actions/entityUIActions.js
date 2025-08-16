@@ -14,6 +14,47 @@ export const createEntityUIActions = (set, get) => ({
   },
 
   /**
+   * Toggle selection mode between pan and selection
+   */
+  toggleSelectionMode: () => {
+    set((state) => {
+      state.selectionMode = !state.selectionMode;
+    });
+  },
+
+  /**
+   * Update entity nodes array
+   * @param {Array} nodes - New nodes array
+   */
+  updateEntityNodes: (nodes) => {
+    set((state) => {
+      state.entityNodes = nodes;
+    });
+  },
+
+  /**
+   * Update entity edges array
+   * @param {Array} edges - New edges array
+   */
+  updateEntityEdges: (edges) => {
+    set((state) => {
+      state.entityEdges = edges;
+    });
+  },
+
+  /**
+   * Update selected entities array
+   * @param {Array} selectedNodes - Array of selected nodes
+   */
+  updateSelectedEntities: (selectedNodes) => {
+    set((state) => {
+      state.selectedEntities = selectedNodes;
+      // Keep selectedEntity for backward compatibility (use first selected)
+      state.selectedEntity = selectedNodes.length > 0 ? selectedNodes[0] : null;
+    });
+  },
+
+  /**
    * Open entity edit modal
    * @param {Object} entity - Entity to edit
    */
@@ -191,6 +232,8 @@ export const createEntityUIActions = (set, get) => ({
    * @param {Array} changes - Array of node changes
    */
   handleEntityNodesChange: (changes) => {
+    let selectionChanged = false;
+    
     changes.forEach(change => {
       if (change.type === 'position' && change.position) {
         // Update position immediately for visual feedback
@@ -204,21 +247,36 @@ export const createEntityUIActions = (set, get) => ({
         // Also update in canonical entities and PositionService
         get().updateEntityPosition(change.id, change.position);
       } else if (change.type === 'select') {
+        selectionChanged = true;
         // Handle selection changes from React Flow
         set((state) => {
           const nodeIndex = state.entityNodes.findIndex(node => node.id === change.id);
           if (nodeIndex !== -1) {
             state.entityNodes[nodeIndex].selected = change.selected;
-            // Sync with selectedEntity state
-            if (change.selected) {
-              state.selectedEntity = state.entityNodes[nodeIndex];
-            } else if (state.selectedEntity?.id === change.id) {
-              state.selectedEntity = null;
-            }
           }
         });
       }
     });
+    
+    // If selection changed, update selectedEntities and edge highlighting
+    if (selectionChanged) {
+      set((state) => {
+        // Update selectedEntities array with all currently selected nodes
+        const selectedNodes = state.entityNodes.filter(node => node.selected);
+        state.selectedEntities = selectedNodes;
+        
+        // Keep selectedEntity for backward compatibility (use first selected)
+        state.selectedEntity = selectedNodes.length > 0 ? selectedNodes[0] : null;
+        
+        // Update edge highlighting based on ALL selected nodes
+        state.entityEdges = state.entityEdges.map(edge => ({
+          ...edge,
+          selected: selectedNodes.some(node => 
+            edge.source === node.id || edge.target === node.id
+          )
+        }));
+      });
+    }
   },
 
   /**

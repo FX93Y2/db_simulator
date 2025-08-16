@@ -22,7 +22,9 @@ import {
   useDatabaseDescription,
   useDatabaseConfig,
   useDatabaseConfigActions,
-  useEntityYamlActions
+  useEntityYamlActions,
+  useSelectionMode,
+  useEntityUIActions
 } from '../../stores/databaseConfigStore';
 
 /**
@@ -48,6 +50,7 @@ const DbConfigEditor = ({
   const name = useDatabaseName(projectId);
   const description = useDatabaseDescription(projectId);
   const config = useDatabaseConfig(projectId);
+  const selectionMode = useSelectionMode(projectId);
   
   // Store actions
   const {
@@ -63,6 +66,8 @@ const DbConfigEditor = ({
   } = useDatabaseConfigActions(projectId);
   
   const { importEntityYaml } = useEntityYamlActions(projectId);
+  
+  const { toggleSelectionMode } = useEntityUIActions(projectId);
   
   // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -178,6 +183,8 @@ const DbConfigEditor = ({
   // Get toolbar configuration
   const toolbarItems = getDbToolbarItems({
     handleAddTable,
+    toggleSelectionMode,
+    selectionMode,
     undo,
     redo,
     canUndo,

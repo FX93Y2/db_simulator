@@ -3,8 +3,6 @@ import ReactFlow, {
   MiniMap,
   Controls,
   Background,
-  applyNodeChanges,
-  applyEdgeChanges,
   useReactFlow,
   ReactFlowProvider,
 } from 'reactflow';
@@ -17,6 +15,8 @@ import {
   useEdges,
   useCanonicalSteps,
   useCurrentState,
+  useSelectedNodes,
+  useSimulationSelectionMode,
   useCanvasActions,
   useUIActions
 } from '../../stores/simulationConfigStore';
@@ -24,6 +24,7 @@ import {
 // Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
+import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
@@ -42,6 +43,8 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const edges = useEdges(projectId);
   const canonicalSteps = useCanonicalSteps(projectId);
   const currentState = useCurrentState(projectId);
+  const selectedNodes = useSelectedNodes(projectId);
+  const selectionMode = useSimulationSelectionMode(projectId);
 
   // Store actions
   const { 
@@ -60,6 +63,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     handleNodeDoubleClick, 
     handlePaneClick,
     setSelectedNode,
+    updateSelectedNodes,
     handleKeyboard
   } = useUIActions(projectId);
   
@@ -89,61 +93,25 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     }
   }, [canonicalSteps, currentState]);
 
-  // ReactFlow event handlers
-  const onNodesChange = React.useCallback((changes) => {
-    // Apply all changes to maintain ReactFlow state (following ER Diagram approach)
-    const currentNodes = nodes;
-    const updatedNodes = applyNodeChanges(changes, currentNodes);
-    updateNodes(updatedNodes);
-    
-    // Handle selection changes to maintain edge highlighting
-    changes.forEach(change => {
-      if (change.type === 'select') {
-        if (change.selected) {
-          // Find the selected node and highlight its connected edges
-          const selectedNode = updatedNodes.find(n => n.id === change.id);
-          if (selectedNode) {
-            const currentEdges = edges;
-            const updatedEdges = currentEdges.map(edge => ({
-              ...edge,
-              selected: edge.source === selectedNode.id || edge.target === selectedNode.id
-            }));
-            updateEdges(updatedEdges);
-          }
-        } else {
-          // Node deselected - check if any nodes are still selected
-          const hasSelectedNodes = updatedNodes.some(n => n.selected);
-          if (!hasSelectedNodes) {
-            // No nodes selected, clear all edge highlighting
-            const currentEdges = edges;
-            const updatedEdges = currentEdges.map(edge => ({
-              ...edge,
-              selected: false
-            }));
-            updateEdges(updatedEdges);
-          }
-        }
-      } else if (change.type === 'position' && change.position) {
-        updateNodePosition(change.id, change.position);
-      }
-    });
-  }, [updateNodePosition, updateNodes, updateEdges, nodes, edges]);
-
-  const onEdgesChange = React.useCallback((changes) => {
-    // Apply edge changes to maintain ReactFlow state (following ER Diagram approach)
-    const currentEdges = edges;
-    const updatedEdges = applyEdgeChanges(changes, currentEdges);
-    updateEdges(updatedEdges);
-  }, [updateEdges, edges]);
+  // Use shared ReactFlow handlers for consistent behavior
+  const { onNodesChange, onEdgesChange } = useReactFlowHandlers({
+    nodes,
+    edges,
+    updateNodes,
+    updateEdges,
+    updateSelected: updateSelectedNodes,
+    onPositionChange: updateNodePosition
+  });
 
   const onConnect = React.useCallback((connection) => {
     console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
     connectNodes(connection);
   }, [connectNodes]);
 
-  const onNodeClick = React.useCallback((event, node) => {
-    handleNodeClick(event, node);
-  }, [handleNodeClick]);
+  // Remove onNodeClick to allow ReactFlow's native multiselection
+  // const onNodeClick = React.useCallback((event, node) => {
+  //   handleNodeClick(event, node);
+  // }, [handleNodeClick]);
 
   const onNodeDoubleClick = React.useCallback((event, node) => {
     handleNodeDoubleClick(event, node);
@@ -258,7 +226,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onConnect={onConnect}
             onConnectStart={onConnectStart}
             onConnectEnd={onConnectEnd}
-            onNodeClick={onNodeClick}
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeDragStop={onNodeDragStop}
             onPaneClick={handlePaneClick}
@@ -271,6 +238,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
+            multiSelectionActive={selectionMode}
+            selectionOnDrag={selectionMode}
+            panOnDrag={!selectionMode}
             deleteKeyCode={null}
           >
             <Background 
