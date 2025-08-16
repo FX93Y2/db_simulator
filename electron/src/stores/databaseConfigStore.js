@@ -48,6 +48,11 @@ const createProjectStore = (projectId = 'default') => {
           entityViewportState: { x: 0, y: 0, zoom: 1 },
           onEntityDiagramChange: null,
           
+          // ===== CLIPBOARD & CONTEXT MENU STATE =====
+          clipboard: [],
+          pasteCounter: 1,
+          contextMenu: { visible: false, x: 0, y: 0 },
+          
           // ===== WORKFLOW STATE =====
           currentState: 'idle', // 'idle' | 'loading' | 'importing' | 'editing' | 'saving'
           isLoading: false,
@@ -129,6 +134,9 @@ export const useDbSchema = (projectId) => useDatabaseConfigStore(projectId)(stat
 export const useEntityViewportState = (projectId) => useDatabaseConfigStore(projectId)(state => state.entityViewportState);
 export const useDatabaseCurrentState = (projectId) => useDatabaseConfigStore(projectId)(state => state.currentState);
 export const useDatabaseIsLoading = (projectId) => useDatabaseConfigStore(projectId)(state => state.isLoading);
+export const useClipboard = (projectId) => useDatabaseConfigStore(projectId)(state => state.clipboard);
+export const usePasteCounter = (projectId) => useDatabaseConfigStore(projectId)(state => state.pasteCounter);
+export const useContextMenu = (projectId) => useDatabaseConfigStore(projectId)(state => state.contextMenu);
 export const useDatabaseError = (projectId) => useDatabaseConfigStore(projectId)(state => state.error);
 export const useDatabaseYamlContent = (projectId) => useDatabaseConfigStore(projectId)(state => state.yamlContent);
 export const useDatabaseConfig = (projectId) => useDatabaseConfigStore(projectId)(state => state.config);
@@ -187,6 +195,10 @@ export const useEntityUIActions = (projectId) => {
     handleEntityNodesChange: state.handleEntityNodesChange,
     handleEntityEdgesChange: state.handleEntityEdgesChange,
     handleEntityConnect: state.handleEntityConnect,
+    copyEntities: state.copyEntities,
+    pasteEntities: state.pasteEntities,
+    showContextMenu: state.showContextMenu,
+    hideContextMenu: state.hideContextMenu,
     handleEntityEdgesDelete: state.handleEntityEdgesDelete,
     resetEntityUI: state.resetEntityUI,
     setEntityViewport: state.setEntityViewport,

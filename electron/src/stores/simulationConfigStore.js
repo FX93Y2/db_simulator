@@ -54,6 +54,11 @@ const createProjectStore = (projectId = 'default') => {
           selectionMode: false,
           showEditModal: false,
           
+          // ===== CLIPBOARD & CONTEXT MENU STATE =====
+          clipboard: [], // Store copied nodes for paste functionality
+          pasteCounter: 1, // Counter for generating unique names for pasted nodes
+          contextMenu: { visible: false, x: 0, y: 0 }, // Context menu visibility and position
+          
           // ===== WORKFLOW STATE =====
           currentState: 'idle', // 'idle' | 'loading' | 'importing' | 'editing' | 'saving'
           isLoading: false,
@@ -170,6 +175,9 @@ export const useShowEditModal = (projectId) => useSimulationConfigStore(projectI
 export const useCurrentState = (projectId) => useSimulationConfigStore(projectId)(state => state.currentState);
 export const useIsLoading = (projectId) => useSimulationConfigStore(projectId)(state => state.isLoading);
 export const useError = (projectId) => useSimulationConfigStore(projectId)(state => state.error);
+export const useSimulationClipboard = (projectId) => useSimulationConfigStore(projectId)(state => state.clipboard);
+export const useSimulationPasteCounter = (projectId) => useSimulationConfigStore(projectId)(state => state.pasteCounter);
+export const useSimulationContextMenu = (projectId) => useSimulationConfigStore(projectId)(state => state.contextMenu);
 export const useActiveTab = (projectId) => useSimulationConfigStore(projectId)(state => state.activeTab);
 
 /**
@@ -233,7 +241,11 @@ export const useUIActions = (projectId) => {
     handleNodeClick: state.handleNodeClick,
     handleNodeDoubleClick: state.handleNodeDoubleClick,
     updateViewport: state.updateViewport,
-    handleKeyboard: state.handleKeyboard
+    handleKeyboard: state.handleKeyboard,
+    copyNodes: state.copyNodes,
+    pasteNodes: state.pasteNodes,
+    showContextMenu: state.showContextMenu,
+    hideContextMenu: state.hideContextMenu
   }));
 };
 

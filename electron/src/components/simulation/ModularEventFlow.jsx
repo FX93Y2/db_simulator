@@ -18,7 +18,9 @@ import {
   useSelectedNodes,
   useSimulationSelectionMode,
   useCanvasActions,
-  useUIActions
+  useUIActions,
+  useSimulationClipboard,
+  useSimulationContextMenu
 } from '../../stores/simulationConfigStore';
 
 // Shared hooks (keep these)
@@ -26,10 +28,12 @@ import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
+import useContextMenuLogic from '../../hooks/shared/useContextMenu';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
 import NodeEditModal from './flow-nodes/NodeEditModal';
+import CanvasContextMenu from '../shared/CanvasContextMenu';
 
 /**
  * Inner ModularEventFlow component that has access to ReactFlow context
@@ -46,6 +50,8 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const currentState = useCurrentState(projectId);
   const selectedNodes = useSelectedNodes(projectId);
   const selectionMode = useSimulationSelectionMode(projectId);
+  const clipboard = useSimulationClipboard(projectId);
+  const contextMenu = useSimulationContextMenu(projectId);
 
   // Store actions
   const { 
@@ -65,7 +71,11 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     handlePaneClick,
     setSelectedNode,
     updateSelectedNodes,
-    handleKeyboard
+    handleKeyboard,
+    copyNodes,
+    pasteNodes,
+    showContextMenu,
+    hideContextMenu
   } = useUIActions(projectId);
   
   // Use the custom hook to get resource definitions from database config
@@ -107,6 +117,22 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
 
   // Enhanced text selection prevention with mouse events
   useTextSelectionPrevention(containerRef, true);
+
+  // Use shared context menu hook
+  const contextMenuHook = useContextMenuLogic({
+    selectionMode,
+    selectedItems: selectedNodes,
+    clipboard,
+    onCopy: copyNodes,
+    onPaste: pasteNodes,
+    onDelete: (nodes) => {
+      const nodeIds = nodes.map(node => node.id);
+      deleteNodes(nodeIds);
+    },
+    onShowContextMenu: showContextMenu,
+    onHideContextMenu: hideContextMenu,
+    reactFlowInstance
+  });
 
   const onConnect = React.useCallback((connection) => {
     console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
@@ -168,17 +194,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     state.setShowEditModal(false);
   }, [getStoreState]);
 
-  // Keyboard event handling
-  useEffect(() => {
-    const handleKeyDown = (event) => {
-      handleKeyboard(event);
-    };
-
-    document.addEventListener('keydown', handleKeyDown);
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [handleKeyboard]);
+  // Note: Keyboard event handling now done by useContextMenuLogic hook
 
   // Imperative methods for parent components (if needed)
   const imperativeMethods = useMemo(() => ({
@@ -233,7 +249,12 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onConnectEnd={onConnectEnd}
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeDragStop={onNodeDragStop}
-            onPaneClick={handlePaneClick}
+            onNodeContextMenu={contextMenuHook.onNodeContextMenu}
+            onPaneClick={(event) => {
+              handlePaneClick(event);
+              contextMenuHook.onPaneClick(event);
+            }}
+            onPaneContextMenu={contextMenuHook.onPaneContextMenu}
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
             nodeTypes={nodeTypes}
@@ -269,6 +290,17 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         parsedSchema={getStoreState().parsedSchema}
         resourceDefinitions={resourceDefinitions}
         entityTables={entityTables}
+      />
+      <CanvasContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onCopy={contextMenuHook.handleContextCopy}
+        onPaste={contextMenuHook.handleContextPaste}
+        onDelete={contextMenuHook.handleContextDelete}
+        hasClipboard={clipboard.length > 0}
+        hasSelection={selectedNodes.length > 0}
+        itemType="node"
       />
     </div>
   );

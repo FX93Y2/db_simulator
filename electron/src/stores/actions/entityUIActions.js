@@ -213,19 +213,6 @@ export const createEntityUIActions = (set, get) => ({
     });
   },
 
-  /**
-   * Handle keyboard shortcuts (non-destructive only)
-   * @param {KeyboardEvent} event - Keyboard event
-   */
-  handleEntityKeyboard: (event) => {
-    // Escape key - clear selection and close modals
-    if (event.key === 'Escape') {
-      get().clearEntitySelection();
-      get().closeEntityModal();
-    }
-    
-    // Note: Delete/Backspace shortcuts removed - entities can only be deleted via explicit button clicks
-  },
 
   /**
    * Handle ReactFlow nodes change (for position updates and selection)
@@ -357,6 +344,129 @@ export const createEntityUIActions = (set, get) => ({
       get().closeEntityModal();
     } else if (get().selectedEntity) {
       get().openEntityModal(get().selectedEntity);
+    }
+  },
+
+  /**
+   * Copy selected entities to clipboard
+   */
+  copyEntities: () => {
+    const { selectedEntities, canonicalEntities } = get();
+    if (selectedEntities.length === 0) return;
+
+    // Get full entity data from canonical entities
+    const entitiesToCopy = selectedEntities.map(node => {
+      const canonicalEntity = canonicalEntities.find(e => e.name === node.id);
+      return canonicalEntity || {
+        name: node.id,
+        type: node.data?.tableType,
+        rows: node.data?.rows,
+        attributes: node.data?.attributes || []
+      };
+    });
+
+    set((state) => {
+      state.clipboard = entitiesToCopy;
+    });
+  },
+
+  /**
+   * Paste entities from clipboard at specified position
+   * @param {Object} position - Position to paste entities {x, y}
+   */
+  pasteEntities: (position = { x: 100, y: 100 }) => {
+    const { clipboard, pasteCounter, canonicalEntities } = get();
+    if (clipboard.length === 0) return;
+
+    // Generate unique names for pasted entities
+    const pastedEntities = clipboard.map((entity, index) => {
+      const baseName = entity.name;
+      let newName = `${baseName}_${pasteCounter + index}`;
+      
+      // Ensure the name is unique
+      let counter = pasteCounter + index;
+      while (canonicalEntities.some(e => e.name === newName)) {
+        counter++;
+        newName = `${baseName}_${counter}`;
+      }
+
+      return {
+        ...entity,
+        name: newName,
+        // Offset position for each pasted entity
+        position: {
+          x: position.x + (index * 50),
+          y: position.y + (index * 30)
+        }
+      };
+    });
+
+    // Add each pasted entity
+    pastedEntities.forEach(entity => {
+      get().addEntity(entity, null, entity.position);
+    });
+
+    // Update paste counter
+    set((state) => {
+      state.pasteCounter = state.pasteCounter + clipboard.length;
+    });
+  },
+
+  /**
+   * Show context menu
+   * @param {number} x - X position
+   * @param {number} y - Y position
+   */
+  showContextMenu: (x, y) => {
+    set((state) => {
+      state.contextMenu = { visible: true, x, y };
+    });
+  },
+
+  /**
+   * Hide context menu
+   */
+  hideContextMenu: () => {
+    set((state) => {
+      state.contextMenu = { visible: false, x: 0, y: 0 };
+    });
+  },
+
+  /**
+   * Handle keyboard shortcuts for copy/paste
+   * @param {KeyboardEvent} event - Keyboard event
+   */
+  handleEntityKeyboard: (event) => {
+    // Check if user is typing in an input field
+    const activeElement = document.activeElement;
+    const isTyping = activeElement && (
+      activeElement.tagName === 'INPUT' ||
+      activeElement.tagName === 'TEXTAREA' ||
+      activeElement.contentEditable === 'true'
+    );
+
+    if (isTyping) return;
+
+    // Escape key - clear selection and close modals
+    if (event.key === 'Escape') {
+      get().clearEntitySelection();
+      get().closeEntityModal();
+      get().hideContextMenu();
+      event.preventDefault();
+    }
+    
+    // Copy: Ctrl+C / Cmd+C
+    if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+      get().copyEntities();
+      event.preventDefault();
+    }
+    
+    // Paste: Ctrl+V / Cmd+V
+    if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
+      // Use a default position if no specific cursor position available
+      // In ERDiagram, this will be overridden by the pasteEntities call with mousePosition
+      get().pasteEntities({ x: 200, y: 200 });
+      event.preventDefault();
     }
   }
 });

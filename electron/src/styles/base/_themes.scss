@@ -118,6 +118,7 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   --theme-yaml-editor-bg: #{color(gray, 900)};          // YAML editor - #252526
   
   // Component-specific
+  --theme-contextmenu-bg : #{color(gray, 700)};
   --theme-reactflow-bg: #{color(gray, 550)};
   --theme-dropdown-bg: #{color(gray, 700)};             // Dropdown menus - #333333
   --theme-guide-bg: #{color(gray, 800)};                // Guide overlays - #2D2D2D (secondary panels)

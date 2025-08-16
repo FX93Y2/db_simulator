@@ -20,14 +20,18 @@ import {
   useEntityYamlActions,
   useEntityUIActions,
   useDatabaseCurrentState,
+  useClipboard,
+  useContextMenu,
 } from '../../stores/databaseConfigStore';
 
 import EntityNode from './entity-nodes/EntityNode';
 import EntityEditor from './entity-nodes/editors/EntityEditor';
+import CanvasContextMenu from '../shared/CanvasContextMenu';
 
 // Shared hooks
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
+import useContextMenuLogic from '../../hooks/shared/useContextMenu';
 
 // Node types definition
 const nodeTypes = {
@@ -51,12 +55,15 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const selectionMode = useSelectionMode(projectId);
   const showEntityModal = useShowEntityModal(projectId);
   const currentState = useDatabaseCurrentState(projectId);
+  const clipboard = useClipboard(projectId);
+  const contextMenu = useContextMenu(projectId);
 
   // Store actions
   const {
     addEntity,
     updateEntity,
-    deleteEntity
+    deleteEntity,
+    deleteEntities
   } = useEntityActions(projectId);
 
   const {
@@ -75,7 +82,11 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleEntityDelete,
     closeEntityModal,
     clearEntitySelection,
-    handleEntityConnect
+    handleEntityConnect,
+    copyEntities,
+    pasteEntities,
+    showContextMenu,
+    hideContextMenu
   } = useEntityUIActions(projectId);
 
   // Use layout effect to ensure container is measured before rendering
@@ -126,10 +137,27 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleEntityDragStop(event, node);
   }, [handleEntityDragStop]);
 
+  // Use shared context menu hook
+  const contextMenuHook = useContextMenuLogic({
+    selectionMode,
+    selectedItems: selectedEntities,
+    clipboard,
+    onCopy: copyEntities,
+    onPaste: pasteEntities,
+    onDelete: (entities) => {
+      const entityIds = entities.map(entity => entity.id);
+      deleteEntities(entityIds);
+    },
+    onShowContextMenu: showContextMenu,
+    onHideContextMenu: hideContextMenu,
+    reactFlowInstance
+  });
+
   const onPaneClick = React.useCallback((event) => {
     // Clear selection when clicking on the canvas
     clearEntitySelection();
-  }, [clearEntitySelection]);
+    contextMenuHook.onPaneClick(event);
+  }, [clearEntitySelection, contextMenuHook]);
 
   const onEdgeClick = React.useCallback((event, edge) => {
     handleEdgeClick(event, edge);
@@ -153,7 +181,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     deleteEntity(entityId);
   }, [deleteEntity]);
 
-  // Keyboard events removed - entities can only be deleted via explicit button clicks
+  // Note: Keyboard events and context menu logic now handled by useContextMenuLogic hook
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -202,8 +230,10 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             onConnectEnd={onConnectEnd}
             onNodeDragStop={onNodeDragStop}
             onNodeDoubleClick={onNodeDoubleClick}
+            onNodeContextMenu={contextMenuHook.onNodeContextMenu}
             onEdgeClick={onEdgeClick}
             onPaneClick={onPaneClick}
+            onPaneContextMenu={contextMenuHook.onPaneContextMenu}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -211,7 +241,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            multiSelectionActive={selectionMode}
+            selectionMode={selectionMode}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
           >
@@ -245,6 +275,17 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
         onEntityUpdate={handleEntityUpdate}
         onEntityDelete={handleEntityDelete}
         theme={theme}
+      />
+      <CanvasContextMenu
+        visible={contextMenu.visible}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        onCopy={contextMenuHook.handleContextCopy}
+        onPaste={contextMenuHook.handleContextPaste}
+        onDelete={contextMenuHook.handleContextDelete}
+        hasClipboard={clipboard.length > 0}
+        hasSelection={selectedEntities.length > 0}
+        itemType="entity"
       />
     </div>
   );
