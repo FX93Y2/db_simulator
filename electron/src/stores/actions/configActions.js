@@ -174,7 +174,7 @@ export const createConfigActions = (set, get) => ({
    * @param {string} selectedDbConfig - Database configuration ID
    */
   runSimulation: async (selectedDbConfig) => {
-    const { config, projectId, name, description, yamlContent } = get();
+    const { config, projectId } = get();
     
     
     try {
@@ -194,10 +194,17 @@ export const createConfigActions = (set, get) => ({
         simConfigId = saveResult.config_id || config?.id;
       }
       
+      // Generate timestamped name for the database  
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const dbName = `simulation_${timestamp}`;
+
       // Run the simulation
       const result = await window.api.generateAndSimulate({
         db_config_id: selectedDbConfig,
-        sim_config_id: simConfigId
+        sim_config_id: simConfigId,
+        project_id: projectId,  // Add project ID for proper folder structure
+        output_dir: 'output',   // Specify output directory
+        name: dbName           // Add timestamped name
       });
       
       get().completeSave(result?.success || false, result?.error || 'Simulation completed');

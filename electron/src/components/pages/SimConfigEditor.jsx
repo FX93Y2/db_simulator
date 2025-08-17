@@ -14,6 +14,7 @@ import useYamlOperations from '../../hooks/shared/useYamlOperations';
 import useKeyboardShortcuts from '../../hooks/shared/useKeyboardShortcuts';
 import useConfigurationLoader from '../../hooks/shared/useConfigurationLoader';
 import { getSimToolbarItems } from '../../config/toolbars/simToolbarConfig';
+import RunSimulationModal from '../modals/RunSimulationModal';
 
 // New store imports
 import {
@@ -220,11 +221,13 @@ const SimConfigEditor = ({
     }
   }, [projectId, isProjectTab, saveConfig, onSaveSuccess]);
 
+
   // Get toolbar configuration
   const toolbarItems = getSimToolbarItems({
     handleAddModule,
     setShowResourceModal,
     setShowSimulationModal,
+    setShowRunModal,
     toggleSelectionMode,
     selectionMode,
     undo,
@@ -290,15 +293,6 @@ const SimConfigEditor = ({
               {configId ? `Edit Simulation Configuration` : 'New Simulation Configuration'}
             </h2>
           </div>
-          <div>
-            <Button 
-              className="run-simulation-btn"
-              onClick={() => setShowRunModal(true)}
-              disabled={isLoading}
-            >
-              Run Simulation
-            </Button>
-          </div>
         </div>
       )}
       
@@ -337,27 +331,12 @@ const SimConfigEditor = ({
       </Modal>
 
       {/* Run Modal */}
-      <Modal
+      <RunSimulationModal
         show={showRunModal}
         onHide={() => setShowRunModal(false)}
-        centered
-        enforceFocus={false}
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Run Simulation</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>Run simulation functionality will be implemented with the new store actions.</p>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowRunModal(false)}>
-            Cancel
-          </Button>
-          <Button className="btn-primary" onClick={() => setShowRunModal(false)}>
-            Run
-          </Button>
-        </Modal.Footer>
-      </Modal>
+        projectId={projectId}
+        yamlContent={yamlContent}
+      />
 
       {/* Resource Configuration Modal */}
       <Modal
@@ -413,7 +392,7 @@ const SimConfigEditor = ({
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            Simulation Duration Configuration
+            Simulation Setup
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>

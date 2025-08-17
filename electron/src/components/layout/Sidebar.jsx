@@ -126,6 +126,28 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
     };
   }, []);
   
+  // Listen for project-specific result refresh events
+  React.useEffect(() => {
+    const handler = (event) => {
+      const { projectId } = event.detail;
+      console.log(`Received refreshProjectResults event for project: ${projectId}`);
+      
+      // If this is the current project, refresh its results and expand it
+      if (projectId === currentProjectId) {
+        setResultsRefreshTrigger(prev => prev + 1);
+        setExpandedProjects(prev => ({
+          ...prev,
+          [projectId]: true
+        }));
+      }
+    };
+    
+    window.addEventListener('refreshProjectResults', handler);
+    return () => {
+      window.removeEventListener('refreshProjectResults', handler);
+    };
+  }, [currentProjectId]);
+  
   // Add this to keep track of when to reload
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [resultsRefreshTrigger, setResultsRefreshTrigger] = useState(0);
