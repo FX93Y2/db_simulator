@@ -3,6 +3,8 @@
  * Used by both database and simulation configuration stores
  */
 
+import positionService from '../../services/PositionService.js';
+
 /**
  * Create history state snapshot for saving
  * @param {Object} state - Current store state
@@ -11,10 +13,15 @@
  */
 export const createStateSnapshot = (state, storeType) => {
   if (storeType === 'database') {
+    // Get all positions from PositionService
+    const projectId = state.projectId;
+    const positions = projectId ? positionService.getAllPositions(projectId) : new Map();
+    
     return {
       canonicalEntities: [...state.canonicalEntities],
       entityNodes: [...state.entityNodes],
-      entityEdges: [...state.entityEdges]
+      entityEdges: [...state.entityEdges],
+      positions: new Map(positions) // Save current positions
     };
   } else if (storeType === 'simulation') {
     return {
@@ -42,6 +49,15 @@ export const restoreStateSnapshot = (set, get, snapshot, storeType) => {
       state.entityNodes = [...snapshot.entityNodes];
       state.entityEdges = [...snapshot.entityEdges];
     });
+    
+    // Restore positions to PositionService
+    const projectId = get().projectId;
+    if (projectId && snapshot.positions) {
+      // Restore positions from snapshot to PositionService
+      snapshot.positions.forEach((position, nodeId) => {
+        positionService.setPosition(projectId, nodeId, position);
+      });
+    }
     
     // Trigger YAML regeneration after restoring state
     // This ensures the YAML content stays in sync with the visual state
