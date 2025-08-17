@@ -369,7 +369,7 @@ const SimConfigEditor = ({
       >
         <Modal.Header closeButton>
           <Modal.Title>
-            Resource Capacity Configuration
+            Resource
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
@@ -398,7 +398,7 @@ const SimConfigEditor = ({
               }
             }}
           >
-            Save Configuration
+            Save
           </Button>
         </Modal.Footer>
       </Modal>
