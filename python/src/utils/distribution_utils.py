@@ -1,6 +1,39 @@
 """
-Utility functions for generating data from statistical distributions
-"""
+📊 Continuous Distributions
+
+BETA(min, mode, max, shape1, shape2) - Beta distribution.
+
+ERLA(mean, k) - Erlang distribution.
+
+EXPO(mean) - Exponential distribution.
+
+GAMA(alpha, beta) - Gamma distribution.
+
+LOGN(mean, sigma) - Lognormal distribution.
+
+NORM(mean, stddev) - Normal distribution.
+
+TRIA(min, mode, max) - Triangular distribution.
+
+UNIF(min, max) - Uniform distribution.
+
+WEIB(alpha, beta) - Weibull distribution.
+
+📊 Discrete Distributions
+
+DISC(p1, v1, p2, v2, …, pn, vn) - Discrete distribution, chooses value vi with probability pi.
+
+POIS(mean) - Poisson distribution.
+
+📊 Empirical / Special
+
+CONT(x1, p1, x2, p2, …, xn, pn) - Continuous empirical distribution (piecewise linear CDF).
+
+TBRN(n, prob1, prob2, …, probn) - Table discrete (used with tabulated values).
+
+📊 Miscellaneous Functions
+
+RAND() - Uniform random number between 0 and 1."""
 
 import numpy as np
 import logging

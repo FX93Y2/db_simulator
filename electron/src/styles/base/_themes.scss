@@ -99,7 +99,7 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   
   // Modal hierarchy (darker outer container, lighter content)
   --theme-modal-bg: #{color(gray, 900)};                // Modal body - #252526
-  --theme-modal-header-bg: #{color(gray, 950)};         // Modal header - #1e1e1e (darkest)
+  --theme-modal-header-bg: #{color(gray, 900)};         // Modal header - #1e1e1e (darkest)
   
   // Table hierarchy
   --theme-table-header-bg: #{color(gray, 800)};         // Table headers - #252526 (same as modal body but with filter)
