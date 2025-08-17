@@ -31,10 +31,6 @@ import {
   useUIActions
 } from '../../stores/simulationConfigStore';
 
-/**
- * Refactored SimConfigEditor - significantly reduced from 707 lines to ~250 lines
- * Uses shared components and hooks to eliminate code duplication
- */
 const SimConfigEditor = ({ 
   projectId, 
   isProjectTab, 
