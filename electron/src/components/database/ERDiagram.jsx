@@ -57,7 +57,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const currentState = useDatabaseCurrentState(projectId);
   const clipboard = useClipboard(projectId);
   const contextMenu = useContextMenu(projectId);
-
+  
   // Store actions
   const {
     addEntity,
@@ -71,7 +71,6 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   } = useEntityYamlActions(projectId);
 
   const {
-    setSelectedEntity,
     updateEntityNodes,
     updateEntityEdges,
     updateSelectedEntities,
@@ -163,16 +162,17 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleEdgeClick(event, edge);
   }, [handleEdgeClick]);
 
-  const onConnectStart = React.useCallback((event, { nodeId, handleType }) => {
+  const onConnectStart = React.useCallback((event) => {
     // Prevent default text selection during edge dragging
     event.preventDefault();
     document.body.classList.add('react-flow-connecting');
   }, []);
 
-  const onConnectEnd = React.useCallback((event) => {
+  const onConnectEnd = React.useCallback(() => {
     // Re-enable text selection after edge dragging
     document.body.classList.remove('react-flow-connecting');
   }, []);
+
 
   // Node and edge deletion callbacks removed - entities can only be deleted via explicit button clicks
 
@@ -182,6 +182,28 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   }, [deleteEntity]);
 
   // Note: Keyboard events and context menu logic now handled by useContextMenuLogic hook
+
+  // Add event listener for right-clicks when nodes are selected
+  React.useEffect(() => {
+    if (selectionMode && selectedEntities.length > 0) {
+      const handleSelectionContextMenu = (e) => {
+        // Check if the click is within the diagram container
+        const flowContainer = e.target.closest('.er-diagram-container');
+        if (flowContainer) {
+          e.preventDefault();
+          e.stopPropagation();
+          // Show context menu at cursor position
+          showContextMenu(e.clientX, e.clientY);
+        }
+      };
+      
+      // Use capture phase to intercept before other handlers
+      document.addEventListener('contextmenu', handleSelectionContextMenu, true);
+      return () => {
+        document.removeEventListener('contextmenu', handleSelectionContextMenu, true);
+      };
+    }
+  }, [selectionMode, selectedEntities, showContextMenu]);
 
   // Expose methods to parent components
   useImperativeHandle(ref, () => ({
@@ -217,7 +239,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   }
   
   return (
-    <div ref={containerRef} className="er-diagram-container" style={{ width: '100%', height: '100%' }}>
+    <div ref={containerRef} className={`er-diagram-container ${selectionMode ? 'selection-mode' : ''}`} style={{ width: '100%', height: '100%' }}>
       {initialized && (
         <>
           <ReactFlow
@@ -241,7 +263,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            selectionMode={selectionMode}
+            multiSelectionKeyCode={selectionMode ? false : 'Shift'}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
           >

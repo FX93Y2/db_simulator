@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 
 /**
  * Shared hook for handling context menu functionality on canvas components
@@ -18,46 +18,63 @@ const useContextMenu = ({
 }) => {
   // Local state for mouse position tracking
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
+  
+  // Track when context menu was last opened to prevent immediate closure
+  const lastOpenedRef = useRef(0);
 
   /**
    * Handle right-click on canvas pane
    * Only shows context menu if in selection mode and has clipboard content
    */
   const onPaneContextMenu = useCallback((event) => {
-    // Only show context menu in selection mode and if we have clipboard content
-    if (selectionMode && clipboard.length > 0) {
+
+    // Show context menu in selection mode if we have clipboard content or selections
+    if (selectionMode && (clipboard.length > 0 || selectedItems.length > 0)) {
       event.preventDefault();
+      
+      
+      // Use native event coordinates if available, otherwise use synthetic
+      const clientX = event.nativeEvent?.clientX ?? event.clientX;
+      const clientY = event.nativeEvent?.clientY ?? event.clientY;
       
       // Convert screen coordinates to flow coordinates for paste positioning
       const viewport = reactFlowInstance.getViewport();
       const flowPosition = {
-        x: (event.clientX - viewport.x) / viewport.zoom,
-        y: (event.clientY - viewport.y) / viewport.zoom
+        x: (clientX - viewport.x) / viewport.zoom,
+        y: (clientY - viewport.y) / viewport.zoom
       };
       setMousePosition(flowPosition);
-      onShowContextMenu(event.clientX, event.clientY);
+      lastOpenedRef.current = Date.now();
+      onShowContextMenu(clientX, clientY);
     }
     // Otherwise, allow browser's default context menu
-  }, [selectionMode, clipboard.length, onShowContextMenu, reactFlowInstance]);
+  }, [selectionMode, clipboard.length, selectedItems.length, onShowContextMenu, reactFlowInstance]);
 
   /**
    * Handle right-click on nodes/entities
    * Only shows context menu if in selection mode and item is selected
    */
   const onNodeContextMenu = useCallback((event, node) => {
-    // Only show context menu in selection mode and if node is selected
-    if (selectionMode && (node.selected || selectedItems.some(item => item.id === node.id))) {
+
+    // Show context menu if in selection mode
+    if (selectionMode) {
       event.preventDefault();
       event.stopPropagation();
+      
+      
+      // Use native event coordinates if available, otherwise use synthetic
+      const clientX = event.nativeEvent?.clientX ?? event.clientX;
+      const clientY = event.nativeEvent?.clientY ?? event.clientY;
       
       // Convert screen coordinates to flow coordinates
       const viewport = reactFlowInstance.getViewport();
       const flowPosition = {
-        x: (event.clientX - viewport.x) / viewport.zoom,
-        y: (event.clientY - viewport.y) / viewport.zoom
+        x: (clientX - viewport.x) / viewport.zoom,
+        y: (clientY - viewport.y) / viewport.zoom
       };
       setMousePosition(flowPosition);
-      onShowContextMenu(event.clientX, event.clientY);
+      lastOpenedRef.current = Date.now();
+      onShowContextMenu(clientX, clientY);
     }
     // Otherwise, allow browser's default context menu
   }, [selectionMode, selectedItems, onShowContextMenu, reactFlowInstance]);
@@ -124,10 +141,21 @@ const useContextMenu = ({
   }, [selectedItems.length, clipboard.length, onCopy, onPaste, onHideContextMenu]);
 
   /**
-   * Close context menu when clicking elsewhere
+   * Close context menu when clicking elsewhere (but not immediately after opening)
    */
   useEffect(() => {
     const handleClick = (event) => {
+      // Ignore right-clicks (they're handled by contextmenu events)
+      if (event.button === 2) {
+        return;
+      }
+      
+      // Don't hide if menu was just opened (within 200ms)
+      const timeSinceOpened = Date.now() - lastOpenedRef.current;
+      if (timeSinceOpened < 200) {
+        return;
+      }
+      
       // Check if click is inside context menu
       const contextMenu = event.target.closest('.context-menu');
       if (!contextMenu) {
@@ -135,8 +163,14 @@ const useContextMenu = ({
       }
     };
     
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    // Add both click and mousedown listeners to catch all interactions
+    document.addEventListener('click', handleClick, false);
+    document.addEventListener('mousedown', handleClick, false);
+    
+    return () => {
+      document.removeEventListener('click', handleClick, false);
+      document.removeEventListener('mousedown', handleClick, false);
+    };
   }, [onHideContextMenu]);
 
   /**

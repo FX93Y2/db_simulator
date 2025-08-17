@@ -1,6 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import ReactFlow, {
-  MiniMap,
   Controls,
   Background,
   useReactFlow,
@@ -66,12 +65,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   } = useCanvasActions(projectId);
   
   const { 
-    handleNodeClick, 
     handleNodeDoubleClick, 
-    handlePaneClick,
-    setSelectedNode,
     updateSelectedNodes,
-    handleKeyboard,
+    clearSelection,
     copyNodes,
     pasteNodes,
     showContextMenu,
@@ -139,41 +135,36 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     connectNodes(connection);
   }, [connectNodes]);
 
-  // Remove onNodeClick to allow ReactFlow's native multiselection
-  // const onNodeClick = React.useCallback((event, node) => {
-  //   handleNodeClick(event, node);
-  // }, [handleNodeClick]);
 
-  const onNodeDoubleClick = React.useCallback((event, node) => {
-    handleNodeDoubleClick(event, node);
+  const onNodeDoubleClick = React.useCallback((_, node) => {
+    handleNodeDoubleClick(_, node);
   }, [handleNodeDoubleClick]);
 
-  const onNodeDragStop = React.useCallback((event, node) => {
+  const onNodeDragStop = React.useCallback((_, node) => {
     // Position updates are already handled by onNodesChange, but let's keep this as backup
     updateNodePosition(node.id, node.position);
   }, [updateNodePosition]);
 
   const onNodesDelete = React.useCallback((deletedNodes) => {
     const deletedIds = deletedNodes.map(n => n.id);
-    console.log('🗑️ ModularEventFlow: Deleting nodes:', deletedIds);
     deleteNodes(deletedIds);
   }, [deleteNodes]);
 
-  const onEdgesDelete = React.useCallback((deletedEdges) => {
-    console.log('🗑️ ModularEventFlow: Deleting edges:', deletedEdges);
+  const onEdgesDelete = React.useCallback(() => {
     // Edge deletion handled by node deletion cleanup
   }, []);
 
-  const onConnectStart = React.useCallback((event, { nodeId, handleType }) => {
+  const onConnectStart = React.useCallback((event) => {
     // Prevent default text selection during edge dragging
     event.preventDefault();
     document.body.classList.add('react-flow-connecting');
   }, []);
 
-  const onConnectEnd = React.useCallback((event) => {
+  const onConnectEnd = React.useCallback(() => {
     // Re-enable text selection after edge dragging
     document.body.classList.remove('react-flow-connecting');
   }, []);
+
 
   // Handle node updates from modal
   const handleNodeUpdate = React.useCallback((updatedNode) => {
@@ -195,6 +186,28 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   }, [getStoreState]);
 
   // Note: Keyboard event handling now done by useContextMenuLogic hook
+
+  // Add event listener for right-clicks when nodes are selected
+  React.useEffect(() => {
+    if (selectionMode && selectedNodes.length > 0) {
+      const handleSelectionContextMenu = (e) => {
+        // Check if the click is within the flow container
+        const flowContainer = e.target.closest('.modular-event-flow');
+        if (flowContainer) {
+          e.preventDefault();
+          e.stopPropagation();
+          // Show context menu at cursor position
+          showContextMenu(e.clientX, e.clientY);
+        }
+      };
+      
+      // Use capture phase to intercept before other handlers
+      document.addEventListener('contextmenu', handleSelectionContextMenu, true);
+      return () => {
+        document.removeEventListener('contextmenu', handleSelectionContextMenu, true);
+      };
+    }
+  }, [selectionMode, selectedNodes, showContextMenu]);
 
   // Imperative methods for parent components (if needed)
   const imperativeMethods = useMemo(() => ({
@@ -235,7 +248,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   }
 
   return (
-    <div ref={containerRef} className="modular-event-flow event-flow-container" style={{ width: '100%', height: '100%' }}>
+    <div ref={containerRef} className={`modular-event-flow event-flow-container ${selectionMode ? 'selection-mode' : ''}`} style={{ width: '100%', height: '100%' }}>
       {initialized && (
         <div id="modular-event-flow-wrapper" style={{ width: '100%', height: '100%' }}>
           <ReactFlow
@@ -251,7 +264,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onNodeDragStop={onNodeDragStop}
             onNodeContextMenu={contextMenuHook.onNodeContextMenu}
             onPaneClick={(event) => {
-              handlePaneClick(event);
+              clearSelection();
               contextMenuHook.onPaneClick(event);
             }}
             onPaneContextMenu={contextMenuHook.onPaneContextMenu}
@@ -264,7 +277,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
-            multiSelectionActive={selectionMode}
+            multiSelectionKeyCode={selectionMode ? false : 'Shift'}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
             deleteKeyCode={null}

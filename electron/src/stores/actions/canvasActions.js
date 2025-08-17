@@ -63,6 +63,14 @@ export const createCanvasActions = (set, get) => ({
     // Push current state to history before making changes
     pushToHistory(set, get, 'simulation', 'DELETE', { stepIds: nodeIds });
     
+    // Clean up positions for deleted nodes
+    const { projectId } = get();
+    if (projectId) {
+      nodeIds.forEach(nodeId => {
+        positionService.removePosition(projectId, nodeId);
+      });
+    }
+    
     set((state) => {
       // Remove from nodes array
       state.nodes = state.nodes.filter(n => !nodeIds.includes(n.id));

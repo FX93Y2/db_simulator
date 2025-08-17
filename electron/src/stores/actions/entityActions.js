@@ -427,6 +427,14 @@ export const createEntityActions = (set, get) => ({
     // Push current state to history before bulk deletion
     pushToHistory(set, get, 'database', 'DELETE', { entityNames: entityIds });
     
+    // Clean up positions for deleted entities
+    const { projectId } = get();
+    if (projectId) {
+      entityIds.forEach(entityId => {
+        positionService.removePosition(projectId, entityId);
+      });
+    }
+    
     // Delete entities without individual history tracking
     entityIds.forEach(entityId => {
       const { projectId, dbSchema } = get();
