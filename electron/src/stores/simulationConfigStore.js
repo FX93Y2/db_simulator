@@ -53,8 +53,6 @@ const createProjectStore = (projectId = 'default') => {
           selectedNodes: [],
           selectionMode: false,
           showEditModal: false,
-          isDragging: false,
-          draggedModuleType: null,
           
           // ===== CLIPBOARD & CONTEXT MENU STATE =====
           clipboard: [], // Store copied nodes for paste functionality

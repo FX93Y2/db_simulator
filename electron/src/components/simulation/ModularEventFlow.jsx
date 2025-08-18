@@ -38,7 +38,7 @@ import CanvasContextMenu from '../shared/CanvasContextMenu';
 /**
  * Inner ModularEventFlow component that has access to ReactFlow context
  */
-const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
+const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, onZoomChange }, ref) => {
   const [initialized, setInitialized] = React.useState(false);
   const [isDragOver, setIsDragOver] = React.useState(false);
   const containerRef = useRef(null);
@@ -168,19 +168,19 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     document.body.classList.remove('react-flow-connecting');
   }, []);
 
+  const handleViewportChange = React.useCallback((viewport) => {
+    if (onZoomChange) {
+      onZoomChange(viewport.zoom);
+    }
+  }, [onZoomChange]);
+
   const onDragOver = React.useCallback((event) => {
-    console.log('🎯 ModularEventFlow: DragOver event', {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      dataTransfer: event.dataTransfer.types
-    });
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
   }, []);
 
   const onDragLeave = React.useCallback((event) => {
-    console.log('👋 ModularEventFlow: DragLeave event');
     // Check if we're leaving the canvas entirely
     if (!event.currentTarget.contains(event.relatedTarget)) {
       setIsDragOver(false);
@@ -188,31 +188,19 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   }, []);
 
   const onDrop = React.useCallback((event) => {
-    console.log('📍 ModularEventFlow: Drop event triggered!', {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      dataTransferTypes: event.dataTransfer.types
-    });
-    
     event.preventDefault();
     setIsDragOver(false);
 
     // Get the data from the drag event
     const dataString = event.dataTransfer.getData('application/reactflow');
-    console.log('📦 ModularEventFlow: Retrieved drag data:', dataString);
-    
-    if (!dataString) {
-      console.warn('⚠️ ModularEventFlow: No drag data found');
-      return;
-    }
+    if (!dataString) return;
 
     const dragData = JSON.parse(dataString);
     const moduleType = dragData.type;
-    console.log('📋 ModularEventFlow: Parsed drag data:', dragData);
 
     // Check if ReactFlow instance is available
     if (!reactFlowInstance) {
-      console.error('❌ ModularEventFlow: ReactFlow instance not available!');
+      console.error('ModularEventFlow: ReactFlow instance not available');
       return;
     }
 
@@ -221,7 +209,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
       x: event.clientX,
       y: event.clientY,
     });
-    console.log('📍 ModularEventFlow: Calculated drop position:', position);
 
     // Generate a unique step ID
     const existingStepIds = canonicalSteps.map(s => s.step_id);
@@ -313,7 +300,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
 
     // Add the node at the drop position
     addNode(newStep, position);
-    console.log('🎯 ModularEventFlow: Dropped module:', stepId, 'at', position);
   }, [reactFlowInstance, canonicalSteps, addNode]);
 
 
@@ -424,6 +410,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
+            onViewportChange={handleViewportChange}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -479,10 +466,16 @@ ModularEventFlowInner.displayName = 'ModularEventFlowInner';
 /**
  * Main ModularEventFlow component with ReactFlow provider
  */
-const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
+const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId, onZoomChange }, ref) => {
   return (
     <ReactFlowProvider>
-      <ModularEventFlowInner theme={theme} dbConfigContent={dbConfigContent} projectId={projectId} ref={ref} />
+      <ModularEventFlowInner 
+        theme={theme} 
+        dbConfigContent={dbConfigContent} 
+        projectId={projectId} 
+        onZoomChange={onZoomChange}
+        ref={ref} 
+      />
     </ReactFlowProvider>
   );
 });
