@@ -7,6 +7,12 @@
   display: flex;
   flex-direction: column;
   
+  // Disable text selection
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
   &.hidden {
     display: none;
   }

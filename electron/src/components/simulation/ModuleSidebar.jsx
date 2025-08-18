@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { ReactComponent as CircleSVG } from '../../assets/svg/circle.svg';
 import { ReactComponent as RectangleSVG } from '../../assets/svg/rectangle.svg';
 import { ReactComponent as DiamondSVG } from '../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../assets/svg/pentagon.svg';
+import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 
 /**
  * Module selection sidebar that slides down from the toolbar
@@ -14,6 +15,10 @@ const ModuleSidebar = ({
   theme = 'light',
   disabled = false 
 }) => {
+  const containerRef = useRef(null);
+  
+  // Use text selection prevention hook
+  useTextSelectionPrevention(containerRef, true);
   const modules = [
     {
       type: 'create',
@@ -58,6 +63,20 @@ const ModuleSidebar = ({
     }
   };
 
+  // Smart mouse down handler that preserves button clicks
+  const handleMouseDown = (e) => {
+    // Don't prevent default for interactive elements
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.closest('button') || 
+        e.target.closest('.module-sidebar__button')) {
+      return;
+    }
+    
+    // Prevent text selection for non-interactive elements
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   const renderModuleButton = (module) => {
     const IconComponent = module.icon;
     
@@ -90,7 +109,11 @@ const ModuleSidebar = ({
   };
 
   return (
-    <div className={`module-sidebar ${isVisible ? 'module-sidebar--visible' : ''} module-sidebar--${theme}`}>
+    <div 
+      ref={containerRef}
+      className={`module-sidebar ${isVisible ? 'module-sidebar--visible' : ''} module-sidebar--${theme}`}
+      onMouseDown={handleMouseDown}
+    >
       <div className="module-sidebar__content">
         <div className="module-sidebar__section">
           <h3 className="module-sidebar__section-title">Discrete Event</h3>

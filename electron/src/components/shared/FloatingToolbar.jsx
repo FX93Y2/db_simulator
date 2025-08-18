@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Button, Dropdown } from 'react-bootstrap';
+import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 
 /**
  * Extensible floating vertical toolbar for canvas editors
@@ -12,6 +13,11 @@ const FloatingToolbar = ({
   theme = 'light',
   sidebarContent = null
 }) => {
+  const containerRef = useRef(null);
+  
+  // Use text selection prevention hook
+  useTextSelectionPrevention(containerRef, true);
+  
   if (!items || items.length === 0) {
     return null;
   }
@@ -79,10 +85,27 @@ const FloatingToolbar = ({
     }
   };
 
+  // Smart mouse down handler that preserves button clicks
+  const handleMouseDown = (e) => {
+    // Don't prevent default for interactive elements
+    if (e.target.tagName === 'BUTTON' || 
+        e.target.closest('button') || 
+        e.target.closest('.dropdown-toggle') ||
+        e.target.closest('.dropdown-item')) {
+      return;
+    }
+    
+    // Prevent text selection for non-interactive elements
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
   return (
     <div 
+      ref={containerRef}
       className={`floating-toolbar floating-toolbar--${position} ${className}`}
       data-theme={theme}
+      onMouseDown={handleMouseDown}
     >
       <div className="floating-toolbar__container">
         {items.map((item, index) => renderToolbarItem(item, index))}
