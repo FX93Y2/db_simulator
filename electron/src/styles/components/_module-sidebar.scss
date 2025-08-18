@@ -76,9 +76,13 @@
   padding: 12px 8px;
   border: none;
   border-radius: 6px;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s ease;
   text-decoration: none;
+  
+  &:active:not(.disabled) {
+    cursor: grabbing;
+  }
   
   // Theme variants
   .module-sidebar--light & {

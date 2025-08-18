@@ -40,6 +40,7 @@ import CanvasContextMenu from '../shared/CanvasContextMenu';
  */
 const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
   const [initialized, setInitialized] = React.useState(false);
+  const [isDragOver, setIsDragOver] = React.useState(false);
   const containerRef = useRef(null);
   const reactFlowInstance = useReactFlow();
   
@@ -167,6 +168,154 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     document.body.classList.remove('react-flow-connecting');
   }, []);
 
+  const onDragOver = React.useCallback((event) => {
+    console.log('🎯 ModularEventFlow: DragOver event', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      dataTransfer: event.dataTransfer.types
+    });
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  }, []);
+
+  const onDragLeave = React.useCallback((event) => {
+    console.log('👋 ModularEventFlow: DragLeave event');
+    // Check if we're leaving the canvas entirely
+    if (!event.currentTarget.contains(event.relatedTarget)) {
+      setIsDragOver(false);
+    }
+  }, []);
+
+  const onDrop = React.useCallback((event) => {
+    console.log('📍 ModularEventFlow: Drop event triggered!', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      dataTransferTypes: event.dataTransfer.types
+    });
+    
+    event.preventDefault();
+    setIsDragOver(false);
+
+    // Get the data from the drag event
+    const dataString = event.dataTransfer.getData('application/reactflow');
+    console.log('📦 ModularEventFlow: Retrieved drag data:', dataString);
+    
+    if (!dataString) {
+      console.warn('⚠️ ModularEventFlow: No drag data found');
+      return;
+    }
+
+    const dragData = JSON.parse(dataString);
+    const moduleType = dragData.type;
+    console.log('📋 ModularEventFlow: Parsed drag data:', dragData);
+
+    // Check if ReactFlow instance is available
+    if (!reactFlowInstance) {
+      console.error('❌ ModularEventFlow: ReactFlow instance not available!');
+      return;
+    }
+
+    // Get the position where the node was dropped
+    const position = reactFlowInstance.screenToFlowPosition({
+      x: event.clientX,
+      y: event.clientY,
+    });
+    console.log('📍 ModularEventFlow: Calculated drop position:', position);
+
+    // Generate a unique step ID
+    const existingStepIds = canonicalSteps.map(s => s.step_id);
+    const generateStepId = (stepType) => {
+      if (stepType === 'create') {
+        let counter = 1;
+        let stepId = `create_entities_${counter}`;
+        while (existingStepIds.includes(stepId)) {
+          counter++;
+          stepId = `create_entities_${counter}`;
+        }
+        return stepId;
+      }
+      
+      let counter = 1;
+      let stepId = `${stepType}_${counter}`;
+      while (existingStepIds.includes(stepId)) {
+        counter++;
+        stepId = `${stepType}_${counter}`;
+      }
+      
+      return stepId;
+    };
+
+    const stepId = generateStepId(moduleType);
+
+    // Create step configuration based on type
+    let newStep = {
+      step_id: stepId,
+      step_type: moduleType
+    };
+
+    switch (moduleType) {
+      case 'event':
+        newStep.event_config = {
+          duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
+          resource_requirements: []
+        };
+        newStep.next_steps = [];
+        break;
+      case 'decide':
+        newStep.decide_config = {
+          module_id: stepId,
+          decision_type: "probability",
+          outcomes: [
+            {
+              outcome_id: "outcome_1",
+              next_step_id: "",
+              conditions: [{ if: "Probability", is: "==", value: 0.5 }]
+            },
+            {
+              outcome_id: "outcome_2", 
+              next_step_id: "",
+              conditions: [{ if: "Probability", is: "==", value: 0.5 }]
+            }
+          ]
+        };
+        break;
+      case 'assign':
+        newStep.assign_config = {
+          module_id: stepId,
+          assignments: [{
+            assignment_type: "attribute",
+            attribute_name: "new_attribute",
+            value: "default_value"
+          }]
+        };
+        newStep.next_steps = [];
+        break;
+      case 'release':
+        // Release modules don't need event_config
+        break;
+      case 'create':
+        newStep.create_config = {
+          entity_table: "Entity",
+          interarrival_time: {
+            distribution: {
+              type: "exponential",
+              scale: 2
+            }
+          },
+          max_entities: "n/a"
+        };
+        break;
+      default:
+        console.warn('Unknown module type:', moduleType);
+        return;
+    }
+
+    // Add the node at the drop position
+    addNode(newStep, position);
+    console.log('🎯 ModularEventFlow: Dropped module:', stepId, 'at', position);
+  }, [reactFlowInstance, canonicalSteps, addNode]);
+
 
   // Handle node updates from modal
   const handleNodeUpdate = React.useCallback((updatedNode) => {
@@ -250,7 +399,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   }
 
   return (
-    <div ref={containerRef} className={`modular-event-flow event-flow-container ${selectionMode ? 'selection-mode' : ''}`} style={{ width: '100%', height: '100%' }}>
+    <div ref={containerRef} className={`modular-event-flow event-flow-container ${selectionMode ? 'selection-mode' : ''} ${isDragOver ? 'drag-over' : ''}`} style={{ width: '100%', height: '100%' }}>
       {initialized && (
         <div id="modular-event-flow-wrapper" style={{ width: '100%', height: '100%' }}>
           <ReactFlow
@@ -272,6 +421,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onPaneContextMenu={contextMenuHook.onPaneContextMenu}
             onNodesDelete={onNodesDelete}
             onEdgesDelete={onEdgesDelete}
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}

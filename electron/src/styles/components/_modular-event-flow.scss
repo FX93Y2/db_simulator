@@ -5,6 +5,24 @@
   height: 100%;
   width: 100%;
   @include prevent-text-selection;
+  position: relative;
+  
+  // Drag over feedback
+  &.drag-over {
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(var(--theme-primary-rgb), 0.05);
+      border: 2px dashed var(--theme-primary);
+      pointer-events: none;
+      z-index: 1000;
+      animation: pulse 1.5s infinite;
+    }
+  }
   
   // Node colors using theme system (light theme defaults)
   --flow-node-bg: var(--theme-card-bg);           // White background
@@ -402,5 +420,30 @@
   .node-label {
     font-size: 12px;
     max-width: 80px;
+  }
+}
+
+// Pulse animation for drag over feedback
+@keyframes pulse {
+  0% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 0.3;
+  }
+}
+
+// Drag preview styles
+.module-drag-preview {
+  opacity: 0.7;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
+  pointer-events: none;
+  
+  svg {
+    width: 100%;
+    height: 100%;
   }
 }

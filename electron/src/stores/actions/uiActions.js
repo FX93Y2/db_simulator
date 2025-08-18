@@ -35,6 +35,18 @@ export const createUIActions = (set, get) => ({
   },
 
   /**
+   * Set dragging state for module drag-and-drop
+   * @param {boolean} isDragging - Whether a module is being dragged
+   * @param {string|null} moduleType - Type of module being dragged
+   */
+  setDragState: (isDragging, moduleType = null) => {
+    set((state) => {
+      state.isDragging = isDragging;
+      state.draggedModuleType = moduleType;
+    });
+  },
+
+  /**
    * Clear node selection
    */
   clearSelection: () => {
