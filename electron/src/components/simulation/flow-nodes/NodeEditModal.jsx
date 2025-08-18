@@ -9,7 +9,7 @@ import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [] }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [], eventTables = [] }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -184,6 +184,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     setFormData({
       name: stepName,
       entity_table: createConfig.entity_table || '',
+      event_table: createConfig.event_table || '',
       distribution_type: interarrivalTime.type || 'exponential',
       interarrival_mean: interarrivalTime.mean || 2,
       interarrival_stddev: interarrivalTime.stddev || 0.5,
@@ -496,6 +497,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     
     return {
       entity_table: formData.entity_table || '',
+      event_table: formData.event_table || '',
       interarrival_time: { distribution: distributionConfig },
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
@@ -597,6 +599,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onFormDataChange={handleFormDataChange}
             availableSteps={availableSteps}
             availableEntityTables={entityTables}
+            availableEventTables={eventTables}
             nameValidation={nameValidation}
           />
         );

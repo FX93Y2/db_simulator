@@ -90,13 +90,6 @@
     will-change: auto;
   }
   
-  // Resizable handle between panels - now uses global styles
-  .grid-resize-handle {
-    // All styles are handled by the global resize handle component
-    // This class is included in _resize-handles.scss
-  }
-  
-  
   // YAML header styling (VS Code style with integrated tabs)
   .grid-yaml-header {
     background-color: var(--theme-navbar-bg); // Use black sidebar color instead of grey

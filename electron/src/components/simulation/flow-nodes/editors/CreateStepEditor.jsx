@@ -7,6 +7,7 @@ const CreateStepEditor = ({
   onFormDataChange,
   availableSteps,
   availableEntityTables = [], // Entity tables from database config
+  availableEventTables = [], // Event tables from database config
   nameValidation = { valid: true, error: null }
 }) => {
   const renderDistributionFields = () => {
@@ -122,6 +123,38 @@ const CreateStepEditor = ({
             </Form.Group>
           </Col>
           
+          <Col md={6}>
+            {/* Event Table Selection */}
+            <Form.Group className="mb-3">
+              <Form.Label>Event Table</Form.Label>
+              {availableEventTables.length > 0 ? (
+                <Form.Select
+                  value={formData.event_table || ''}
+                  onChange={(e) => onFormDataChange({ event_table: e.target.value })}
+                  required
+                >
+                  <option value="">Select event table...</option>
+                  {availableEventTables.map((table) => (
+                    <option key={table} value={table}>{table}</option>
+                  ))}
+                </Form.Select>
+              ) : (
+                <Form.Control
+                  type="text"
+                  value={formData.event_table || ''}
+                  onChange={(e) => onFormDataChange({ event_table: e.target.value })}
+                  placeholder="Enter event table name"
+                  required
+                />
+              )}
+              <Form.Text className="text-muted">
+                Event table for tracking flow events
+              </Form.Text>
+            </Form.Group>
+          </Col>
+        </Row>
+        
+        <Row>
           <Col md={6}>
             {/* Max Entities */}
             <Form.Group className="mb-3">

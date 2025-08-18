@@ -42,9 +42,7 @@
   
   --theme-sidebar-bg: #{color(neutral, 100)};           // Side navigation
   --theme-sidebar-text: #{color(neutral, 700)};
-  
   --theme-card-bg: #{color(neutral, 50)};               // Content cards
-  
   // Modal hierarchy (darker outer container, lighter content)
   --theme-modal-bg: #{color(neutral, 50)};              // Modal content area
   --theme-modal-header-bg: #{color(neutral, 100)};      // Modal header (darker than body)
@@ -94,7 +92,10 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   
   --theme-sidebar-bg: #{color(gray, 950)};              // Sidebar - #1e1e1e (darkest)
   --theme-sidebar-text: #cccccc;
-  
+
+  --theme-toolbar-bg: #{color(gray, 900)};
+
+  --theme-maincard-bg: #{color(gray, 900)};
   --theme-card-bg: #{color(gray, 800)};                 // Cards - #2D2D2D (secondary panels)
   
   // Modal hierarchy (darker outer container, lighter content)
@@ -114,8 +115,8 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   --theme-active-bg: #{color(gray, 600)};               // Active states - #454545
   
   // Editor hierarchy
-  --theme-editor-bg: #{color(gray, 800)};               // Code editor - #2D2D2D (secondary panels)
-  --theme-yaml-editor-bg: #{color(gray, 900)};          // YAML editor - #252526
+  --theme-editor-bg: #{color(gray, 800)};               // Used for value editors inside modals
+  --theme-yaml-editor-bg: #252526;                      // YAML editor
   
   // Component-specific
   --theme-contextmenu-bg : #{color(gray, 800)};

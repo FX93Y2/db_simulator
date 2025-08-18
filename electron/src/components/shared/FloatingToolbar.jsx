@@ -9,14 +9,15 @@ const FloatingToolbar = ({
   items = [], 
   className = '', 
   position = 'left',
-  theme = 'light' 
+  theme = 'light',
+  sidebarContent = null
 }) => {
   if (!items || items.length === 0) {
     return null;
   }
 
   const renderToolbarItem = (item, index) => {
-    const { type, icon, label, onClick, disabled, variant = 'primary', children, tooltip, dropDirection = 'down' } = item;
+    const { type, icon, label, onClick, disabled, variant = 'primary', children, tooltip, dropDirection = 'down', isActive } = item;
 
     // Base button props
     const buttonProps = {
@@ -29,6 +30,7 @@ const FloatingToolbar = ({
 
     switch (type) {
       case 'button':
+      case 'toggle':
         return (
           <Button {...buttonProps} onClick={onClick}>
             {icon && <span className="floating-toolbar__icon">{icon}</span>}
@@ -85,6 +87,7 @@ const FloatingToolbar = ({
       <div className="floating-toolbar__container">
         {items.map((item, index) => renderToolbarItem(item, index))}
       </div>
+      {sidebarContent && sidebarContent}
     </div>
   );
 };

@@ -1,0 +1,223 @@
+// Module Sidebar Styles
+// Sliding sidebar for module selection
+
+@import '../base/variables';
+
+.module-sidebar {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease-out, opacity 0.2s ease-out;
+  opacity: 0;
+  z-index: 99;
+  pointer-events: none;
+  
+  &--visible {
+    max-height: 400px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+}
+
+.module-sidebar__content {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  margin-top: 8px;
+  padding: 16px;
+  width: fit-content;
+  
+  // Theme variants
+  .module-sidebar--light & {
+    background: var(--theme-card-bg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  }
+  
+  .module-sidebar--dark & {
+    background: var(--theme-toolbar-bg);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+}
+
+.module-sidebar__section {
+  margin-bottom: 0;
+}
+
+.module-sidebar__section-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  
+  .module-sidebar--light & {
+    color: var(--theme-muted-text);
+  }
+  
+  .module-sidebar--dark & {
+    color: var(--theme-muted-text);
+  }
+}
+
+.module-sidebar__grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 200px;
+}
+
+.module-sidebar__button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+  
+  // Theme variants
+  .module-sidebar--light & {
+    background: var(--theme-card-bg);
+    color: var(--theme-text);
+    
+    &:hover:not(.disabled) {
+      background: var(--theme-hover-bg);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    }
+    
+    &:active:not(.disabled) {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    }
+  }
+  
+  .module-sidebar--dark & {
+    background: var(--theme-toolbar-bg);
+    color: var(--theme-text);
+    
+    &:hover:not(.disabled) {
+      background: var(--theme-hover-bg);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+    
+    &:active:not(.disabled) {
+      transform: translateY(0);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+  }
+  
+  &.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+}
+
+.module-sidebar__icon {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.module-sidebar__svg {
+  width: 36px;
+  height: 36px;
+  
+  // Theme-aware SVG coloring
+  .module-sidebar--light & {
+    fill: var(--theme-muted-text);
+    stroke: var(--theme-muted-text);
+  }
+  
+  .module-sidebar--dark & {
+    fill: var(--theme-muted-text);
+    stroke: var(--theme-muted-text);
+  }
+  
+  .module-sidebar__button:hover:not(.disabled) & {
+    .module-sidebar--light & {
+      fill: var(--theme-text);
+      stroke: var(--theme-text);
+    }
+    
+    .module-sidebar--dark & {
+      fill: var(--theme-text);
+      stroke: var(--theme-text);
+    }
+  }
+}
+
+.module-sidebar__overlay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.module-sidebar__symbol {
+  font-size: 20px;
+  font-weight: bold;
+  line-height: 1;
+  
+  .module-sidebar--light & {
+    color: var(--theme-muted-text);
+  }
+  
+  .module-sidebar--dark & {
+    color: var(--theme-muted-text);
+  }
+  
+  .module-sidebar__button:hover:not(.disabled) & {
+    .module-sidebar--light & {
+      color: var(--theme-text);
+    }
+    
+    .module-sidebar--dark & {
+      color: var(--theme-text);
+    }
+  }
+}
+
+.module-sidebar__label {
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.2;
+  
+  .module-sidebar--light & {
+    color: var(--theme-text);
+  }
+  
+  .module-sidebar--dark & {
+    color: var(--theme-text);
+  }
+}
+
+// Animation for smooth appearance
+@keyframes slideDown {
+  from {
+    max-height: 0;
+    opacity: 0;
+  }
+  to {
+    max-height: 400px;
+    opacity: 1;
+  }
+}
+
+.module-sidebar--visible {
+  animation: slideDown 0.3s ease-out;
+}

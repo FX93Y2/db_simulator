@@ -1,5 +1,4 @@
 import React from 'react';
-import { FiSettings, FiGitBranch, FiTag, FiPlay } from 'react-icons/fi';
 import { VscEmptyWindow } from 'react-icons/vsc';
 import { LuUndo2, LuRedo2, LuPackage, LuMousePointer, LuSettings, LuPlay } from 'react-icons/lu';
 
@@ -8,7 +7,6 @@ import { LuUndo2, LuRedo2, LuPackage, LuMousePointer, LuSettings, LuPlay } from 
  * Extracted from SimConfigEditor to reduce component bloat
  */
 export const getSimToolbarItems = ({
-  handleAddModule,
   setShowResourceModal,
   setShowSimulationModal,
   setShowRunModal,
@@ -18,42 +16,18 @@ export const getSimToolbarItems = ({
   redo,
   canUndo,
   canRedo,
-  isLoading
+  isLoading,
+  showModuleSidebar,
+  toggleModuleSidebar
 }) => [
   {
-    type: 'dropdown',
+    type: 'toggle',
     icon: <VscEmptyWindow />,
     disabled: isLoading,
-    variant: 'primary',
+    variant: showModuleSidebar ? 'active' : 'primary',
     tooltip: 'Add Module',
-    dropDirection: 'end',
-    children: [
-      {
-        icon: <VscEmptyWindow />,
-        label: 'Create',
-        onClick: () => handleAddModule('create')
-      },
-      {
-        icon: <FiSettings />,
-        label: 'Process (Event)',
-        onClick: () => handleAddModule('event')
-      },
-      {
-        icon: <FiGitBranch />,
-        label: 'Decide',
-        onClick: () => handleAddModule('decide')
-      },
-      {
-        icon: <FiTag />,
-        label: 'Assign',
-        onClick: () => handleAddModule('assign')
-      },
-      {
-        icon: <FiPlay />,
-        label: 'Release (Dispose)',
-        onClick: () => handleAddModule('release')
-      }
-    ]
+    onClick: toggleModuleSidebar,
+    isActive: showModuleSidebar
   },
   {
     type: 'separator'

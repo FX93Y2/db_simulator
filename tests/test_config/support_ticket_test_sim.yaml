@@ -11,21 +11,21 @@ simulation:
         Security: 1
 event_simulation:
   event_flows:
-    - flow_id: flow_1_Create_Ticket
-      event_table: Ticket
+    - flow_id: flow_1_create_entities_1
+      event_table: Phone_Call
       steps:
-        - step_id: Create_Ticket
+        - step_id: create_entities_1
           step_type: create
           create_config:
-            entity_table: Ticket
+            entity_table: Phone_Call
             interarrival_time:
               distribution:
                 type: exponential
-                scale: 2
+                scale: 1
             max_entities: n/a
           next_steps:
-            - Event_Ticket_Assignment
-        - step_id: Event_Ticket_Assignment
+            - event_1
+        - step_id: event_1
           step_type: event
           event_config:
             duration:
@@ -34,6 +34,9 @@ event_simulation:
                 mean: 5
                 stddev: 1
             resource_requirements:
+              - resource_table: Staff
+                value: SRE
+                count: 1
               - resource_table: Staff
                 value: Tech Support
                 count: 1
@@ -42,21 +45,21 @@ event_simulation:
         - step_id: release_1
           step_type: release
           event_config: {}
-    - flow_id: flow_2_Create_Phone_Call
-      event_table: Phone_Call
+    - flow_id: flow_2_create_entities_2
+      event_table: Ticket
       steps:
-        - step_id: Create_Phone_Call
+        - step_id: create_entities_2
           step_type: create
           create_config:
-            entity_table: Phone_Call
+            entity_table: Ticket
             interarrival_time:
               distribution:
                 type: exponential
                 scale: 0.8
             max_entities: n/a
           next_steps:
-            - Phone_Call
-        - step_id: Phone_Call
+            - event_2
+        - step_id: event_2
           step_type: event
           event_config:
             duration:
@@ -66,7 +69,10 @@ event_simulation:
                 stddev: 1
             resource_requirements:
               - resource_table: Staff
-                value: Tech Support
+                value: Security
+                count: 1
+              - resource_table: Staff
+                value: Dev
                 count: 1
           next_steps:
             - release_2

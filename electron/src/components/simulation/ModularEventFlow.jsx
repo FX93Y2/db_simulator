@@ -25,6 +25,7 @@ import {
 // Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
+import useEventTables from '../../hooks/shared/useEventTables';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
@@ -77,8 +78,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
   
-  // Use the custom hook to get entity tables from database config
+  // Use the custom hooks to get entity and event tables from database config
   const entityTables = useEntityTables(dbConfigContent);
+  const eventTables = useEventTables(dbConfigContent);
 
   // Get project-specific store state when needed (non-reactive)
   const getStoreState = () => useSimulationConfigStore(projectId).getState();
@@ -303,6 +305,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         parsedSchema={getStoreState().parsedSchema}
         resourceDefinitions={resourceDefinitions}
         entityTables={entityTables}
+        eventTables={eventTables}
       />
       <CanvasContextMenu
         visible={contextMenu.visible}

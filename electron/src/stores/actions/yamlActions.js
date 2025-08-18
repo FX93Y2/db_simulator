@@ -306,9 +306,10 @@ export const createYamlActions = (set, get) => ({
       
       // Only create flow if there are connected steps
       if (connectedSteps.length > 0) {
-        // Find the correct event table for this entity table
+        // Use event_table from create_config if available, otherwise find it automatically
         const entityTable = createModule.create_config?.entity_table;
-        const eventTable = get().findEventTableForEntity(entityTable, parsedDbConfig);
+        const configEventTable = createModule.create_config?.event_table;
+        const eventTable = configEventTable || get().findEventTableForEntity(entityTable, parsedDbConfig);
         
         flows.push({
           flow_id: flowId,

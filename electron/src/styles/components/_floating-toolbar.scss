@@ -49,7 +49,7 @@
   flex-direction: column;
   gap: 3px;
   padding: 6px;
-  background-color: var(--theme-card-bg, #ffffff);
+  background-color: var(--theme-toolbar-bg, #ffffff);
   border: none;
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
@@ -57,7 +57,7 @@
   
   // Dark theme adjustments
   .theme-dark & {
-    background-color: var(--theme-card-bg, #2d2d2d);
+    background-color: var(--theme-toolbar-bg, #2d2d2d);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   }
 }
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--theme-card-bg, #ffffff);
+  background-color: var(--theme-toolbar-bg, #ffffff);
   border: none;
   border-radius: 6px;
   color: var(--theme-text, #333333);
@@ -140,7 +140,7 @@
   
   // Primary variant - same background as entity table with subtle accent
   &--primary {
-    background-color: var(--theme-card-bg, #ffffff);
+    background-color: var(--theme-toolbar-bg, #ffffff);
     color: var(--theme-text, #333333);
     
     &:hover:not(:disabled) {
@@ -160,7 +160,7 @@
     
     // Dark theme styling
     .theme-dark & {
-      background-color: var(--theme-card-bg, #2d2d2d);
+      background-color: var(--theme-toolbar-bg, #2d2d2d);
       color: var(--theme-text, #ffffff);
       
       &:hover:not(:disabled) {
@@ -217,82 +217,6 @@
   }
 }
 
-// Dropdown specific styling
-.floating-toolbar__dropdown {
-  .dropdown-toggle {
-    @extend .floating-toolbar__item;
-    
-    // Hide default Bootstrap caret for icon-only dropdowns
-    &::after {
-      display: none;
-    }
-    
-    // Apply primary styling if specified
-    &.floating-toolbar__item--primary {
-      @extend .floating-toolbar__item--primary;
-    }
-    
-    // Apply toolbar styling if specified
-    &.floating-toolbar__item--toolbar {
-      @extend .floating-toolbar__item--toolbar;
-    }
-    
-    // Apply active styling if specified
-    &.floating-toolbar__item--active {
-      @extend .floating-toolbar__item--active;
-    }
-  }
-  
-  .dropdown-menu {
-    background-color: var(--theme-card-bg, #ffffff);
-    border: none;
-    border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
-    padding: 4px;
-    min-width: 180px;
-    
-    .theme-dark & {
-      background-color: var(--theme-card-bg, #2d2d2d);
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-    
-    // Custom positioning for right-opening dropdown
-    &[data-popper-placement^="right"] {
-      margin-left: var(--floating-toolbar-dropdown-offset, 12px);
-    }
-  
-    
-    .dropdown-item {
-      padding: 8px 12px;
-      border-radius: 4px;
-      color: var(--theme-text, #333333);
-      display: flex;
-      align-items: center;
-      transition: background-color 0.15s ease;
-      background-color: transparent;
-      border: none;
-      
-      &:hover {
-        background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
-        color: var(--theme-text, #333333);
-      }
-      
-      &:active {
-        background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
-        color: var(--theme-text, #333333);
-      }
-      
-      // Dark theme hover
-      .theme-dark &:hover {
-        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
-      }
-      
-      .theme-dark &:active {
-        background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
-      }
-    }
-  }
-}
 
 // Separator styling
 .floating-toolbar__separator {

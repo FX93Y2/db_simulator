@@ -6,6 +6,7 @@ import ModularEventFlow from '../simulation/ModularEventFlow';
 import ResourceEditor from '../simulation/ResourceEditor';
 import SimulationEditor from '../simulation/SimulationEditor';
 import FloatingToolbar from '../shared/FloatingToolbar';
+import ModuleSidebar from '../simulation/ModuleSidebar';
 import EditorHeader from '../shared/EditorHeader';
 import EditorLayout from '../shared/EditorLayout';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -73,6 +74,7 @@ const SimConfigEditor = ({
   const [showRunModal, setShowRunModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
+  const [showModuleSidebar, setShowModuleSidebar] = useState(false);
 
   // Custom hooks for shared functionality
   const yamlOperations = useYamlOperations({
@@ -177,7 +179,7 @@ const SimConfigEditor = ({
         newStep.next_steps = [];
         break;
       case 'release':
-        newStep.event_config = {};
+        // Release modules don't need event_config
         break;
       case 'create':
         newStep.create_config = {
@@ -218,9 +220,13 @@ const SimConfigEditor = ({
   }, [projectId, isProjectTab, saveConfig, onSaveSuccess]);
 
 
+  // Toggle module sidebar
+  const toggleModuleSidebar = useCallback(() => {
+    setShowModuleSidebar(prev => !prev);
+  }, []);
+
   // Get toolbar configuration
   const toolbarItems = getSimToolbarItems({
-    handleAddModule,
     setShowResourceModal,
     setShowSimulationModal,
     setShowRunModal,
@@ -230,7 +236,9 @@ const SimConfigEditor = ({
     redo,
     canUndo,
     canRedo,
-    isLoading
+    isLoading,
+    showModuleSidebar,
+    toggleModuleSidebar
   });
 
   // CSS Grid-based editor component (VS Code architecture)
@@ -272,6 +280,14 @@ const SimConfigEditor = ({
             items={toolbarItems}
             position="top"
             theme={theme}
+            sidebarContent={
+              <ModuleSidebar
+                isVisible={showModuleSidebar}
+                onModuleAdd={handleAddModule}
+                theme={theme}
+                disabled={isLoading}
+              />
+            }
           />
         </div>
       }
