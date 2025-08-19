@@ -38,7 +38,7 @@ import CanvasContextMenu from '../shared/CanvasContextMenu';
 /**
  * Inner ModularEventFlow component that has access to ReactFlow context
  */
-const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, onZoomChange }, ref) => {
+const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
   const [initialized, setInitialized] = React.useState(false);
   const [isDragOver, setIsDragOver] = React.useState(false);
   const containerRef = useRef(null);
@@ -168,19 +168,20 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, o
     document.body.classList.remove('react-flow-connecting');
   }, []);
 
-  const handleViewportChange = React.useCallback((viewport) => {
-    if (onZoomChange) {
-      onZoomChange(viewport.zoom);
-    }
-  }, [onZoomChange]);
 
   const onDragOver = React.useCallback((event) => {
+    console.log('🎯 ReactFlow dragOver:', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      dataTransfer: event.dataTransfer.types
+    });
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
   }, []);
 
   const onDragLeave = React.useCallback((event) => {
+    console.log('👋 ReactFlow dragLeave');
     // Check if we're leaving the canvas entirely
     if (!event.currentTarget.contains(event.relatedTarget)) {
       setIsDragOver(false);
@@ -188,12 +189,23 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, o
   }, []);
 
   const onDrop = React.useCallback((event) => {
+    console.log('📍 ReactFlow drop event triggered!', {
+      clientX: event.clientX,
+      clientY: event.clientY,
+      dataTransferTypes: event.dataTransfer.types,
+      isSyntheticEvent: event.isTrusted === false
+    });
+    
     event.preventDefault();
     setIsDragOver(false);
 
     // Get the data from the drag event
     const dataString = event.dataTransfer.getData('application/reactflow');
-    if (!dataString) return;
+    console.log('📦 ReactFlow retrieved drag data:', dataString);
+    if (!dataString) {
+      console.warn('⚠️ ReactFlow: No drag data found');
+      return;
+    }
 
     const dragData = JSON.parse(dataString);
     const moduleType = dragData.type;
@@ -209,6 +221,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, o
       x: event.clientX,
       y: event.clientY,
     });
+    
+    // Center the node on cursor (subtract half of typical node size)
+    position.x -= 40;
+    position.y -= 40;
 
     // Generate a unique step ID
     const existingStepIds = canonicalSteps.map(s => s.step_id);
@@ -410,7 +426,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId, o
             onDragOver={onDragOver}
             onDragLeave={onDragLeave}
             onDrop={onDrop}
-            onViewportChange={handleViewportChange}
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
@@ -466,14 +481,13 @@ ModularEventFlowInner.displayName = 'ModularEventFlowInner';
 /**
  * Main ModularEventFlow component with ReactFlow provider
  */
-const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId, onZoomChange }, ref) => {
+const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
   return (
     <ReactFlowProvider>
       <ModularEventFlowInner 
         theme={theme} 
         dbConfigContent={dbConfigContent} 
         projectId={projectId} 
-        onZoomChange={onZoomChange}
         ref={ref} 
       />
     </ReactFlowProvider>

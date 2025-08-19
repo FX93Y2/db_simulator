@@ -17,6 +17,7 @@ import ResultsViewer from './components/pages/ResultsViewer';
 
 // Toast Context
 import { ToastProvider } from './contexts/ToastContext';
+import { DndProvider } from './contexts/DndContext';
 import useResizableGrid from './hooks/shared/useResizableGrid';
 
 const App = () => {
@@ -131,7 +132,8 @@ const App = () => {
 
   return (
     <ToastProvider>
-      <div className={`app-grid-container ${!sidebarVisible ? 'sidebar-collapsed' : ''}`}>
+      <DndProvider theme={theme}>
+        <div className={`app-grid-container ${!sidebarVisible ? 'sidebar-collapsed' : ''}`}>
         {/* Header Panel */}
         <div className="grid-header">
           <Header 
@@ -203,7 +205,8 @@ const App = () => {
           onClose={closeGuideOverlay}
           theme={theme}
         />
-      </div>
+        </div>
+      </DndProvider>
     </ToastProvider>
   );
 };

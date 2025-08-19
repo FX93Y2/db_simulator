@@ -75,7 +75,6 @@ const SimConfigEditor = ({
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [showModuleSidebar, setShowModuleSidebar] = useState(false);
-  const [canvasZoom, setCanvasZoom] = useState(1);
 
   // Custom hooks for shared functionality
   const yamlOperations = useYamlOperations({
@@ -226,10 +225,6 @@ const SimConfigEditor = ({
     setShowModuleSidebar(prev => !prev);
   }, []);
 
-  // Handle canvas zoom changes
-  const handleZoomChange = useCallback((zoom) => {
-    setCanvasZoom(zoom);
-  }, []);
 
   // Get toolbar configuration
   const toolbarItems = getSimToolbarItems({
@@ -279,7 +274,6 @@ const SimConfigEditor = ({
             theme={theme}
             dbConfigContent={dbConfigContent}
             projectId={projectId}
-            onZoomChange={handleZoomChange}
           />
           
           {/* Floating Toolbar for Event Flow */}
@@ -293,7 +287,6 @@ const SimConfigEditor = ({
                 onModuleAdd={handleAddModule}
                 theme={theme}
                 disabled={isLoading}
-                canvasZoom={canvasZoom}
               />
             }
           />
