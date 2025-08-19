@@ -212,6 +212,17 @@ const ModuleSidebar = ({
       
       console.log('🎯 ReactFlow pane found:', !!reactFlowPane);
       
+      // Check if dropping over sidebar (cancel operation)
+      const sidebar = document.querySelector('.module-sidebar');
+      if (sidebar) {
+        const sidebarRect = sidebar.getBoundingClientRect();
+        if (dropX >= sidebarRect.left && dropX <= sidebarRect.right &&
+            dropY >= sidebarRect.top && dropY <= sidebarRect.bottom) {
+          console.log('🚫 Drag cancelled - dropped over sidebar');
+          return; // Cancel the drop
+        }
+      }
+      
       if (reactFlowPane) {
         // Create a synthetic drop event
         const syntheticEvent = new DragEvent('drop', {
