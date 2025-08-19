@@ -7,7 +7,7 @@ import ResourceEditor from '../simulation/ResourceEditor';
 import EntityEditor from '../simulation/EntityEditor';
 import SimulationEditor from '../simulation/SimulationEditor';
 import FloatingToolbar from '../shared/FloatingToolbar';
-import ModuleSidebar from '../simulation/ModuleSidebar';
+import SimConfigYamlPanel from '../simulation/SimConfigYamlPanel';
 import EditorHeader from '../shared/EditorHeader';
 import EditorLayout from '../shared/EditorLayout';
 import { useToastContext } from '../../contexts/ToastContext';
@@ -76,7 +76,6 @@ const SimConfigEditor = ({
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [showEntityModal, setShowEntityModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
-  const [showModuleSidebar, setShowModuleSidebar] = useState(false);
 
   // Custom hooks for shared functionality
   const yamlOperations = useYamlOperations({
@@ -222,10 +221,6 @@ const SimConfigEditor = ({
   }, [projectId, isProjectTab, saveConfig, onSaveSuccess]);
 
 
-  // Toggle module sidebar
-  const toggleModuleSidebar = useCallback(() => {
-    setShowModuleSidebar(prev => !prev);
-  }, []);
 
   // Handle configuration modal opening
   const handleConfigOpen = useCallback((configType) => {
@@ -247,9 +242,7 @@ const SimConfigEditor = ({
     redo,
     canUndo,
     canRedo,
-    isLoading,
-    showModuleSidebar,
-    toggleModuleSidebar
+    isLoading
   });
 
   // CSS Grid-based editor component (VS Code architecture)
@@ -269,13 +262,12 @@ const SimConfigEditor = ({
       }
       yamlContent={yamlContent}
       yamlContentComponent={
-        <YamlEditor 
-          initialValue={yamlContent} 
-          onSave={null}
-          readOnly={true}
-          showImportExport={false}
-          filename="simulation-config"
+        <SimConfigYamlPanel
+          yamlContent={yamlContent}
           theme={theme}
+          onModuleAdd={handleAddModule}
+          onConfigOpen={handleConfigOpen}
+          disabled={isLoading}
         />
       }
       canvasContent={
@@ -291,15 +283,6 @@ const SimConfigEditor = ({
             items={toolbarItems}
             position="top"
             theme={theme}
-            sidebarContent={
-              <ModuleSidebar
-                isVisible={showModuleSidebar}
-                onModuleAdd={handleAddModule}
-                onConfigOpen={handleConfigOpen}
-                theme={theme}
-                disabled={isLoading}
-              />
-            }
           />
         </div>
       }

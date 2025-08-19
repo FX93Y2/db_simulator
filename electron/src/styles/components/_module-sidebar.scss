@@ -20,6 +20,21 @@
     opacity: 1;
     pointer-events: auto;
   }
+  
+  // Embedded mode - no animation, fills container
+  &--embedded {
+    position: static;
+    max-height: none;
+    opacity: 1;
+    pointer-events: auto;
+    transition: none;
+    overflow-y: auto;
+    height: 100%;
+    
+    &.module-sidebar--visible {
+      max-height: none;
+    }
+  }
 }
 
 .module-sidebar__content {
@@ -38,6 +53,19 @@
   .module-sidebar--dark & {
     background: var(--theme-toolbar-bg);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  // Embedded mode adjustments
+  .module-sidebar--embedded & {
+    border-radius: 0;
+    box-shadow: none;
+    margin-top: 0;
+    padding: 16px;
+    width: 100%;
+    height: 100%;
+    
+    // Use YAML editor background for embedded mode
+    background: var(--theme-yaml-editor-bg);
   }
 }
 

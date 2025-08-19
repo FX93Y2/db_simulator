@@ -154,7 +154,8 @@ const ModuleSidebar = ({
   onModuleAdd,
   onConfigOpen,
   theme = 'light',
-  disabled = false
+  disabled = false,
+  embedded = false
 }) => {
   const { registerDragHandlers } = useDragState();
   const [activeSection, setActiveSection] = useState('discrete-event');
@@ -307,7 +308,7 @@ const ModuleSidebar = ({
   }, [registerDragHandlers, handleDragStart, handleDragMove, handleDragEnd]);
 
   return (
-    <div className={`module-sidebar ${isVisible ? 'module-sidebar--visible' : ''} module-sidebar--${theme}`}>
+    <div className={`module-sidebar ${isVisible ? 'module-sidebar--visible' : ''} ${embedded ? 'module-sidebar--embedded' : ''} module-sidebar--${theme}`}>
       <div className="module-sidebar__content">
         {sections.map((section) => (
           <SidebarSection
@@ -326,14 +327,18 @@ const ModuleSidebar = ({
   );
 };
 
+// Temporarily export without React.memo for debugging
+export default ModuleSidebar;
+
 // Use React.memo to prevent re-renders during drag
-export default React.memo(ModuleSidebar, (prevProps, nextProps) => {
-  // Only re-render if these props actually change
-  return (
-    prevProps.isVisible === nextProps.isVisible &&
-    prevProps.theme === nextProps.theme &&
-    prevProps.disabled === nextProps.disabled &&
-    prevProps.onModuleAdd === nextProps.onModuleAdd &&
-    prevProps.onConfigOpen === nextProps.onConfigOpen
-  );
-});
+// export default React.memo(ModuleSidebar, (prevProps, nextProps) => {
+//   // Only re-render if these props actually change
+//   return (
+//     prevProps.isVisible === nextProps.isVisible &&
+//     prevProps.theme === nextProps.theme &&
+//     prevProps.disabled === nextProps.disabled &&
+//     prevProps.embedded === nextProps.embedded &&
+//     prevProps.onModuleAdd === nextProps.onModuleAdd &&
+//     prevProps.onConfigOpen === nextProps.onConfigOpen
+//   );
+// });

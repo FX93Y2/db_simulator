@@ -1,5 +1,4 @@
 import React from 'react';
-import { VscEmptyWindow } from 'react-icons/vsc';
 import { LuUndo2, LuRedo2, LuMousePointer, LuSettings, LuPlay } from 'react-icons/lu';
 
 /**
@@ -15,22 +14,8 @@ export const getSimToolbarItems = ({
   redo,
   canUndo,
   canRedo,
-  isLoading,
-  showModuleSidebar,
-  toggleModuleSidebar
+  isLoading
 }) => [
-  {
-    type: 'toggle',
-    icon: <VscEmptyWindow />,
-    disabled: isLoading,
-    variant: showModuleSidebar ? 'active' : 'primary',
-    tooltip: 'Add Module',
-    onClick: toggleModuleSidebar,
-    isActive: showModuleSidebar
-  },
-  {
-    type: 'separator'
-  },
   {
     type: 'button',
     icon: <LuMousePointer />,

@@ -234,6 +234,78 @@
   }
 }
 
+// Sim Config YAML Panel with sub-tabs
+.sim-config-yaml-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  
+  .yaml-panel-header {
+    background-color: var(--theme-yaml-editor-bg); // Match active parent tab
+    border-bottom: 1px solid var(--theme-border);
+    height: 48px; // Slightly taller for better capsule visibility
+    display: flex;
+    align-items: center;
+    justify-content: center; // Center the tabs
+    padding: 0 16px;
+    flex-shrink: 0;
+    
+    .yaml-panel-tabs {
+      display: flex;
+      align-items: center;
+      gap: 64px; // Increased gap between tabs
+      padding: 2px;
+      background-color: var(--theme-yaml-editor-bg); // Match YAML editor background
+      border-radius: 10px; // Rounded container
+      
+      .yaml-sub-tab {
+        padding: 3px 18px;
+        border-radius: 10px; // Less rounded corners
+        cursor: pointer;
+        font-size: 0.875rem;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        background-color: transparent;
+        color: var(--theme-muted-text);
+        border: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        flex: 1; // Make tabs equally sized
+        min-width: 0; // Allow flex shrinking
+        
+        // Hover state for inactive tabs
+        &:not(.active):hover {
+          background-color: rgba(255, 255, 255, 0.05);
+          color: var(--theme-text);
+        }
+        
+        // Active capsule state
+        &.active {
+          background-color: var(--theme-hover-bg); // System hover color for active
+          color: var(--theme-text);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        
+        // Icon styling
+        .tab-icon {
+          margin-right: 8px;
+          font-size: 0.875rem;
+          vertical-align: middle;
+        }
+      }
+    }
+  }
+  
+  .yaml-panel-content {
+    flex: 1;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--theme-yaml-editor-bg);
+  }
+}
+
 // Monaco Editor optimizations for CSS Grid
 .editor-grid-container {
   .yaml-editor {
