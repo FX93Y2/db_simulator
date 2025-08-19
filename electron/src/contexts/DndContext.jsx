@@ -114,11 +114,6 @@ export const DndProvider = ({ children, theme = 'light' }) => {
   }, []);
 
   const handleDragStart = useCallback((event) => {
-    console.log('🎯 Global DndContext dragStart:', {
-      activeId: event.active.id,
-      data: event.active.data.current,
-      activatorEvent: event.activatorEvent
-    });
     setActiveId(event.active.id);
     
     if (dragHandlers.onDragStart) {
@@ -127,25 +122,12 @@ export const DndProvider = ({ children, theme = 'light' }) => {
   }, [dragHandlers]);
 
   const handleDragMove = useCallback((event) => {
-    console.log('🔄 Global DndContext dragMove:', {
-      activeId: event.active.id,
-      delta: event.delta,
-      over: event.over?.id
-    });
-    
     if (dragHandlers.onDragMove) {
       dragHandlers.onDragMove(event);
     }
   }, [dragHandlers]);
 
   const handleDragEnd = useCallback((event) => {
-    console.log('🏁 Global DndContext dragEnd:', {
-      activeId: event.active?.id,
-      overId: event.over?.id,
-      delta: event.delta,
-      activatorEvent: event.activatorEvent
-    });
-    
     setActiveId(null);
     
     if (dragHandlers.onDragEnd) {

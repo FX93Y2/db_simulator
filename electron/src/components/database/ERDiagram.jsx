@@ -9,6 +9,7 @@ import 'reactflow/dist/style.css';
 
 // Store imports
 import {
+  useDatabaseConfigStore,
   useEntityNodes,
   useEntityEdges,
   useCanonicalEntities,
@@ -104,10 +105,15 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     }
   }, [canonicalEntities, currentState]);
 
+  // Create getEdges function that gets current edges from store
+  const getEntityEdges = React.useCallback(() => {
+    return useDatabaseConfigStore(projectId).getState().entityEdges;
+  }, [projectId]);
+
   // Use shared ReactFlow handlers for consistent behavior
   const { onNodesChange, onEdgesChange } = useReactFlowHandlers({
     nodes: entityNodes,
-    edges: entityEdges,
+    getEdges: getEntityEdges,
     updateNodes: updateEntityNodes,
     updateEdges: updateEntityEdges,
     updateSelected: updateSelectedEntities,

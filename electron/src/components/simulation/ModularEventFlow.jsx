@@ -98,15 +98,19 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   // Sync canonical steps to visual representation when they change
   useEffect(() => {
     if (currentState !== 'importing') { // Don't sync during imports
-      console.log('🔄 ModularEventFlow: Updating visual state from canonical steps');
       updateVisualState();
     }
   }, [canonicalSteps, currentState]);
 
+  // Create getEdges function that gets current edges from store
+  const getEdges = React.useCallback(() => {
+    return useSimulationConfigStore(projectId).getState().edges;
+  }, [projectId]);
+
   // Use shared ReactFlow handlers for consistent behavior
   const { onNodesChange, onEdgesChange } = useReactFlowHandlers({
     nodes,
-    edges,
+    getEdges,
     updateNodes,
     updateEdges,
     updateSelected: updateSelectedNodes,
@@ -134,7 +138,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   });
 
   const onConnect = React.useCallback((connection) => {
-    console.log('🔗 ModularEventFlow: Connecting nodes:', connection);
     connectNodes(connection);
   }, [connectNodes]);
 
@@ -170,18 +173,12 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
 
 
   const onDragOver = React.useCallback((event) => {
-    console.log('🎯 ReactFlow dragOver:', {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      dataTransfer: event.dataTransfer.types
-    });
     event.preventDefault();
     event.dataTransfer.dropEffect = 'copy';
     setIsDragOver(true);
   }, []);
 
   const onDragLeave = React.useCallback((event) => {
-    console.log('👋 ReactFlow dragLeave');
     // Check if we're leaving the canvas entirely
     if (!event.currentTarget.contains(event.relatedTarget)) {
       setIsDragOver(false);
@@ -189,19 +186,11 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   }, []);
 
   const onDrop = React.useCallback((event) => {
-    console.log('📍 ReactFlow drop event triggered!', {
-      clientX: event.clientX,
-      clientY: event.clientY,
-      dataTransferTypes: event.dataTransfer.types,
-      isSyntheticEvent: event.isTrusted === false
-    });
-    
     event.preventDefault();
     setIsDragOver(false);
 
     // Get the data from the drag event
     const dataString = event.dataTransfer.getData('application/reactflow');
-    console.log('📦 ReactFlow retrieved drag data:', dataString);
     if (!dataString) {
       console.warn('⚠️ ReactFlow: No drag data found');
       return;
@@ -324,7 +313,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     const { selectedNode } = getStoreState();
     if (!selectedNode) return;
 
-    console.log('✏️ ModularEventFlow: Updating node:', selectedNode.id, '->', updatedNode.id);
     
     updateStep(selectedNode.id, {
       ...updatedNode.data.stepConfig,

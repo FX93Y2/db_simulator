@@ -27,12 +27,6 @@ const DraggableModuleButton = React.memo(({ module, disabled, onModuleAdd }) => 
     disabled
   });
 
-  console.log(`🔧 DraggableModuleButton ${module.type}:`, {
-    isDragging,
-    disabled,
-    attributes,
-    listeners: Object.keys(listeners || {})
-  });
   
   const handleClick = () => {
     if (!disabled && onModuleAdd) {
@@ -123,58 +117,22 @@ const ModuleSidebar = ({
   ];
 
   const handleDragStart = useCallback((event) => {
-    console.log('🎯 ModuleSidebar dragStart:', {
-      activeId: event.active.id,
-      data: event.active.data.current,
-      activatorEvent: event.activatorEvent
-    });
+    // DragStart handled
   }, []);
 
   const handleDragMove = useCallback((event) => {
-    console.log('🔄 ModuleSidebar dragMove:', {
-      activeId: event.active.id,
-      delta: event.delta,
-      over: event.over?.id
-    });
+    // DragMove handled
   }, []);
 
   const handleDragEnd = useCallback((event) => {
-    console.log('🏁 ModuleSidebar dragEnd:', {
-      activeId: event.active?.id,
-      overId: event.over?.id,
-      delta: event.delta,
-      activatorEvent: event.activatorEvent
-    });
-    
     // Try to integrate with ReactFlow's drop handling
     if (event.over || event.delta) {
       const dragData = event.active.data.current;
-      console.log('📦 Attempting drop with data:', dragData);
       
-      // Debug layout information
+      // Get layout information
       const reactFlowPane = document.querySelector('.react-flow__pane');
       const projectSidebar = document.querySelector('.project-sidebar');
       const yamlEditor = document.querySelector('.yaml-editor, .monaco-editor');
-      
-      console.log('🔍 Layout debug:', {
-        reactFlowPane: reactFlowPane ? {
-          offsetLeft: reactFlowPane.offsetLeft,
-          offsetTop: reactFlowPane.offsetTop,
-          rect: reactFlowPane.getBoundingClientRect()
-        } : null,
-        projectSidebar: projectSidebar ? {
-          width: projectSidebar.offsetWidth,
-          rect: projectSidebar.getBoundingClientRect()
-        } : null,
-        yamlEditor: yamlEditor ? {
-          width: yamlEditor.offsetWidth,
-          rect: yamlEditor.getBoundingClientRect()
-        } : null,
-        viewport: {
-          innerWidth: window.innerWidth,
-          innerHeight: window.innerHeight
-        }
-      });
       
       // Calculate drop position accounting for ReactFlow's actual position
       const rawDropX = (event.activatorEvent?.clientX || 0) + (event.delta?.x || 0);
@@ -185,32 +143,6 @@ const ModuleSidebar = ({
       const dropX = rawDropX;
       const dropY = rawDropY;
       
-      // Keep layout debug info for reference
-      const yamlEditorOffset = yamlEditor ? yamlEditor.getBoundingClientRect().width : 0;
-      const projectSidebarOffset = projectSidebar ? projectSidebar.getBoundingClientRect().width : 0;
-      const reactFlowRect = reactFlowPane.getBoundingClientRect();
-      
-      console.log('📍 Drop position calculation:', { 
-        activatorX: event.activatorEvent?.clientX,
-        activatorY: event.activatorEvent?.clientY,
-        deltaX: event.delta?.x,
-        deltaY: event.delta?.y,
-        rawDropX,
-        rawDropY,
-        yamlEditorOffset,
-        projectSidebarOffset,
-        reactFlowRect: {
-          left: reactFlowRect.left,
-          top: reactFlowRect.top,
-          width: reactFlowRect.width,
-          height: reactFlowRect.height
-        },
-        finalDropX: dropX, 
-        finalDropY: dropY,
-        note: 'Using snapCenterToCursor modifier with global DndContext'
-      });
-      
-      console.log('🎯 ReactFlow pane found:', !!reactFlowPane);
       
       // Check if dropping over sidebar (cancel operation)
       const sidebar = document.querySelector('.module-sidebar');
@@ -218,7 +150,6 @@ const ModuleSidebar = ({
         const sidebarRect = sidebar.getBoundingClientRect();
         if (dropX >= sidebarRect.left && dropX <= sidebarRect.right &&
             dropY >= sidebarRect.top && dropY <= sidebarRect.bottom) {
-          console.log('🚫 Drag cancelled - dropped over sidebar');
           return; // Cancel the drop
         }
       }
@@ -236,7 +167,6 @@ const ModuleSidebar = ({
         Object.defineProperty(syntheticEvent, 'dataTransfer', {
           value: {
             getData: (format) => {
-              console.log('🔍 DataTransfer.getData called with format:', format);
               if (format === 'application/reactflow') {
                 return JSON.stringify(dragData);
               }
@@ -251,7 +181,6 @@ const ModuleSidebar = ({
           writable: false
         });
         
-        console.log('🚀 Dispatching synthetic drop event to ReactFlow');
         reactFlowPane.dispatchEvent(syntheticEvent);
       }
     }
