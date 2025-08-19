@@ -1,9 +1,10 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useDraggable } from '@dnd-kit/core';
 import { ReactComponent as CircleSVG } from '../../assets/svg/circle.svg';
 import { ReactComponent as RectangleSVG } from '../../assets/svg/rectangle.svg';
 import { ReactComponent as DiamondSVG } from '../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../assets/svg/pentagon.svg';
+import { LuGauge, LuChevronDown } from 'react-icons/lu';
 import { useDragState } from '../../contexts/DndContext';
 
 
@@ -67,54 +68,158 @@ const DraggableModuleButton = React.memo(({ module, disabled, onModuleAdd }) => 
 DraggableModuleButton.displayName = 'DraggableModuleButton';
 
 /**
+ * Non-draggable configuration button for Model Data items
+ */
+const ConfigButton = React.memo(({ item, disabled, onConfigOpen, theme }) => {
+  const IconComponent = item.icon;
+  
+  const handleClick = () => {
+    if (!disabled && onConfigOpen) {
+      onConfigOpen(item.type);
+    }
+  };
+  
+  return (
+    <button
+      className={`module-sidebar__button ${disabled ? 'disabled' : ''}`}
+      onClick={handleClick}
+      disabled={disabled}
+      title={`${item.label} - ${item.description}`}
+    >
+      <div className="module-sidebar__icon">
+        <IconComponent className="module-sidebar__react-icon" />
+      </div>
+      <div className="module-sidebar__label">
+        {item.label}
+      </div>
+    </button>
+  );
+});
+
+ConfigButton.displayName = 'ConfigButton';
+
+/**
+ * Collapsible sidebar section with clickable header
+ */
+const SidebarSection = React.memo(({ section, isActive, onToggle, onModuleAdd, onConfigOpen, disabled, theme }) => {
+  const handleHeaderClick = () => {
+    onToggle(section.id);
+  };
+
+  return (
+    <div className="module-sidebar__section">
+      <button 
+        className={`module-sidebar__section-header ${isActive ? 'active' : ''}`}
+        onClick={handleHeaderClick}
+      >
+        <span className="module-sidebar__section-title">{section.title}</span>
+        <LuChevronDown className={`module-sidebar__chevron ${isActive ? 'rotated' : ''}`} />
+      </button>
+      <div className={`module-sidebar__section-content ${isActive ? 'expanded' : 'collapsed'}`}>
+        {isActive && (
+          <div className="module-sidebar__grid">
+            {section.items.map((item) => (
+              section.type === 'draggable' ? (
+                <DraggableModuleButton
+                  key={item.type}
+                  module={item}
+                  disabled={disabled}
+                  onModuleAdd={onModuleAdd}
+                />
+              ) : (
+                <ConfigButton
+                  key={item.type}
+                  item={item}
+                  disabled={disabled}
+                  onConfigOpen={onConfigOpen}
+                  theme={theme}
+                />
+              )
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+SidebarSection.displayName = 'SidebarSection';
+
+/**
  * Module selection sidebar that slides down from the toolbar
  * Displays discrete event simulation modules with their actual SVG shapes
  */
 const ModuleSidebar = ({ 
   isVisible, 
-  onModuleAdd, 
+  onModuleAdd,
+  onConfigOpen,
   theme = 'light',
   disabled = false
 }) => {
   const { registerDragHandlers } = useDragState();
+  const [activeSection, setActiveSection] = useState('discrete-event');
 
-  const modules = [
+  const sections = [
     {
-      type: 'create',
-      label: 'Create',
-      description: 'Generate entities',
-      icon: CircleSVG,
-      iconType: 'plus'
+      id: 'discrete-event',
+      title: 'Discrete Event',
+      type: 'draggable',
+      items: [
+        {
+          type: 'create',
+          label: 'Create',
+          description: 'Generate entities',
+          icon: CircleSVG,
+          iconType: 'plus'
+        },
+        {
+          type: 'event',
+          label: 'Process',
+          description: 'Event processing',
+          icon: RectangleSVG,
+          iconType: 'shape'
+        },
+        {
+          type: 'decide',
+          label: 'Decide',
+          description: 'Decision point',
+          icon: DiamondSVG,
+          iconType: 'shape'
+        },
+        {
+          type: 'assign',
+          label: 'Assign',
+          description: 'Set attributes',
+          icon: PentagonSVG,
+          iconType: 'shape'
+        },
+        {
+          type: 'release',
+          label: 'Release',
+          description: 'Dispose entities',
+          icon: CircleSVG,
+          iconType: 'minus'
+        }
+      ]
     },
     {
-      type: 'event',
-      label: 'Process',
-      description: 'Event processing',
-      icon: RectangleSVG,
-      iconType: 'shape'
-    },
-    {
-      type: 'decide',
-      label: 'Decide',
-      description: 'Decision point',
-      icon: DiamondSVG,
-      iconType: 'shape'
-    },
-    {
-      type: 'assign',
-      label: 'Assign',
-      description: 'Set attributes',
-      icon: PentagonSVG,
-      iconType: 'shape'
-    },
-    {
-      type: 'release',
-      label: 'Release',
-      description: 'Dispose entities',
-      icon: CircleSVG,
-      iconType: 'minus'
+      id: 'model-data',
+      title: 'Model Data',
+      type: 'config',
+      items: [
+        {
+          type: 'resource',
+          label: 'Resource',
+          description: 'Resource capacity configuration',
+          icon: LuGauge
+        }
+      ]
     }
   ];
+
+  const handleSectionToggle = (sectionId) => {
+    setActiveSection(current => current === sectionId ? null : sectionId);
+  };
 
   const handleDragStart = useCallback((event) => {
     // DragStart handled
@@ -198,19 +303,18 @@ const ModuleSidebar = ({
   return (
     <div className={`module-sidebar ${isVisible ? 'module-sidebar--visible' : ''} module-sidebar--${theme}`}>
       <div className="module-sidebar__content">
-        <div className="module-sidebar__section">
-          <h3 className="module-sidebar__section-title">Discrete Event</h3>
-          <div className="module-sidebar__grid">
-            {modules.map((module) => (
-              <DraggableModuleButton
-                key={module.type}
-                module={module}
-                disabled={disabled}
-                onModuleAdd={onModuleAdd}
-              />
-            ))}
-          </div>
-        </div>
+        {sections.map((section) => (
+          <SidebarSection
+            key={section.id}
+            section={section}
+            isActive={activeSection === section.id}
+            onToggle={handleSectionToggle}
+            onModuleAdd={onModuleAdd}
+            onConfigOpen={onConfigOpen}
+            disabled={disabled}
+            theme={theme}
+          />
+        ))}
       </div>
     </div>
   );
@@ -223,6 +327,7 @@ export default React.memo(ModuleSidebar, (prevProps, nextProps) => {
     prevProps.isVisible === nextProps.isVisible &&
     prevProps.theme === nextProps.theme &&
     prevProps.disabled === nextProps.disabled &&
-    prevProps.onModuleAdd === nextProps.onModuleAdd
+    prevProps.onModuleAdd === nextProps.onModuleAdd &&
+    prevProps.onConfigOpen === nextProps.onConfigOpen
   );
 });

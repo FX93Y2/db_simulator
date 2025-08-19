@@ -1,13 +1,12 @@
 import React from 'react';
 import { VscEmptyWindow } from 'react-icons/vsc';
-import { LuUndo2, LuRedo2, LuPackage, LuMousePointer, LuSettings, LuPlay } from 'react-icons/lu';
+import { LuUndo2, LuRedo2, LuMousePointer, LuSettings, LuPlay } from 'react-icons/lu';
 
 /**
  * Simulation Configuration Editor Toolbar Configuration
  * Extracted from SimConfigEditor to reduce component bloat
  */
 export const getSimToolbarItems = ({
-  setShowResourceModal,
   setShowSimulationModal,
   setShowRunModal,
   toggleSelectionMode,
@@ -42,14 +41,6 @@ export const getSimToolbarItems = ({
   },
   {
     type: 'separator'
-  },
-  {
-    type: 'button',
-    icon: <LuPackage />,
-    onClick: () => setShowResourceModal(true),
-    disabled: isLoading,
-    variant: 'primary',
-    tooltip: 'Resource Capacity Config'
   },
   {
     type: 'button',

@@ -225,10 +225,16 @@ const SimConfigEditor = ({
     setShowModuleSidebar(prev => !prev);
   }, []);
 
+  // Handle configuration modal opening
+  const handleConfigOpen = useCallback((configType) => {
+    if (configType === 'resource') {
+      setShowResourceModal(true);
+    }
+  }, []);
+
 
   // Get toolbar configuration
   const toolbarItems = getSimToolbarItems({
-    setShowResourceModal,
     setShowSimulationModal,
     setShowRunModal,
     toggleSelectionMode,
@@ -285,6 +291,7 @@ const SimConfigEditor = ({
               <ModuleSidebar
                 isVisible={showModuleSidebar}
                 onModuleAdd={handleAddModule}
+                onConfigOpen={handleConfigOpen}
                 theme={theme}
                 disabled={isLoading}
               />
@@ -295,7 +302,7 @@ const SimConfigEditor = ({
       onResize={handleMouseDown}
       isLoading={isLoading}
     />
-  ), [yamlContent, theme, isLoading, handleSave, handleAddModule, dbConfigContent, projectId, undo, redo, canUndo, canRedo, handleMouseDown, currentTab, onTabChange, toolbarItems, yamlOperations]);
+  ), [yamlContent, theme, isLoading, handleSave, handleAddModule, handleConfigOpen, dbConfigContent, projectId, undo, redo, canUndo, canRedo, handleMouseDown, currentTab, onTabChange, toolbarItems, yamlOperations]);
 
   return (
     <div className="sim-config-editor">
