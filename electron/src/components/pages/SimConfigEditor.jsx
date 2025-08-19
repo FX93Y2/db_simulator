@@ -4,6 +4,7 @@ import { Button, Modal } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../simulation/ModularEventFlow';
 import ResourceEditor from '../simulation/ResourceEditor';
+import EntityEditor from '../simulation/EntityEditor';
 import SimulationEditor from '../simulation/SimulationEditor';
 import FloatingToolbar from '../shared/FloatingToolbar';
 import ModuleSidebar from '../simulation/ModuleSidebar';
@@ -73,6 +74,7 @@ const SimConfigEditor = ({
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [showRunModal, setShowRunModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
+  const [showEntityModal, setShowEntityModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
   const [showModuleSidebar, setShowModuleSidebar] = useState(false);
 
@@ -229,6 +231,8 @@ const SimConfigEditor = ({
   const handleConfigOpen = useCallback((configType) => {
     if (configType === 'resource') {
       setShowResourceModal(true);
+    } else if (configType === 'entity') {
+      setShowEntityModal(true);
     }
   }, []);
 
@@ -398,6 +402,31 @@ const SimConfigEditor = ({
             }}
           >
             Save
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Entity Configuration Modal */}
+      <Modal
+        show={showEntityModal}
+        onHide={() => setShowEntityModal(false)}
+        size="md"
+        centered
+        enforceFocus={false}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Entity
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <EntityEditor
+            dbConfigContent={dbConfigContent}
+          />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowEntityModal(false)}>
+            Close
           </Button>
         </Modal.Footer>
       </Modal>
