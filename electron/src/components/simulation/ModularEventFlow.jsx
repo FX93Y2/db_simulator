@@ -29,6 +29,7 @@ import useEventTables from '../../hooks/shared/useEventTables';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
+import useViewportPersistence from '../../hooks/shared/useViewportPersistence';
 
 // Components
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
@@ -86,12 +87,22 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   // Get project-specific store state when needed (non-reactive)
   const getStoreState = () => useSimulationConfigStore(projectId).getState();
 
+  // Use shared viewport persistence hook
+  const {
+    viewport,
+    handleViewportMove,
+    handleViewportMoveStart,
+    handleViewportMoveEnd
+  } = useViewportPersistence(projectId, 'simulation', reactFlowInstance, initialized, nodes);
+
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
       setInitialized(true);
     }
   }, []);
+
+
 
   // Position management is now handled directly by the store
 
@@ -417,7 +428,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
-            fitView
+            fitView={false}
+            onMove={handleViewportMove}
+            onMoveStart={handleViewportMoveStart}
+            onMoveEnd={handleViewportMoveEnd}
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}

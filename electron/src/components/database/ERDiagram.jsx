@@ -33,6 +33,7 @@ import CanvasContextMenu from '../shared/CanvasContextMenu';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
+import useViewportPersistence from '../../hooks/shared/useViewportPersistence';
 
 // Node types definition
 const nodeTypes = {
@@ -89,12 +90,22 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     hideContextMenu
   } = useEntityUIActions(projectId);
 
+  // Use shared viewport persistence hook
+  const {
+    viewport,
+    handleViewportMove,
+    handleViewportMoveStart,
+    handleViewportMoveEnd
+  } = useViewportPersistence(projectId, 'database', reactFlowInstance, initialized, entityNodes);
+
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {
     if (containerRef.current) {
       setInitialized(true);
     }
   }, []);
+
+
 
   // Simple visual state sync - like ModularEventFlow
   useEffect(() => {
@@ -265,7 +276,10 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             nodeTypes={nodeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
-            fitView
+            fitView={false}
+            onMove={handleViewportMove}
+            onMoveStart={handleViewportMoveStart}
+            onMoveEnd={handleViewportMoveEnd}
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}

@@ -199,17 +199,32 @@ export const createEntityUIActions = (set, get) => ({
    */
   clearEntitySelection: () => {
     set((state) => {
+      // Only update if there's actually a selection to clear
+      const hasSelectedEntity = state.selectedEntity !== null;
+      const hasSelectedNodes = state.entityNodes.some(node => node.selected);
+      const hasSelectedEdges = state.entityEdges.some(edge => edge.selected);
+      
+      if (!hasSelectedEntity && !hasSelectedNodes && !hasSelectedEdges) {
+        return; // No changes needed
+      }
+      
       state.selectedEntity = null;
-      // Also clear React Flow's internal selection by setting all nodes to selected: false
-      state.entityNodes = state.entityNodes.map(node => ({
-        ...node,
-        selected: false
-      }));
-      // Clear edge selection as well
-      state.entityEdges = state.entityEdges.map(edge => ({
-        ...edge,
-        selected: false
-      }));
+      
+      // Only update nodes if some are actually selected
+      if (hasSelectedNodes) {
+        state.entityNodes = state.entityNodes.map(node => ({
+          ...node,
+          selected: false
+        }));
+      }
+      
+      // Only update edges if some are actually selected  
+      if (hasSelectedEdges) {
+        state.entityEdges = state.entityEdges.map(edge => ({
+          ...edge,
+          selected: false
+        }));
+      }
     });
   },
 
