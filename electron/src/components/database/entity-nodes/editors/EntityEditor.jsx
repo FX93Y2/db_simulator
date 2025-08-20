@@ -39,10 +39,10 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     }
   }, [entity, lastEntityName]);
 
-  // Reset form data whenever modal opens to ensure clean state
+  // Reset form data only when modal opens, not during editing
   useEffect(() => {
-    if (show && entity) {
-      // Reset form to entity values when modal opens
+    if (show && entity && (!lastEntityName || entity.name !== lastEntityName)) {
+      // Only reset when opening modal with a different entity
       setName(entity.name || '');
       setEntityType(entity.type || '');
       setRows(entity.rows || 'n/a');
@@ -59,7 +59,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       }]);
       setValidationErrors([]);
     }
-  }, [show, entity]);
+  }, [show, entity, lastEntityName]);
 
   // Validate entity data
   const validateEntity = () => {
@@ -220,7 +220,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       setIsLoading(false);
       onHide();
     } catch (error) {
-      console.error('Error deleting entity:', error);
       setIsLoading(false);
     }
   };

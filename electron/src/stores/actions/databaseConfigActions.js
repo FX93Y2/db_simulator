@@ -47,9 +47,7 @@ export const createDatabaseConfigActions = (set, get) => ({
         if (config.content && config.content.trim()) {
           try {
             const importResult = await get().importEntityYaml(config.content);
-            console.log(`[DatabaseConfigActions] Loaded entities from config:`, importResult);
           } catch (error) {
-            console.warn(`[DatabaseConfigActions] Failed to load entities:`, error.message);
             // Clear entities if YAML parsing fails
             get().clearEntities();
           }
@@ -74,8 +72,6 @@ export const createDatabaseConfigActions = (set, get) => ({
       }
 
     } catch (error) {
-      console.error('[DatabaseConfigActions] Error loading configuration:', error);
-      
       set((state) => {
         state.currentState = 'idle';
         state.isLoading = false;
@@ -140,8 +136,6 @@ export const createDatabaseConfigActions = (set, get) => ({
       }
 
     } catch (error) {
-      console.error('[DatabaseConfigActions] Error saving configuration:', error);
-      
       set((state) => {
         state.currentState = 'idle';
         state.isLoading = false;
@@ -169,7 +163,6 @@ export const createDatabaseConfigActions = (set, get) => ({
       state.error = null;
     });
 
-    console.log(`[DatabaseConfigActions] Initialized context for project: ${projectId}`);
   },
 
   /**
@@ -218,7 +211,7 @@ export const createDatabaseConfigActions = (set, get) => ({
     set((state) => {
       state.yamlContent = yamlContent;
     });
-
+    
     // Parent notification is handled by useConfigurationLoader's useEffect
     // No need for direct callback here to avoid double execution
   },

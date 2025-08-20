@@ -28,7 +28,9 @@ export const createEntityYamlActions = (set, get) => ({
       }))
     };
     
-    return yaml.stringify(yamlObject);
+    const yamlString = yaml.stringify(yamlObject);
+    
+    return yamlString;
   },
 
   /**
@@ -144,7 +146,6 @@ export const createEntityYamlActions = (set, get) => ({
 
       return { success: true, message: 'Database configuration exported successfully' };
     } catch (error) {
-      console.error('[EntityYamlActions] Export failed:', error);
       return { success: false, message: 'Export failed' };
     }
   },

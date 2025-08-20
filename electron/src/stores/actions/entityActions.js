@@ -87,21 +87,25 @@ export const createEntityActions = (set, get) => ({
    * @param {Object} newData - Updated entity data
    */
   updateEntity: (entityId, newData) => {
-    const { projectId } = get();
+    const { projectId, canonicalEntities: currentEntities } = get();
     
     // Check if name is changing for position mapping update
     const isNameChanging = newData.name && newData.name !== entityId;
     
     set((state) => {
       const entityIndex = state.canonicalEntities.findIndex(entity => entity.name === entityId);
+      
       if (entityIndex !== -1) {
         const currentEntity = state.canonicalEntities[entityIndex];
-        state.canonicalEntities[entityIndex] = {
+        
+        const updatedEntity = {
           ...currentEntity,
           ...newData,
           position: currentEntity.position, // Preserve position
           attributes: sortAttributes(newData.attributes || currentEntity.attributes || [])
         };
+        
+        state.canonicalEntities[entityIndex] = updatedEntity;
       }
     });
     
@@ -220,11 +224,8 @@ export const createEntityActions = (set, get) => ({
         state.dbSchema = { entities: [] };
       });
       
-      // Notify parent of empty state
-      if (onEntityDiagramChange) {
-        const emptyYAML = get().generateEntityYaml();
-        onEntityDiagramChange(emptyYAML);
-      }
+      // Notify parent of empty state consistently with non-empty case
+      get().updateYamlAndNotify();
       return;
     }
 

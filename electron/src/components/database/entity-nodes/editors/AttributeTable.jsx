@@ -125,7 +125,12 @@ const AttributeTable = ({
   const handleGeneratorChange = (field, value) => {
     if (selectedAttributeIndex < 0) return;
     
-    const updatedAttributes = [...attributes];
+    // Deep clone the attributes array to avoid read-only property errors
+    const updatedAttributes = attributes.map(attr => ({
+      ...attr,
+      generator: attr.generator ? { ...attr.generator } : undefined
+    }));
+    
     const updatedGenerator = { ...updatedAttributes[selectedAttributeIndex].generator, [field]: value };
     
     // Reset generator fields when type changes
@@ -169,7 +174,15 @@ const AttributeTable = ({
   const handleDistributionChange = (field, value) => {
     if (selectedAttributeIndex < 0) return;
     
-    const updatedAttributes = [...attributes];
+    // Deep clone the attributes array to avoid read-only property errors
+    const updatedAttributes = attributes.map(attr => ({
+      ...attr,
+      generator: attr.generator ? { 
+        ...attr.generator,
+        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
+      } : undefined
+    }));
+    
     const updatedDistribution = { ...updatedAttributes[selectedAttributeIndex].generator.distribution, [field]: value };
     const updatedGenerator = { ...updatedAttributes[selectedAttributeIndex].generator, distribution: updatedDistribution };
     updatedAttributes[selectedAttributeIndex].generator = updatedGenerator;
@@ -180,9 +193,17 @@ const AttributeTable = ({
   const handleChoiceValueChange = (field, values) => {
     if (selectedAttributeIndex < 0) return;
     
-    const distribution = attributes[selectedAttributeIndex].generator.distribution;
+    // Deep clone the attributes array to avoid read-only property errors
+    const updatedAttributes = attributes.map(attr => ({
+      ...attr,
+      generator: attr.generator ? { 
+        ...attr.generator,
+        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
+      } : undefined
+    }));
+    
+    const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
     const updatedDistribution = { ...distribution, [field]: values };
-    const updatedAttributes = [...attributes];
     updatedAttributes[selectedAttributeIndex].generator = { 
       ...updatedAttributes[selectedAttributeIndex].generator, 
       distribution: updatedDistribution 
@@ -194,7 +215,15 @@ const AttributeTable = ({
   const addChoiceValue = (newValues, newWeights) => {
     if (selectedAttributeIndex < 0) return;
     
-    const updatedAttributes = [...attributes];
+    // Deep clone the attributes array to avoid read-only property errors
+    const updatedAttributes = attributes.map(attr => ({
+      ...attr,
+      generator: attr.generator ? { 
+        ...attr.generator,
+        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
+      } : undefined
+    }));
+    
     const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
     const updatedDistribution = {
       ...distribution,
@@ -212,7 +241,15 @@ const AttributeTable = ({
   const removeChoiceValue = (newValues, newWeights) => {
     if (selectedAttributeIndex < 0) return;
     
-    const updatedAttributes = [...attributes];
+    // Deep clone the attributes array to avoid read-only property errors
+    const updatedAttributes = attributes.map(attr => ({
+      ...attr,
+      generator: attr.generator ? { 
+        ...attr.generator,
+        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
+      } : undefined
+    }));
+    
     const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
     const updatedDistribution = {
       ...distribution,

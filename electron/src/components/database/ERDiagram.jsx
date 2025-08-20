@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, forwardRef, useImperativeHandle, useMemo } from 'react';
 import ReactFlow, {
   Controls,
   Background,
@@ -104,13 +104,16 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
       setInitialized(true);
     }
   }, []);
+  
+  // Log component re-renders (only when entities actually change)
+  useEffect(() => {
+  }, [entityNodes.length, canonicalEntities.length, selectedEntity?.id]);
 
 
 
   // Simple visual state sync - like ModularEventFlow
   useEffect(() => {
     if (currentState !== 'importing') { // Don't sync during imports
-      console.log('🔄 ERDiagram: Updating visual state from canonical entities');
       // Visual state is automatically updated by the store actions
       // No need for manual sync here - just log for debugging
     }
@@ -152,6 +155,29 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const onNodeDragStop = React.useCallback((event, node) => {
     handleEntityDragStop(event, node);
   }, [handleEntityDragStop]);
+
+  // Memoize entity prop to prevent unnecessary EntityEditor resets
+  const memoizedEntity = useMemo(() => {
+    if (!selectedEntity) return null;
+    
+    // Get the most up-to-date entity data from canonicalEntities
+    const canonicalEntity = canonicalEntities.find(e => e.name === selectedEntity.id);
+    if (canonicalEntity) {
+      return {
+        name: canonicalEntity.name,
+        type: canonicalEntity.type,
+        rows: canonicalEntity.rows,
+        attributes: canonicalEntity.attributes || []
+      };
+    }
+    // Fallback to visual node data if not found in canonical entities
+    return {
+      name: selectedEntity.id,
+      type: selectedEntity.data?.tableType,
+      rows: selectedEntity.data?.rows,
+      attributes: selectedEntity.data?.attributes || []
+    };
+  }, [selectedEntity, canonicalEntities]);
 
   // Use shared context menu hook
   const contextMenuHook = useContextMenuLogic({
@@ -295,25 +321,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
       <EntityEditor
         show={showEntityModal}
         onHide={closeEntityModal}
-        entity={selectedEntity ? (() => {
-          // Get the most up-to-date entity data from canonicalEntities
-          const canonicalEntity = canonicalEntities.find(e => e.name === selectedEntity.id);
-          if (canonicalEntity) {
-            return {
-              name: canonicalEntity.name,
-              type: canonicalEntity.type,
-              rows: canonicalEntity.rows,
-              attributes: canonicalEntity.attributes || []
-            };
-          }
-          // Fallback to visual node data if not found in canonical entities
-          return {
-            name: selectedEntity.id,
-            type: selectedEntity.data?.tableType,
-            rows: selectedEntity.data?.rows,
-            attributes: selectedEntity.data?.attributes || []
-          };
-        })() : null}
+        entity={memoizedEntity}
         onEntityUpdate={handleEntityUpdate}
         onEntityDelete={handleEntityDelete}
         theme={theme}

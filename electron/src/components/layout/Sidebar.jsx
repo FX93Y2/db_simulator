@@ -130,7 +130,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   React.useEffect(() => {
     const handler = (event) => {
       const { projectId } = event.detail;
-      console.log(`Received refreshProjectResults event for project: ${projectId}`);
       
       // If this is the current project, refresh its results and expand it
       if (projectId === currentProjectId) {
@@ -208,12 +207,10 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
           }
         } else {
           // No projects returned or API error
-          console.log("No projects returned or API error, might retry...");
           
           // If this is the initial app load, retry a few times
           if (retryCount < maxRetries) {
             retryCount++;
-            console.log(`Retrying project load (${retryCount}/${maxRetries}) in ${retryDelay}ms...`);
             setTimeout(() => loadProjects(isInitialLoad), retryDelay);
             return;
           }
@@ -224,12 +221,10 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
           }
         }
       } catch (error) {
-        console.error('Error loading projects:', error);
         
         // If this is the initial app load, retry a few times
         if (retryCount < maxRetries) {
           retryCount++;
-          console.log(`Retrying project load after error (${retryCount}/${maxRetries}) in ${retryDelay}ms...`);
           setTimeout(() => loadProjects(isInitialLoad), retryDelay);
           return;
         }
@@ -261,7 +256,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
   useEffect(() => {
     if (!location.state) return;
     
-    console.log("Navigation state detected:", location.state);
     
     if (location.state.refreshProjects) {
       // Trigger a refresh of projects list
@@ -294,7 +288,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
       // Get the current project ID from the URL
       if (!currentProjectId) return;
       
-      console.log(`Force refreshing results for project: ${currentProjectId}`);
       
       try {
         // Slight delay to ensure file system has completed writing
@@ -304,14 +297,12 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         const results = await window.api.scanProjectResults(currentProjectId);
         
         if (results.success) {
-          console.log(`Refreshed results, found ${results.results.length} items`);
           setProjectResults(prev => ({
             ...prev,
             [currentProjectId]: results.results || []
           }));
         }
       } catch (error) {
-        console.error("Error refreshing project results:", error);
       }
     };
     
@@ -361,7 +352,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         showError('Failed to create project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error creating project:', error);
       showError('Error creating project');
     } finally {
       setCreatingProject(false);
@@ -392,7 +382,12 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         
         // If we're currently viewing this project, navigate to home
         if (projectToDelete.id === currentProjectId) {
-          safeNavigate('/');
+          // Clear unsaved changes state since user confirmed deletion
+          if (window.__unsavedChangesState) {
+            window.__unsavedChangesState.hasUnsavedChanges = false;
+          }
+          // Use regular navigate since user already confirmed deletion
+          navigate('/');
         }
         
         // Force a refresh of the projects list
@@ -403,7 +398,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         showError('Failed to delete project: ' + (result.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error deleting project:', error);
       showError('Error deleting project');
     } finally {
       setDeletingProject(false);
@@ -417,7 +411,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
     // If toggling to expanded and we don't have results yet, load them
     if (!expandedProjects[projectId]) {
       try {
-        console.log(`Loading results for project ${projectId}`);
         const results = await window.api.scanProjectResults(projectId);
         
         if (results.success) {
@@ -427,7 +420,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
           });
         }
       } catch (error) {
-        console.error("Error loading project results:", error);
       }
     }
     
@@ -443,7 +435,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
     // If toggling to expanded and we don't have tables yet, load them
     if (!expandedResults[resultKey]) {
       try {
-        console.log(`Loading tables for result ${resultId}`);
         // Construct the database path
         const dbPath = `output/${projectId}/${resultId}.db`;
         
@@ -456,7 +447,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
           });
         }
       } catch (error) {
-        console.error("Error loading result tables:", error);
       }
     }
     
@@ -496,7 +486,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
       
       // Construct the path to the result database
       const dbPath = `output/${projectId}/${result.id}.db`;
-      console.log(`Attempting to delete result at path: ${dbPath}`);
       
       // Call the correct API function with the path
       const deleteResponse = await window.api.deleteResult(dbPath);
@@ -519,7 +508,6 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
         showError('Failed to delete result: ' + (deleteResponse.error || 'Unknown error'));
       }
     } catch (error) {
-      console.error('Error deleting result:', error);
       showError('Error deleting result');
     } finally {
       setDeletingResult(false);
@@ -543,13 +531,11 @@ const ProjectSidebar = ({ theme = 'light', visible = true }) => {
       const result = await updateProjectOrder(projectIds);
       
       if (!result.success) {
-        console.error('Failed to persist project order:', result.error);
         showError('Failed to save project order');
         // Optionally reload projects to restore original order
         setRefreshTrigger(prev => prev + 1);
       }
     } catch (error) {
-      console.error('Error persisting project order:', error);
       showError('Error saving project order');
       // Optionally reload projects to restore original order
       setRefreshTrigger(prev => prev + 1);

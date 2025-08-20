@@ -31,7 +31,6 @@ const useConfigurationLoader = ({
         onConfigChange
       });
 
-      console.log('🔧 Configuration context initialized');
     }
   }, [projectId, isProjectTab, theme, onConfigChange, initializeConfig]);
 
@@ -51,14 +50,11 @@ const useConfigurationLoader = ({
       // 3. This is the very first load for this project
       if (!storeHasContent || configIdChanged) {
         if (configId) {
-          console.log('📂 Loading standalone config:', configId);
           await loadConfig(configId);
         } else if (projectId) {
-          console.log('📂 Loading project config:', projectId);
           await loadConfig(null, projectId);
         }
       } else {
-        console.log('📂 Skipping config load - store already has content for project:', projectId);
       }
     };
 
@@ -69,6 +65,7 @@ const useConfigurationLoader = ({
 
   // Handle configuration changes for parent component
   useEffect(() => {
+    
     if (onConfigChange && yamlContent) {
       onConfigChange(yamlContent);
     }

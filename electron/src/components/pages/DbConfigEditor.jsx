@@ -130,14 +130,12 @@ const DbConfigEditor = ({
         name: tableName,
         rows: 100,
         attributes: [
-          { name: "id", type: "pk" },
-          { name: "name", type: "string", generator: { type: "faker", method: "name" } }
+          { name: "id", type: "pk" }
         ]
       };
       
       erDiagramRef.current.addEntity(newEntity);
     } catch (error) {
-      console.error('Error adding table:', error);
       showError('Failed to add table. Please try again.');
     }
   };
@@ -175,7 +173,6 @@ const DbConfigEditor = ({
         showError('Error saving configuration');
       }
     } catch (error) {
-      console.error('Error saving configuration:', error);
       showError('Error saving configuration');
     }
   };

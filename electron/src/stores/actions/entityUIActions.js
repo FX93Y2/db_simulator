@@ -167,13 +167,16 @@ export const createEntityUIActions = (set, get) => ({
    */
   handleEntityUpdate: (updatedEntity) => {
     const { selectedEntity } = get();
+    
     if (selectedEntity) {
-      get().updateEntity(selectedEntity.id, {
+      const updateData = {
         name: updatedEntity.name,
         type: updatedEntity.type,
         rows: updatedEntity.rows,
         attributes: updatedEntity.attributes
-      });
+      };
+      
+      get().updateEntity(selectedEntity.id, updateData);
     }
     
     // Close modal after update
