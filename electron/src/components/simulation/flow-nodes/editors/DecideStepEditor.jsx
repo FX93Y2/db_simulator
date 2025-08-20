@@ -29,11 +29,13 @@ const DecideStepEditor = ({
         <Form.Group className="mb-3">
           <Form.Label>Decision Type</Form.Label>
         <Form.Select
-          value={formData.decision_type || 'probability'}
+          value={formData.decision_type || '2way-chance'}
           onChange={(e) => onFormDataChange({ decision_type: e.target.value })}
         >
-          <option value="probability">Probability-based</option>
-          <option value="condition">Condition-based</option>
+          <option value="2way-chance">2-way by chance</option>
+          <option value="2way-condition">2-way by condition</option>
+          <option value="nway-chance">N-way by chance</option>
+          <option value="nway-condition">N-way by condition</option>
         </Form.Select>
         </Form.Group>
       </div>
@@ -44,17 +46,17 @@ const DecideStepEditor = ({
 
         <div className="step-editor-grid-container">
           {/* Header */}
-          <div className={`step-editor-grid-header ${formData.decision_type === 'condition' ? 'decide-condition' : 'decide-probability'}`}>
+          <div className={`step-editor-grid-header ${formData.decision_type?.includes('condition') ? 'decide-condition' : 'decide-probability'}`}>
             <div className="grid-header-cell">Next Step</div>
             <div className="grid-header-cell">
-              {formData.decision_type === 'condition' ? 'Condition' : 'Probability'}
+              {formData.decision_type?.includes('condition') ? 'Condition' : 'Probability'}
             </div>
             <div className="grid-header-cell"></div>
           </div>
           
           {/* Data Rows */}
-          {outcomes.map((outcome, index) => (
-            <div key={index} className={`step-editor-grid-row ${formData.decision_type === 'condition' ? 'decide-condition' : 'decide-probability'}`}>
+          {outcomes.filter((_, index) => !formData.decision_type?.startsWith('2way') || index === 0).map((outcome, index) => (
+            <div key={index} className={`step-editor-grid-row ${formData.decision_type?.includes('condition') ? 'decide-condition' : 'decide-probability'}`}>
               <div className="grid-cell">
                 <Form.Select
                   value={outcome.next_event_name || ''}
@@ -71,7 +73,7 @@ const DecideStepEditor = ({
                 </Form.Select>
               </div>
               
-              {formData.decision_type === 'probability' ? (
+              {formData.decision_type?.includes('chance') ? (
                 <div className="grid-cell">
                   <Form.Control
                     type="number"
@@ -134,7 +136,7 @@ const DecideStepEditor = ({
                   variant="outline-danger" 
                   size="sm" 
                   onClick={() => onRemoveOutcome(index)}
-                  disabled={outcomes.length <= 1}
+                  disabled={formData.decision_type?.startsWith('2way') || outcomes.length <= 2}
                 >
                   <FiTrash2 />
                 </Button>
@@ -143,16 +145,30 @@ const DecideStepEditor = ({
           ))}
         </div>
 
-        <div className="mt-3">
-          <Button 
-            variant="outline-primary"
-            size="sm" 
-            onClick={onAddOutcome}
-            className="add-step-item-btn"
-          >
-            + Add Outcome
-          </Button>
-        </div>
+        {/* Show "else" outcome info for 2-way decisions */}
+        {formData.decision_type?.startsWith('2way') && outcomes.length > 1 && (
+          <div className="mt-2">
+            <small className="text-muted">
+              Else outcome: {outcomes[1]?.next_event_name || 'No step selected'}
+              {formData.decision_type === '2way-chance' && outcomes[0]?.probability && 
+                ` (${(1 - parseFloat(outcomes[0].probability || 0)).toFixed(2)} probability)`
+              }
+            </small>
+          </div>
+        )}
+
+        {formData.decision_type?.startsWith('nway') && (
+          <div className="mt-3">
+            <Button 
+              variant="outline-primary"
+              size="sm" 
+              onClick={onAddOutcome}
+              className="add-step-item-btn"
+            >
+              + Add Outcome
+            </Button>
+          </div>
+        )}
       </div>
     </>
   );

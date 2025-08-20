@@ -91,7 +91,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     
     setFormData({
       name: stepName,
-      decision_type: decideConfig.decision_type || 'probability'
+      decision_type: decideConfig.decision_type || '2way-chance'
     });
     
     // Convert outcomes to use step IDs as display names (step_id is the display name)
@@ -116,9 +116,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       return convertedOutcome;
     });
     
-    // Ensure at least 2 outcomes with appropriate defaults
+    // Ensure at least 2 outcomes with appropriate defaults based on decision type
     if (convertedOutcomes.length === 0) {
-      const isCondition = decideConfig.decision_type === 'condition';
+      const currentDecisionType = decideConfig.decision_type || '2way-chance';
+      const isCondition = currentDecisionType.includes('condition');
+      
       if (isCondition) {
         setOutcomes([
           { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' },
@@ -126,12 +128,20 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         ]);
       } else {
         setOutcomes([
-          { next_event_name: '', probability: 0.5 },
-          { next_event_name: '', probability: 0.5 }
+          { next_event_name: '', probability: 0.7 },
+          { next_event_name: '', probability: 0.3 }
         ]);
       }
     } else {
-      setOutcomes(convertedOutcomes);
+      // For 2-way decisions, ensure we have exactly 2 outcomes
+      if (decideConfig.decision_type?.startsWith('2way') && convertedOutcomes.length < 2) {
+        const secondOutcome = decideConfig.decision_type.includes('condition') 
+          ? { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' }
+          : { next_event_name: '', probability: 0.3 };
+        setOutcomes([...convertedOutcomes, secondOutcome]);
+      } else {
+        setOutcomes(convertedOutcomes);
+      }
     }
   };
 
@@ -247,11 +257,20 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const handleOutcomeChange = (index, field, value) => {
     const updated = [...outcomes];
     updated[index] = { ...updated[index], [field]: value };
+    
+    // For 2-way chance decisions, auto-calculate "else" probability
+    if (formData.decision_type === '2way-chance' && field === 'probability' && index === 0) {
+      const primaryProb = parseFloat(value) || 0;
+      if (updated.length > 1) {
+        updated[1] = { ...updated[1], probability: 1 - primaryProb };
+      }
+    }
+    
     setOutcomes(updated);
   };
 
   const addOutcome = () => {
-    const isCondition = formData.decision_type === 'condition';
+    const isCondition = formData.decision_type?.includes('condition');
     if (isCondition) {
       setOutcomes([...outcomes, {
         next_event_name: '',
@@ -442,11 +461,19 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         next_step_id: outcome.next_event_name
       };
 
-      if (formData.decision_type === 'probability') {
+      if (formData.decision_type?.includes('chance')) {
+        // For 2-way chance: auto-calculate "else" probability
+        let probabilityValue = parseFloat(outcome.probability) || 0.5;
+        if (formData.decision_type.startsWith('2way') && index === 1) {
+          // "Else" outcome - calculate as 1 - primary probability
+          const primaryProbability = parseFloat(outcomes[0]?.probability) || 0.5;
+          probabilityValue = 1 - primaryProbability;
+        }
+        
         baseOutcome.conditions = [{
           if: 'Probability',
           is: '==',
-          value: parseFloat(outcome.probability) || 0.5
+          value: probabilityValue
         }];
       } else {
         // Condition-based decision

@@ -103,8 +103,9 @@ export const createCanvasActions = (set, get) => ({
             )
           };
           
-          // Rebalance probabilities for remaining outcomes
-          if (updatedStep.decide_config.outcomes.length > 0) {
+          // Rebalance probabilities for remaining outcomes (only for N-way decisions)
+          if (updatedStep.decide_config.outcomes.length > 0 && 
+              !updatedStep.decide_config.decision_type?.startsWith('2way')) {
             const equalProbability = 1 / updatedStep.decide_config.outcomes.length;
             updatedStep.decide_config.outcomes.forEach(outcome => {
               outcome.conditions.forEach(condition => {
@@ -386,7 +387,36 @@ export const createCanvasActions = (set, get) => ({
         if (sourceStep.step_type === 'decide' && sourceHandle) {
           // Handle decide module connections through outcomes
           const outcomeIndex = parseInt(sourceHandle.replace('outcome-', ''));
-          if (sourceStep.decide_config?.outcomes?.[outcomeIndex]) {
+          
+          // Ensure outcomes array exists
+          if (!sourceStep.decide_config) {
+            state.canonicalSteps[sourceStepIndex].decide_config = { outcomes: [] };
+          }
+          if (!sourceStep.decide_config.outcomes) {
+            state.canonicalSteps[sourceStepIndex].decide_config.outcomes = [];
+          }
+          
+          // If connecting to a new outcome handle for N-way decisions, create new outcome
+          if (!sourceStep.decide_config.outcomes[outcomeIndex] && 
+              sourceStep.decide_config.decision_type?.startsWith('nway')) {
+            const isCondition = sourceStep.decide_config.decision_type.includes('condition');
+            const newOutcome = {
+              outcome_id: `outcome_${outcomeIndex + 1}`,
+              next_step_id: target,
+              conditions: isCondition ? [{
+                if: 'Attribute',
+                name: '',
+                is: '==',
+                value: ''
+              }] : [{
+                if: 'Probability',
+                is: '==',
+                value: 0.5
+              }]
+            };
+            state.canonicalSteps[sourceStepIndex].decide_config.outcomes.push(newOutcome);
+          } else if (sourceStep.decide_config.outcomes[outcomeIndex]) {
+            // Update existing outcome
             state.canonicalSteps[sourceStepIndex].decide_config.outcomes[outcomeIndex].next_step_id = target;
           }
         } else {
