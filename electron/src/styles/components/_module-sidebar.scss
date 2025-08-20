@@ -43,6 +43,7 @@
   margin-top: 8px;
   padding: 16px;
   width: fit-content;
+  contain: layout style; // CSS containment for better performance
   
   // Theme variants
   .module-sidebar--light & {
@@ -177,9 +178,11 @@
 
 .module-sidebar__grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
   gap: 12px;
-  width: 200px;
+  width: 100%;
+  min-width: 0; // Allow grid to shrink below content size
+  contain: layout; // CSS containment for grid performance
 }
 
 .module-sidebar__button {
@@ -193,6 +196,9 @@
   cursor: grab;
   transition: all 0.2s ease;
   text-decoration: none;
+  min-width: 80px; // Ensure minimum touch-friendly size
+  aspect-ratio: 1 / 1.2; // Consistent proportions
+  min-height: 0; // Allow flexible height
   
   &:active:not(.disabled) {
     cursor: grabbing;
@@ -239,16 +245,17 @@
 
 .module-sidebar__icon {
   position: relative;
-  width: 40px;
-  height: 40px;
+  width: clamp(32px, 8vw, 40px); // Responsive icon size
+  height: clamp(32px, 8vw, 40px);
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0; // Prevent icon from shrinking
 }
 
 .module-sidebar__svg {
-  width: 36px;
-  height: 36px;
+  width: clamp(28px, 7vw, 36px); // Responsive SVG size
+  height: clamp(28px, 7vw, 36px);
   
   // Theme-aware SVG coloring
   .module-sidebar--light & {
@@ -275,8 +282,8 @@
 }
 
 .module-sidebar__react-icon {
-  width: 36px;
-  height: 36px;
+  width: clamp(28px, 7vw, 36px); // Responsive React icon size
+  height: clamp(28px, 7vw, 36px);
   
   // Theme-aware React icon coloring
   .module-sidebar--light & {
@@ -334,10 +341,13 @@
 }
 
 .module-sidebar__label {
-  font-size: 0.75rem;
+  font-size: clamp(0.7rem, 2vw, 0.75rem); // Responsive font size
   font-weight: 500;
   text-align: center;
   line-height: 1.2;
+  overflow: hidden; // Prevent text overflow
+  text-overflow: ellipsis;
+  white-space: nowrap;
   
   .module-sidebar--light & {
     color: var(--theme-text);

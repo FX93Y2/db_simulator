@@ -327,18 +327,15 @@ const ModuleSidebar = ({
   );
 };
 
-// Temporarily export without React.memo for debugging
-export default ModuleSidebar;
-
-// Use React.memo to prevent re-renders during drag
-// export default React.memo(ModuleSidebar, (prevProps, nextProps) => {
-//   // Only re-render if these props actually change
-//   return (
-//     prevProps.isVisible === nextProps.isVisible &&
-//     prevProps.theme === nextProps.theme &&
-//     prevProps.disabled === nextProps.disabled &&
-//     prevProps.embedded === nextProps.embedded &&
-//     prevProps.onModuleAdd === nextProps.onModuleAdd &&
-//     prevProps.onConfigOpen === nextProps.onConfigOpen
-//   );
-// });
+// Use React.memo to prevent re-renders during drag for better performance
+export default React.memo(ModuleSidebar, (prevProps, nextProps) => {
+  // Only re-render if these props actually change
+  return (
+    prevProps.isVisible === nextProps.isVisible &&
+    prevProps.theme === nextProps.theme &&
+    prevProps.disabled === nextProps.disabled &&
+    prevProps.embedded === nextProps.embedded &&
+    prevProps.onModuleAdd === nextProps.onModuleAdd &&
+    prevProps.onConfigOpen === nextProps.onConfigOpen
+  );
+});
