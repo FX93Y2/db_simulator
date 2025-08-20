@@ -364,6 +364,9 @@ export const createCanvasActions = (set, get) => ({
     set((state) => {
       state.yamlContent = generatedYaml;
     });
+    
+    // Update parsedSchema only (preserve canonicalSteps as canvas is source of truth)
+    get().updateParsedSchemaOnly();
   },
 
   /**

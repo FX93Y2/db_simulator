@@ -190,6 +190,7 @@ export const useYamlActions = (projectId) => {
     exportYaml: state.exportYaml,
     updateYamlContent: state.updateYamlContent,
     parseYaml: state.parseYaml,
+    updateParsedSchemaOnly: state.updateParsedSchemaOnly,
     generateYaml: state.generateYaml,
     validateYaml: state.validateYaml
   }));

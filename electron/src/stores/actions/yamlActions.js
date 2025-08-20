@@ -176,6 +176,53 @@ export const createYamlActions = (set, get) => ({
   },
 
   /**
+   * Update only parsedSchema without modifying canonicalSteps
+   * Used when canvas is source of truth and we only need to refresh parsedSchema
+   */
+  updateParsedSchemaOnly: () => {
+    const { yamlContent } = get();
+    
+    if (!yamlContent) {
+      set((state) => {
+        state.parsedSchema = null;
+        state.flowSchema = null;
+        state.error = null;
+      });
+      return;
+    }
+
+    try {
+      const doc = yaml.parseDocument(yamlContent);
+      
+      if (doc.errors && doc.errors.length > 0) {
+        throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
+      }
+      
+      const parsedObj = doc.toJSON();
+
+      set((state) => {
+        state.parsedSchema = parsedObj;
+        state.flowSchema = parsedObj;
+        state.error = null;
+        // NOTE: canonicalSteps is NOT modified - canvas remains source of truth
+      });
+
+      // Load simulation data from the parsed schema
+      get().loadSimulationFromYaml(parsedObj);
+
+    } catch (error) {
+      console.error('[YamlActions] YAML parsing failed:', error);
+      
+      set((state) => {
+        state.parsedSchema = null;
+        state.flowSchema = null;
+        state.error = error.message;
+        // NOTE: canonicalSteps is NOT cleared - preserve canvas state
+      });
+    }
+  },
+
+  /**
    * Trace flow from a Create module following connections
    * @param {Object} startingCreate - The Create module to start from
    * @param {Array} allSteps - All available canonical steps

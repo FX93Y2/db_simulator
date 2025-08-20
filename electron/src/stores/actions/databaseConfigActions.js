@@ -219,11 +219,8 @@ export const createDatabaseConfigActions = (set, get) => ({
       state.yamlContent = yamlContent;
     });
 
-    // Notify parent component of changes
-    const { onEntityDiagramChange } = get();
-    if (onEntityDiagramChange) {
-      onEntityDiagramChange(yamlContent);
-    }
+    // Parent notification is handled by useConfigurationLoader's useEffect
+    // No need for direct callback here to avoid double execution
   },
 
   /**
