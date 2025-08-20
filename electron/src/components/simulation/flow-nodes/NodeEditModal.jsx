@@ -152,8 +152,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const stepName = stepConfig.step_id || '';
     
     setFormData({
-      name: stepName,
-      module_id: assignConfig.module_id || stepConfig.step_id
+      name: stepName
     });
     
     // Initialize assignments
@@ -491,7 +490,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     });
 
     return {
-      module_id: stepId, // Auto-generated same as step_id
       decision_type: formData.decision_type,
       outcomes: convertedOutcomes
     };
@@ -499,7 +497,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const buildAssignConfig = (stepId) => {
     return {
-      module_id: formData.module_id || stepId,
       assignments: assignments.map((assignment) => ({
         assignment_type: assignment.assignment_type,
         attribute_name: assignment.attribute_name,

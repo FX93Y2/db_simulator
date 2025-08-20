@@ -1,3 +1,5 @@
+import positionService from '../../services/PositionService.js';
+
 /**
  * Database configuration actions for the database config store
  * Handles loading, saving, and managing database configurations
@@ -47,13 +49,17 @@ export const createDatabaseConfigActions = (set, get) => ({
         if (config.content && config.content.trim()) {
           try {
             const importResult = await get().importEntityYaml(config.content);
+            // Clean up obsolete positions after loading
+            get().cleanupObsoleteEntityPositions();
           } catch (error) {
             // Clear entities if YAML parsing fails
             get().clearEntities();
+            get().cleanupObsoleteEntityPositions();
           }
         } else {
           // Clear entities for empty configuration
           get().clearEntities();
+          get().cleanupObsoleteEntityPositions();
         }
       } else {
         // No configuration found or error loading
@@ -69,6 +75,7 @@ export const createDatabaseConfigActions = (set, get) => ({
         
         // Clear entities for new/empty configuration
         get().clearEntities();
+        get().cleanupObsoleteEntityPositions();
       }
 
     } catch (error) {
@@ -177,6 +184,35 @@ export const createDatabaseConfigActions = (set, get) => ({
   },
 
   /**
+   * Clean up obsolete entity positions from PositionService
+   * Removes positions for entities that no longer exist in the current configuration
+   */
+  cleanupObsoleteEntityPositions: () => {
+    const { canonicalEntities, projectId } = get();
+    
+    if (!projectId) return; // No cleanup needed for standalone configs
+    
+    // Get current entity IDs from canonical entities
+    const currentEntityIds = new Set(canonicalEntities.map(entity => entity.name));
+    
+    // Get all stored positions for this project
+    const allPositions = positionService.getAllPositions(projectId);
+    
+    // Remove positions for entities that no longer exist
+    let cleanedCount = 0;
+    for (const entityId of allPositions.keys()) {
+      if (!currentEntityIds.has(entityId)) {
+        positionService.removePosition(projectId, entityId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`[DatabaseConfigActions] Cleaned up ${cleanedCount} obsolete entity positions for project: ${projectId}`);
+    }
+  },
+
+  /**
    * Clear configuration state
    */
   clearDatabaseConfig: () => {
@@ -193,6 +229,9 @@ export const createDatabaseConfigActions = (set, get) => ({
     
     // Also clear entities
     get().clearEntities();
+    
+    // Clean up obsolete positions from PositionService
+    get().cleanupObsoleteEntityPositions();
   },
 
   /**

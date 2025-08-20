@@ -37,7 +37,6 @@ event_simulation:
         - step_id: ticket_complexity_decision
           step_type: decide
           decide_config:
-            module_id: ticket_complexity_decision
             decision_type: 2way-chance
             outcomes:
               - outcome_id: simple_ticket

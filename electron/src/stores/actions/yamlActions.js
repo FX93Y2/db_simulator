@@ -59,6 +59,11 @@ export const createYamlActions = (set, get) => ({
       // Trigger visual state update
       get().updateVisualState();
 
+      // Clean up obsolete positions after successful import
+      if (get().cleanupObsoletePositions) {
+        get().cleanupObsoletePositions();
+      }
+
       return { success: true, message: 'Simulation configuration imported successfully' };
       
     } catch (error) {

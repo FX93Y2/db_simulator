@@ -152,8 +152,7 @@ const SimConfigEditor = ({
         break;
       case 'decide':
         newStep.decide_config = {
-          module_id: stepId,
-          decision_type: "probability",
+          decision_type: "2way-chance",
           outcomes: [
             {
               outcome_id: "outcome_1",
@@ -170,7 +169,6 @@ const SimConfigEditor = ({
         break;
       case 'assign':
         newStep.assign_config = {
-          module_id: stepId,
           assignments: [{
             assignment_type: "attribute",
             attribute_name: "new_attribute",

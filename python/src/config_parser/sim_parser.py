@@ -83,7 +83,6 @@ class Outcome:
 
 @dataclass
 class DecideConfig:
-    module_id: str
     decision_type: str
     outcomes: List[Outcome] = field(default_factory=list)
 
@@ -97,7 +96,6 @@ class AssignmentOperation:
 
 @dataclass
 class AssignConfig:
-    module_id: str
     assignments: List[AssignmentOperation] = field(default_factory=list)
 
 @dataclass
@@ -351,7 +349,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             ))
                         
                         decide_config = DecideConfig(
-                            module_id=dc_dict.get('module_id', ''),
                             decision_type=dc_dict.get('decision_type', ''),
                             outcomes=outcomes
                         )
@@ -369,7 +366,6 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                                     value=assignment_dict.get('value')
                                 ))
                         assign_config = AssignConfig(
-                            module_id=assign_dict.get('module_id', ''),
                             assignments=assignments
                         )
                     
@@ -571,7 +567,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             ))
                         
                         decide_config = DecideConfig(
-                            module_id=dc_dict.get('module_id', ''),
                             decision_type=dc_dict.get('decision_type', ''),
                             outcomes=outcomes
                         )
@@ -589,7 +584,6 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                                     value=assignment_dict.get('value')
                                 ))
                         assign_config = AssignConfig(
-                            module_id=assign_dict.get('module_id', ''),
                             assignments=assignments
                         )
                     

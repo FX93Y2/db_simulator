@@ -71,6 +71,8 @@ export const createConfigActions = (set, get) => ({
           // Load YAML content
           if (result.config.content) {
             await get().importYaml(result.config.content);
+            // Clean up obsolete positions after loading
+            get().cleanupObsoletePositions();
           }
         } else {
           // New simulation config for this project
@@ -102,6 +104,8 @@ export const createConfigActions = (set, get) => ({
           // Load YAML content
           if (result.config.content) {
             await get().importYaml(result.config.content);
+            // Clean up obsolete positions after loading
+            get().cleanupObsoletePositions();
           }
         }
       }
@@ -242,6 +246,35 @@ export const createConfigActions = (set, get) => ({
   },
 
   /**
+   * Clean up obsolete positions from PositionService
+   * Removes positions for nodes that no longer exist in the current configuration
+   */
+  cleanupObsoletePositions: () => {
+    const { canonicalSteps, projectId } = get();
+    
+    if (!projectId) return; // No cleanup needed for standalone configs
+    
+    // Get current node IDs from canonical steps
+    const currentNodeIds = new Set(canonicalSteps.map(step => step.step_id));
+    
+    // Get all stored positions for this project
+    const allPositions = positionService.getAllPositions(projectId);
+    
+    // Remove positions for nodes that no longer exist
+    let cleanedCount = 0;
+    for (const nodeId of allPositions.keys()) {
+      if (!currentNodeIds.has(nodeId)) {
+        positionService.removePosition(projectId, nodeId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`[ConfigActions] Cleaned up ${cleanedCount} obsolete node positions for project: ${projectId}`);
+    }
+  },
+
+  /**
    * Clear all configuration state
    */
   clearConfig: () => {
@@ -274,6 +307,9 @@ export const createConfigActions = (set, get) => ({
       // Clear positions
       state.positions.clear();
     });
+    
+    // Clean up obsolete positions from PositionService
+    get().cleanupObsoletePositions();
   },
 
   /**

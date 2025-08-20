@@ -26,7 +26,7 @@ def get_step_types_info():
         "decide": {
             "name": "Decide",
             "description": "Make decisions with 2-way or N-way branching using chance or conditions",
-            "required_config": ["module_id", "decision_type", "outcomes"],
+            "required_config": ["decision_type", "outcomes"],
             "optional_config": [],
             "decision_types": {
                 "2way-chance": "Binary probability decision (auto-calculates else probability)",
@@ -36,7 +36,6 @@ def get_step_types_info():
             },
             "examples": {
                 "2way-chance": {
-                    "module_id": "implementation_decision",
                     "decision_type": "2way-chance",
                     "outcomes": [
                         {
@@ -52,7 +51,6 @@ def get_step_types_info():
                     ]
                 },
                 "2way-condition": {
-                    "module_id": "quality_check",
                     "decision_type": "2way-condition",
                     "outcomes": [
                         {
@@ -68,7 +66,6 @@ def get_step_types_info():
                     ]
                 },
                 "nway-chance": {
-                    "module_id": "outcome_decision",
                     "decision_type": "nway-chance",
                     "outcomes": [
                         {
@@ -93,10 +90,9 @@ def get_step_types_info():
         "assign": {
             "name": "Assign",
             "description": "Assign values to entity attributes",
-            "required_config": ["module_id", "assignments"],
+            "required_config": ["assignments"],
             "optional_config": [],
             "example": {
-                "module_id": "attribute_assignment",
                 "assignments": [
                     {
                         "assignment_type": "direct",

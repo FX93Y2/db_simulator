@@ -108,6 +108,11 @@ export const createEntityYamlActions = (set, get) => ({
       // Update visual state
       get().updateEntityVisualState();
       
+      // Clean up obsolete positions after successful import
+      if (get().cleanupObsoleteEntityPositions) {
+        get().cleanupObsoleteEntityPositions();
+      }
+      
       return { success: true, message: `Successfully imported ${newEntities.length} entities` };
       
     } catch (error) {

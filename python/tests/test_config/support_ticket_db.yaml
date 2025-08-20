@@ -21,7 +21,7 @@ entities:
               - 0.5
               - 0.2
               - 0.1
-  - name: Ticket
+  - name: Online_Ticket
     type: entity
     rows: n/a
     attributes:
@@ -98,18 +98,18 @@ entities:
               - 0.6
               - 0.3
               - 0.1
-  - name: Task
+  - name: Ticket_Task
     type: event
     rows: n/a
     attributes:
       - name: id
         type: pk
-      - name: ticket_id
+      - name: online_ticket_id
         type: entity_id
+        ref: Online_Ticket.id
         generator:
           type: foreign_key
           subtype: one_to_many
-        ref: Ticket.id
       - name: event_type
         type: event_type
   - name: Call_Task
@@ -138,12 +138,12 @@ entities:
           type: foreign_key
           subtype: one_to_many
         ref: Staff.id
-      - name: task_id
+      - name: ticket_task_id
         type: event_id
+        ref: Ticket_Task.id
         generator:
           type: foreign_key
           subtype: one_to_many
-        ref: Task.id
       - name: end_date
         type: datetime
       - name: start_date

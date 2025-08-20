@@ -66,8 +66,7 @@ export const handleStepConnection = (params, canonicalSteps, onStepsUpdate) => {
     // Ensure decide_config exists
     if (!sourceStep.decide_config) {
       sourceStep.decide_config = {
-        module_id: sourceStep.step_id,
-        decision_type: 'probability',
+        decision_type: '2way-chance',
         outcomes: []
       };
     }
