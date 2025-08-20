@@ -1,0 +1,118 @@
+simulation:
+  duration_days: 30
+  start_date: 2024-01-01
+  random_seed: 42
+event_simulation:
+  event_flows:
+    - flow_id: flow_1_Create_Ticket
+      event_table: Task
+      steps:
+        - step_id: Create_Ticket
+          step_type: create
+          create_config:
+            entity_table: Ticket
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            max_entities: n/a
+          next_steps:
+            - Event_Ticket_Assignment
+        - step_id: Event_Ticket_Assignment
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - ticket_complexity_decision
+        
+        # Decision: Route ticket based on complexity (70% simple, 30% complex)
+        - step_id: ticket_complexity_decision
+          step_type: decide
+          decide_config:
+            module_id: ticket_complexity_decision
+            decision_type: 2way-chance
+            outcomes:
+              - outcome_id: simple_ticket
+                next_step_id: simple_ticket_processing
+                conditions:
+                  - if: Probability
+                    is: "=="
+                    value: 0.7
+              - outcome_id: complex_ticket
+                next_step_id: complex_ticket_processing
+                conditions: []
+        
+        # Simple ticket processing (faster)
+        - step_id: simple_ticket_processing
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 10
+                stddev: 2
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - release_1
+        
+        # Complex ticket processing (slower, may need Dev team)
+        - step_id: complex_ticket_processing
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 30
+                stddev: 5
+            resource_requirements:
+              - resource_table: Staff
+                value: Dev
+                count: 1
+          next_steps:
+            - release_1
+        
+        - step_id: release_1
+          step_type: release
+          event_config: {}
+    - flow_id: flow_2_Create_Phone_Call
+      event_table: Staff_Call_Task
+      steps:
+        - step_id: Create_Phone_Call
+          step_type: create
+          create_config:
+            entity_table: Phone_Call
+            interarrival_time:
+              distribution:
+                type: exponential
+                scale: 2
+            max_entities: n/a
+          next_steps:
+            - Phone_Call
+        - step_id: Phone_Call
+          step_type: event
+          event_config:
+            duration:
+              distribution:
+                type: normal
+                mean: 5
+                stddev: 1
+            resource_requirements:
+              - resource_table: Staff
+                value: Tech Support
+                count: 1
+          next_steps:
+            - release_2
+        - step_id: release_2
+          step_type: release
+          event_config: {}

@@ -57,10 +57,42 @@ class DecideStepProcessor(StepProcessor):
         """Validate that the step has proper decide configuration."""
         if not super().validate_step(step):
             return False
-        return (step.step_type == "decide" and 
-                step.decide_config is not None and
-                step.decide_config.outcomes is not None and
-                len(step.decide_config.outcomes) > 0)
+        
+        if step.step_type != "decide":
+            return False
+        
+        config = step.decide_config
+        if not config:
+            self.logger.error(f"Missing decide_config for step {step.step_id}")
+            return False
+        
+        # Validate decision type
+        valid_types = ['2way-chance', '2way-condition', 'nway-chance', 'nway-condition']
+        if config.decision_type not in valid_types:
+            self.logger.error(f"Invalid decision type '{config.decision_type}' for step {step.step_id}. Valid types: {valid_types}")
+            return False
+        
+        # Validate outcome count
+        if not config.outcomes:
+            self.logger.error(f"No outcomes defined for decide step {step.step_id}")
+            return False
+        
+        outcome_count = len(config.outcomes)
+        if config.decision_type.startswith('2way-') and outcome_count != 2:
+            self.logger.error(f"2-way decision '{config.decision_type}' requires exactly 2 outcomes, got {outcome_count} for step {step.step_id}")
+            return False
+        if config.decision_type.startswith('nway-') and outcome_count < 2:
+            self.logger.error(f"N-way decision '{config.decision_type}' requires at least 2 outcomes, got {outcome_count} for step {step.step_id}")
+            return False
+        
+        # Validate that all outcomes have next_step_id
+        for i, outcome in enumerate(config.outcomes):
+            if not outcome.next_step_id:
+                self.logger.error(f"Outcome {i} missing next_step_id for decide step {step.step_id}")
+                return False
+        
+        self.logger.debug(f"Validated decide step {step.step_id}: type={config.decision_type}, outcomes={outcome_count}")
+        return True
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
                 entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
@@ -113,53 +145,37 @@ class DecideStepProcessor(StepProcessor):
         Returns:
             Next step ID or None if no valid outcome
         """
-        decision_type = decide_config.decision_type.lower()
+        decision_type = decide_config.decision_type
         
-        if decision_type == "probability":
-            return self._evaluate_probability_decision(entity_id, decide_config)
-        elif decision_type == "condition":
-            return self._evaluate_conditional_decision(entity_id, decide_config)
+        if decision_type == "2way-chance":
+            return self._evaluate_2way_chance(entity_id, decide_config)
+        elif decision_type == "2way-condition":
+            return self._evaluate_2way_condition(entity_id, decide_config)
+        elif decision_type == "nway-chance":
+            return self._evaluate_nway_chance(entity_id, decide_config)
+        elif decision_type == "nway-condition":
+            return self._evaluate_nway_condition(entity_id, decide_config)
         else:
-            self.logger.error(f"Unsupported decision type: {decision_type}")
+            self.logger.error(f"Invalid decision type: {decision_type}")
             return None
     
-    def _evaluate_probability_decision(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+    def _evaluate_2way_chance(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
         """
-        Evaluate probability-based decision using proper cumulative distribution.
-        
-        This method fixes the previous bug where decisions were evaluated sequentially
-        instead of using proper probability distribution.
+        Evaluate 2-way chance decision. Uses first outcome's probability,
+        second outcome gets the remaining probability automatically.
         
         Args:
             entity_id: Entity ID for context
-            decide_config: Decision configuration
+            decide_config: Decision configuration (must have exactly 2 outcomes)
             
         Returns:
             Next step ID based on probability outcome
         """
         outcomes = decide_config.outcomes
+        if len(outcomes) != 2:
+            self.logger.error(f"2-way chance decision requires exactly 2 outcomes, got {len(outcomes)}")
+            return None
         
-        if len(outcomes) == 1:
-            # Single outcome - always choose it
-            return outcomes[0].next_step_id
-        
-        if len(outcomes) == 2:
-            # Binary decision - use first outcome's probability
-            return self._evaluate_binary_probability(outcomes)
-        
-        # N-way decision - use cumulative probability distribution
-        return self._evaluate_nway_probability(entity_id, outcomes)
-    
-    def _evaluate_binary_probability(self, outcomes) -> str:
-        """
-        Evaluate binary (2-way) probability decision.
-        
-        Args:
-            outcomes: List of two outcomes
-            
-        Returns:
-            Selected outcome's next step ID
-        """
         first_outcome = outcomes[0]
         
         # Get probability from first outcome's conditions
@@ -169,26 +185,61 @@ class DecideStepProcessor(StepProcessor):
                 probability = condition.value
                 break
         
-        # Make decision
+        # Make decision: if random <= probability, choose first, else choose second
         if random.random() <= probability:
+            self.logger.debug(f"Entity {entity_id}: 2-way chance chose primary outcome ({probability:.1%})")
             return first_outcome.next_step_id
         else:
+            self.logger.debug(f"Entity {entity_id}: 2-way chance chose else outcome ({1-probability:.1%})")
             return outcomes[1].next_step_id
     
-    def _evaluate_nway_probability(self, entity_id: int, outcomes) -> Optional[str]:
+    def _evaluate_2way_condition(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
         """
-        Evaluate N-way probability decision using cumulative distribution.
-        
-        This fixes the bug in the original implementation that evaluated
-        probabilities sequentially instead of cumulatively.
+        Evaluate 2-way conditional decision. First outcome has the condition,
+        second outcome is the "else" case.
         
         Args:
             entity_id: Entity ID for context
-            outcomes: List of outcomes with probabilities
+            decide_config: Decision configuration (must have exactly 2 outcomes)
+            
+        Returns:
+            Next step ID based on conditional evaluation
+        """
+        outcomes = decide_config.outcomes
+        if len(outcomes) != 2:
+            self.logger.error(f"2-way condition decision requires exactly 2 outcomes, got {len(outcomes)}")
+            return None
+        
+        if self.entity_attribute_manager is None:
+            self.logger.error(f"No entity attribute manager available for conditional decision, entity {entity_id}")
+            return None
+        
+        first_outcome = outcomes[0]
+        
+        # Evaluate first outcome's conditions - if they match, choose it, else choose second
+        if self._evaluate_outcome_conditions(entity_id, first_outcome.conditions):
+            self.logger.debug(f"Entity {entity_id}: 2-way condition matched primary condition")
+            return first_outcome.next_step_id
+        else:
+            self.logger.debug(f"Entity {entity_id}: 2-way condition fell through to else outcome")
+            return outcomes[1].next_step_id
+    
+    def _evaluate_nway_chance(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+        """
+        Evaluate N-way chance decision using cumulative probability distribution.
+        
+        Args:
+            entity_id: Entity ID for context
+            decide_config: Decision configuration (must have 2+ outcomes)
             
         Returns:
             Selected outcome's next step ID
         """
+        outcomes = decide_config.outcomes
+        if len(outcomes) < 2:
+            self.logger.error(f"N-way chance decision requires at least 2 outcomes, got {len(outcomes)}")
+            return None
+        
         # Extract probabilities and normalize them
         probabilities = []
         outcome_ids = []
@@ -207,10 +258,11 @@ class DecideStepProcessor(StepProcessor):
         if total_prob == 0:
             # No probabilities specified - use uniform distribution
             probabilities = [1.0 / len(outcomes)] * len(outcomes)
+            self.logger.debug(f"Entity {entity_id}: Using uniform distribution for N-way chance")
         elif total_prob != 1.0:
             # Normalize to sum to 1.0
             probabilities = [p / total_prob for p in probabilities]
-            self.logger.debug(f"Normalized probabilities for entity {entity_id}: {probabilities}")
+            self.logger.debug(f"Entity {entity_id}: Normalized N-way probabilities: {probabilities}")
         
         # Use cumulative distribution
         random_value = random.random()
@@ -219,37 +271,42 @@ class DecideStepProcessor(StepProcessor):
         for i, prob in enumerate(probabilities):
             cumulative_prob += prob
             if random_value <= cumulative_prob:
+                self.logger.debug(f"Entity {entity_id}: N-way chance selected outcome {i} ({prob:.1%})")
                 return outcome_ids[i]
         
         # Fallback to last outcome (should not happen with proper normalization)
-        self.logger.warning(f"Probability fallback for entity {entity_id}, choosing last outcome")
+        self.logger.warning(f"N-way chance probability fallback for entity {entity_id}, choosing last outcome")
         return outcome_ids[-1]
     
-    def _evaluate_conditional_decision(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+    def _evaluate_nway_condition(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
         """
-        Evaluate conditional decision based on entity attributes.
+        Evaluate N-way conditional decision. Evaluates conditions in order,
+        returns first matching outcome.
         
         Args:
             entity_id: Entity ID for context
-            decide_config: Decision configuration
+            decide_config: Decision configuration (must have 2+ outcomes)
             
         Returns:
             Next step ID based on conditional evaluation
         """
+        outcomes = decide_config.outcomes
+        if len(outcomes) < 2:
+            self.logger.error(f"N-way condition decision requires at least 2 outcomes, got {len(outcomes)}")
+            return None
+        
         if self.entity_attribute_manager is None:
             self.logger.error(f"No entity attribute manager available for conditional decision, entity {entity_id}")
             return None
         
-        outcomes = decide_config.outcomes
-        
-        # Evaluate each outcome's conditions
-        for outcome in outcomes:
+        # Evaluate each outcome's conditions in order
+        for i, outcome in enumerate(outcomes):
             if self._evaluate_outcome_conditions(entity_id, outcome.conditions):
-                self.logger.debug(f"Entity {entity_id} matched outcome {outcome.outcome_id}, next step: {outcome.next_step_id}")
+                self.logger.debug(f"Entity {entity_id}: N-way condition matched outcome {i} ({outcome.outcome_id})")
                 return outcome.next_step_id
         
         # No outcome matched - log warning and return None
-        self.logger.warning(f"No outcome conditions matched for entity {entity_id} in conditional decision")
+        self.logger.warning(f"No outcome conditions matched for entity {entity_id} in N-way conditional decision")
         return None
     
     def _evaluate_outcome_conditions(self, entity_id: int, conditions: list) -> bool:
@@ -391,7 +448,7 @@ class DecideStepProcessor(StepProcessor):
         Returns:
             List of supported decision type strings
         """
-        return ["probability", "condition"]
+        return ["2way-chance", "2way-condition", "nway-chance", "nway-condition"]
     
     def get_arena_compatibility_status(self) -> dict:
         """

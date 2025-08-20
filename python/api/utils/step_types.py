@@ -25,24 +25,69 @@ def get_step_types_info():
         },
         "decide": {
             "name": "Decide",
-            "description": "Make probability-based decisions with multiple outcomes",
+            "description": "Make decisions with 2-way or N-way branching using chance or conditions",
             "required_config": ["module_id", "decision_type", "outcomes"],
             "optional_config": [],
-            "example": {
-                "module_id": "implementation_decision",
-                "decision_type": "probability",
-                "outcomes": [
-                    {
-                        "outcome_id": "to_testing",
-                        "next_step_id": "testing",
-                        "conditions": [{"condition_type": "probability", "probability": 0.8}]
-                    },
-                    {
-                        "outcome_id": "rework",
-                        "next_step_id": "design",
-                        "conditions": [{"condition_type": "probability", "probability": 0.2}]
-                    }
-                ]
+            "decision_types": {
+                "2way-chance": "Binary probability decision (auto-calculates else probability)",
+                "2way-condition": "Binary conditional decision (auto-generates else case)",
+                "nway-chance": "Multiple outcome probability decision",
+                "nway-condition": "Multiple outcome conditional decision"
+            },
+            "examples": {
+                "2way-chance": {
+                    "module_id": "implementation_decision",
+                    "decision_type": "2way-chance",
+                    "outcomes": [
+                        {
+                            "outcome_id": "to_testing",
+                            "next_step_id": "testing",
+                            "conditions": [{"if": "Probability", "is": "==", "value": 0.8}]
+                        },
+                        {
+                            "outcome_id": "rework",
+                            "next_step_id": "design",
+                            "conditions": []
+                        }
+                    ]
+                },
+                "2way-condition": {
+                    "module_id": "quality_check",
+                    "decision_type": "2way-condition",
+                    "outcomes": [
+                        {
+                            "outcome_id": "high_quality",
+                            "next_step_id": "deployment",
+                            "conditions": [{"if": "Attribute", "name": "quality_score", "is": ">=", "value": 8}]
+                        },
+                        {
+                            "outcome_id": "low_quality",
+                            "next_step_id": "rework",
+                            "conditions": []
+                        }
+                    ]
+                },
+                "nway-chance": {
+                    "module_id": "outcome_decision",
+                    "decision_type": "nway-chance",
+                    "outcomes": [
+                        {
+                            "outcome_id": "success",
+                            "next_step_id": "deployment",
+                            "conditions": [{"if": "Probability", "is": "==", "value": 0.6}]
+                        },
+                        {
+                            "outcome_id": "minor_issues",
+                            "next_step_id": "testing",
+                            "conditions": [{"if": "Probability", "is": "==", "value": 0.3}]
+                        },
+                        {
+                            "outcome_id": "major_issues",
+                            "next_step_id": "design",
+                            "conditions": [{"if": "Probability", "is": "==", "value": 0.1}]
+                        }
+                    ]
+                }
             }
         },
         "assign": {
@@ -102,7 +147,8 @@ def generate_step_template(step_type, step_id=None):
         template["next_steps"] = []
         
     elif step_type == 'decide':
-        template["decide_config"] = step_types_info[step_type]["example"].copy()
+        # Use 2way-chance as default template
+        template["decide_config"] = step_types_info[step_type]["examples"]["2way-chance"].copy()
         
     elif step_type == 'assign':
         template["assign_config"] = step_types_info[step_type]["example"].copy()
