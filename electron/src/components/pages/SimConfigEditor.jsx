@@ -281,7 +281,7 @@ const SimConfigEditor = ({
           {/* Floating Toolbar for Event Flow */}
           <FloatingToolbar
             items={toolbarItems}
-            position="top"
+            position="top-center"
             theme={theme}
           />
         </div>

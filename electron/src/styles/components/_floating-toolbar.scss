@@ -33,6 +33,18 @@
     }
   }
   
+  &--top-center {
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    
+    .floating-toolbar__container {
+      flex-direction: row;
+      gap: 6px;
+      padding: 8px 12px;
+    }
+  }
+  
   &--bottom {
     bottom: 16px;
     left: 50%;
