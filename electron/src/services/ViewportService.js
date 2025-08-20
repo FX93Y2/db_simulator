@@ -21,8 +21,6 @@ class ViewportService {
     this.SAVE_DEBOUNCE_MS = 500; // Viewport changes happen frequently
     this.STORAGE_PREFIX = 'viewport_';
     this.DEFAULT_VIEWPORT = { x: 0, y: 0, zoom: 0.6 }; // 60% zoom as requested
-    
-    console.log('[ViewportService] Initialized with 60% default zoom');
   }
 
   /**
@@ -40,12 +38,6 @@ class ViewportService {
    */
   loadProject(projectId) {
     const cacheKey = projectId || 'default';
-    
-    if (this.cache.has(cacheKey)) {
-      console.log(`[ViewportService] Project ${cacheKey} already loaded in cache`);
-      return;
-    }
-
     try {
       const storageKey = this._getStorageKey(projectId);
       const savedData = localStorage.getItem(storageKey);
@@ -57,7 +49,6 @@ class ViewportService {
           simulation: parsed.simulation || { ...this.DEFAULT_VIEWPORT }
         };
         
-        console.log(`[ViewportService] Loaded viewports for project: ${cacheKey}`, viewports);
         this.cache.set(cacheKey, {
           viewports,
           lastAccess: Date.now(),
@@ -75,7 +66,6 @@ class ViewportService {
           lastAccess: Date.now(),
           dirty: false
         });
-        console.log(`[ViewportService] Initialized default viewports for project: ${cacheKey}`);
       }
     } catch (error) {
       console.error(`[ViewportService] Error loading project ${cacheKey}:`, error);
@@ -166,12 +156,10 @@ class ViewportService {
       if (tab) {
         // Reset specific tab
         projectCache.viewports[tab] = { ...this.DEFAULT_VIEWPORT };
-        console.log(`[ViewportService] Reset ${tab} viewport for project: ${cacheKey}`);
       } else {
         // Reset both tabs
         projectCache.viewports.database = { ...this.DEFAULT_VIEWPORT };
         projectCache.viewports.simulation = { ...this.DEFAULT_VIEWPORT };
-        console.log(`[ViewportService] Reset all viewports for project: ${cacheKey}`);
       }
       
       projectCache.lastAccess = Date.now();
@@ -195,7 +183,6 @@ class ViewportService {
     
     if (!existingData) {
       // New project - initialize with default viewports
-      console.log(`[ViewportService] Initializing new project with 60% zoom: ${cacheKey}`);
       this.resetViewport(projectId, null); // Reset both tabs to default
     } else {
       // Existing project - load normally
@@ -280,8 +267,6 @@ class ViewportService {
       
       localStorage.setItem(storageKey, JSON.stringify(data));
       projectCache.dirty = false;
-      
-      console.log(`[ViewportService] Saved viewports for project: ${cacheKey}`, data);
     } catch (error) {
       console.error(`[ViewportService] Error saving project ${cacheKey}:`, error);
     }
@@ -309,7 +294,6 @@ class ViewportService {
       
       // Remove from cache
       this.cache.delete(cacheKey);
-      console.log(`[ViewportService] Unloaded project: ${cacheKey}`);
     }
   }
 
@@ -357,7 +341,6 @@ viewportService.handleProjectSwitch = function(newProjectId) {
 // Cleanup on page unload
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
-    console.log('[ViewportService] Page unload - saving all dirty projects');
     for (const [projectId] of viewportService.cache.entries()) {
       viewportService._saveToStorage(projectId === 'default' ? null : projectId);
     }
