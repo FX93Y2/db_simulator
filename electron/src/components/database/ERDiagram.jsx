@@ -15,6 +15,7 @@ import {
   useCanonicalEntities,
   useSelectedEntity,
   useSelectedEntities,
+  useSelectedEdges,
   useSelectionMode,
   useShowEntityModal,
   useEntityActions,
@@ -54,6 +55,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const canonicalEntities = useCanonicalEntities(projectId);
   const selectedEntity = useSelectedEntity(projectId);
   const selectedEntities = useSelectedEntities(projectId);
+  const selectedEdges = useSelectedEdges(projectId);
   const selectionMode = useSelectionMode(projectId);
   const showEntityModal = useShowEntityModal(projectId);
   const currentState = useDatabaseCurrentState(projectId);
@@ -76,7 +78,9 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     updateEntityNodes,
     updateEntityEdges,
     updateSelectedEntities,
+    setSelectedEdges,
     handleEdgeClick,
+    deleteSelectedEdge,
     handleEntityDoubleClick,
     handleEntityDragStop,
     handleEntityUpdate,
@@ -205,6 +209,23 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleEdgeClick(event, edge);
   }, [handleEdgeClick]);
 
+  // Edge context menu handler  
+  const onEdgeContextMenu = React.useCallback((event, edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedEdges([edge]);
+    
+    const clientX = event.nativeEvent?.clientX ?? event.clientX;
+    const clientY = event.nativeEvent?.clientY ?? event.clientY;
+    showContextMenu(clientX, clientY);
+  }, [setSelectedEdges, showContextMenu]);
+
+  // Edge deletion handler
+  const onDeleteEdge = React.useCallback(() => {
+    deleteSelectedEdge();
+    hideContextMenu();
+  }, [deleteSelectedEdge, hideContextMenu]);
+
   const onConnectStart = React.useCallback((event) => {
     // Prevent default text selection during edge dragging
     event.preventDefault();
@@ -297,6 +318,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeContextMenu={contextMenuHook.onNodeContextMenu}
             onEdgeClick={onEdgeClick}
+            onEdgeContextMenu={onEdgeContextMenu}
             onPaneClick={onPaneClick}
             onPaneContextMenu={contextMenuHook.onPaneContextMenu}
             nodeTypes={nodeTypes}
@@ -309,6 +331,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
+            edgesFocusable={true}
             multiSelectionKeyCode={selectionMode ? false : 'Shift'}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
@@ -333,8 +356,10 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
         onCopy={contextMenuHook.handleContextCopy}
         onPaste={contextMenuHook.handleContextPaste}
         onDelete={contextMenuHook.handleContextDelete}
+        onDeleteEdge={onDeleteEdge}
         hasClipboard={clipboard.length > 0}
         hasSelection={selectedEntities.length > 0}
+        hasEdgeSelection={selectedEdges.length > 0}
         itemType="entity"
       />
     </div>

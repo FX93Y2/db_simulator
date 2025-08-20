@@ -41,6 +41,8 @@ export const createUIActions = (set, get) => ({
     
     set((state) => {
       state.selectedNode = null;
+      state.selectedNodes = [];
+      state.selectedEdges = [];
       
       // Clear all node selections
       state.nodes = state.nodes.map(node => ({
@@ -104,6 +106,50 @@ export const createUIActions = (set, get) => ({
       
       // Keep selectedNode for backward compatibility (use first selected)
       state.selectedNode = selectedNodes.length > 0 ? selectedNodes[0] : null;
+    });
+  },
+
+  /**
+   * Update selected edges array based on current edge selection states
+   */
+  updateSelectedEdges: () => {
+    set((state) => {
+      const selectedEdges = state.edges.filter(edge => edge.selected);
+      state.selectedEdges = selectedEdges;
+    });
+  },
+
+  /**
+   * Set selected edges
+   * @param {Array} edges - Array of edge objects to select
+   */
+  setSelectedEdges: (edges) => {
+    set((state) => {
+      // Clear previous edge selections
+      state.edges = state.edges.map(edge => ({
+        ...edge,
+        selected: false
+      }));
+      
+      // Select specified edges
+      edges.forEach(selectedEdge => {
+        const edgeIndex = state.edges.findIndex(edge => edge.id === selectedEdge.id);
+        if (edgeIndex >= 0) {
+          state.edges[edgeIndex].selected = true;
+        }
+      });
+      
+      state.selectedEdges = edges;
+      
+      // Clear node selection when selecting edges
+      if (edges.length > 0) {
+        state.nodes = state.nodes.map(node => ({
+          ...node,
+          selected: false
+        }));
+        state.selectedNodes = [];
+        state.selectedNode = null;
+      }
     });
   },
 

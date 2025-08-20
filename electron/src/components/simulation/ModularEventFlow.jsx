@@ -15,6 +15,7 @@ import {
   useCanonicalSteps,
   useCurrentState,
   useSelectedNodes,
+  useSelectedEdges,
   useSimulationSelectionMode,
   useCanvasActions,
   useUIActions,
@@ -35,6 +36,7 @@ import useViewportPersistence from '../../hooks/shared/useViewportPersistence';
 import { nodeTypes } from './flow-nodes/FlowNodeComponents';
 import NodeEditModal from './flow-nodes/NodeEditModal';
 import CanvasContextMenu from '../shared/CanvasContextMenu';
+import { pushToHistory } from '../../stores/middleware/historyActions.js';
 
 /**
  * Inner ModularEventFlow component that has access to ReactFlow context
@@ -51,6 +53,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const canonicalSteps = useCanonicalSteps(projectId);
   const currentState = useCurrentState(projectId);
   const selectedNodes = useSelectedNodes(projectId);
+  const selectedEdges = useSelectedEdges(projectId);
   const selectionMode = useSimulationSelectionMode(projectId);
   const clipboard = useSimulationClipboard(projectId);
   const contextMenu = useSimulationContextMenu(projectId);
@@ -70,6 +73,8 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const { 
     handleNodeDoubleClick, 
     updateSelectedNodes,
+    updateSelectedEdges,
+    setSelectedEdges,
     clearSelection,
     copyNodes,
     pasteNodes,
@@ -170,6 +175,84 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const onEdgesDelete = React.useCallback(() => {
     // Edge deletion handled by node deletion cleanup
   }, []);
+
+  // Edge click handler to select edges
+  const onEdgeClick = React.useCallback((event, edge) => {
+    event.stopPropagation();
+    setSelectedEdges([edge]);
+  }, [setSelectedEdges]);
+
+  // Edge context menu handler  
+  const onEdgeContextMenu = React.useCallback((event, edge) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setSelectedEdges([edge]);
+    
+    const clientX = event.nativeEvent?.clientX ?? event.clientX;
+    const clientY = event.nativeEvent?.clientY ?? event.clientY;
+    showContextMenu(clientX, clientY);
+  }, [setSelectedEdges, showContextMenu]);
+
+  // Edge deletion handler
+  const onDeleteEdge = React.useCallback(() => {
+    if (selectedEdges.length === 0) return;
+    
+    const edge = selectedEdges[0];
+    const sourceNodeId = edge.source;
+    const targetNodeId = edge.target;
+    const handleId = edge.sourceHandle;
+    
+    // Find the source step in canonical steps
+    const sourceStep = canonicalSteps.find(step => step.step_id === sourceNodeId);
+    if (!sourceStep) return;
+
+    // Push current state to history before making changes
+    const store = useSimulationConfigStore(projectId);
+    pushToHistory(store.setState, store.getState, 'simulation', 'UPDATE', { 
+      action: 'DELETE_EDGE', 
+      sourceStepId: sourceNodeId, 
+      targetStepId: targetNodeId,
+      handleId 
+    });
+    
+    if (sourceStep.step_type === 'decide' && handleId) {
+      // For decision steps, clear the specific outcome next_step_id
+      const outcomeIndex = parseInt(handleId.replace('outcome-', ''));
+      if (sourceStep.decide_config?.outcomes?.[outcomeIndex]) {
+        const updatedStep = {
+          ...sourceStep,
+          decide_config: {
+            ...sourceStep.decide_config,
+            outcomes: sourceStep.decide_config.outcomes.map((outcome, idx) =>
+              idx === outcomeIndex ? { ...outcome, next_step_id: '' } : outcome
+            )
+          }
+        };
+        updateStep(sourceStep.step_id, updatedStep);
+      }
+    } else {
+      // For regular steps, remove from next_steps array
+      if (sourceStep.next_steps && Array.isArray(sourceStep.next_steps)) {
+        const updatedStep = {
+          ...sourceStep,
+          next_steps: sourceStep.next_steps.filter(stepId => stepId !== targetNodeId)
+        };
+        updateStep(sourceStep.step_id, updatedStep);
+      } else if (sourceStep.next_steps === targetNodeId) {
+        // Handle case where next_steps is a single step_id string
+        const updatedStep = {
+          ...sourceStep,
+          next_steps: []
+        };
+        updateStep(sourceStep.step_id, updatedStep);
+      }
+    }
+    
+    // Clear edge selection and update visual state
+    clearSelection();
+    updateVisualState();
+    hideContextMenu();
+  }, [selectedEdges, canonicalSteps, updateStep, clearSelection, updateVisualState, hideContextMenu]);
 
   const onConnectStart = React.useCallback((event) => {
     // Prevent default text selection during edge dragging
@@ -415,6 +498,8 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             onNodeDoubleClick={onNodeDoubleClick}
             onNodeDragStop={onNodeDragStop}
             onNodeContextMenu={contextMenuHook.onNodeContextMenu}
+            onEdgeClick={onEdgeClick}
+            onEdgeContextMenu={onEdgeContextMenu}
             onPaneClick={(event) => {
               clearSelection();
               contextMenuHook.onPaneClick(event);
@@ -435,6 +520,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             attributionPosition="bottom-right"
             nodesDraggable={true}
             elementsSelectable={true}
+            edgesFocusable={true}
             multiSelectionKeyCode={selectionMode ? false : 'Shift'}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
@@ -470,8 +556,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         onCopy={contextMenuHook.handleContextCopy}
         onPaste={contextMenuHook.handleContextPaste}
         onDelete={contextMenuHook.handleContextDelete}
+        onDeleteEdge={onDeleteEdge}
         hasClipboard={clipboard.length > 0}
         hasSelection={selectedNodes.length > 0}
+        hasEdgeSelection={selectedEdges.length > 0}
         itemType="node"
       />
     </div>

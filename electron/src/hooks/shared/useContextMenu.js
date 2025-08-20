@@ -24,12 +24,12 @@ const useContextMenu = ({
 
   /**
    * Handle right-click on canvas pane
-   * Only shows context menu if in selection mode and has clipboard content
+   * Shows context menu if we have clipboard content or selections (any mode)
    */
   const onPaneContextMenu = useCallback((event) => {
 
-    // Show context menu in selection mode if we have clipboard content or selections
-    if (selectionMode && (clipboard.length > 0 || selectedItems.length > 0)) {
+    // Show context menu if we have clipboard content or selections
+    if (clipboard.length > 0 || selectedItems.length > 0) {
       event.preventDefault();
       
       
@@ -48,36 +48,34 @@ const useContextMenu = ({
       onShowContextMenu(clientX, clientY);
     }
     // Otherwise, allow browser's default context menu
-  }, [selectionMode, clipboard.length, selectedItems.length, onShowContextMenu, reactFlowInstance]);
+  }, [clipboard.length, selectedItems.length, onShowContextMenu, reactFlowInstance]);
 
   /**
    * Handle right-click on nodes/entities
-   * Only shows context menu if in selection mode and item is selected
+   * Shows context menu in both pan and selection modes
    */
   const onNodeContextMenu = useCallback((event, node) => {
 
-    // Show context menu if in selection mode
-    if (selectionMode) {
-      event.preventDefault();
-      event.stopPropagation();
-      
-      
-      // Use native event coordinates if available, otherwise use synthetic
-      const clientX = event.nativeEvent?.clientX ?? event.clientX;
-      const clientY = event.nativeEvent?.clientY ?? event.clientY;
-      
-      // Convert screen coordinates to flow coordinates
-      const viewport = reactFlowInstance.getViewport();
-      const flowPosition = {
-        x: (clientX - viewport.x) / viewport.zoom,
-        y: (clientY - viewport.y) / viewport.zoom
-      };
-      setMousePosition(flowPosition);
-      lastOpenedRef.current = Date.now();
-      onShowContextMenu(clientX, clientY);
-    }
-    // Otherwise, allow browser's default context menu
-  }, [selectionMode, selectedItems, onShowContextMenu, reactFlowInstance]);
+    // Always show context menu for node right-clicks
+    event.preventDefault();
+    event.stopPropagation();
+    
+    
+    // Use native event coordinates if available, otherwise use synthetic
+    const clientX = event.nativeEvent?.clientX ?? event.clientX;
+    const clientY = event.nativeEvent?.clientY ?? event.clientY;
+    
+    // Convert screen coordinates to flow coordinates
+    const viewport = reactFlowInstance.getViewport();
+    const flowPosition = {
+      x: (clientX - viewport.x) / viewport.zoom,
+      y: (clientY - viewport.y) / viewport.zoom
+    };
+    setMousePosition(flowPosition);
+    lastOpenedRef.current = Date.now();
+    onShowContextMenu(clientX, clientY);
+    // Always allow context menu on node right-clicks
+  }, [selectedItems, onShowContextMenu, reactFlowInstance]);
 
   /**
    * Handle pane click - hide context menu and clear selections

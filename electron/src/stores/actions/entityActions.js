@@ -87,6 +87,9 @@ export const createEntityActions = (set, get) => ({
    * @param {Object} newData - Updated entity data
    */
   updateEntity: (entityId, newData) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'database', 'UPDATE', { entityId, newData });
+    
     const { projectId, canonicalEntities: currentEntities } = get();
     
     // Check if name is changing for position mapping update

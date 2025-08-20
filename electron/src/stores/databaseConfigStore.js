@@ -42,6 +42,7 @@ const createProjectStore = (projectId = 'default') => {
           entityEdges: [],
           selectedEntity: null,
           selectedEntities: [],
+          selectedEdges: [],
           selectionMode: false,
           showEntityModal: false,
           dbSchema: null,
@@ -128,6 +129,7 @@ export const useEntityNodes = (projectId) => useDatabaseConfigStore(projectId)(s
 export const useEntityEdges = (projectId) => useDatabaseConfigStore(projectId)(state => state.entityEdges);
 export const useSelectedEntity = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectedEntity);
 export const useSelectedEntities = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectedEntities);
+export const useSelectedEdges = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectedEdges);
 export const useSelectionMode = (projectId) => useDatabaseConfigStore(projectId)(state => state.selectionMode);
 export const useShowEntityModal = (projectId) => useDatabaseConfigStore(projectId)(state => state.showEntityModal);
 export const useDbSchema = (projectId) => useDatabaseConfigStore(projectId)(state => state.dbSchema);
@@ -181,6 +183,8 @@ export const useEntityUIActions = (projectId) => {
     updateEntityNodes: state.updateEntityNodes,
     updateEntityEdges: state.updateEntityEdges,
     updateSelectedEntities: state.updateSelectedEntities,
+    setSelectedEdges: state.setSelectedEdges,
+    deleteSelectedEdge: state.deleteSelectedEdge,
     openEntityModal: state.openEntityModal,
     closeEntityModal: state.closeEntityModal,
     handleEntityClick: state.handleEntityClick,

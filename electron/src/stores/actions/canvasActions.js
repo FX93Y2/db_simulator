@@ -175,6 +175,8 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} newData - New step data
    */
   updateStep: (stepId, newData) => {
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'simulation', 'UPDATE', { stepId, newData });
     
     const isIdChanging = newData.step_id && newData.step_id !== stepId;
     

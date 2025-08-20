@@ -13,8 +13,10 @@ const CanvasContextMenu = ({
   onCopy, 
   onPaste, 
   onDelete, 
+  onDeleteEdge,
   hasClipboard, 
   hasSelection,
+  hasEdgeSelection,
   itemType = 'item' // 'entity', 'node', or generic 'item'
 }) => {
   if (!visible) return null;
@@ -90,7 +92,26 @@ const CanvasContextMenu = ({
           onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
         >
           <FiTrash2 className="me-2" />
-          Delete
+          Delete {itemType}
+        </div>
+      )}
+      
+      {hasEdgeSelection && onDeleteEdge && (
+        <div
+          className="context-menu-item"
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            color: 'var(--bs-danger, #dc3545)',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+          onClick={onDeleteEdge}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          <FiTrash2 className="me-2" />
+          Delete Connection
         </div>
       )}
     </div>

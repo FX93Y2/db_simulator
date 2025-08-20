@@ -1,3 +1,5 @@
+import { pushToHistory } from '../middleware/historyActions.js';
+
 /**
  * Entity UI-related actions for the simulation config store
  * Handles modal management, selection state, and user interaction events
@@ -114,6 +116,7 @@ export const createEntityUIActions = (set, get) => ({
     set((state) => {
       // Clear node selection when edge is clicked
       state.selectedEntity = null;
+      state.selectedEntities = [];
       state.entityNodes = state.entityNodes.map(node => ({
         ...node,
         selected: false
@@ -124,7 +127,69 @@ export const createEntityUIActions = (set, get) => ({
         ...e,
         selected: e.id === edge.id
       }));
+      
+      // Update selectedEdges state
+      state.selectedEdges = [edge];
     });
+  },
+
+  /**
+   * Delete selected edge (remove foreign key attribute)
+   */
+  deleteSelectedEdge: () => {
+    const state = get();
+    if (state.selectedEdges.length === 0) return;
+    
+    const edge = state.selectedEdges[0];
+    const sourceEntityId = edge.source;
+    const targetEntityId = edge.target;
+
+    // Push current state to history before making changes
+    pushToHistory(set, get, 'database', 'UPDATE', { 
+      action: 'DELETE_EDGE', 
+      sourceEntityId, 
+      targetEntityId,
+      edgeId: edge.id 
+    });
+    
+    set((state) => {
+      // Find the source entity
+      const sourceEntityIndex = state.canonicalEntities.findIndex(entity => entity.name === sourceEntityId);
+      if (sourceEntityIndex === -1) return;
+      
+      const sourceEntity = state.canonicalEntities[sourceEntityIndex];
+      
+      // Find and remove the foreign key attribute
+      const updatedAttributes = sourceEntity.attributes.filter(attr => {
+        // Check if this attribute is a foreign key pointing to the target entity
+        // Handle both standard FK types (fk) and simulation FK types (resource_id, event_id, entity_id)
+        const isForeignKey = attr.type.startsWith('fk') || 
+                            attr.type === 'resource_id' || 
+                            attr.type === 'event_id' || 
+                            attr.type === 'entity_id';
+        
+        const pointsToTarget = attr.ref && attr.ref.startsWith(`${targetEntityId}.`);
+        
+        return !(isForeignKey && pointsToTarget);
+      });
+      
+      // Update the source entity
+      state.canonicalEntities[sourceEntityIndex] = {
+        ...sourceEntity,
+        attributes: updatedAttributes
+      };
+      
+      // Clear edge selection
+      state.selectedEdges = [];
+      state.entityEdges = state.entityEdges.map(e => ({
+        ...e,
+        selected: false
+      }));
+    });
+    
+    // Trigger visual state update
+    const { updateEntityVisualState } = get();
+    updateEntityVisualState();
   },
 
   /**
@@ -228,9 +293,45 @@ export const createEntityUIActions = (set, get) => ({
           selected: false
         }));
       }
+      
+      state.selectedEntities = [];
+      state.selectedEdges = [];
     });
   },
 
+  /**
+   * Set selected edges
+   * @param {Array} edges - Array of edge objects to select
+   */
+  setSelectedEdges: (edges) => {
+    set((state) => {
+      // Clear previous edge selections
+      state.entityEdges = state.entityEdges.map(edge => ({
+        ...edge,
+        selected: false
+      }));
+      
+      // Select specified edges
+      edges.forEach(selectedEdge => {
+        const edgeIndex = state.entityEdges.findIndex(edge => edge.id === selectedEdge.id);
+        if (edgeIndex >= 0) {
+          state.entityEdges[edgeIndex].selected = true;
+        }
+      });
+      
+      state.selectedEdges = edges;
+      
+      // Clear entity selection when selecting edges
+      if (edges.length > 0) {
+        state.entityNodes = state.entityNodes.map(node => ({
+          ...node,
+          selected: false
+        }));
+        state.selectedEntities = [];
+        state.selectedEntity = null;
+      }
+    });
+  },
 
   /**
    * Handle ReactFlow nodes change (for position updates and selection)

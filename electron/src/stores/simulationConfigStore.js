@@ -51,6 +51,7 @@ const createProjectStore = (projectId = 'default') => {
           activeTab: 'event-flow', // 'event-flow' | 'resources' | 'simulation'
           selectedNode: null,
           selectedNodes: [],
+          selectedEdges: [],
           selectionMode: false,
           showEditModal: false,
           
@@ -170,6 +171,7 @@ export const useNodes = (projectId) => useSimulationConfigStore(projectId)(state
 export const useEdges = (projectId) => useSimulationConfigStore(projectId)(state => state.edges);
 export const useSelectedNode = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedNode);
 export const useSelectedNodes = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedNodes);
+export const useSelectedEdges = (projectId) => useSimulationConfigStore(projectId)(state => state.selectedEdges);
 export const useSimulationSelectionMode = (projectId) => useSimulationConfigStore(projectId)(state => state.selectionMode);
 export const useShowEditModal = (projectId) => useSimulationConfigStore(projectId)(state => state.showEditModal);
 export const useCurrentState = (projectId) => useSimulationConfigStore(projectId)(state => state.currentState);
@@ -234,6 +236,8 @@ export const useUIActions = (projectId) => {
     setActiveTab: state.setActiveTab,
     setSelectedNode: state.setSelectedNode,
     updateSelectedNodes: state.updateSelectedNodes,
+    updateSelectedEdges: state.updateSelectedEdges,
+    setSelectedEdges: state.setSelectedEdges,
     toggleSelectionMode: state.toggleSelectionMode,
     setShowEditModal: state.setShowEditModal,
     clearSelection: state.clearSelection,
