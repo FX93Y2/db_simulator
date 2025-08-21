@@ -18,7 +18,7 @@ from sqlalchemy.pool import NullPool
 
 from ...config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig, EventFlow, Step
 from ...config_parser import Entity as DbEntity, Attribute as DbAttribute
-from ...utils.distribution_utils import generate_from_distribution
+from ...distributions import generate_from_distribution
 from ...utils.data_generation import generate_attribute_value
 from ..managers.event_tracker import EventTracker
 from ..managers.resource_manager import ResourceManager

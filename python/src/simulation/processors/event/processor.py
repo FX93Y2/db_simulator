@@ -13,7 +13,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
-from ....utils.distribution_utils import generate_from_distribution
+from ..utils import extract_distribution_config
+from ....distributions import generate_from_distribution
+from ....utils.data_generation import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 
@@ -207,8 +209,6 @@ class EventStepProcessor(StepProcessor):
             if not event_entity_config:
                 return
             
-            # Import here to avoid circular imports
-            from ...utils.data_generation import generate_attribute_value
             import dataclasses
             
             for attr in event_entity_config.attributes:
@@ -236,7 +236,9 @@ class EventStepProcessor(StepProcessor):
                     row_data[attr.name] = generate_attribute_value(attr_config_dict, event_id - 1)
                     
         except Exception as e:
+            import traceback
             self.logger.warning(f"Error generating event attributes: {str(e)}")
+            self.logger.debug(f"Full traceback:\n{traceback.format_exc()}")
     
     def _convert_resource_requirements(self, requirements) -> list:
         """Convert resource requirements to the format expected by resource manager."""
@@ -252,7 +254,9 @@ class EventStepProcessor(StepProcessor):
     def _calculate_event_duration(self, event_config) -> float:
         """Calculate event duration in minutes from configuration."""
         try:
-            duration_days = generate_from_distribution(event_config.duration.get('distribution', {}))
+            # Extract the actual distribution config from duration field
+            dist_config = extract_distribution_config(event_config.duration)
+            duration_days = generate_from_distribution(dist_config)
             return duration_days * 24 * 60  # Convert days to minutes
         except Exception as e:
             self.logger.warning(f"Error calculating event duration: {str(e)}, using default")

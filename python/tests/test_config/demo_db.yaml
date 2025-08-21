@@ -25,10 +25,7 @@ entities:
         type: resource_type # Column referenced by resource_type in sim config
         generator:
           type: distribution
-          distribution:
-            type: choice
-            values: ["Developer", "Tester", "Tech Lead", "Business Analyst"]
-            weights: [0.5, 0.2, 0.2, 0.1]  # Distribution of resource types
+          formula: "DISC(0.5, 'Developer', 0.2, 'Tester', 0.2, 'Tech Lead', 0.1, 'Business Analyst')"
 
   - name: Department
     rows: 5
@@ -53,9 +50,7 @@ entities:
         generator:
           type: foreign_key
           subtype: one_to_many
-          distribution:
-            type: choice
-            values: [0.2, 0.3, 0.1, 0.2, 0.3]
+          formula: "DISC(0.2, 0.2, 0.2, 0.3, 0.2, 0.1, 0.2, 0.2, 0.2, 0.3)"
       - name: project_name
         type: string
         generator:

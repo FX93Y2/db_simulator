@@ -438,15 +438,21 @@ class DatabaseGenerator:
                             row_data[attr.name] = None
                         else:
                             # Use user-defined distribution if present, else random
-                            dist = getattr(attr.generator, "distribution", None)
-                            if dist and getattr(dist, "type", None) == "choice" and getattr(dist, "values", None):
-                                # Weighted choice among parent_ids
-                                import numpy as np
-                                weights = getattr(dist, "values", None)
-                                if len(weights) == len(parent_ids):
-                                    row_data[attr.name] = np.random.choice(parent_ids, p=weights)
-                                else:
-                                    logger.warning(f"Distribution weights length does not match number of parent_ids for FK '{attr.name}' in '{entity.name}'. Using uniform random assignment.")
+                            if attr.generator.formula:
+                                # Use distribution formula for FK selection
+                                from ..distributions import generate_from_distribution
+                                try:
+                                    # For FK, we need to map the generated value to parent_ids
+                                    generated_value = generate_from_distribution(attr.generator.formula)
+                                    if isinstance(generated_value, (int, float)):
+                                        # If numeric, use as index (clamp to valid range)
+                                        index = int(generated_value) % len(parent_ids)
+                                        row_data[attr.name] = parent_ids[index]
+                                    else:
+                                        # If string/categorical, try to find in parent_ids, else use random
+                                        row_data[attr.name] = random.choices(parent_ids, k=1)[0]
+                                except Exception as e:
+                                    logger.warning(f"Error using formula for FK '{attr.name}': {e}. Using random assignment.")
                                     row_data[attr.name] = random.choices(parent_ids, k=1)[0]
                             else:
                                 # Uniform random assignment if no distribution is provided

@@ -1,20 +1,48 @@
+"""
+Attribute value generation for database entities.
+
+This module generates values for entity attributes based on their generator configuration,
+supporting various generation methods including distribution formulas, Faker, and templates.
+"""
+
+import logging
 import random
 from typing import Any, Dict
+
 from .faker_utils import generate_fake_data
+
+logger = logging.getLogger(__name__)
+
 
 def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any:
     """
-    Description: Generate value for an attribute based on its generator configuration.
+    Generate value for an attribute based on its generator configuration.
 
     Args:
-        attr_config (Dict[str, Any]): Attribute configuration dictionary, expected 
-                                       to contain 'name' and 'generator' keys. 
-                                       'generator' is another dict with 'type' 
-                                       and other keys based on the type.
-        row_index (int): Index of the current row being generated (0-based).
+        attr_config: Attribute configuration dictionary containing 'name' and 'generator' keys
+        row_index: Index of the current row being generated (0-based)
 
     Returns:
-        Any: The generated value.
+        The generated value for the attribute
+
+    Examples:
+        # Template generator
+        generate_attribute_value({
+            'name': 'title',
+            'generator': {'type': 'template', 'template': 'ticket_{id}'}
+        }, 0)  # Returns 'ticket_1'
+        
+        # Formula distribution
+        generate_attribute_value({
+            'name': 'priority', 
+            'generator': {'type': 'distribution', 'formula': 'DISC(0.7, "low", 0.3, "high")'}
+        }, 0)  # Returns 'low' or 'high'
+        
+        # Faker generator
+        generate_attribute_value({
+            'name': 'description',
+            'generator': {'type': 'faker', 'method': 'sentence'}
+        }, 0)  # Returns fake sentence
     """
     generator_config = attr_config.get('generator')
     attr_name = attr_config.get('name', 'unknown_attr')
@@ -30,7 +58,8 @@ def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any
         if method:
             return generate_fake_data(method)
         else:
-            return f"Faker_{attr_name}_{row_index}" # Fallback if method missing
+            logger.warning(f"Faker generator missing method for {attr_name}")
+            return f"Faker_{attr_name}_{row_index}"
 
     # Template generator
     elif generator_type == 'template':
@@ -43,58 +72,35 @@ def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any
             logger.warning(f"KeyError in template for {attr_name}: {e}. Context: {context}")
             return f"Template_Error_{attr_name}_{row_index}"
 
-    # Distribution generator
+    # Distribution generator - supports both formula and dict formats
     elif generator_type == 'distribution':
-        distribution = generator_config.get('distribution')
-        if not distribution:
-            return f"Dist_{attr_name}_{row_index}"
-
-        dist_type = distribution.get('type')
-
-        if dist_type == 'choice':
-            values = distribution.get('values', [])
-            weights = distribution.get('weights')
-
-            if not values:
-                return f"Choice_{attr_name}_{row_index}" # Fallback if values missing
-
+        # Check for formula first (preferred new format)
+        formula = generator_config.get('formula')
+        if formula:
             try:
-                # Ensure weights length matches values length if provided
-                if weights and len(weights) != len(values):
-                     logger.warning(f"Weights length mismatch for {attr_name}. Using equal weights.")
-                     weights = None
-                return random.choices(values, weights=weights, k=1)[0]
+                from ..distributions import generate_from_distribution
+                return generate_from_distribution(formula)
             except Exception as e:
-                logger.error(f"Error during 'choice' generation for {attr_name}: {e}")
-                return f"Choice_Error_{attr_name}_{row_index}"
-        return f"Dist_{dist_type or 'Unknown'}_{attr_name}_{row_index}"
-    
-    # Handle simulation_event type specifically if needed, otherwise it falls through
+                logger.error(f"Error generating from formula '{formula}' for {attr_name}: {e}")
+                raise
+        
+        logger.error(f"Distribution generator for {attr_name} missing 'formula' field")
+        raise ValueError(f"Invalid distribution generator config for {attr_name}: formula field is required")
+
+    # Simulation event type - handled by simulation system
     elif generator_type == 'simulation_event':
-         values = generator_config.get('values', [])
-         if values:
-              return None
-         return f"SimEvent_{attr_name}_{row_index}"
+        values = generator_config.get('values', [])
+        if values:
+            return None  # Let simulation handle this
+        return f"SimEvent_{attr_name}_{row_index}"
     
-    # Handle foreign_key generator type
+    # Foreign key generator - handled by database generator
     elif generator_type == 'foreign_key':
-        # For foreign keys, we need to return None or a placeholder
-        # The actual foreign key resolution should happen in the database generator
-        # or in the simulator's _create_entity method
-        return None  # Let the calling code handle the foreign key resolution
+        # Foreign key resolution is handled by the database generator
+        # or simulator's entity creation methods
+        return None
 
-    # Default fallback for unknown generator types
-    return f"Value_{generator_type or 'Unknown'}_{attr_name}_{row_index}"
-
-# Add logger definition if warnings/errors are desired
-import logging
-logger = logging.getLogger(__name__)
-
-# Placeholder for faker_utils
-# try:
-#     from .faker_utils import generate_fake_data
-# except ImportError:
-#     logger.warning("faker_utils not found, faker generator will not work correctly.")
-#     def generate_fake_data(method):
-#         return f"Fake_{method}"
-
+    # Unknown generator type
+    else:
+        logger.warning(f"Unknown generator type '{generator_type}' for {attr_name}")
+        return f"Value_{generator_type or 'Unknown'}_{attr_name}_{row_index}"

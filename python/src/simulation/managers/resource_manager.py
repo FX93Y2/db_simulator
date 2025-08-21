@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from dataclasses import dataclass
 from datetime import datetime
 
-from ...utils.distribution_utils import generate_from_distribution
+from ...distributions import generate_from_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -229,9 +229,14 @@ class ResourceManager:
                 resource_value = req.get('value')
                 count = req.get('count', 1)
                 
-                # Handle dynamic count
-                if isinstance(count, dict) and 'distribution' in count:
-                    count = int(round(generate_from_distribution(count['distribution'])))
+                # Handle dynamic count with formula
+                if isinstance(count, dict) and 'formula' in count:
+                    from ...distributions import generate_from_distribution
+                    count = int(round(generate_from_distribution(count['formula'])))
+                elif isinstance(count, str):
+                    # Direct formula string
+                    from ...distributions import generate_from_distribution
+                    count = int(round(generate_from_distribution(count)))
                 else:
                     count = int(count)
                 

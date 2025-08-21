@@ -9,18 +9,7 @@ entities:
         type: resource_type
         generator:
           type: distribution
-          distribution:
-            type: choice
-            values:
-              - SRE
-              - Tech Support
-              - Dev
-              - Security
-            weights:
-              - 0.2
-              - 0.5
-              - 0.2
-              - 0.1
+          formula: "DISC(0.2, 'SRE', 0.5, 'Tech Support', 0.2, 'Dev', 0.1, 'Security')"
   - name: Online_Ticket
     type: entity
     rows: n/a
@@ -32,16 +21,7 @@ entities:
         generator:
           type: foreign_key
           subtype: one_to_many
-          distribution:
-            type: uniform
-            values:
-              - 0.2
-              - 0.2
-              - 0.2
-              - 0.2
-              - 0.2
-            min: 3
-            max: 10
+          formula: "UNIF(3, 10)"
         ref: Submitter.id
       - name: description
         type: string
@@ -74,10 +54,7 @@ entities:
         generator:
           type: foreign_key
           subtype: one_to_many
-          distribution:
-            type: uniform
-            min: 1
-            max: 20
+          formula: "UNIF(1, 20)"
         ref: Submitter.id
       - name: phone_number
         type: string
@@ -88,16 +65,7 @@ entities:
         type: string
         generator:
           type: distribution
-          distribution:
-            type: choice
-            values:
-              - Support
-              - Sales
-              - Billing
-            weights:
-              - 0.6
-              - 0.3
-              - 0.1
+          formula: "DISC(0.6, 'Support', 0.3, 'Sales', 0.1, 'Billing')"
   - name: Ticket_Task
     type: event
     rows: n/a

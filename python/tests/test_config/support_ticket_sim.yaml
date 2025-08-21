@@ -12,9 +12,7 @@ event_simulation:
           create_config:
             entity_table: Online_Ticket
             interarrival_time:
-              distribution:
-                type: exponential
-                scale: 2
+              formula: "EXPO(2)"
             max_entities: n/a
           next_steps:
             - Event_Ticket_Assignment
@@ -22,10 +20,7 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              distribution:
-                type: normal
-                mean: 5
-                stddev: 1
+              formula: "NORM(5, 1)"
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
@@ -54,14 +49,22 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              distribution:
-                type: normal
-                mean: 10
-                stddev: 2
+              formula: "NORM(10, 2)"
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
+          next_steps:
+            - assign_simple_complete
+        
+        # Assign status complete for simple tickets
+        - step_id: assign_simple_complete
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: complete
           next_steps:
             - release_1
         
@@ -70,14 +73,22 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              distribution:
-                type: normal
-                mean: 30
-                stddev: 5
+              formula: "NORM(30, 5)"
             resource_requirements:
               - resource_table: Staff
                 value: Dev
                 count: 1
+          next_steps:
+            - assign_complex_complete
+        
+        # Assign status complete for complex tickets
+        - step_id: assign_complex_complete
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: complete
           next_steps:
             - release_1
         
@@ -85,16 +96,14 @@ event_simulation:
           step_type: release
           event_config: {}
     - flow_id: flow_2_Create_Phone_Call
-      event_table: Staff_Call_Task
+      event_table: Call_Task
       steps:
         - step_id: Create_Phone_Call
           step_type: create
           create_config:
             entity_table: Phone_Call
             interarrival_time:
-              distribution:
-                type: exponential
-                scale: 2
+              formula: "EXPO(2)"
             max_entities: n/a
           next_steps:
             - Phone_Call
@@ -102,10 +111,7 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              distribution:
-                type: normal
-                mean: 5
-                stddev: 1
+              formula: "NORM(5, 1)"
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support

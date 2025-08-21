@@ -13,7 +13,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
-from ....utils.distribution_utils import generate_from_distribution
+from ..utils import extract_distribution_config
+from ....distributions import generate_from_distribution
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +39,7 @@ class CreateStepProcessor(StepProcessor):
         """Check if this processor can handle the given step type."""
         return step_type == "create"
     
+
     def validate_step(self, step: 'Step') -> bool:
         """Validate that the step configuration is correct for Create modules."""
         if not step.create_config:
@@ -60,9 +62,17 @@ class CreateStepProcessor(StepProcessor):
             logger.error(f"Create step {step.step_id} missing next_steps for entity routing")
             return False
             
-        # Validate interarrival_time has distribution
-        if not isinstance(config.interarrival_time, dict) or 'distribution' not in config.interarrival_time:
-            logger.error(f"Create step {step.step_id} interarrival_time must have 'distribution' key")
+        # Validate interarrival_time format (dict with 'distribution' OR 'formula', or direct formula string)
+        if isinstance(config.interarrival_time, str):
+            # Formula string format - valid
+            pass
+        elif isinstance(config.interarrival_time, dict):
+            # Dict format - must have either 'distribution' or 'formula' key
+            if 'distribution' not in config.interarrival_time and 'formula' not in config.interarrival_time:
+                logger.error(f"Create step {step.step_id} interarrival_time dict must have 'distribution' or 'formula' key")
+                return False
+        else:
+            logger.error(f"Create step {step.step_id} interarrival_time must be string (formula) or dict")
             return False
             
         return True
@@ -99,7 +109,9 @@ class CreateStepProcessor(StepProcessor):
         while max_entities == -1 or entities_created < max_entities:
             # Generate interarrival time
             try:
-                interarrival_days = generate_from_distribution(config.interarrival_time)
+                # Extract the actual distribution config
+                dist_config = extract_distribution_config(config.interarrival_time)
+                interarrival_days = generate_from_distribution(dist_config)
                 interarrival_minutes = interarrival_days * 24 * 60  # Convert days to minutes
                 
                 # Wait for the next entity arrival
@@ -144,27 +156,7 @@ class CreateStepProcessor(StepProcessor):
             Maximum entities to create, or -1 for unlimited
         """
         if config.max_entities is None or config.max_entities == 'n/a':
-            # Estimate based on simulation duration and average interarrival time
-            try:
-                distribution = config.interarrival_time.get('distribution', {})
-                
-                if distribution.get('type') == 'exponential':
-                    avg_interarrival_days = distribution.get('scale', 1)
-                elif distribution.get('type') == 'normal':
-                    avg_interarrival_days = distribution.get('mean', 1)
-                elif distribution.get('type') == 'uniform':
-                    avg_interarrival_days = (distribution.get('min', 0) + distribution.get('max', 2)) / 2
-                else:
-                    avg_interarrival_days = 1  # Default
-                
-                # Estimate with 50% buffer
-                estimated = int(self.config.duration_days / avg_interarrival_days * 1.5)
-                logger.debug(f"Estimated max_entities: {estimated} based on duration and interarrival time")
-                return estimated
-                
-            except Exception as e:
-                logger.warning(f"Error estimating max_entities: {e}. Using unlimited.")
-                return -1  # Unlimited
+            return -1  # Unlimited - let simulation duration control termination
         
         return int(config.max_entities)
     

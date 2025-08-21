@@ -15,7 +15,7 @@ class Generator:
     type: str
     method: Optional[str] = None
     template: Optional[str] = None
-    distribution: Optional[Dict] = None
+    formula: Optional[str] = None        # Formula string support (e.g., "UNIF(3, 10)")
     values: Optional[List] = None
     weights: Optional[List[float]] = None
     subtype: Optional[str] = None  # Added for foreign_key generator support
@@ -90,7 +90,7 @@ def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
                     type=gen_dict['type'],
                     method=gen_dict.get('method'),
                     template=gen_dict.get('template'),
-                    distribution=gen_dict.get('distribution'),
+                    formula=gen_dict.get('formula'),  # Support for formula field
                     values=gen_dict.get('values'),
                     weights=gen_dict.get('weights'),
                     subtype=gen_dict.get('subtype')  # Support for foreign_key generator subtype

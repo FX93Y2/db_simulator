@@ -7,6 +7,9 @@ import logging
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Dict, List, Any, Optional, Union, Tuple
+
+# Type alias for distribution configurations - supports both dict and formula string
+DistributionConfig = Union[Dict[str, Any], str]
 from datetime import datetime, time
 
 from .db_parser import DatabaseConfig, Entity, Attribute
@@ -24,7 +27,7 @@ class ResourceRequirement:
 class CapacityRule:
     """Defines capacity assignment rules for specific resource types"""
     resource_type: str
-    capacity: Union[int, Dict[str, Any]]  # Fixed int or distribution config
+    capacity: Union[int, DistributionConfig]  # Fixed int or distribution config (dict/formula)
 
 @dataclass
 class ResourceCapacityConfig:
@@ -43,7 +46,7 @@ class TableSpecification:
 
 @dataclass
 class EntityArrival:
-    interarrival_time: Dict
+    interarrival_time: DistributionConfig  # Supports both dict and formula string
     max_entities: Optional[Any] = None  # Can be int or 'n/a'
     override_db_config: bool = True
 
@@ -102,12 +105,12 @@ class AssignConfig:
 class CreateConfig:
     """Configuration for Create step modules (Arena-style entity creation)"""
     entity_table: str
-    interarrival_time: Dict
+    interarrival_time: DistributionConfig  # Supports both dict and formula string
     max_entities: Optional[Union[int, str]] = None  # Can be int or 'n/a'
 
 @dataclass
 class EventStepConfig:
-    duration: Dict
+    duration: DistributionConfig  # Supports both dict and formula string
     resource_requirements: List[ResourceRequirement] = field(default_factory=list)
 
 @dataclass
