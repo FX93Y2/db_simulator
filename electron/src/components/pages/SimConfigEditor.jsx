@@ -3,9 +3,9 @@ import { useParams } from 'react-router-dom';
 import { Button, Modal } from 'react-bootstrap';
 import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../simulation/ModularEventFlow';
-import ResourceEditor from '../simulation/ResourceEditor';
-import EntityEditor from '../simulation/EntityEditor';
-import SimulationEditor from '../simulation/SimulationEditor';
+import SimulationResourceEditor from '../simulation/simulation_data_editors/SimulationResourceEditor';
+import SimulationEntityEditor from '../simulation/simulation_data_editors/SimulationEntityEditor';
+import SimulationSettingsEditor from '../simulation/simulation_data_editors/SimulationSettingsEditor';
 import FloatingToolbar from '../shared/FloatingToolbar';
 import SimConfigYamlPanel from '../simulation/SimConfigYamlPanel';
 import EditorHeader from '../shared/EditorHeader';
@@ -357,7 +357,7 @@ const SimConfigEditor = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <ResourceEditor
+          <SimulationResourceEditor
             yamlContent={yamlContent}
             onResourceChange={updateYamlContent}
             theme={theme}
@@ -401,7 +401,7 @@ const SimConfigEditor = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <EntityEditor
+          <SimulationEntityEditor
             dbConfigContent={dbConfigContent}
           />
         </Modal.Body>
@@ -426,7 +426,7 @@ const SimConfigEditor = ({
           </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <SimulationEditor
+          <SimulationSettingsEditor
             projectId={projectId}
           />
         </Modal.Body>

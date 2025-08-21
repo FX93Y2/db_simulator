@@ -1,28 +1,32 @@
 import React from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
-import ChoiceValueManager from './ChoiceValueManager';
-import DistributionParameterEditor from './DistributionParameterEditor';
+import { DistributionFormulaInput, convertDistributionToFormula } from '../../../shared/distribution';
 
 const ForeignKeyGeneratorEditor = ({ 
   generator, 
-  onGeneratorChange, 
-  onDistributionChange, 
-  onChoiceValueChange, 
-  onAddChoiceValue, 
-  onRemoveChoiceValue 
+  onGeneratorChange
 }) => {
-  const distribution = generator.distribution || {};
+  // Convert old distribution format to formula if needed
+  const getCurrentFormula = () => {
+    if (generator.formula) {
+      return generator.formula;
+    }
+    return convertDistributionToFormula(generator.distribution) || '';
+  };
+  
+  const handleFormulaChange = (newFormula) => {
+    onGeneratorChange('formula', newFormula);
+  };
 
   const toggleDistribution = () => {
-    if (generator.distribution) {
+    if (generator.distribution || generator.formula) {
       const updatedGenerator = { ...generator };
       delete updatedGenerator.distribution;
+      delete updatedGenerator.formula;
       onGeneratorChange('distribution', undefined);
+      onGeneratorChange('formula', undefined);
     } else {
-      onGeneratorChange('distribution', {
-        type: 'choice',
-        values: [0.2, 0.3, 0.5]
-      });
+      onGeneratorChange('formula', '');
     }
   };
 
@@ -40,52 +44,19 @@ const ForeignKeyGeneratorEditor = ({
         </Form.Select>
       </Form.Group>
       
-      {generator.distribution && (
+      {(generator.distribution || generator.formula) && (
         <Card className="distribution-optional-card">
           <Card.Header>
             <small className="text-muted">Distribution (Optional)</small>
           </Card.Header>
           <Card.Body>
-            <Form.Group className="mb-3">
-              <Form.Label>Distribution Type</Form.Label>
-              <Form.Select
-                value={distribution.type || 'choice'}
-                onChange={(e) => onDistributionChange('type', e.target.value)}
-              >
-                <option value="choice">Choice</option>
-                <option value="uniform">Uniform</option>
-                <option value="normal">Normal</option>
-                <option value="exponential">Exponential</option>
-                <option value="poisson">Poisson</option>
-                <option value="binomial">Binomial</option>
-                <option value="gamma">Gamma</option>
-              </Form.Select>
-            </Form.Group>
-            
-            {distribution.type === 'choice' && distribution.values && (
-              <ChoiceValueManager
-                values={distribution.values}
-                weights={null}
-                onValueChange={(field, values) => {
-                  onDistributionChange('values', values);
-                }}
-                onAddValue={(newValues) => {
-                  onDistributionChange('values', newValues);
-                }}
-                onRemoveValue={(newValues) => {
-                  onDistributionChange('values', newValues);
-                }}
-                showWeights={false}
-              />
-            )}
-            
-            {distribution.type !== 'choice' && (
-              <DistributionParameterEditor
-                distributionType={distribution.type}
-                distribution={distribution}
-                onDistributionChange={onDistributionChange}
-              />
-            )}
+            <DistributionFormulaInput
+              value={getCurrentFormula()}
+              onChange={handleFormulaChange}
+              label="Foreign Key Distribution"
+              placeholder="e.g., DISC(0.7, 'high', 0.3, 'low') or UNIF(1, 10)"
+              helpText="Distribution for foreign key value selection"
+            />
           </Card.Body>
         </Card>
       )}
@@ -96,7 +67,7 @@ const ForeignKeyGeneratorEditor = ({
         className="mt-2"
         onClick={toggleDistribution}
       >
-        {generator.distribution ? 'Remove Distribution' : 'Add Distribution'}
+        {(generator.distribution || generator.formula) ? 'Remove Distribution' : 'Add Distribution'}
       </Button>
     </div>
   );

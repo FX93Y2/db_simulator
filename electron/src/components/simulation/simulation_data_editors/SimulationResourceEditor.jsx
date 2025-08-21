@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Form } from 'react-bootstrap';
 import yaml from 'yaml';
-import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
-import { ResourceDataTable } from '../shared/DataTable';
-import { useSimulationActions } from '../../stores/simulationConfigStore';
+import useResourceDefinitions from '../../../hooks/shared/useResourceDefinitions';
+import { ResourceDataTable } from '../../shared/DataTable';
+import { useSimulationActions } from '../../../stores/simulationConfigStore';
 
-const ResourceEditor = ({ yamlContent, onResourceChange, dbConfigContent, projectId }) => {
+const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigContent, projectId }) => {
   const [parsedData, setParsedData] = useState(null);
   const [previousResourceDefinitions, setPreviousResourceDefinitions] = useState({});
   const [editingCell, setEditingCell] = useState(null); // Track which cell is being edited
@@ -301,4 +301,4 @@ const ResourceEditor = ({ yamlContent, onResourceChange, dbConfigContent, projec
 };
 
 
-export default ResourceEditor;
+export default SimulationResourceEditor;

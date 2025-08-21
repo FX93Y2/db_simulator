@@ -1,48 +1,29 @@
-import React from 'react';
-import { Form } from 'react-bootstrap';
-import ChoiceValueManager from './ChoiceValueManager';
-import DistributionParameterEditor from './DistributionParameterEditor';
+import React, { useState, useEffect } from 'react';
+import { DistributionFormulaInput, convertDistributionToFormula, getDefaultFormula } from '../../../shared/distribution';
 
-const DistributionGeneratorEditor = ({ generator, onDistributionChange, onChoiceValueChange, onAddChoiceValue, onRemoveChoiceValue }) => {
-  const distribution = generator.distribution || {};
+const DistributionGeneratorEditor = ({ generator, onFormulaChange }) => {
+  // Use local state to make input properly controlled
+  const [formula, setFormula] = useState('');
+  
+  // Initialize formula from generator when component mounts or generator changes
+  useEffect(() => {
+    const initialFormula = generator.formula || convertDistributionToFormula(generator.distribution) || '';
+    setFormula(initialFormula);
+  }, [generator.formula, generator.distribution]);
+
+  const handleFormulaChange = (newFormula) => {
+    setFormula(newFormula);
+    onFormulaChange(newFormula);
+  };
 
   return (
-    <div>
-      <Form.Group className="mb-3">
-        <Form.Label>Distribution Type</Form.Label>
-        <Form.Select
-          value={distribution.type || 'choice'}
-          onChange={(e) => onDistributionChange('type', e.target.value)}
-        >
-          <option value="choice">Choice</option>
-          <option value="uniform">Uniform</option>
-          <option value="normal">Normal</option>
-          <option value="exponential">Exponential</option>
-          <option value="poisson">Poisson</option>
-          <option value="binomial">Binomial</option>
-          <option value="gamma">Gamma</option>
-        </Form.Select>
-      </Form.Group>
-      
-      {distribution.type === 'choice' && (
-        <ChoiceValueManager
-          values={distribution.values || []}
-          weights={distribution.weights || []}
-          onValueChange={onChoiceValueChange}
-          onAddValue={onAddChoiceValue}
-          onRemoveValue={onRemoveChoiceValue}
-          showWeights={true}
-        />
-      )}
-      
-      {distribution.type !== 'choice' && (
-        <DistributionParameterEditor
-          distributionType={distribution.type}
-          distribution={distribution}
-          onDistributionChange={onDistributionChange}
-        />
-      )}
-    </div>
+    <DistributionFormulaInput
+      value={formula}
+      onChange={handleFormulaChange}
+      label="Distribution Formula"
+      placeholder="e.g., DISC(0.7, 'high', 0.3, 'low') or UNIF(1, 10)"
+      helpText="Specify how values should be distributed for this attribute"
+    />
   );
 };
 

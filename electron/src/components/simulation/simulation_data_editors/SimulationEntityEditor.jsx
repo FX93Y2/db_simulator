@@ -1,8 +1,8 @@
 import React from 'react';
-import DataTable from '../shared/DataTable';
-import useEntityDefinitions from '../../hooks/shared/useEntityDefinitions';
+import DataTable from '../../shared/DataTable';
+import useEntityDefinitions from '../../../hooks/shared/useEntityDefinitions';
 
-const EntityEditor = ({ dbConfigContent }) => {
+const SimulationEntityEditor = ({ dbConfigContent }) => {
   // Use the custom hook to get entity definitions from database config
   const entityDefinitions = useEntityDefinitions(dbConfigContent);
 
@@ -57,4 +57,4 @@ const EntityEditor = ({ dbConfigContent }) => {
   );
 };
 
-export default EntityEditor;
+export default SimulationEntityEditor;

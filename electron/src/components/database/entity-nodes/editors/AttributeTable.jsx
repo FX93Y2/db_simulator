@@ -43,7 +43,7 @@ const AttributeTable = ({
       case 'template':
         return `Template: ${attribute.generator.template || '{id}'}`;
       case 'distribution':
-        return `Distribution: ${attribute.generator.distribution?.type || 'choice'}`;
+        return `Distribution: ${attribute.generator.formula || 'formula'}`;
       case 'foreign_key':
         return `FK: ${attribute.generator.subtype || 'one_to_many'}`;
       default:
@@ -84,11 +84,7 @@ const AttributeTable = ({
       } else if (value === 'resource_type') {
         updatedAttribute.generator = {
           type: 'distribution',
-          distribution: {
-            type: 'choice',
-            values: ['Option1', 'Option2'],
-            weights: [0.5, 0.5]
-          }
+          formula: 'DISC(0.5, "Type1", 0.5, "Type2")'
         };
       } else {
         updatedAttribute.generator = {
@@ -149,14 +145,11 @@ const AttributeTable = ({
           delete updatedGenerator.subtype;
           break;
         case 'distribution':
-          updatedGenerator.distribution = {
-            type: 'choice',
-            values: ['Option1', 'Option2'],
-            weights: [0.5, 0.5]
-          };
+          updatedGenerator.formula = 'DISC(0.5, "Type1", 0.5, "Type2")';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
           delete updatedGenerator.subtype;
+          delete updatedGenerator.distribution;
           break;
         case 'foreign_key':
           updatedGenerator.subtype = 'one_to_many';
@@ -430,9 +423,6 @@ const AttributeTable = ({
                                   title="Reference to another entity's attribute"
                                   style={{ display: 'inline-block', width: 'auto', minWidth: '120px' }}
                                 />
-                              )}
-                              {isProtectedAttribute(attribute) && (
-                                <small className="text-muted">Auto-generated</small>
                               )}
                             </div>
                           </div>

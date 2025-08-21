@@ -72,11 +72,7 @@ const AttributeEditor = ({
         // Resource types need distribution generator
         updatedAttribute.generator = {
           type: 'distribution',
-          distribution: {
-            type: 'choice',
-            values: ['Option1', 'Option2'],
-            weights: [0.5, 0.5]
-          }
+          formula: 'DISC(0.5, "Type1", 0.5, "Type2")'
         };
       } else {
         // Other data types get faker generator by default
@@ -111,14 +107,12 @@ const AttributeEditor = ({
           delete updatedGenerator.subtype;
           break;
         case 'distribution':
-          updatedGenerator.distribution = {
-            type: 'choice',
-            values: ['Option1', 'Option2'],
-            weights: [0.5, 0.5]
-          };
+          // Preserve existing formula or set default
+          updatedGenerator.formula = updatedGenerator.formula || 'DISC(0.5, "Type1", 0.5, "Type2")';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
           delete updatedGenerator.subtype;
+          delete updatedGenerator.distribution; // Remove old format if exists
           break;
         case 'foreign_key':
           updatedGenerator.subtype = 'one_to_many';
@@ -135,55 +129,6 @@ const AttributeEditor = ({
     onAttributeChange(updatedAttribute);
   };
 
-  // Handle distribution changes
-  const handleDistributionChange = (field, value) => {
-    const updatedDistribution = { ...localAttribute.generator.distribution, [field]: value };
-    const updatedGenerator = { ...localAttribute.generator, distribution: updatedDistribution };
-    const updatedAttribute = { ...localAttribute, generator: updatedGenerator };
-    setLocalAttribute(updatedAttribute);
-    onAttributeChange(updatedAttribute);
-  };
-
-  // Handle choice distribution value/weight pairs
-  const handleChoiceValueChange = (field, values) => {
-    const distribution = localAttribute.generator.distribution;
-    const updatedDistribution = {
-      ...distribution,
-      [field]: values
-    };
-    const updatedGenerator = { ...localAttribute.generator, distribution: updatedDistribution };
-    const updatedAttribute = { ...localAttribute, generator: updatedGenerator };
-    setLocalAttribute(updatedAttribute);
-    onAttributeChange(updatedAttribute);
-  };
-
-  // Add new choice value/weight pair
-  const addChoiceValue = (newValues, newWeights) => {
-    const distribution = localAttribute.generator.distribution;
-    const updatedDistribution = {
-      ...distribution,
-      values: newValues,
-      weights: newWeights
-    };
-    const updatedGenerator = { ...localAttribute.generator, distribution: updatedDistribution };
-    const updatedAttribute = { ...localAttribute, generator: updatedGenerator };
-    setLocalAttribute(updatedAttribute);
-    onAttributeChange(updatedAttribute);
-  };
-
-  // Remove choice value/weight pair
-  const removeChoiceValue = (newValues, newWeights) => {
-    const distribution = localAttribute.generator.distribution;
-    const updatedDistribution = {
-      ...distribution,
-      values: newValues,
-      weights: newWeights
-    };
-    const updatedGenerator = { ...localAttribute.generator, distribution: updatedDistribution };
-    const updatedAttribute = { ...localAttribute, generator: updatedGenerator };
-    setLocalAttribute(updatedAttribute);
-    onAttributeChange(updatedAttribute);
-  };
 
   // Render generator-specific fields
   const renderGeneratorFields = () => {
@@ -210,10 +155,7 @@ const AttributeEditor = ({
         return (
           <DistributionGeneratorEditor
             generator={generator}
-            onDistributionChange={handleDistributionChange}
-            onChoiceValueChange={handleChoiceValueChange}
-            onAddChoiceValue={addChoiceValue}
-            onRemoveChoiceValue={removeChoiceValue}
+            onFormulaChange={(formula) => handleGeneratorChange('formula', formula)}
           />
         );
         
@@ -222,10 +164,6 @@ const AttributeEditor = ({
           <ForeignKeyGeneratorEditor
             generator={generator}
             onGeneratorChange={handleGeneratorChange}
-            onDistributionChange={handleDistributionChange}
-            onChoiceValueChange={handleChoiceValueChange}
-            onAddChoiceValue={addChoiceValue}
-            onRemoveChoiceValue={removeChoiceValue}
           />
         );
         

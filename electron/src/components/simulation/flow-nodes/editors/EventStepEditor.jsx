@@ -2,6 +2,7 @@ import React from 'react';
 import { Form, Row, Col, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import { DistributionFormulaInput, convertDistributionToFormula, getDefaultFormula } from '../../../shared/distribution';
 
 const EventStepEditor = ({ 
   formData, 
@@ -13,98 +14,35 @@ const EventStepEditor = ({
   resourceDefinitions,
   nameValidation = { valid: true, error: null }
 }) => {
-  const renderDistributionFields = () => {
-    switch (formData.distribution_type) {
-      case 'normal':
-        return (
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Mean (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.duration_mean || 1}
-                  onChange={(e) => onFormDataChange({ duration_mean: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Standard Deviation</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={formData.duration_stddev || 0.1}
-                  onChange={(e) => onFormDataChange({ duration_stddev: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-        );
-      case 'exponential':
-        return (
-          <Form.Group className="mb-3">
-            <Form.Label>Scale (Days)</Form.Label>
-            <Form.Control
-              type="number"
-              step="0.1"
-              value={formData.duration_scale || 1}
-              onChange={(e) => onFormDataChange({ duration_scale: e.target.value })}
-            />
-          </Form.Group>
-        );
-      case 'uniform':
-        return (
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Minimum (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.duration_min || 0}
-                  onChange={(e) => onFormDataChange({ duration_min: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Maximum (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.duration_max || 10}
-                  onChange={(e) => onFormDataChange({ duration_max: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-        );
-      case 'choice':
-        return (
-          <>
-            <Form.Group className="mb-3">
-              <Form.Label>Values (comma-separated)</Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.duration_values || '1, 2, 3'}
-                onChange={(e) => onFormDataChange({ duration_values: e.target.value })}
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Weights (comma-separated, must sum to 1)</Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.duration_weights || '0.5, 0.3, 0.2'}
-                onChange={(e) => onFormDataChange({ duration_weights: e.target.value })}
-              />
-            </Form.Group>
-          </>
-        );
-      default:
-        return null;
+  // Convert old distribution format to formula if needed
+  const getCurrentFormula = () => {
+    if (formData.duration_formula) {
+      return formData.duration_formula;
     }
+    
+    // Convert from old format
+    const oldDistribution = {
+      type: formData.distribution_type === 'choice' ? 'discrete' : formData.distribution_type,
+      mean: formData.duration_mean,
+      stddev: formData.duration_stddev,
+      scale: formData.duration_scale,
+      min: formData.duration_min,
+      max: formData.duration_max
+    };
+    
+    // Handle choice format conversion
+    if (formData.distribution_type === 'choice') {
+      const values = formData.duration_values ? formData.duration_values.split(',').map(v => v.trim()) : ['1', '2', '3'];
+      const weights = formData.duration_weights ? formData.duration_weights.split(',').map(w => parseFloat(w.trim())) : [0.5, 0.3, 0.2];
+      oldDistribution.values = values;
+      oldDistribution.weights = weights;
+    }
+    
+    return convertDistributionToFormula(oldDistribution) || getDefaultFormula('duration');
+  };
+  
+  const handleFormulaChange = (newFormula) => {
+    onFormDataChange({ duration_formula: newFormula });
   };
 
   return (
@@ -119,20 +57,13 @@ const EventStepEditor = ({
           className="mb-3"
         />
 
-        <Form.Group className="mb-3">
-          <Form.Label>Duration Distribution Type</Form.Label>
-        <Form.Select
-          value={formData.distribution_type || 'normal'}
-          onChange={(e) => onFormDataChange({ distribution_type: e.target.value })}
-        >
-          <option value="normal">Normal</option>
-          <option value="exponential">Exponential</option>
-          <option value="uniform">Uniform</option>
-          <option value="choice">Choice (Discrete)</option>
-        </Form.Select>
-        </Form.Group>
-
-        {renderDistributionFields()}
+        <DistributionFormulaInput
+          value={getCurrentFormula()}
+          onChange={handleFormulaChange}
+          label="Duration Distribution"
+          placeholder="e.g., NORM(5, 1) or DISC(0.7, 'fast', 0.3, 'slow')"
+          helpText="Distribution for event processing time"
+        />
       </div>
       <div className="step-editor-section">
         <div className="section-header">
@@ -187,9 +118,6 @@ const EventStepEditor = ({
                           size="sm"
                           style={{ width: '100%' }}
                         />
-                        <Form.Text className="text-muted" style={{ fontSize: '0.75rem' }}>
-                          No resources found in database configuration.
-                        </Form.Text>
                       </div>
                     )}
                   </div>
@@ -253,9 +181,15 @@ const EventStepEditor = ({
             size="sm" 
             onClick={onAddResourceRequirement}
             className="add-step-item-btn"
+            disabled={!resourceDefinitions || Object.keys(resourceDefinitions).length === 0}
           >
             + Add Resource
           </Button>
+          {(!resourceDefinitions || Object.keys(resourceDefinitions).length === 0) && (
+            <Form.Text className="text-muted ms-2" style={{ fontSize: '0.75rem' }}>
+              Add resource table in database configuration first
+            </Form.Text>
+          )}
         </div>
       </div>
     </>

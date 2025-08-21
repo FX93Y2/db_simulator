@@ -8,6 +8,13 @@ import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
+import { convertDistributionToFormula } from '../../shared/distribution';
+
+// Helper function to convert old distribution format to formula
+const convertOldDistributionToFormula = (distribution) => {
+  if (!distribution) return '';
+  return convertDistributionToFormula(distribution);
+};
 
 const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [], eventTables = [] }) => {
   const [formData, setFormData] = useState({});
@@ -63,21 +70,23 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const initializeEventForm = (stepConfig) => {
     const eventConfig = stepConfig.event_config || {};
-    const duration = eventConfig.duration?.distribution || {};
+    const duration = eventConfig.duration || {};
     
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
     
     setFormData({
       name: stepName,
-      distribution_type: duration.type || 'normal',
-      duration_mean: duration.mean || 1,
-      duration_stddev: duration.stddev || 0.1,
-      duration_scale: duration.scale || 1,
-      duration_min: duration.min || 0,
-      duration_max: duration.max || 10,
-      duration_values: duration.values ? duration.values.join(', ') : '1, 2, 3',
-      duration_weights: duration.weights ? duration.weights.join(', ') : '0.5, 0.3, 0.2'
+      duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : 'NORM(5, 1)'),
+      // Keep old format for backward compatibility during migration
+      distribution_type: duration.distribution?.type || 'normal',
+      duration_mean: duration.distribution?.mean || 1,
+      duration_stddev: duration.distribution?.stddev || 0.1,
+      duration_scale: duration.distribution?.scale || 1,
+      duration_min: duration.distribution?.min || 0,
+      duration_max: duration.distribution?.max || 10,
+      duration_values: duration.distribution?.values ? duration.distribution.values.join(', ') : '1, 2, 3',
+      duration_weights: duration.distribution?.weights ? duration.distribution.weights.join(', ') : '0.5, 0.3, 0.2'
     });
     
     setResourceRequirements(eventConfig.resource_requirements || []);
@@ -185,7 +194,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const initializeCreateForm = (stepConfig) => {
     const createConfig = stepConfig.create_config || {};
-    const interarrivalTime = createConfig.interarrival_time?.distribution || {};
+    const interarrivalTime = createConfig.interarrival_time || {};
     
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
@@ -194,12 +203,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       name: stepName,
       entity_table: createConfig.entity_table || '',
       event_table: createConfig.event_table || '',
-      distribution_type: interarrivalTime.type || 'exponential',
-      interarrival_mean: interarrivalTime.mean || 2,
-      interarrival_stddev: interarrivalTime.stddev || 0.5,
-      interarrival_scale: interarrivalTime.scale || 2,
-      interarrival_min: interarrivalTime.min || 1,
-      interarrival_max: interarrivalTime.max || 3,
+      interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
       max_entities: createConfig.max_entities || 'n/a',
       next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
     });
@@ -236,10 +240,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const addResourceRequirement = () => {
     const availableResourceTables = Object.keys(resourceDefinitions);
-    const defaultResourceTable = availableResourceTables.length > 0 ? availableResourceTables[0] : 'Consultant';
-    const defaultResourceType = availableResourceTables.length > 0 && resourceDefinitions[defaultResourceTable]?.resourceTypes?.length > 0
+    if (availableResourceTables.length === 0) {
+      return; // Don't add if no resource tables available
+    }
+    
+    const defaultResourceTable = availableResourceTables[0];
+    const defaultResourceType = resourceDefinitions[defaultResourceTable]?.resourceTypes?.length > 0
       ? resourceDefinitions[defaultResourceTable].resourceTypes[0]
-      : 'Developer';
+      : '';
     
     setResourceRequirements([...resourceRequirements, {
       resource_table: defaultResourceTable,
@@ -425,29 +433,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildEventConfig = () => {
-    const distributionConfig = { type: formData.distribution_type };
-    
-    // Add distribution-specific parameters
-    if (formData.distribution_type === 'normal') {
-      distributionConfig.mean = parseFloat(formData.duration_mean) || 1;
-      distributionConfig.stddev = parseFloat(formData.duration_stddev) || 0.1;
-    } else if (formData.distribution_type === 'exponential') {
-      distributionConfig.scale = parseFloat(formData.duration_scale) || 1;
-    } else if (formData.distribution_type === 'uniform') {
-      distributionConfig.min = parseFloat(formData.duration_min) || 0;
-      distributionConfig.max = parseFloat(formData.duration_max) || 10;
-    } else if (formData.distribution_type === 'choice') {
-      try {
-        distributionConfig.values = formData.duration_values.split(',').map(v => parseFloat(v.trim()));
-        distributionConfig.weights = formData.duration_weights.split(',').map(w => parseFloat(w.trim()));
-      } catch (e) {
-        distributionConfig.values = [1, 2, 3];
-        distributionConfig.weights = [0.5, 0.3, 0.2];
-      }
-    }
-    
     return {
-      duration: { distribution: distributionConfig },
+      duration: { formula: formData.duration_formula || 'NORM(5, 1)' },
       resource_requirements: resourceRequirements
     };
   };
@@ -506,23 +493,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildCreateConfig = () => {
-    const distributionConfig = { type: formData.distribution_type || 'exponential' };
-    
-    // Add distribution-specific parameters
-    if (formData.distribution_type === 'normal') {
-      distributionConfig.mean = parseFloat(formData.interarrival_mean) || 2;
-      distributionConfig.stddev = parseFloat(formData.interarrival_stddev) || 0.5;
-    } else if (formData.distribution_type === 'exponential') {
-      distributionConfig.scale = parseFloat(formData.interarrival_scale) || 2;
-    } else if (formData.distribution_type === 'uniform') {
-      distributionConfig.min = parseFloat(formData.interarrival_min) || 1;
-      distributionConfig.max = parseFloat(formData.interarrival_max) || 3;
-    }
-    
     return {
       entity_table: formData.entity_table || '',
       event_table: formData.event_table || '',
-      interarrival_time: { distribution: distributionConfig },
+      interarrival_time: { formula: formData.interarrival_formula || '' },
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
   };

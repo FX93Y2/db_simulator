@@ -2,6 +2,44 @@ import { useState, useEffect } from 'react';
 import yaml from 'yaml';
 
 /**
+ * Parse DISC formula to extract string values
+ * @param {string} formula - DISC formula like "DISC(0.2, 'SRE', 0.5, 'Tech Support', ...)"
+ * @returns {Array} - Array of string values
+ */
+const parseDISCFormula = (formula) => {
+  if (!formula || typeof formula !== 'string') return [];
+  
+  // Match DISC(...) pattern
+  const discMatch = formula.match(/DISC\s*\(([^)]+)\)/);
+  if (!discMatch) return [];
+  
+  const params = discMatch[1];
+  const values = [];
+  
+  // Split by comma, but handle quoted strings properly
+  const regex = /"([^"]*)"|'([^']*)'|([^,]+)/g;
+  let match;
+  let expectingValue = false;
+  
+  while ((match = regex.exec(params)) !== null) {
+    const value = match[1] || match[2] || match[3]?.trim();
+    
+    if (expectingValue) {
+      // This should be a string value (resource type)
+      if (typeof value === 'string' && value !== '') {
+        values.push(value);
+      }
+      expectingValue = false;
+    } else {
+      // This should be a probability (number), next will be a value
+      expectingValue = true;
+    }
+  }
+  
+  return values;
+};
+
+/**
  * Custom hook to extract resource definitions from database configuration
  * Returns resource definitions that can be used by multiple components
  */
@@ -29,16 +67,22 @@ const useResourceDefinitions = (dbConfigContent) => {
           if (resourceTypeAttributes.length > 0) {
             // Take the first resource_type attribute (should be only one)
             const resourceTypeAttr = resourceTypeAttributes[0];
+            let resourceTypes = [];
             
-            if (resourceTypeAttr.generator?.distribution?.type === 'choice' && resourceTypeAttr.generator.distribution.values) {
-              // Extract the possible values from the choice distribution
-              const values = resourceTypeAttr.generator.distribution.values;
-              if (Array.isArray(values) && values.length > 0) {
-                definitions[entity.name] = {
-                  resourceTypes: values,
-                  attributeName: resourceTypeAttr.name
-                };
-              }
+            // Check for new distribution formula format
+            if (resourceTypeAttr.generator?.type === 'distribution' && resourceTypeAttr.generator.formula) {
+              resourceTypes = parseDISCFormula(resourceTypeAttr.generator.formula);
+            }
+            // Check for old choice distribution format (backward compatibility)
+            else if (resourceTypeAttr.generator?.distribution?.type === 'choice' && resourceTypeAttr.generator.distribution.values) {
+              resourceTypes = resourceTypeAttr.generator.distribution.values;
+            }
+            
+            if (resourceTypes.length > 0) {
+              definitions[entity.name] = {
+                resourceTypes: resourceTypes,
+                attributeName: resourceTypeAttr.name
+              };
             }
           }
         });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Row, Col } from 'react-bootstrap';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import { DistributionFormulaInput, convertDistributionToFormula, getDefaultFormula } from '../../../shared/distribution';
 
 const CreateStepEditor = ({ 
   formData, 
@@ -10,77 +11,13 @@ const CreateStepEditor = ({
   availableEventTables = [], // Event tables from database config
   nameValidation = { valid: true, error: null }
 }) => {
-  const renderDistributionFields = () => {
-    switch (formData.distribution_type) {
-      case 'normal':
-        return (
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Mean (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.interarrival_mean || 2}
-                  onChange={(e) => onFormDataChange({ interarrival_mean: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Standard Deviation</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.01"
-                  value={formData.interarrival_stddev || 0.5}
-                  onChange={(e) => onFormDataChange({ interarrival_stddev: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-        );
-      case 'exponential':
-        return (
-          <Form.Group className="mb-3">
-            <Form.Label>Scale (Days)</Form.Label>
-            <Form.Control
-              type="number"
-              step="0.1"
-              value={formData.interarrival_scale || 2}
-              onChange={(e) => onFormDataChange({ interarrival_scale: e.target.value })}
-            />
-          </Form.Group>
-        );
-      case 'uniform':
-        return (
-          <Row>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Minimum (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.interarrival_min || 1}
-                  onChange={(e) => onFormDataChange({ interarrival_min: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-            <Col md={6}>
-              <Form.Group className="mb-3">
-                <Form.Label>Maximum (Days)</Form.Label>
-                <Form.Control
-                  type="number"
-                  step="0.1"
-                  value={formData.interarrival_max || 3}
-                  onChange={(e) => onFormDataChange({ interarrival_max: e.target.value })}
-                />
-              </Form.Group>
-            </Col>
-          </Row>
-        );
-      default:
-        return null;
-    }
+  // Get current formula value
+  const getCurrentFormula = () => {
+    return formData.interarrival_formula || '';
+  };
+  
+  const handleFormulaChange = (newFormula) => {
+    onFormDataChange({ interarrival_formula: newFormula });
   };
 
   return (
@@ -177,19 +114,14 @@ const CreateStepEditor = ({
       <div className="step-info-section">
         <div className="section-title">Interarrival Time</div>
         
-        <Form.Group className="mb-3">
-          <Form.Label>Distribution Type</Form.Label>
-          <Form.Select
-            value={formData.distribution_type || 'exponential'}
-            onChange={(e) => onFormDataChange({ distribution_type: e.target.value })}
-          >
-            <option value="exponential">Exponential</option>
-            <option value="normal">Normal</option>
-            <option value="uniform">Uniform</option>
-          </Form.Select>
-        </Form.Group>
-
-        {renderDistributionFields()}
+        <DistributionFormulaInput
+          value={getCurrentFormula()}
+          onChange={handleFormulaChange}
+          label="Interarrival Time Distribution"
+          placeholder="e.g., NORM(5, 1) or UNIF(1, 10)"
+          required
+          helpText="Distribution for time between entity arrivals"
+        />
       </div>
 
       {/* Next Steps Selection */}

@@ -4,9 +4,9 @@ import { FiClock, FiCalendar, FiHash, FiSave, FiRotateCcw } from 'react-icons/fi
 import { 
   useHasUnsavedSimulation, 
   useSimulationActions 
-} from '../../stores/simulationConfigStore';
+} from '../../../stores/simulationConfigStore';
 
-const SimulationEditor = ({ projectId }) => {
+const SimulationSettingsEditor = ({ projectId }) => {
   // Store hooks  
   const hasUnsaved = useHasUnsavedSimulation(projectId);
   const {
@@ -19,22 +19,22 @@ const SimulationEditor = ({ projectId }) => {
 
   // Handle field changes (store in pending changes only)
   const handleFieldChange = (field, value) => {
-    console.log('[SimulationEditor] Field changed:', field, '=', value);
+    console.log('[SimulationSettingsEditor] Field changed:', field, '=', value);
     updateSimulationField(field, value);
   };
 
   // Handle Save & Apply
   const handleApplyChanges = () => {
-    console.log('[SimulationEditor] Applying changes...');
+    console.log('[SimulationSettingsEditor] Applying changes...');
     const result = applySimulationChanges();
     if (result.success) {
-      console.log('[SimulationEditor] Changes applied successfully');
+      console.log('[SimulationSettingsEditor] Changes applied successfully');
     }
   };
 
   // Handle Reset/Discard
   const handleResetChanges = () => {
-    console.log('[SimulationEditor] Resetting changes...');
+    console.log('[SimulationSettingsEditor] Resetting changes...');
     resetSimulationChanges();
   };
 
@@ -147,4 +147,4 @@ const SimulationEditor = ({ projectId }) => {
   );
 };
 
-export default SimulationEditor;
+export default SimulationSettingsEditor;
