@@ -5,12 +5,12 @@ simulation:
 event_simulation:
   event_flows:
     - flow_id: flow_1_Create_Ticket
-      event_table: Task
+      event_table: Ticket_Task
       steps:
         - step_id: Create_Ticket
           step_type: create
           create_config:
-            entity_table: Ticket
+            entity_table: Online_Ticket
             interarrival_time:
               distribution:
                 type: exponential

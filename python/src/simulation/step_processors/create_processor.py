@@ -194,18 +194,7 @@ class CreateStepProcessor(StepProcessor):
                 if entity_id:
                     session.commit()
                     
-                    # Record entity arrival using a direct connection
-                    arrival_datetime = self.config.start_date + timedelta(minutes=self.env.now)
-                    
-                    with process_engine.connect() as conn:
-                        stmt = insert(self.event_tracker.entity_arrivals).values(
-                            entity_table=entity_table,
-                            entity_id=entity_id,
-                            arrival_time=self.env.now,
-                            arrival_datetime=arrival_datetime
-                        )
-                        conn.execute(stmt)
-                        conn.commit()
+                    # Entity arrival time is now automatically tracked via created_at column
                     
                     # Update entity count
                     self.entity_manager.entity_count += 1

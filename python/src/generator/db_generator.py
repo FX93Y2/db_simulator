@@ -17,7 +17,7 @@ from ..utils.file_operations import safe_delete_sqlite_file, ensure_database_clo
 import sqlite3
 import dataclasses # Import dataclasses
 
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, MetaData, Table, inspect, text
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, MetaData, Table, inspect, text, DateTime
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 
@@ -328,6 +328,11 @@ class DatabaseGenerator:
             # Handle regular columns
             else:
                 attrs[attr.name] = Column(column_type)
+        
+        # Add automatic created_at column for entity tables
+        if entity.type == 'entity':
+            attrs['created_at'] = Column(DateTime, nullable=True)
+            logger.debug(f"Added automatic created_at column to entity table '{entity.name}'")
         
         # Add flow-specific simulation attribute columns for entity tables only
         if entity.type == 'entity' and self.flow_attributes:

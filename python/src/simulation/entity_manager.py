@@ -228,19 +228,7 @@ class EntityManager:
                         # Commit the changes
                         session.commit()
                         
-                        # Record entity arrival using a direct connection
-                        # This avoids the database locking issue
-                        arrival_datetime = self.config.start_date + timedelta(minutes=self.env.now)
-                        
-                        with process_engine.connect() as conn:
-                            stmt = insert(self.event_tracker.entity_arrivals).values(
-                                entity_table=entity_table,
-                                entity_id=entity_id,
-                                arrival_time=self.env.now,
-                                arrival_datetime=arrival_datetime
-                            )
-                            conn.execute(stmt)
-                            conn.commit()
+                        # Entity arrival time is now automatically tracked via created_at column
                         
                         # Process the entity's events
                         self.env.process(process_entity_events_callback(entity_id - 1))  # Adjust for 0-based indexing
@@ -420,6 +408,20 @@ class EntityManager:
                     # Handle attributes without generators if necessary (e.g., default NULL or specific value)
                     # For now, let the DB handle defaults or NULL
                     pass
+            
+            # Check if the table has a created_at column and populate it automatically
+            try:
+                inspector = inspect(session.get_bind())
+                columns_info = inspector.get_columns(entity_table)
+                column_names = [col['name'] for col in columns_info]
+                
+                if 'created_at' in column_names:
+                    # Calculate the current simulation datetime
+                    creation_datetime = self.config.start_date + timedelta(minutes=self.env.now)
+                    row_data['created_at'] = creation_datetime
+                    logger.debug(f"Added created_at={creation_datetime} for entity in {entity_table}")
+            except Exception as e:
+                logger.warning(f"Error checking for created_at column in {entity_table}: {e}")
             
             # Build INSERT statement dynamically
             columns = ", ".join(row_data.keys())

@@ -15,10 +15,11 @@ class EventTracker:
     Tracks and records simulation events in the database
     
     This class creates and manages tables for tracking:
-    - Entity arrivals
     - Event processing
     - Resource allocations
     - A dynamic event-resource bridging table (e.g., Deliverable_Consultant)
+    
+    Note: Entity arrivals are now tracked via created_at column in entity tables
     """
     
     def __init__(self, db_path: str, start_date: Optional[datetime] = None,
@@ -78,15 +79,7 @@ class EventTracker:
     
     def _create_tracking_tables(self):
         """Create tables for tracking simulation events"""
-        # Entity arrivals table
-        self.entity_arrivals = Table(
-            'sim_entity_arrivals', self.metadata,
-            Column('id', Integer, primary_key=True),
-            Column('entity_table', String, nullable=False),
-            Column('entity_id', Integer, nullable=False),
-            Column('arrival_time', Float, nullable=False),  # Simulation time in minutes
-            Column('arrival_datetime', DateTime, nullable=False)
-        )
+        # Note: Entity arrivals are now tracked via created_at column in entity tables directly
         
         # Event processing table
         self.event_processing = Table(
@@ -147,26 +140,7 @@ class EventTracker:
             # Catch errors during create_all, e.g., if FKs still fail
             logger.error(f"Error during metadata.create_all: {e}")
     
-    def record_entity_arrival(self, entity_table: str, entity_id: int, sim_time: float):
-        """
-        Record an entity arrival
-        
-        Args:
-            entity_table: Name of the entity table
-            entity_id: Entity ID
-            sim_time: Simulation time in minutes
-        """
-        arrival_datetime = self.start_date + timedelta(minutes=sim_time)
-        
-        with self.engine.connect() as conn:
-            stmt = insert(self.entity_arrivals).values(
-                entity_table=entity_table,
-                entity_id=entity_id,
-                arrival_time=sim_time,
-                arrival_datetime=arrival_datetime
-            )
-            conn.execute(stmt)
-            conn.commit()
+    # Entity arrivals are now tracked automatically via created_at column in entity tables
     
     def record_event_processing(self, event_table: str, event_id: int, entity_id: int, 
                                start_time: float, end_time: float):
