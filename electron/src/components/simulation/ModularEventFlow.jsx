@@ -98,7 +98,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     handleViewportMove,
     handleViewportMoveStart,
     handleViewportMoveEnd
-  } = useViewportPersistence(projectId, 'simulation', reactFlowInstance, initialized, nodes);
+  } = useViewportPersistence(projectId, 'simulation', reactFlowInstance, initialized);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {

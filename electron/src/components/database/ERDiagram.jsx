@@ -100,7 +100,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     handleViewportMove,
     handleViewportMoveStart,
     handleViewportMoveEnd
-  } = useViewportPersistence(projectId, 'database', reactFlowInstance, initialized, entityNodes);
+  } = useViewportPersistence(projectId, 'database', reactFlowInstance, initialized);
 
   // Use layout effect to ensure container is measured before rendering
   useLayoutEffect(() => {

@@ -9,16 +9,13 @@ import viewportService from '../../services/ViewportService';
  * @param {string} tabName - Tab name ('database' or 'simulation')
  * @param {Object} reactFlowInstance - ReactFlow instance from useReactFlow()
  * @param {boolean} initialized - Whether the component is initialized
- * @param {Array} nodes - Current nodes array (for auto-centering logic)
  * @returns {Object} - Viewport state and event handlers
  */
-const useViewportPersistence = (projectId, tabName, reactFlowInstance, initialized, nodes) => {
+const useViewportPersistence = (projectId, tabName, reactFlowInstance, initialized) => {
   // Load initial viewport state
   const [viewport, setViewport] = useState(() => {
     return viewportService.getViewport(projectId, tabName);
   });
-  
-  const [hasInitialFit, setHasInitialFit] = useState(false);
 
   // Viewport event handlers
   const handleViewportMove = useCallback((event, newViewport) => {
@@ -48,34 +45,10 @@ const useViewportPersistence = (projectId, tabName, reactFlowInstance, initializ
     reactFlowInstance.setViewport(savedViewport, { duration: 0 });
     setViewport(savedViewport);
     
-    // Check if this is a fresh project (default viewport) and we have nodes
-    const isDefaultViewport = savedViewport.x === 0 && savedViewport.y === 0 && savedViewport.zoom === 0.6;
-    const hasNodes = nodes && nodes.length > 0;
-    
-    if (isDefaultViewport && hasNodes && !hasInitialFit) {
-      // First time with nodes - fit to view then set to 60% zoom
-      setTimeout(() => {
-        reactFlowInstance.fitView({ padding: 0.1, duration: 200 });
-        setTimeout(() => {
-          const currentViewport = reactFlowInstance.getViewport();
-          const centeredViewport = {
-            x: currentViewport.x,
-            y: currentViewport.y,
-            zoom: 0.6
-          };
-          reactFlowInstance.setViewport(centeredViewport, { duration: 200 });
-          setViewport(centeredViewport);
-          viewportService.setViewport(projectId, tabName, centeredViewport);
-          setHasInitialFit(true);
-        }, 250);
-      }, 100);
-    }
-  }, [projectId, tabName, reactFlowInstance, initialized, nodes, hasInitialFit]);
+    // No automatic fitView behavior - let nodes appear where they're positioned
+    // This prevents the jarring zoom in/out animation when adding first node to fresh project
+  }, [projectId, tabName, reactFlowInstance, initialized]);
 
-  // Reset initial fit flag when project changes
-  useEffect(() => {
-    setHasInitialFit(false);
-  }, [projectId]);
 
   return {
     viewport,
