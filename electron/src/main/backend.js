@@ -66,9 +66,10 @@ function startBackend(appPaths) {
  */
 function startBackendWithExecutable(appPaths) {
   // Use the PyInstaller executable in packaged mode
+  const exeName = process.platform === 'win32' ? 'db_simulator_api.exe' : 'db_simulator_api';
   let backendExePath = app.isPackaged 
-    ? path.join(process.resourcesPath, 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe')
-    : path.join(__dirname, '..', '..', '..', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe');
+    ? path.join(process.resourcesPath, 'python', 'dist', 'db_simulator_api', exeName)
+    : path.join(__dirname, '..', '..', '..', 'python', 'dist', 'db_simulator_api', exeName);
   
   // Log the path we're using
   console.log(`Backend executable path: ${backendExePath}`);
@@ -79,8 +80,8 @@ function startBackendWithExecutable(appPaths) {
     
     // Try alternative paths if not found
     const alternativePaths = [
-      path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe'),
-      path.join(process.cwd(), 'resources', 'python', 'dist', 'db_simulator_api', 'db_simulator_api.exe')
+      path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'dist', 'db_simulator_api', exeName),
+      path.join(process.cwd(), 'resources', 'python', 'dist', 'db_simulator_api', exeName)
     ];
     
     for (const altPath of alternativePaths) {
@@ -128,7 +129,9 @@ function startBackendWithPython(appPaths) {
   
   // Check if packaged Python exists and use it if available
   if (app.isPackaged) {
-    const packagedPythonPath = path.join(process.resourcesPath, 'python', 'venv', 'Scripts', 'python.exe');
+    const pythonBinDir = process.platform === 'win32' ? 'Scripts' : 'bin';
+    const pythonExeName = process.platform === 'win32' ? 'python.exe' : 'python';
+    const packagedPythonPath = path.join(process.resourcesPath, 'python', 'venv', pythonBinDir, pythonExeName);
     if (fs.existsSync(packagedPythonPath)) {
       pythonExePath = packagedPythonPath;
       console.log(`Using packaged Python: ${pythonExePath}`);

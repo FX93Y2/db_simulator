@@ -10,7 +10,7 @@ import os
 
 # Import components from refactored structure
 from src.generator import generate_database, generate_database_for_simulation
-from src.simulation.runner import run_simulation, run_simulation_from_config_dir
+from src.simulation.core.runner import run_simulation, run_simulation_from_config_dir
 from config_storage.config_db import ConfigManager
 
 # Import the Flask app factory from refactored API server

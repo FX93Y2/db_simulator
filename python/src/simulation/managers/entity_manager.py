@@ -13,10 +13,10 @@ from sqlalchemy import create_engine, inspect, text, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from ..config_parser import SimulationConfig, DatabaseConfig
-from ..config_parser import Entity as DbEntity
-from ..utils.distribution_utils import generate_from_distribution
-from ..utils.data_generation import generate_attribute_value
+from ...config_parser import SimulationConfig, DatabaseConfig
+from ...config_parser import Entity as DbEntity
+from ...utils.distribution_utils import generate_from_distribution
+from ...utils.data_generation import generate_attribute_value
 
 logger = logging.getLogger(__name__)
 

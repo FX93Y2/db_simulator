@@ -9,7 +9,7 @@ import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from ...config_parser.sim_parser import AssignmentOperation
+    from ......config_parser.sim_parser import AssignmentOperation
 
 logger = logging.getLogger(__name__)
 

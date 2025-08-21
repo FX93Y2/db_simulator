@@ -9,7 +9,7 @@ import logging
 import random
 from typing import Any, Generator, Optional
 
-from .base import StepProcessor
+from ..base import StepProcessor
 
 logger = logging.getLogger(__name__)
 

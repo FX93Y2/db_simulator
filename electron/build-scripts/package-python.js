@@ -14,13 +14,13 @@ console.log('Preparing Python environment for packaging...');
 const pythonDir = path.resolve(__dirname, '../../python');
 const requirementsFile = path.join(pythonDir, 'requirements.txt');
 
-// Create virtualenv if it doesn't exist
-const venvDir = path.join(pythonDir, 'venv');
+// Use the project root venv instead of creating one in python/
+const venvDir = path.join(pythonDir, '..', 'venv');
 if (!fs.existsSync(venvDir)) {
   console.log('Creating Python virtual environment...');
   try {
     execSync('python -m venv venv', { 
-      cwd: pythonDir,
+      cwd: path.join(pythonDir, '..'),
       stdio: 'inherit'
     });
     console.log('Virtual environment created successfully.');
@@ -65,8 +65,7 @@ if (fs.existsSync(useCopiedEnvMarker)) {
   fs.unlinkSync(useCopiedEnvMarker);
 }
 
-// Try to build the Python backend using PyInstaller
-let pyinstallerSucceeded = false;
+// Build the Python backend using PyInstaller
 console.log('Building standalone Python executable with PyInstaller...');
 try {
   const pythonCmd = process.platform === 'win32' 
@@ -83,7 +82,6 @@ try {
   const exeDestPath = path.join(pythonDir, 'dist', 'db_simulator_api');
   if (fs.existsSync(exeDestPath)) {
     console.log('Python backend built successfully with PyInstaller.');
-    pyinstallerSucceeded = true;
     
     // Create a marker file to indicate we should use the PyInstaller executable
     fs.writeFileSync(useExecutableMarker, 'This file indicates that PyInstaller succeeded and we should use the executable.', 'utf8');
@@ -92,10 +90,8 @@ try {
   }
 } catch (error) {
   console.error('Error building Python backend with PyInstaller:', error.message);
-  console.log('Using fallback approach with copied Python environment.');
-  
-  // Create marker file to indicate we should use the copied Python environment
-  fs.writeFileSync(useCopiedEnvMarker, 'This file indicates that PyInstaller failed and we should use the copied Python environment instead.', 'utf8');
+  console.error('PyInstaller is required for packaging. Please ensure all dependencies are properly installed.');
+  process.exit(1); // Fail fast instead of using fallback
 }
 
 // Update package.json to include only necessary files
@@ -104,79 +100,21 @@ try {
   const packageJsonPath = path.join(__dirname, '..', 'package.json');
   const packageJson = require(packageJsonPath);
   
-  // Reset extraResources
+  // Reset extraResources and only include PyInstaller executable
   packageJson.build.extraResources = [];
   
-  if (pyinstallerSucceeded) {
-    // Only include the PyInstaller executable if it was successfully built
-    packageJson.build.extraResources.push({
-      from: "../python/dist/db_simulator_api",
-      to: "python/dist/db_simulator_api",
-      filter: ["**/*"]
-    });
-    
-    // Include marker file
-    packageJson.build.extraResources.push({
-      from: "../python/USE_EXECUTABLE",
-      to: "python/USE_EXECUTABLE"
-    });
-  } else {
-    // Include marker file
-    packageJson.build.extraResources.push({
-      from: "../python/USE_COPIED_ENV",
-      to: "python/USE_COPIED_ENV"
-    });
-    
-    // Include necessary Python files for the fallback approach
-    packageJson.build.extraResources.push({
-      from: "../python/main.py",
-      to: "python/main.py"
-    });
-    
-    packageJson.build.extraResources.push({
-      from: "../python/run.py",
-      to: "python/run.py"
-    });
-    
-    packageJson.build.extraResources.push({
-      from: "../python/requirements.txt",
-      to: "python/requirements.txt"
-    });
-    
-    packageJson.build.extraResources.push({
-      from: "../python/api",
-      to: "python/api",
-      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
-    });
-    
-    packageJson.build.extraResources.push({
-      from: "../python/src",
-      to: "python/src",
-      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
-    });
-    
-    packageJson.build.extraResources.push({
-      from: "../python/config_storage",
-      to: "python/config_storage",
-      filter: ["**/*", "!**/__pycache__/**", "!**/*.pyc"]
-    });
-    
-    // Only include venv if this is a redistributable configuration
-    // Usually not recommended for production but keeping for fallback
-    packageJson.build.extraResources.push({
-      from: "../python/venv",
-      to: "python/venv",
-      filter: [
-        "Scripts/**",
-        "Lib/**",
-        "Include/**",
-        "pyvenv.cfg",
-        "!**/__pycache__/**",
-        "!**/*.pyc",
-        "!**/*.git"
-      ]
-    });
-  }
+  // Only include the PyInstaller executable (since we fail fast if it doesn't work)
+  packageJson.build.extraResources.push({
+    from: "../python/dist/db_simulator_api",
+    to: "python/dist/db_simulator_api",
+    filter: ["**/*"]
+  });
+  
+  // Include marker file
+  packageJson.build.extraResources.push({
+    from: "../python/USE_EXECUTABLE",
+    to: "python/USE_EXECUTABLE"
+  });
   
   // Write the updated package.json
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf8');

@@ -8,7 +8,7 @@ entity processing in the simulation flow.
 import logging
 from typing import Any, Generator, Optional
 
-from .base import StepProcessor
+from ..base import StepProcessor
 
 logger = logging.getLogger(__name__)
 

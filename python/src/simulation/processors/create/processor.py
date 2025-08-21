@@ -12,8 +12,8 @@ from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
-from .base import StepProcessor
-from ...utils.distribution_utils import generate_from_distribution
+from ..base import StepProcessor
+from ....utils.distribution_utils import generate_from_distribution
 
 logger = logging.getLogger(__name__)
 

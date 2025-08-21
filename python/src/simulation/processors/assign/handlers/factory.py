@@ -7,12 +7,12 @@ This factory manages and routes assignment operations to the appropriate handler
 import logging
 from typing import List, Optional, TYPE_CHECKING
 
-from .base_handler import BaseAssignmentHandler
-from .attribute_handler import AttributeAssignmentHandler
+from .base import BaseAssignmentHandler
+from .attribute import AttributeAssignmentHandler
 
 if TYPE_CHECKING:
-    from ...config_parser.sim_parser import AssignmentOperation
-    from ..entity_attribute_manager import EntityAttributeManager
+    from ......config_parser.sim_parser import AssignmentOperation
+    from ....managers.entity_attribute_manager import EntityAttributeManager
 
 logger = logging.getLogger(__name__)
 

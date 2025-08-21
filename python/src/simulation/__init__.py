@@ -2,6 +2,6 @@
 Simulation module for discrete event simulation
 """
 
-from .simulator import EventSimulator
+from .core.simulator import EventSimulator
 
 __all__ = ['EventSimulator'] 

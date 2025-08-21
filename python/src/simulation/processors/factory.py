@@ -9,11 +9,11 @@ import logging
 from typing import Dict, List, Optional
 
 from .base import StepProcessor
-from .event_processor import EventStepProcessor
-from .decide_processor import DecideStepProcessor
-from .release_processor import ReleaseStepProcessor
-from .assign_processor import AssignStepProcessor
-from .create_processor import CreateStepProcessor
+from .event.processor import EventStepProcessor
+from .decide.processor import DecideStepProcessor
+from .release.processor import ReleaseStepProcessor
+from .assign.processor import AssignStepProcessor
+from .create.processor import CreateStepProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -72,7 +72,7 @@ class StepProcessorFactory:
             return
         
         # Import here to avoid circular imports
-        from ..assignment_handlers.handler_factory import AssignmentHandlerFactory
+        from .assign.handlers.factory import AssignmentHandlerFactory
         
         # Create assignment handler factory
         assignment_handler_factory = AssignmentHandlerFactory(self.entity_attribute_manager)

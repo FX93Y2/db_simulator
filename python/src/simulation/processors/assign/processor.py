@@ -8,12 +8,12 @@ Rockwell Arena's Assign module functionality.
 import logging
 from typing import Any, Generator, Optional, TYPE_CHECKING
 
-from .base import StepProcessor
-from ..assignment_handlers.handler_factory import AssignmentHandlerFactory
+from ..base import StepProcessor
+from .handlers.factory import AssignmentHandlerFactory
 
 if TYPE_CHECKING:
-    from ...config_parser.sim_parser import Step, EventFlow, AssignConfig
-    from ..entity_attribute_manager import EntityAttributeManager
+    from ....config_parser.sim_parser import Step, EventFlow, AssignConfig
+    from ...managers.entity_attribute_manager import EntityAttributeManager
 
 logger = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from dataclasses import dataclass
 from datetime import datetime
 
-from ..utils.distribution_utils import generate_from_distribution
+from ...utils.distribution_utils import generate_from_distribution
 
 logger = logging.getLogger(__name__)
 

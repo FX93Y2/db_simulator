@@ -10,8 +10,8 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Union
 
-from ..config_parser import parse_sim_config, parse_sim_config_from_string
-from ..config_parser import parse_db_config, parse_db_config_from_string # Import db config parsers
+from ...config_parser import parse_sim_config, parse_sim_config_from_string
+from ...config_parser import parse_db_config, parse_db_config_from_string # Import db config parsers
 from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)

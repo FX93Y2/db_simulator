@@ -7,11 +7,11 @@ This handler manages attribute assignments to entities during simulation.
 import logging
 from typing import Union, TYPE_CHECKING
 
-from .base_handler import BaseAssignmentHandler
+from .base import BaseAssignmentHandler
 
 if TYPE_CHECKING:
-    from ...config_parser.sim_parser import AssignmentOperation
-    from ..entity_attribute_manager import EntityAttributeManager
+    from ......config_parser.sim_parser import AssignmentOperation
+    from ....managers.entity_attribute_manager import EntityAttributeManager
 
 logger = logging.getLogger(__name__)
 

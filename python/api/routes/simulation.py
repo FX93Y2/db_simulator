@@ -15,7 +15,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(
 from flask import Blueprint, request
 from config_storage.config_db import ConfigManager
 from src.generator import generate_database
-from src.simulation.runner import run_simulation
+from src.simulation.core.runner import run_simulation
 from src.utils.file_operations import safe_delete_sqlite_file
 from ..utils.response_helpers import (
     success_response, error_response, not_found_response, validation_error_response,
