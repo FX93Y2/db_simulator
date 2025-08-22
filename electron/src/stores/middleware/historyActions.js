@@ -52,11 +52,47 @@ export const restoreStateSnapshot = (set, get, snapshot, storeType) => {
     
     // Restore positions to PositionService
     const projectId = get().projectId;
-    if (projectId && snapshot.positions) {
-      // Restore positions from snapshot to PositionService
-      snapshot.positions.forEach((position, nodeId) => {
-        positionService.setPosition(projectId, nodeId, position);
-      });
+    if (projectId) {
+      if (snapshot.positions) {
+        // First, get all current positions to identify what needs to be removed
+        const currentPositions = positionService.getAllPositions(projectId);
+        const currentEntityPositions = new Set();
+        
+        // Identify current entity positions (no underscores/hyphens)
+        for (const nodeId of currentPositions.keys()) {
+          if (!nodeId.includes('_') && !nodeId.includes('-')) {
+            currentEntityPositions.add(nodeId);
+          }
+        }
+        
+        // Remove positions for entities that are no longer in the snapshot
+        const snapshotEntityIds = new Set();
+        for (const nodeId of snapshot.positions.keys()) {
+          if (!nodeId.includes('_') && !nodeId.includes('-')) {
+            snapshotEntityIds.add(nodeId);
+          }
+        }
+        
+        // Remove orphaned entity positions
+        for (const nodeId of currentEntityPositions) {
+          if (!snapshotEntityIds.has(nodeId)) {
+            positionService.removePosition(projectId, nodeId);
+          }
+        }
+        
+        // Restore positions from snapshot to PositionService
+        snapshot.positions.forEach((position, nodeId) => {
+          positionService.setPosition(projectId, nodeId, position);
+        });
+      } else {
+        // No positions in snapshot, remove all entity positions
+        const currentPositions = positionService.getAllPositions(projectId);
+        for (const nodeId of currentPositions.keys()) {
+          if (!nodeId.includes('_') && !nodeId.includes('-')) {
+            positionService.removePosition(projectId, nodeId);
+          }
+        }
+      }
     }
     
     // Trigger YAML regeneration after restoring state
@@ -69,6 +105,43 @@ export const restoreStateSnapshot = (set, get, snapshot, storeType) => {
       state.edges = [...snapshot.edges];
       state.positions = new Map(snapshot.positions);
     });
+    
+    // Also clean up step positions in PositionService for consistency
+    const projectId = get().projectId;
+    if (projectId) {
+      // Get all current positions to identify what needs to be removed
+      const currentPositions = positionService.getAllPositions(projectId);
+      const currentStepPositions = new Set();
+      
+      // Identify current step positions (contain underscores/hyphens)
+      for (const nodeId of currentPositions.keys()) {
+        if (nodeId.includes('_') || nodeId.includes('-')) {
+          currentStepPositions.add(nodeId);
+        }
+      }
+      
+      // Remove positions for steps that are no longer in the snapshot
+      const snapshotStepIds = new Set();
+      for (const nodeId of snapshot.positions.keys()) {
+        if (nodeId.includes('_') || nodeId.includes('-')) {
+          snapshotStepIds.add(nodeId);
+        }
+      }
+      
+      // Remove orphaned step positions
+      for (const nodeId of currentStepPositions) {
+        if (!snapshotStepIds.has(nodeId)) {
+          positionService.removePosition(projectId, nodeId);
+        }
+      }
+      
+      // Restore step positions to PositionService for consistency
+      snapshot.positions.forEach((position, nodeId) => {
+        if (nodeId.includes('_') || nodeId.includes('-')) {
+          positionService.setPosition(projectId, nodeId, position);
+        }
+      });
+    }
     
     // Trigger YAML regeneration after restoring state
     // This ensures the YAML content stays in sync with the visual state
@@ -110,6 +183,7 @@ export const pushToHistory = (set, get, storeType, actionType, actionData = null
     state.nodeHistory.lastAction = actionType;
   });
 };
+
 
 /**
  * Perform undo operation

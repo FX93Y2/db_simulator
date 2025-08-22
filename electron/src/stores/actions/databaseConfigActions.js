@@ -49,17 +49,16 @@ export const createDatabaseConfigActions = (set, get) => ({
         if (config.content && config.content.trim()) {
           try {
             const importResult = await get().importEntityYaml(config.content);
-            // Clean up obsolete positions after loading
-            get().cleanupObsoleteEntityPositions();
+            // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
           } catch (error) {
             // Clear entities if YAML parsing fails
             get().clearEntities();
-            get().cleanupObsoleteEntityPositions();
+            // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
           }
         } else {
           // Clear entities for empty configuration
           get().clearEntities();
-          get().cleanupObsoleteEntityPositions();
+          // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
         }
       } else {
         // No configuration found or error loading
@@ -75,7 +74,8 @@ export const createDatabaseConfigActions = (set, get) => ({
         
         // Clear entities for new/empty configuration
         get().clearEntities();
-        get().cleanupObsoleteEntityPositions();
+        
+        // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
       }
 
     } catch (error) {
@@ -209,6 +209,40 @@ export const createDatabaseConfigActions = (set, get) => ({
     
     if (cleanedCount > 0) {
       console.log(`[DatabaseConfigActions] Cleaned up ${cleanedCount} obsolete entity positions for project: ${projectId}`);
+    }
+  },
+
+  /**
+   * Clean up orphaned positions after discarding changes
+   * Removes positions for entities that don't exist in the current saved configuration
+   */
+  cleanupOrphanedPositions: () => {
+    const { canonicalEntities, projectId } = get();
+    
+    if (!projectId) return; // No cleanup needed for standalone configs
+    
+    // Get current entity IDs from canonical entities (saved state)
+    const validEntityIds = new Set(canonicalEntities.map(entity => entity.name));
+    
+    // Get all stored positions for this project
+    const allPositions = positionService.getAllPositions(projectId);
+    
+    // Remove positions for entities that no longer exist in saved config
+    let cleanedCount = 0;
+    for (const nodeId of allPositions.keys()) {
+      const isEntityPattern = !nodeId.includes('_') && !nodeId.includes('-');
+      const isValidEntity = validEntityIds.has(nodeId);
+      
+      // Only clean up nodes that look like entity names (not simulation steps)
+      // Skip nodes that contain underscores or other patterns that suggest they're simulation steps
+      if (isEntityPattern && !isValidEntity) {
+        positionService.removePosition(projectId, nodeId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`[DatabaseConfigActions] Cleaned up ${cleanedCount} orphaned entity positions for project: ${projectId}`);
     }
   },
 

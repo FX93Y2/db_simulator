@@ -14,11 +14,6 @@ export const createEntityYamlActions = (set, get) => ({
   generateEntityYaml: () => {
     const { canonicalEntities } = get();
     
-    // If no entities, return empty string
-    if (canonicalEntities.length === 0) {
-      return '';
-    }
-    
     const yamlObject = {
       entities: canonicalEntities.map(entity => ({
         name: entity.name,
@@ -108,10 +103,7 @@ export const createEntityYamlActions = (set, get) => ({
       // Update visual state
       get().updateEntityVisualState();
       
-      // Clean up obsolete positions after successful import
-      if (get().cleanupObsoleteEntityPositions) {
-        get().cleanupObsoleteEntityPositions();
-      }
+      // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
       
       return { success: true, message: `Successfully imported ${newEntities.length} entities` };
       

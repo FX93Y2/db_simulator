@@ -163,98 +163,7 @@ const AttributeTable = ({
     onAttributesChange(updatedAttributes);
   };
 
-  // Handle distribution changes
-  const handleDistributionChange = (field, value) => {
-    if (selectedAttributeIndex < 0) return;
-    
-    // Deep clone the attributes array to avoid read-only property errors
-    const updatedAttributes = attributes.map(attr => ({
-      ...attr,
-      generator: attr.generator ? { 
-        ...attr.generator,
-        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
-      } : undefined
-    }));
-    
-    const updatedDistribution = { ...updatedAttributes[selectedAttributeIndex].generator.distribution, [field]: value };
-    const updatedGenerator = { ...updatedAttributes[selectedAttributeIndex].generator, distribution: updatedDistribution };
-    updatedAttributes[selectedAttributeIndex].generator = updatedGenerator;
-    onAttributesChange(updatedAttributes);
-  };
-
-  // Handle choice distribution value/weight pairs
-  const handleChoiceValueChange = (field, values) => {
-    if (selectedAttributeIndex < 0) return;
-    
-    // Deep clone the attributes array to avoid read-only property errors
-    const updatedAttributes = attributes.map(attr => ({
-      ...attr,
-      generator: attr.generator ? { 
-        ...attr.generator,
-        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
-      } : undefined
-    }));
-    
-    const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
-    const updatedDistribution = { ...distribution, [field]: values };
-    updatedAttributes[selectedAttributeIndex].generator = { 
-      ...updatedAttributes[selectedAttributeIndex].generator, 
-      distribution: updatedDistribution 
-    };
-    onAttributesChange(updatedAttributes);
-  };
-
-  // Add new choice value/weight pair
-  const addChoiceValue = (newValues, newWeights) => {
-    if (selectedAttributeIndex < 0) return;
-    
-    // Deep clone the attributes array to avoid read-only property errors
-    const updatedAttributes = attributes.map(attr => ({
-      ...attr,
-      generator: attr.generator ? { 
-        ...attr.generator,
-        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
-      } : undefined
-    }));
-    
-    const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
-    const updatedDistribution = {
-      ...distribution,
-      values: newValues,
-      weights: newWeights
-    };
-    updatedAttributes[selectedAttributeIndex].generator = { 
-      ...updatedAttributes[selectedAttributeIndex].generator, 
-      distribution: updatedDistribution 
-    };
-    onAttributesChange(updatedAttributes);
-  };
-
-  // Remove choice value/weight pair
-  const removeChoiceValue = (newValues, newWeights) => {
-    if (selectedAttributeIndex < 0) return;
-    
-    // Deep clone the attributes array to avoid read-only property errors
-    const updatedAttributes = attributes.map(attr => ({
-      ...attr,
-      generator: attr.generator ? { 
-        ...attr.generator,
-        distribution: attr.generator.distribution ? { ...attr.generator.distribution } : undefined
-      } : undefined
-    }));
-    
-    const distribution = updatedAttributes[selectedAttributeIndex].generator.distribution;
-    const updatedDistribution = {
-      ...distribution,
-      values: newValues,
-      weights: newWeights
-    };
-    updatedAttributes[selectedAttributeIndex].generator = { 
-      ...updatedAttributes[selectedAttributeIndex].generator, 
-      distribution: updatedDistribution 
-    };
-    onAttributesChange(updatedAttributes);
-  };
+  // Note: Legacy distribution handler functions removed - now using formula-based distribution
 
   // Render generator configuration fields in modal
   const renderGeneratorFields = () => {
@@ -283,10 +192,7 @@ const AttributeTable = ({
         return (
           <DistributionGeneratorEditor
             generator={generator}
-            onDistributionChange={handleDistributionChange}
-            onChoiceValueChange={handleChoiceValueChange}
-            onAddChoiceValue={addChoiceValue}
-            onRemoveChoiceValue={removeChoiceValue}
+            onFormulaChange={(formula) => handleGeneratorChange('formula', formula)}
           />
         );
         
@@ -295,10 +201,6 @@ const AttributeTable = ({
           <ForeignKeyGeneratorEditor
             generator={generator}
             onGeneratorChange={handleGeneratorChange}
-            onDistributionChange={handleDistributionChange}
-            onChoiceValueChange={handleChoiceValueChange}
-            onAddChoiceValue={addChoiceValue}
-            onRemoveChoiceValue={removeChoiceValue}
           />
         );
         

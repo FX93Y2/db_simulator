@@ -71,8 +71,7 @@ export const createConfigActions = (set, get) => ({
           // Load YAML content
           if (result.config.content) {
             await get().importYaml(result.config.content);
-            // Clean up obsolete positions after loading
-            get().cleanupObsoletePositions();
+            // Note: Removed cleanupObsoletePositions() to prevent removing database entity positions
           }
         } else {
           // New simulation config for this project
@@ -104,8 +103,7 @@ export const createConfigActions = (set, get) => ({
           // Load YAML content
           if (result.config.content) {
             await get().importYaml(result.config.content);
-            // Clean up obsolete positions after loading
-            get().cleanupObsoletePositions();
+            // Note: Removed cleanupObsoletePositions() to prevent removing database entity positions
           }
         }
       }
@@ -152,6 +150,7 @@ export const createConfigActions = (set, get) => ({
       } else if (config && !saveAsNew) {
         // Update existing standalone configuration
         result = await window.api.updateConfig(config.id, configData);
+        
       } else {
         // Save as new standalone configuration
         result = await window.api.saveConfig(configData);
@@ -310,6 +309,40 @@ export const createConfigActions = (set, get) => ({
     
     // Clean up obsolete positions from PositionService
     get().cleanupObsoletePositions();
+  },
+
+  /**
+   * Clean up orphaned positions after discarding changes
+   * Removes positions for simulation steps that don't exist in the current saved configuration
+   */
+  cleanupOrphanedPositions: () => {
+    const { canonicalSteps, projectId } = get();
+    
+    if (!projectId) return; // No cleanup needed for standalone configs
+    
+    // Get current step IDs from canonical steps (saved state)
+    const validStepIds = new Set(canonicalSteps.map(step => step.step_id));
+    
+    // Get all stored positions for this project
+    const allPositions = positionService.getAllPositions(projectId);
+    
+    // Remove positions for steps that no longer exist in saved config
+    let cleanedCount = 0;
+    for (const nodeId of allPositions.keys()) {
+      const isStepPattern = nodeId.includes('_') || nodeId.includes('-');
+      const isValidStep = validStepIds.has(nodeId);
+      
+      // Only clean up nodes that look like simulation steps (contain underscores or other patterns)
+      // Skip nodes that look like simple entity names
+      if (isStepPattern && !isValidStep) {
+        positionService.removePosition(projectId, nodeId);
+        cleanedCount++;
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      console.log(`[ConfigActions] Cleaned up ${cleanedCount} orphaned simulation step positions for project: ${projectId}`);
+    }
   },
 
   /**

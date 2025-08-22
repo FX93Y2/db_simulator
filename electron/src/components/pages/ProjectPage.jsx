@@ -12,8 +12,8 @@ import { useNavigationBlocker } from '../../hooks/shared/useNavigationBlocker';
 import UnsavedChangesModal from '../modals/UnsavedChangesModal';
 
 // Store cleanup imports
-import { cleanupStore } from '../../stores/simulationConfigStore';
-import { cleanupDatabaseStore } from '../../stores/databaseConfigStore';
+import { cleanupStore, useSimulationConfigStore } from '../../stores/simulationConfigStore';
+import { cleanupDatabaseStore, useDatabaseConfigStore } from '../../stores/databaseConfigStore';
 
 // Cache for project data to reduce loading flicker
 const projectCache = {};
@@ -37,6 +37,14 @@ const ProjectPage = ({ theme }) => {
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [lastSavedDbConfig, setLastSavedDbConfig] = useState('');
   const [lastSavedSimConfig, setLastSavedSimConfig] = useState('');
+  
+  // Store hooks for cleanup functions
+  const { cleanupOrphanedPositions: cleanupOrphanedDbPositions } = useDatabaseConfigStore(projectId)(state => ({
+    cleanupOrphanedPositions: state.cleanupOrphanedPositions
+  }));
+  const { cleanupOrphanedPositions: cleanupOrphanedSimPositions } = useSimulationConfigStore(projectId)(state => ({
+    cleanupOrphanedPositions: state.cleanupOrphanedPositions
+  }));
   
   // Set default active tab based on URL or parameter
   const determineActiveTab = useCallback(() => {
@@ -205,6 +213,7 @@ const ProjectPage = ({ theme }) => {
     setLastSavedSimConfig(simConfigContent);
   }, [simConfigContent]);
 
+
   // Handle saving all configurations
   const handleSaveAll = useCallback(async () => {
     try {
@@ -366,21 +375,59 @@ const ProjectPage = ({ theme }) => {
     }
   }, [handleSaveAll, blocker, pendingNavigation, showError, projectId]);
 
-  const handleDiscardAndContinue = useCallback(() => {
+  const handleDiscardAndContinue = useCallback(async () => {
     // Check if this is a reload/close action or navigation
     if (pendingNavigation?.targetPath === 'reload' || pendingNavigation?.targetPath === 'close') {
       // For reload/close, discard changes by reverting to last saved state
       setDbConfigContent(lastSavedDbConfig);
       setSimConfigContent(lastSavedSimConfig);
+      
+      // Clean up orphaned positions after reverting to saved state
+      if (projectId) {
+        cleanupOrphanedDbPositions();
+        cleanupOrphanedSimPositions();
+      }
+      
       setShowUnsavedModal(false);
       // Use our custom proceed function to reload or close
       pendingNavigation.proceed();
     } else {
       // For navigation, clean up stores to discard changes before proceeding
       if (projectId) {
-        console.log('🧹 Cleaning up stores for project before navigation:', projectId);
         cleanupStore(projectId);
         cleanupDatabaseStore(projectId);
+        
+        // Force reload the stores with saved configs to get correct canonical state
+        // Since we just cleaned up the stores, we need to restore the saved state before cleanup
+        try {
+          // Recreate stores and load the saved state
+          const dbStore = useDatabaseConfigStore(projectId);
+          const simStore = useSimulationConfigStore(projectId);
+          
+          // Load saved DB config if it exists
+          if (lastSavedDbConfig && lastSavedDbConfig.trim()) {
+            await dbStore.getState().importEntityYaml(lastSavedDbConfig);
+          } else {
+            dbStore.getState().clearEntities();
+          }
+          
+          // Load saved Sim config if it exists  
+          if (lastSavedSimConfig && lastSavedSimConfig.trim()) {
+            await simStore.getState().importYaml(lastSavedSimConfig);
+          } else {
+            simStore.getState().clearConfig();
+          }
+          
+          // Small delay to ensure stores are updated
+          await new Promise(resolve => setTimeout(resolve, 50));
+          
+        } catch (error) {
+          console.warn('[ProjectPage] Failed to reload stores for cleanup:', error);
+        }
+        
+        // Now clean up orphaned positions against the correct saved state
+        cleanupOrphanedDbPositions();
+        cleanupOrphanedSimPositions();
       }
       
       setShowUnsavedModal(false);
@@ -388,7 +435,7 @@ const ProjectPage = ({ theme }) => {
         blocker.proceed();
       }
     }
-  }, [blocker, pendingNavigation, lastSavedDbConfig, lastSavedSimConfig, projectId]);
+  }, [blocker, pendingNavigation, lastSavedDbConfig, lastSavedSimConfig, projectId, cleanupOrphanedDbPositions, cleanupOrphanedSimPositions]);
 
   const handleCancelNavigation = useCallback(() => {
     setShowUnsavedModal(false);
