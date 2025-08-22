@@ -110,7 +110,6 @@ const DistributionHelpPanel = ({ show, onHide }) => {
           color: 'var(--theme-text-primary)'
         }}
       >
-        <Badge bg="primary" className="me-1" style={{ fontSize: '10px' }}>{category.toUpperCase()}</Badge>
         <span className="fw-semibold" style={{ fontSize: '12px' }}>{category}</span>
       </Card.Header>
       <Card.Body className="py-1" style={{ padding: '8px 12px' }}>

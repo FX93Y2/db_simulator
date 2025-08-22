@@ -489,6 +489,16 @@ export const createEntityActions = (set, get) => ({
     
     // Update visual state after all deletions
     get().updateEntityVisualState();
+    
+    // Clear selected entities if any deleted entities were selected
+    set((state) => {
+      state.selectedEntities = state.selectedEntities.filter(
+        entity => !entityIds.includes(entity.id || entity.name)
+      );
+      if (state.selectedEntity && entityIds.includes(state.selectedEntity.id || state.selectedEntity.name)) {
+        state.selectedEntity = null;
+      }
+    });
   },
 
   /**

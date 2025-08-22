@@ -219,11 +219,9 @@ export const createEntityUIActions = (set, get) => ({
     const deletedIds = deletedNodes.map(node => node.id);
     get().deleteEntities(deletedIds);
     
-    // Clear selection if deleted entity was selected
-    const { selectedEntity } = get();
-    if (selectedEntity && deletedIds.includes(selectedEntity.id)) {
-      get().setSelectedEntity(null);
-    }
+    // Clear all selections and hide context menu
+    get().clearEntitySelection();
+    get().hideContextMenu();
   },
 
   /**

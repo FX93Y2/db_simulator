@@ -6,6 +6,7 @@ import FakerGeneratorEditor from './FakerGeneratorEditor';
 import TemplateGeneratorEditor from './TemplateGeneratorEditor';
 import DistributionGeneratorEditor from './DistributionGeneratorEditor';
 import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
+import { FormulaGeneratorEditor } from './formula';
 
 const AttributeTable = ({ 
   attributes = [], 
@@ -22,14 +23,16 @@ const AttributeTable = ({
 
   // Helper function to check if an attribute is protected (cannot be deleted)
   const isProtectedAttribute = (attribute) => {
-    return entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date') ||
+    return (entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date')) ||
+           (entityType === 'entity' && attribute.name === 'created_at') ||
            attribute.type === 'event_type' ||
-           entityType === 'resource' && attribute.type === 'resource_type';
+           (entityType === 'resource' && attribute.type === 'resource_type');
   };
 
   // Helper function to check if an attribute is fully protected (cannot be edited at all)
   const isFullyProtectedAttribute = (attribute) => {
-    return entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date') ||
+    return (entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date')) ||
+           (entityType === 'entity' && attribute.name === 'created_at') ||
            attribute.type === 'event_type';
   };
 
@@ -46,6 +49,8 @@ const AttributeTable = ({
         return `Distribution: ${attribute.generator.formula || 'formula'}`;
       case 'foreign_key':
         return `FK: ${attribute.generator.subtype || 'one_to_many'}`;
+      case 'formula':
+        return `Formula: ${attribute.generator.expression ? 'expression' : 'empty'}`;
       default:
         return 'Custom';
     }
@@ -84,7 +89,7 @@ const AttributeTable = ({
       } else if (value === 'resource_type') {
         updatedAttribute.generator = {
           type: 'distribution',
-          formula: 'DISC(0.5, "Type1", 0.5, "Type2")'
+          formula: ''
         };
       } else {
         updatedAttribute.generator = {
@@ -100,7 +105,8 @@ const AttributeTable = ({
 
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type', 'date', 'datetime'];
+    // Only exclude system-managed fields that are auto-generated
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
@@ -133,19 +139,19 @@ const AttributeTable = ({
     if (field === 'type') {
       switch (value) {
         case 'faker':
-          updatedGenerator.method = 'name';
+          updatedGenerator.method = '';
           delete updatedGenerator.template;
           delete updatedGenerator.distribution;
           delete updatedGenerator.subtype;
           break;
         case 'template':
-          updatedGenerator.template = 'Template_{id}';
+          updatedGenerator.template = '';
           delete updatedGenerator.method;
           delete updatedGenerator.distribution;
           delete updatedGenerator.subtype;
           break;
         case 'distribution':
-          updatedGenerator.formula = 'DISC(0.5, "Type1", 0.5, "Type2")';
+          updatedGenerator.formula = '';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
           delete updatedGenerator.subtype;
@@ -155,6 +161,13 @@ const AttributeTable = ({
           updatedGenerator.subtype = 'one_to_many';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
+          break;
+        case 'formula':
+          updatedGenerator.expression = updatedGenerator.expression || '';
+          delete updatedGenerator.method;
+          delete updatedGenerator.template;
+          delete updatedGenerator.formula;
+          delete updatedGenerator.subtype;
           break;
       }
     }
@@ -201,6 +214,14 @@ const AttributeTable = ({
           <ForeignKeyGeneratorEditor
             generator={generator}
             onGeneratorChange={handleGeneratorChange}
+          />
+        );
+        
+      case 'formula':
+        return (
+          <FormulaGeneratorEditor
+            generator={generator}
+            onExpressionChange={(expression) => handleGeneratorChange('expression', expression)}
           />
         );
         
@@ -290,6 +311,8 @@ const AttributeTable = ({
                                 <option value="integer">Integer</option>
                                 <option value="float">Float</option>
                                 <option value="boolean">Boolean</option>
+                                <option value="date">Date</option>
+                                <option value="datetime">DateTime</option>
                                 <option value="pk">Primary Key</option>
                                 <option value="fk">Foreign Key</option>
                                 <option value="event_id">Event ID (FK)</option>
@@ -393,7 +416,10 @@ const AttributeTable = ({
                       <option value="faker">Faker</option>
                       <option value="template">Template</option>
                       <option value="distribution">Distribution</option>
-                      <option value="foreign_key">Foreign Key</option>
+                      {selectedAttribute.type === 'fk' && (
+                        <option value="foreign_key">Foreign Key</option>
+                      )}
+                      <option value="formula">Formula</option>
                     </Form.Select>
                     {(selectedAttribute.type === 'fk' || selectedAttribute.type === 'resource_type') && (
                       <Form.Text className="text-muted">

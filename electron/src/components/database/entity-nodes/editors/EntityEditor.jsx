@@ -123,8 +123,9 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     const attributeToDelete = attributes[index];
     
     // Prevent deletion of protected auto-generated columns
-    if (entityType === 'bridging' && 
-        (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) {
+    if ((entityType === 'bridging' && 
+         (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) ||
+        (entityType === 'entity' && attributeToDelete.name === 'created_at')) {
       return; // Do nothing for protected columns
     }
     
@@ -169,6 +170,17 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     } else if (entityType === 'bridging') {
       updatedAttributes = updatedAttributes.filter(
         attr => !(attr.name === 'start_date' || attr.name === 'end_date')
+      );
+    }
+
+    // Handle entity table created_at column
+    if (newType === 'entity') {
+      if (!updatedAttributes.some(attr => attr.name === 'created_at')) {
+        updatedAttributes.push({ name: 'created_at', type: 'datetime' });
+      }
+    } else if (entityType === 'entity') {
+      updatedAttributes = updatedAttributes.filter(
+        attr => attr.name !== 'created_at'
       );
     }
 
@@ -234,7 +246,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       const updatedEntity = {
         name: name.trim(),
         type: entityType || undefined,
-        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : rows,
+        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : 
+              (rows === 'n/a' || rows === '' ? rows : (typeof rows === 'number' ? rows : parseInt(rows) || rows)),
         attributes: attributes.map(attr => {
           const cleanedAttr = {
             name: attr.name.trim(),
@@ -366,8 +379,10 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       onChange={(e) => {
                         const value = e.target.value;
                         // Allow 'n/a' or numbers for default tables
-                        if (value === 'n/a' || value === '' || !isNaN(parseInt(value))) {
+                        if (value === 'n/a' || value === '') {
                           handleRowsChange(value === '' ? 'n/a' : value);
+                        } else if (!isNaN(parseInt(value))) {
+                          handleRowsChange(parseInt(value));
                         }
                       }}
                       placeholder="Enter number of rows or 'n/a' for dynamic"

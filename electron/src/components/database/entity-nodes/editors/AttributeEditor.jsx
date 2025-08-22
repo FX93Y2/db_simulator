@@ -5,6 +5,7 @@ import FakerGeneratorEditor from './FakerGeneratorEditor';
 import TemplateGeneratorEditor from './TemplateGeneratorEditor';
 import DistributionGeneratorEditor from './DistributionGeneratorEditor';
 import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
+import { FormulaGeneratorEditor } from './formula';
 
 const AttributeEditor = ({ 
   attribute, 
@@ -28,13 +29,15 @@ const AttributeEditor = ({
 
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type', 'date', 'datetime'];
+    // Only exclude system-managed fields that are auto-generated
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
   // Helper function to check if an attribute is a protected auto-generated date column
   const isProtectedDateColumn = (attributeName) => {
-    return entityType === 'bridging' && (attributeName === 'start_date' || attributeName === 'end_date');
+    return (entityType === 'bridging' && (attributeName === 'start_date' || attributeName === 'end_date')) ||
+           (entityType === 'entity' && attributeName === 'created_at');
   };
 
   const isEventTypeColumn = localAttribute.type === 'event_type';
@@ -108,7 +111,7 @@ const AttributeEditor = ({
           break;
         case 'distribution':
           // Preserve existing formula or set default
-          updatedGenerator.formula = updatedGenerator.formula || 'DISC(0.5, "Type1", 0.5, "Type2")';
+          updatedGenerator.formula = updatedGenerator.formula;
           delete updatedGenerator.method;
           delete updatedGenerator.template;
           delete updatedGenerator.subtype;
@@ -118,6 +121,13 @@ const AttributeEditor = ({
           updatedGenerator.subtype = 'one_to_many';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
+          break;
+        case 'formula':
+          updatedGenerator.expression = updatedGenerator.expression || 'MIN(SELECT created_at FROM RelatedTable WHERE foreign_id = @id)';
+          delete updatedGenerator.method;
+          delete updatedGenerator.template;
+          delete updatedGenerator.formula;
+          delete updatedGenerator.subtype;
           break;
         default:
           break;
@@ -164,6 +174,14 @@ const AttributeEditor = ({
           <ForeignKeyGeneratorEditor
             generator={generator}
             onGeneratorChange={handleGeneratorChange}
+          />
+        );
+        
+      case 'formula':
+        return (
+          <FormulaGeneratorEditor
+            generator={generator}
+            onExpressionChange={(expression) => handleGeneratorChange('expression', expression)}
           />
         );
         
@@ -275,7 +293,10 @@ const AttributeEditor = ({
                     <option value="faker">Faker</option>
                     <option value="template">Template</option>
                     <option value="distribution">Distribution</option>
-                    <option value="foreign_key">Foreign Key</option>
+                    {localAttribute.type === 'fk' && (
+                      <option value="foreign_key">Foreign Key</option>
+                    )}
+                    <option value="formula">Formula</option>
                   </Form.Select>
                   {(localAttribute.type === 'fk' || localAttribute.type === 'resource_type') && (
                     <Form.Text className="text-muted">

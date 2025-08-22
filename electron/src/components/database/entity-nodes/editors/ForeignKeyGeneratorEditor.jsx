@@ -20,13 +20,16 @@ const ForeignKeyGeneratorEditor = ({
 
   const toggleDistribution = () => {
     if (generator.distribution || generator.formula) {
-      const updatedGenerator = { ...generator };
-      delete updatedGenerator.distribution;
-      delete updatedGenerator.formula;
-      onGeneratorChange('distribution', undefined);
-      onGeneratorChange('formula', undefined);
+      // Remove distribution/formula
+      if (generator.distribution) {
+        onGeneratorChange('distribution', undefined);
+      }
+      if (generator.formula) {
+        onGeneratorChange('formula', undefined);
+      }
     } else {
-      onGeneratorChange('formula', '');
+      // Add formula field
+      onGeneratorChange('formula', 'DISC(0.5, "value1", 0.5, "value2")');
     }
   };
 
@@ -44,7 +47,7 @@ const ForeignKeyGeneratorEditor = ({
         </Form.Select>
       </Form.Group>
       
-      {(generator.distribution || generator.formula) && (
+      {(generator.distribution || generator.formula !== undefined) && (
         <Card className="distribution-optional-card">
           <Card.Header>
             <small className="text-muted">Distribution (Optional)</small>
