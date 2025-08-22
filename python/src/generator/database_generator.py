@@ -1,0 +1,217 @@
+"""
+Database generator using SQLAlchemy
+
+Creates database tables and relationships based on configuration,
+and populates them with synthetic data.
+"""
+
+import os
+import logging
+from typing import Optional, List
+from pathlib import Path
+from datetime import datetime
+
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.orm import sessionmaker
+
+from ..config_parser import DatabaseConfig, SimulationConfig
+from ..utils.file_operations import safe_delete_sqlite_file, ensure_database_closed
+
+from .schema import TableBuilder, DependencySorter
+from .data import DataPopulator
+from .simulation import SimulationAttributeAnalyzer
+
+logger = logging.getLogger(__name__)
+
+
+class DatabaseGenerator:
+    def __init__(self, config: DatabaseConfig, output_dir: str = "output", 
+                 dynamic_entity_tables: Optional[List[str]] = None, 
+                 sim_config: Optional[SimulationConfig] = None):
+        """
+        Initialize database generator
+        
+        Args:
+            config: Database configuration
+            output_dir: Directory to store generated database
+            dynamic_entity_tables: List of tables to skip during population
+            sim_config: Simulation configuration for attribute analysis
+        """
+        self.config = config
+        self.sim_config = sim_config
+        self.output_dir = output_dir
+        self.engine = None
+        self.session = None
+        self.dynamic_entity_tables = dynamic_entity_tables or []
+        
+        # Initialize components
+        self.simulation_analyzer = SimulationAttributeAnalyzer(sim_config, config)
+        self.table_builder = TableBuilder()
+        self.data_populator = DataPopulator()
+        
+        # Create output directory if it doesn't exist
+        os.makedirs(output_dir, exist_ok=True)
+    
+    def generate(self, db_name: Optional[str] = None) -> str:
+        """
+        Generate database based on configuration
+        
+        Args:
+            db_name: Name of the database file (without path or extension)
+            
+        Returns:
+            Path to the generated database file (absolute path)
+        """
+        # Generate database name if not provided
+        if not db_name:
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            db_name = f"generated_db_{timestamp}"
+        
+        # Ensure output directory exists with detailed logging
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            logger.info(f"Ensured output directory exists: {self.output_dir}")
+            
+            # Check if directory is writable
+            if not os.access(self.output_dir, os.W_OK):
+                logger.warning(f"Output directory {self.output_dir} is not writable!")
+        except Exception as e:
+            logger.error(f"Error creating output directory {self.output_dir}: {e}")
+            # Try to find an alternative directory
+            alt_dir = os.path.abspath('.')
+            logger.info(f"Falling back to current directory: {alt_dir}")
+            self.output_dir = alt_dir
+            os.makedirs(self.output_dir, exist_ok=True)
+        
+        # Create database file path (ensure it's absolute)
+        if os.path.isabs(self.output_dir):
+            db_path = os.path.join(self.output_dir, f"{db_name}.db")
+        else:
+            db_path = os.path.abspath(os.path.join(self.output_dir, f"{db_name}.db"))
+        
+        logger.info(f"Generating database at absolute path: {db_path}")
+        
+        # Delete the file if it already exists to ensure we start fresh
+        if not safe_delete_sqlite_file(db_path):
+            logger.warning(f"Could not delete existing database file, continuing anyway: {db_path}")
+        
+        # Create SQLAlchemy engine with specific flags for better reliability
+        connection_string = f"sqlite:///{db_path}"
+        self.engine = create_engine(connection_string, echo=False)
+        
+        # Analyze simulation config for flow-specific attributes
+        flow_attributes = self.simulation_analyzer.analyze_simulation_attributes()
+        
+        # Create tables
+        models = self.table_builder.create_tables(self.config, self.engine, flow_attributes)
+        
+        # Create session
+        Session = sessionmaker(bind=self.engine)
+        self.session = Session()
+        
+        # Populate tables with data
+        self.data_populator.populate_tables(models, self.config, self.session, 
+                                           self.dynamic_entity_tables)
+        
+        # Commit and close session
+        self.session.commit()
+        self.session.close()
+        
+        # Ensure database engine is properly closed for safe file operations
+        ensure_database_closed(self.engine)
+        
+        # Verify the database file exists and is not empty
+        self._verify_database(db_path)
+        
+        return db_path
+    
+    def _verify_database(self, db_path: str):
+        """
+        Verify the database file was created successfully
+        
+        Args:
+            db_path: Path to the database file
+        """
+        if not os.path.exists(db_path):
+            logger.error(f"Database file was not created at expected path: {db_path}")
+            
+            # Log directory contents for debugging
+            try:
+                logger.info(f"Contents of directory {self.output_dir}:")
+                for f in os.listdir(self.output_dir):
+                    logger.info(f"  - {f}")
+            except Exception as e:
+                logger.error(f"Error listing directory contents: {e}")
+                
+            # Try connecting to the database directly as a final check
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                conn.close()
+                logger.info(f"Successfully connected to database despite file check failure")
+            except Exception as e:
+                logger.error(f"Failed to connect to database: {e}")
+        else:
+            size = os.path.getsize(db_path)
+            logger.info(f"Database generated successfully at {db_path}, size: {size} bytes")
+            
+            if size == 0:
+                logger.warning(f"Database file exists but is empty (0 bytes)")
+            
+            # Verify the database can be opened
+            try:
+                import sqlite3
+                conn = sqlite3.connect(db_path)
+                cursor = conn.cursor()
+                
+                # Check for tables
+                cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+                tables = cursor.fetchall()
+                logger.info(f"Database contains {len(tables)} tables: {[t[0] for t in tables]}")
+                
+                conn.close()
+            except Exception as e:
+                logger.error(f"Error verifying database: {e}")
+    
+    def print_database_stats(self):
+        """Print statistics about the generated database"""
+        inspector = inspect(self.engine)
+        
+        logger.info("Database Statistics:")
+        
+        for table_name in inspector.get_table_names():
+            # Create a new connection for executing queries
+            with self.engine.connect() as connection:
+                # Count rows
+                count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+                result = connection.execute(count_query).scalar()
+                
+                logger.info(f"  {table_name}: {result} rows")
+                
+                # For child tables with foreign keys, show distribution
+                foreign_keys = inspector.get_foreign_keys(table_name)
+                
+                if foreign_keys:
+                    for fk in foreign_keys:
+                        ref_table = fk['referred_table']
+                        ref_column = fk['referred_columns'][0]
+                        constrained_column = fk['constrained_columns'][0]
+                        
+                        # Get distribution of children per parent
+                        distribution_query = text(f"""
+                        SELECT {constrained_column}, COUNT(*) 
+                        FROM {table_name} 
+                        GROUP BY {constrained_column}
+                        """)
+                        distribution = connection.execute(distribution_query).fetchall()
+                        
+                        # Calculate statistics
+                        counts = [count for _, count in distribution]
+                        if counts:
+                            min_count = min(counts)
+                            max_count = max(counts)
+                            avg_count = sum(counts) / len(counts)
+                            
+                            logger.info(f"    Relationship with {ref_table}: Min={min_count}, Max={max_count}, Avg={avg_count:.2f}")
+                        else:
+                            logger.info(f"    No relationships with {ref_table}")

@@ -8,7 +8,7 @@ import os
 import logging
 from pathlib import Path
 
-from .db_generator import DatabaseGenerator
+from .database_generator import DatabaseGenerator
 from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_from_string, parse_sim_config_from_string
 
 # Create logger
