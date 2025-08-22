@@ -96,7 +96,8 @@ def generate_and_simulate():
         
         # Generate database with simulation config for attribute detection
         logger.info(f"Generating database with project_id: {project_id}")
-        db_path = generate_database(
+        from src.generator import generate_database_with_formula_support
+        db_path, generator = generate_database_with_formula_support(
             db_config['content'], 
             output_dir,
             db_name,
@@ -115,6 +116,15 @@ def generate_and_simulate():
             db_config['content'],
             db_path
         )
+        
+        # Resolve formula attributes after simulation (transparent to user)
+        if generator.has_pending_formulas():
+            logger.info("Resolving formula-based attributes after simulation completion")
+            formula_success = generator.resolve_formulas(db_path)
+            if formula_success:
+                logger.info("Formula resolution completed successfully")
+            else:
+                logger.warning("Formula resolution failed, but continuing with simulation results")
         
         # Verify database after simulation and prepare response path
         db_path_for_response = _prepare_response_path(db_path, output_dir, project_id)

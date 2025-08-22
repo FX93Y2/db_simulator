@@ -20,7 +20,7 @@ class DataPopulator:
     
     def __init__(self):
         """Initialize the data populator."""
-        pass
+        self.pending_formulas = {}  # Store formula attributes for post-simulation resolution
     
     def populate_tables(self, models: dict, config: DatabaseConfig, session, 
                        dynamic_entity_tables: List[str] = None):
@@ -63,6 +63,17 @@ class DataPopulator:
         
         logger.info(f"Generating {num_rows} rows for table {entity.name}")
         
+        # Collect formula attributes for post-simulation resolution
+        formula_attrs = []
+        for attr in entity.attributes:
+            if attr.generator and getattr(attr.generator, "type", None) == "formula":
+                formula_attrs.append(attr)
+        
+        # Store formula attributes if any exist
+        if formula_attrs:
+            self.pending_formulas[entity.name] = formula_attrs
+            logger.info(f"Found {len(formula_attrs)} formula attributes in table {entity.name} for post-simulation resolution")
+        
         # Generate rows
         for i in range(num_rows):
             row_data = {}
@@ -71,6 +82,11 @@ class DataPopulator:
             for attr in entity.attributes:
                 # Skip primary key for auto-increment
                 if attr.is_primary_key:
+                    continue
+
+                # Check for formula type generators - skip during initial population
+                if attr.generator and getattr(attr.generator, "type", None) == "formula":
+                    logger.debug(f"Skipping formula attribute '{attr.name}' in table '{entity.name}' for post-simulation resolution")
                     continue
 
                 # Handle new "foreign_key" generator type
@@ -165,3 +181,12 @@ class DataPopulator:
         
         # Note: Pass 0-based row_index to the utility function
         return generate_attribute_value(attr_config_dict, row_index)
+    
+    def has_pending_formulas(self) -> bool:
+        """
+        Check if there are any formula attributes waiting for post-simulation resolution.
+        
+        Returns:
+            True if there are pending formulas, False otherwise
+        """
+        return bool(self.pending_formulas)

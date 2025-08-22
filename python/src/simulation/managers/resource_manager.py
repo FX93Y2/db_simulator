@@ -134,7 +134,7 @@ class ResourceManager:
                     logger.error(f"Could not find resource type column in table {resource_table}")
                     return
                 
-                logger.info(f"Using '{resource_type_column}' as resource type column")
+                logger.debug(f"Using '{resource_type_column}' as resource type column")
                 
                 # Get all resources from the database
                 sql_query = text(f"SELECT * FROM {resource_table}")
@@ -172,8 +172,8 @@ class ResourceManager:
                         'last_released': None
                     }
                 
-                logger.info(f"Loaded {resource_count} resources of {len(resource_types)} types into FilterStore")
-                logger.info(f"Resource types: {', '.join(sorted(resource_types))}")
+                logger.debug(f"Loaded {resource_count} resources of {len(resource_types)} types into FilterStore")
+                logger.debug(f"Resource types: {', '.join(sorted(resource_types))}")
                 
             except Exception as e:
                 logger.error(f"Error setting up resources from table {resource_table}: {e}")
@@ -273,7 +273,7 @@ class ResourceManager:
                 'action': 'allocate'
             })
             
-            logger.info(f"Successfully allocated {len(allocated_resources)} resources to event {event_id}")
+            logger.debug(f"Successfully allocated {len(allocated_resources)} resources to event {event_id}")
             
         except simpy.Interrupt:
             # If interrupted, release any resources we managed to allocate
@@ -322,7 +322,7 @@ class ResourceManager:
         # Remove from current allocations
         del self.event_allocations[event_id]
         
-        logger.info(f"Released {len(resources)} resources from event {event_id}")
+        logger.debug(f"Released {len(resources)} resources from event {event_id}")
     
     def get_available_resources(self, resource_type: Optional[str] = None) -> List[Resource]:
         """

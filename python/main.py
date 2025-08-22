@@ -9,7 +9,7 @@ import sys
 import os
 
 # Import components from refactored structure
-from src.generator import generate_database, generate_database_for_simulation
+from src.generator import generate_database, generate_database_for_simulation, generate_database_with_formula_support
 from src.simulation.core.runner import run_simulation, run_simulation_from_config_dir
 from config_storage.config_db import ConfigManager
 
@@ -135,13 +135,29 @@ def main():
             # 1. Creating a full database with all tables (not just resources)
             # 2. Running the simulation on this complete database
             
-            # Generate complete database with all tables including Project and Deliverable
-            db_path = generate_database(args.db_config, args.output_dir, args.name, sim_config_path_or_content=args.sim_config)
+            # Generate complete database with all tables and run simulation with formula support
+            db_path, generator = generate_database_with_formula_support(
+                args.db_config, 
+                args.output_dir, 
+                args.name, 
+                sim_config_path_or_content=args.sim_config
+            )
             logger.info(f"Complete database generated at: {db_path}")
             
             # Run simulation on the complete database
             results = run_simulation(args.sim_config, args.db_config, db_path)
             logger.info(f"Simulation results: {results}")
+            
+            # Resolve formulas after simulation if any are pending
+            if generator.has_pending_formulas():
+                logger.info("Resolving formula-based attributes after simulation")
+                success = generator.resolve_formulas(db_path)
+                if success:
+                    logger.info("Formula resolution completed successfully")
+                else:
+                    logger.error("Formula resolution failed")
+            else:
+                logger.info("No formula attributes found, skipping formula resolution")
         except Exception as e:
             logger.error(f"Error in generate-simulate: {e}")
             sys.exit(1)

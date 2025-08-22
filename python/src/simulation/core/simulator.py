@@ -113,7 +113,7 @@ class EventSimulator:
             
             # Run simulation for specified duration
             duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
-            logger.info(f"Starting simulation for {self.config.duration_days} days")
+            logger.debug(f"Starting simulation for {self.config.duration_days} days")
             self.env.run(until=duration_minutes)
             
             # Clean up any remaining allocated resources
@@ -127,7 +127,7 @@ class EventSimulator:
                         except Exception as e:
                             logger.debug(f"Error releasing resources for event {event_id}: {e}")
             
-            logger.info(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
+            logger.debug(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
             
             # Get final resource utilization stats
             resource_stats = self.resource_manager.get_utilization_stats()
@@ -205,11 +205,11 @@ class EventSimulator:
                     bridge_table_config=bridge_table_config
                 )
                 flow_trackers[flow_id] = event_tracker
-                logger.info(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")
+                logger.debug(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")
             else:
                 logger.warning(f"Could not find bridge table for flow {flow_id} (event_table={event_table_name}). Resource tracking may not work.")
         
-        logger.info(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
+        logger.debug(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
         return flow_trackers
     
     def _find_bridge_table_for_flow(self, db_config, event_table_name, resource_table_name):
@@ -358,7 +358,7 @@ class EventSimulator:
             # Start each entry point module
             for step in flow.steps:
                 if step.step_type == 'create' and step.create_config:
-                    logger.info(f"Starting Create module: {step.step_id} (table: {step.create_config.entity_table})")
+                    logger.debug(f"Starting Create module: {step.step_id} (table: {step.create_config.entity_table})")
                     
                     # Start the Create module as a SimPy process
                     self.env.process(self._run_create_module(step, flow))
@@ -368,7 +368,7 @@ class EventSimulator:
         if total_entry_points == 0:
             logger.warning("No entry point modules found in event flows. No entities will be created.")
         else:
-            logger.info(f"Found {total_entry_points} entry point(s), started {create_modules_started} Create module(s)")
+            logger.debug(f"Found {total_entry_points} entry point(s), started {create_modules_started} Create module(s)")
 
     def _run_create_module(self, create_step: 'Step', flow: 'EventFlow'):
         """
@@ -432,7 +432,7 @@ class EventSimulator:
                 logger.error(f"Initial step {initial_step_id} not found in flow {flow.flow_id}")
                 return
             
-            logger.info(f"Routing entity {entity_id} from table {entity_table} to step {initial_step_id}")
+            logger.debug(f"Routing entity {entity_id} from table {entity_table} to step {initial_step_id}")
             
             # Start processing the entity from the initial step using the simulator's step processing
             self.env.process(self._process_step(entity_id, initial_step_id, flow, entity_table, event_table))
@@ -643,7 +643,7 @@ class EventSimulator:
                 # Increment the processed events counter
                 self.processed_events += 1
                 
-                logger.info(f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} in {duration_minutes/60:.2f} hours")
+                logger.debug(f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} in {duration_minutes/60:.2f} hours")
                 
                 # Process next steps
                 for next_step_id in step.next_steps:

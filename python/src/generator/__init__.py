@@ -198,6 +198,61 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
     
     return db_path
 
+def generate_database_with_formula_support(config_path_or_content, output_dir='output', db_name=None, project_id=None, sim_config_path_or_content=None):
+    """
+    Generate a SQLite database with formula support - returns both path and generator instance.
+    
+    Args:
+        config_path_or_content (str): Path to the database configuration file or YAML content
+        output_dir (str): Directory to store the generated database
+        db_name (str, optional): Name of the database (without extension)
+        project_id (str, optional): Project ID to organize output files
+        sim_config_path_or_content (str, optional): Path to simulation config file or YAML content
+        
+    Returns:
+        tuple: (db_path, generator) - Path to the generated database file and generator instance
+    """
+    # Use the same logic as generate_database but return both path and generator
+    config_processed = config_path_or_content
+    if os.path.exists(config_path_or_content) and os.path.isfile(config_path_or_content):
+        logger.info(f"Generating database from config file: {config_path_or_content}")
+        config = parse_db_config(config_path_or_content)
+    else:
+        logger.info("Generating database from config content string")
+        config = parse_db_config_from_string(config_path_or_content)
+    
+    # Parse simulation config if provided
+    sim_config = None
+    if sim_config_path_or_content:
+        if os.path.exists(sim_config_path_or_content) and os.path.isfile(sim_config_path_or_content):
+            logger.info(f"Parsing simulation config from file: {sim_config_path_or_content}")
+            sim_config = parse_sim_config(sim_config_path_or_content)
+        else:
+            logger.info("Parsing simulation config from content string")
+            sim_config = parse_sim_config_from_string(sim_config_path_or_content)
+    
+    # Use simplified path logic for this function
+    if project_id:
+        output_dir = os.path.join(output_dir, project_id)
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Generate database name if not provided
+    if not db_name:
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        db_name = f"generated_db_{timestamp}"
+    
+    # Remove .db extension if present
+    if db_name.endswith('.db'):
+        db_name = db_name[:-3]
+    
+    # Create generator and generate database
+    generator = DatabaseGenerator(config, output_dir, None, sim_config)
+    db_path = generator.generate(db_name)
+    
+    return db_path, generator
+
 def generate_database_for_simulation(db_config_path, sim_config_path, output_dir='output', db_name=None):
     """
     [DEPRECATED] Generate a database with only resource tables, suitable for dynamic simulation.
@@ -235,6 +290,7 @@ def generate_database_for_simulation(db_config_path, sim_config_path, output_dir
 
 __all__ = [
     'generate_database',
+    'generate_database_with_formula_support',
     'generate_database_for_simulation',
     'DatabaseGenerator'
 ] 

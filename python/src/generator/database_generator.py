@@ -215,3 +215,54 @@ class DatabaseGenerator:
                             logger.info(f"    Relationship with {ref_table}: Min={min_count}, Max={max_count}, Avg={avg_count:.2f}")
                         else:
                             logger.info(f"    No relationships with {ref_table}")
+    
+    def has_pending_formulas(self) -> bool:
+        """
+        Check if there are any formula attributes waiting for post-simulation resolution.
+        
+        Returns:
+            True if there are pending formulas, False otherwise
+        """
+        return self.data_populator.has_pending_formulas()
+    
+    def resolve_formulas(self, db_path: str) -> bool:
+        """
+        Resolve formula-based attributes after simulation completion.
+        
+        Args:
+            db_path: Path to the database file
+            
+        Returns:
+            True if resolution was successful, False otherwise
+        """
+        if not self.has_pending_formulas():
+            logger.debug("No pending formulas to resolve")
+            return True
+        
+        logger.info("Resolving formula-based attributes after simulation")
+        
+        try:
+            # Create engine for the database
+            connection_string = f"sqlite:///{db_path}"
+            formula_engine = create_engine(connection_string, echo=False)
+            
+            # Import and use FormulaResolver
+            from .data.formula import FormulaResolver
+            resolver = FormulaResolver(formula_engine)
+            
+            # Resolve all pending formulas
+            success = resolver.resolve_all(self.data_populator.pending_formulas)
+            
+            # Close the engine
+            ensure_database_closed(formula_engine)
+            
+            if success:
+                logger.info("Formula resolution completed successfully")
+            else:
+                logger.error("Formula resolution failed")
+            
+            return success
+            
+        except Exception as e:
+            logger.error(f"Error during formula resolution: {e}")
+            return False
