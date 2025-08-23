@@ -292,7 +292,9 @@ export const useSimulationActions = (projectId) => {
     hasFieldPendingChanges: state.hasFieldPendingChanges,
     getFieldValue: state.getFieldValue,
     updateResourceCapacity: state.updateResourceCapacity,
-    getResourceCapacity: state.getResourceCapacity
+    getResourceCapacity: state.getResourceCapacity,
+    clearAllResources: state.clearAllResources,
+    removeResource: state.removeResource
   }));
 };
 

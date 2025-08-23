@@ -200,5 +200,36 @@ export const createSimulationActions = (set, get) => ({
     if (!resource?.capacities) return 1;
     
     return resource.capacities[resourceType] || 1;
+  },
+
+  /**
+   * Clear all resources from simulation data
+   * Used when no resource tables exist in the database configuration
+   */
+  clearAllResources: () => {
+    set((state) => {
+      // Clear all resources from simulationData
+      if (state.simulationData.resources) {
+        state.simulationData.resources = [];
+      }
+    });
+    
+    return { success: true, message: 'All resources cleared' };
+  },
+
+  /**
+   * Remove a specific resource from simulation data
+   * @param {string} resourceTable - Resource table name to remove
+   */
+  removeResource: (resourceTable) => {
+    set((state) => {
+      if (state.simulationData.resources) {
+        state.simulationData.resources = state.simulationData.resources.filter(
+          r => r.resource_table !== resourceTable
+        );
+      }
+    });
+    
+    return { success: true, message: `Resource ${resourceTable} removed` };
   }
 });

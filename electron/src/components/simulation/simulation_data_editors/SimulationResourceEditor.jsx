@@ -15,23 +15,9 @@ const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigConte
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
   
   // Use simulation actions for resource management
-  const { updateResourceCapacity, getResourceCapacity } = useSimulationActions(projectId);
+  const { updateResourceCapacity, getResourceCapacity, syncSimulationToYaml } = useSimulationActions(projectId);
 
-  // Initialize all resources with default capacity when modal opens
-  useEffect(() => {
-    if (Object.keys(resourceDefinitions).length > 0) {
-      Object.keys(resourceDefinitions).forEach(resourceName => {
-        const definition = resourceDefinitions[resourceName];
-        definition.resourceTypes.forEach(resourceType => {
-          const currentCapacity = getResourceCapacity(resourceName, resourceType);
-          // If no capacity is set, initialize with default value of 1
-          if (currentCapacity === 1) {
-            updateResourceCapacity(resourceName, resourceType, 1);
-          }
-        });
-      });
-    }
-  }, [resourceDefinitions, getResourceCapacity, updateResourceCapacity]);
+  // Note: Resource initialization and deletion are now handled at page level in SimConfigEditor
 
   // Parse YAML content when it changes
   useEffect(() => {
@@ -46,7 +32,7 @@ const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigConte
     }
   }, [yamlContent]);
 
-  // Handle resource definition changes for rename detection
+  // Handle resource renames (addition/deletion handled at page level)
   useEffect(() => {
     if (Object.keys(previousResourceDefinitions).length > 0 && parsedData && Object.keys(resourceDefinitions).length > 0) {
       const renamedResources = detectResourceRenames(previousResourceDefinitions, resourceDefinitions);
@@ -82,6 +68,12 @@ const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigConte
     updateResourceCapacity(resourceName, resourceType, newCapacity);
     setEditingCell(null);
     setEditValue('');
+    
+    // Sync to YAML after manual capacity update
+    console.log(`[SimulationResourceEditor] Capacity updated for ${resourceName}.${resourceType}: ${newCapacity}`);
+    setTimeout(() => {
+      syncSimulationToYaml();
+    }, 0);
   };
 
   // Handle canceling edit
@@ -170,9 +162,9 @@ const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigConte
     return renames;
   };
 
-  // Handle resource renames (keeping existing logic)
+  // Handle resource renames (simplified - only direct YAML updates for renames)
   const handleResourceRenames = (renames) => {
-    if (!parsedData) return;
+    if (!parsedData || renames.length === 0) return;
 
     let hasChanges = false;
     const updatedData = { ...parsedData };
@@ -195,9 +187,9 @@ const SimulationResourceEditor = ({ yamlContent, onResourceChange, dbConfigConte
     }
   };
 
-  // Handle resource type renames (keeping existing logic) 
+  // Handle resource type renames (simplified - only direct YAML updates)
   const handleResourceTypeRenames = (renames) => {
-    if (!parsedData) return;
+    if (!parsedData || renames.length === 0) return;
 
     let hasChanges = false;
     const updatedData = { ...parsedData };

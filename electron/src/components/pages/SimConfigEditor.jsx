@@ -15,6 +15,7 @@ import useResizableGrid from '../../hooks/shared/useResizableGrid';
 import useYamlOperations from '../../hooks/shared/useYamlOperations';
 import useKeyboardShortcuts from '../../hooks/shared/useKeyboardShortcuts';
 import useConfigurationLoader from '../../hooks/shared/useConfigurationLoader';
+import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import { getSimToolbarItems } from '../../config/toolbars/simToolbarConfig';
 import RunSimulationModal from '../modals/RunSimulationModal';
 
@@ -67,8 +68,11 @@ const SimConfigEditor = ({
   const { importYaml, updateYamlContent } = useYamlActions(projectId);
   const { addNode } = useCanvasActions(projectId);
   const { loadConfig, saveConfig, initializeConfig, hasContent, undo, redo, canUndo, canRedo } = useConfigActions(projectId);
-  const { syncSimulationToYaml } = useSimulationActions(projectId);
+  const { syncSimulationToYaml, updateResourceCapacity, clearAllResources, getEffectiveSimulationData, removeResource } = useSimulationActions(projectId);
   const { toggleSelectionMode } = useUIActions(projectId);
+
+  // Resource definitions from database config
+  const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
   // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
@@ -98,6 +102,70 @@ const SimConfigEditor = ({
     loadConfig,
     hasContent
   });
+
+  // Resource synchronization - auto-manage resources when database config changes
+  React.useEffect(() => {
+    if (!isLoading && dbConfigContent && Object.keys(resourceDefinitions).length >= 0) {
+      console.log('[SimConfigEditor] Resource definitions detected:', Object.keys(resourceDefinitions));
+      
+      const currentSimulationData = getEffectiveSimulationData();
+      const currentResources = currentSimulationData.resources || [];
+      
+      // Get all current resource table names
+      const currentResourceTables = new Set(currentResources.map(r => r.resource_table));
+      
+      // Get all detected resource table names
+      const detectedResourceTables = new Set(Object.keys(resourceDefinitions));
+      
+      let hasChanges = false;
+      
+      // Add new resources that don't exist in current simulation data
+      Object.keys(resourceDefinitions).forEach(resourceName => {
+        const definition = resourceDefinitions[resourceName];
+        const existingResource = currentResources.find(r => r.resource_table === resourceName);
+        
+        if (!existingResource) {
+          console.log(`[SimConfigEditor] Adding new resource table: ${resourceName}`);
+          definition.resourceTypes.forEach(resourceType => {
+            updateResourceCapacity(resourceName, resourceType, 1);
+            hasChanges = true;
+          });
+        } else {
+          // Check for new resource types within existing resource table
+          definition.resourceTypes.forEach(resourceType => {
+            if (!existingResource.capacities?.[resourceType]) {
+              console.log(`[SimConfigEditor] Adding new resource type: ${resourceName}.${resourceType}`);
+              updateResourceCapacity(resourceName, resourceType, 1);
+              hasChanges = true;
+            }
+          });
+        }
+      });
+      
+      // Remove resources that no longer exist in database config
+      currentResourceTables.forEach(resourceTable => {
+        if (!detectedResourceTables.has(resourceTable)) {
+          console.log(`[SimConfigEditor] Removing deleted resource table: ${resourceTable}`);
+          removeResource(resourceTable);
+          hasChanges = true;
+        }
+      });
+      
+      // If no resources detected, clear all resources
+      if (Object.keys(resourceDefinitions).length === 0 && currentResources.length > 0) {
+        console.log('[SimConfigEditor] No resources detected, clearing all');
+        clearAllResources();
+        hasChanges = true;
+      }
+      
+      // Sync to YAML if changes were made
+      if (hasChanges) {
+        setTimeout(() => {
+          syncSimulationToYaml();
+        }, 100); // Small delay to ensure all store updates are complete
+      }
+    }
+  }, [dbConfigContent, resourceDefinitions, isLoading, updateResourceCapacity, clearAllResources, getEffectiveSimulationData, removeResource, syncSimulationToYaml]);
 
   // Generate collision-free step ID
   const generateStepId = useCallback((stepType) => {

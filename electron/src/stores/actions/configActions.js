@@ -240,7 +240,14 @@ export const createConfigActions = (set, get) => ({
       state.theme = theme;
       state.dbConfigContent = dbConfigContent;
       
-      // Leave yamlContent empty by default - users will apply simulation settings to generate YAML
+      // Generate default YAML with simulation settings if YAML is empty
+      if (!state.yamlContent) {
+        console.log('[ConfigActions] Initializing with default YAML content');
+        // Use setTimeout to ensure state is set before calling syncSimulationToYaml
+        setTimeout(() => {
+          get().syncSimulationToYaml();
+        }, 0);
+      }
     });
   },
 
