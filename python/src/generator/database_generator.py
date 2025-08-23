@@ -183,7 +183,7 @@ class DatabaseGenerator:
             # Create a new connection for executing queries
             with self.engine.connect() as connection:
                 # Count rows
-                count_query = text(f"SELECT COUNT(*) FROM {table_name}")
+                count_query = text(f'SELECT COUNT(*) FROM "{table_name}"')
                 result = connection.execute(count_query).scalar()
                 
                 logger.info(f"  {table_name}: {result} rows")

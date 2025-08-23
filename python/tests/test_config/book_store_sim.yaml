@@ -21,7 +21,7 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: UNIF(0.015, 0.02
+              formula: UNIF(0.015, 0.02)
             resource_requirements: []
           next_steps:
             - decide_1

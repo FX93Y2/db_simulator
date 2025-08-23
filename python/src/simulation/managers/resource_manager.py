@@ -137,7 +137,7 @@ class ResourceManager:
                 logger.debug(f"Using '{resource_type_column}' as resource type column")
                 
                 # Get all resources from the database
-                sql_query = text(f"SELECT * FROM {resource_table}")
+                sql_query = text(f'SELECT * FROM "{resource_table}"')
                 result = session.execute(sql_query)
                 
                 # Add each resource to the FilterStore

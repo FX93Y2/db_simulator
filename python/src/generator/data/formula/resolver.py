@@ -155,7 +155,7 @@ class FormulaResolver:
             column_names = [col['name'] for col in columns]
             
             # Query all rows
-            query = text(f"SELECT * FROM {table_name}")
+            query = text(f'SELECT * FROM "{table_name}"')
             result = session.execute(query)
             
             # Convert to list of dictionaries

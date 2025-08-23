@@ -338,7 +338,15 @@ class FormulaEvaluator:
                 parts = inner_content.split(' FROM ', 1)
                 column_part = parts[0].strip()
                 from_where_part = parts[1].strip()
-                return f"SELECT MIN({column_part}) FROM {from_where_part}"
+                
+                # Parse table name and WHERE clause
+                if ' WHERE ' in from_where_part:
+                    table_where = from_where_part.split(' WHERE ', 1)
+                    table_name = table_where[0].strip()
+                    where_clause = table_where[1].strip()
+                    return f'SELECT MIN("{column_part}") FROM "{table_name}" WHERE {where_clause}'
+                else:
+                    return f'SELECT MIN("{column_part}") FROM "{from_where_part}"'
             else:
                 return match.group(0)  # Return original if can't parse
         
@@ -353,7 +361,15 @@ class FormulaEvaluator:
                 parts = inner_content.split(' FROM ', 1)
                 column_part = parts[0].strip()
                 from_where_part = parts[1].strip()
-                return f"SELECT MAX({column_part}) FROM {from_where_part}"
+                
+                # Parse table name and WHERE clause
+                if ' WHERE ' in from_where_part:
+                    table_where = from_where_part.split(' WHERE ', 1)
+                    table_name = table_where[0].strip()
+                    where_clause = table_where[1].strip()
+                    return f'SELECT MAX("{column_part}") FROM "{table_name}" WHERE {where_clause}'
+                else:
+                    return f'SELECT MAX("{column_part}") FROM "{from_where_part}"'
             else:
                 return match.group(0)
         
@@ -368,7 +384,15 @@ class FormulaEvaluator:
                 parts = inner_content.split(' FROM ', 1)
                 column_part = parts[0].strip()
                 from_where_part = parts[1].strip()
-                return f"SELECT AVG({column_part}) FROM {from_where_part}"
+                
+                # Parse table name and WHERE clause
+                if ' WHERE ' in from_where_part:
+                    table_where = from_where_part.split(' WHERE ', 1)
+                    table_name = table_where[0].strip()
+                    where_clause = table_where[1].strip()
+                    return f'SELECT AVG("{column_part}") FROM "{table_name}" WHERE {where_clause}'
+                else:
+                    return f'SELECT AVG("{column_part}") FROM "{from_where_part}"'
             else:
                 return match.group(0)
         

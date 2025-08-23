@@ -70,7 +70,7 @@ class EntityManager:
             with Session(self.engine) as session:
                 # Use parameterized query to prevent SQL injection
                 # Note: Column name can't be parameterized, but we validate it's from assign config
-                sql_query = text(f"UPDATE {entity_table} SET {attribute_name} = :value WHERE id = :id")
+                sql_query = text(f'UPDATE "{entity_table}" SET "{attribute_name}" = :value WHERE "id" = :id')
                 
                 result = session.execute(sql_query, {"value": value, "id": entity_id})
                 
@@ -109,11 +109,11 @@ class EntityManager:
                 params = {"id": entity_id}
                 
                 for attr_name, attr_value in attributes.items():
-                    set_clauses.append(f"{attr_name} = :{attr_name}")
+                    set_clauses.append(f'"{attr_name}" = :{attr_name}')
                     params[attr_name] = attr_value
                 
                 set_clause = ", ".join(set_clauses)
-                sql_query = text(f"UPDATE {entity_table} SET {set_clause} WHERE id = :id")
+                sql_query = text(f'UPDATE "{entity_table}" SET {set_clause} WHERE "id" = :id')
                 
                 result = session.execute(sql_query, params)
                 
@@ -353,7 +353,7 @@ class EntityManager:
                 return None
 
             # Get the next ID
-            sql_query = text(f"SELECT MAX(id) FROM {entity_table}")
+            sql_query = text(f'SELECT MAX("id") FROM "{entity_table}"')
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
             
@@ -372,7 +372,7 @@ class EntityManager:
                     else:
                         ref_table, ref_column = attr.ref.split('.')
                         # Query the parent table for valid IDs
-                        sql_query = text(f"SELECT {ref_column} FROM {ref_table}")
+                        sql_query = text(f'SELECT "{ref_column}" FROM "{ref_table}"')
                         result = session.execute(sql_query).fetchall()
                         parent_ids = [id[0] for id in result]
                         
@@ -430,9 +430,9 @@ class EntityManager:
                 logger.warning(f"Error checking for created_at column in {entity_table}: {e}")
             
             # Build INSERT statement dynamically
-            columns = ", ".join(row_data.keys())
+            columns = ", ".join([f'"{col}"' for col in row_data.keys()])
             placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-            sql_query = text(f"INSERT INTO {entity_table} ({columns}) VALUES ({placeholders})")
+            sql_query = text(f'INSERT INTO "{entity_table}" ({columns}) VALUES ({placeholders})')
             
             logger.debug(f"Creating entity in {entity_table} with data: {row_data}")
             session.execute(sql_query, row_data)

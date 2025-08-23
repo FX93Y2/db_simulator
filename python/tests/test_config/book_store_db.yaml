@@ -19,7 +19,7 @@ entities:
         generator:
           type: formula
           expression: MIN(SELECT created_at FROM Order WHERE customer_id = @id) +
-            DAYS(RANDOM(30, 365)
+            DAYS(RANDOM(30, 365))
   - name: Order
     type: entity
     rows: n/a

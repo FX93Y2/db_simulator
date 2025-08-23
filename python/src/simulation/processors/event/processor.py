@@ -171,7 +171,7 @@ class EventStepProcessor(StepProcessor):
                 return None
             
             # Get next event ID
-            sql_query = text(f"SELECT MAX(id) FROM {event_table}")
+            sql_query = text(f'SELECT MAX("id") FROM "{event_table}"')
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
             
