@@ -1,0 +1,128 @@
+simulation:
+  duration_days: 30
+  start_date: 2024-01-01
+  random_seed: 42
+event_simulation:
+  event_flows:
+    - flow_id: flow_1_create_entities_1
+      event_table: Order_Event
+      steps:
+        - step_id: create_entities_1
+          step_type: create
+          create_config:
+            entity_table: Order
+            event_table: Order_Event
+            interarrival_time:
+              formula: EXPO(2)
+            max_entities: n/a
+          next_steps:
+            - Payment_Process
+        - step_id: Payment_Process
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(0.015, 0.02
+            resource_requirements: []
+          next_steps:
+            - decide_1
+        - step_id: decide_1
+          step_type: decide
+          decide_config:
+            decision_type: 2way-chance
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: Fullfill Order
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.95
+              - outcome_id: outcome_2
+                next_step_id: Payment Retry
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.050000000000000044
+        - step_id: Fullfill Order
+          step_type: event
+          event_config:
+            duration:
+              formula: NORM(1, 0.1)
+            resource_requirements: []
+          next_steps:
+            - decide_2
+        - step_id: decide_2
+          step_type: decide
+          decide_config:
+            decision_type: 2way-chance
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: assign_local
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.7
+              - outcome_id: outcome_2
+                next_step_id: assign_out_of_state
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.30000000000000004
+        - step_id: assign_local
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: order_location
+                value: local
+              - assignment_type: attribute
+                attribute_name: status
+                value: shipped
+          next_steps:
+            - Local_Shipping
+        - step_id: Local_Shipping
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(1, 2)
+            resource_requirements: []
+          next_steps:
+            - assign_status
+        - step_id: assign_status
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: Delivered
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release
+        - step_id: assign_out_of_state
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: order_location
+                value: out_of_state
+              - assignment_type: attribute
+                attribute_name: status
+                value: shipped
+          next_steps:
+            - Out_of_State_Shipping
+        - step_id: Out_of_State_Shipping
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(2, 5)
+            resource_requirements: []
+          next_steps:
+            - assign_status
+        - step_id: Payment Retry
+          step_type: event
+          event_config:
+            duration:
+              formula: EXPO(0.015)
+            resource_requirements: []
+          next_steps:
+            - Payment_Process
