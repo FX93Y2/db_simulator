@@ -16,6 +16,7 @@ from ..base import StepProcessor
 from ..utils import extract_distribution_config
 from ....distributions import generate_from_distribution
 from ....utils.data_generation import generate_attribute_value
+from ....utils.time_units import TimeUnitConverter
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,10 @@ class EventStepProcessor(StepProcessor):
                 
                 # Record resource allocations in the tracker
                 self._record_resource_allocations(event_id, start_time, end_time, active_event_tracker)
+                
+                # Increment events processed counter for termination tracking
+                if self.simulator:
+                    self.simulator.increment_events_processed()
                 
                 # Record event processing
                 self._record_event_processing(
@@ -256,8 +261,9 @@ class EventStepProcessor(StepProcessor):
         try:
             # Extract the actual distribution config from duration field
             dist_config = extract_distribution_config(event_config.duration)
-            duration_days = generate_from_distribution(dist_config)
-            return duration_days * 24 * 60  # Convert days to minutes
+            duration_value = generate_from_distribution(dist_config)
+            # Convert to minutes using base time unit
+            return TimeUnitConverter.to_minutes(duration_value, self.config.base_time_unit)
         except Exception as e:
             self.logger.warning(f"Error calculating event duration: {str(e)}, using default")
             return 60.0  # Default 1 hour

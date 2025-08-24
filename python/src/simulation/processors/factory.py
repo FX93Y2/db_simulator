@@ -26,7 +26,7 @@ class StepProcessorFactory:
     step processing requests to the appropriate processor based on step type.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None, simulator=None):
         """
         Initialize the step processor factory.
         
@@ -46,15 +46,16 @@ class StepProcessorFactory:
         self.event_tracker = event_tracker
         self.config = config
         self.entity_attribute_manager = entity_attribute_manager
+        self.simulator = simulator
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
-        # Initialize all processors
+        # Initialize all processors with simulator reference
         self.processors: List[StepProcessor] = [
-            EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config),
-            CreateStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config)
+            EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            CreateStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         ]
         
         # Configure processors that need entity attribute manager

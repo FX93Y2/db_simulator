@@ -13,6 +13,7 @@ DistributionConfig = Union[Dict[str, Any], str]
 from datetime import datetime, time
 
 from .db_parser import DatabaseConfig, Entity, Attribute
+from ..utils.time_units import TimeUnit, validate_base_time_unit
 
 logger = logging.getLogger(__name__)
 
@@ -134,6 +135,14 @@ class EventFlowsConfig:
     flows: List[EventFlow] = field(default_factory=list)
 
 @dataclass
+class TerminatingConditions:
+    """Configuration for simulation termination conditions."""
+    max_time: Optional[float] = None              # Stop after time (in base time unit)
+    max_entities_processed: Optional[int] = None  # Stop after processing N entities
+    entity_table: Optional[str] = None            # Which entity table to count
+    max_events: Optional[int] = None              # Stop after N total events
+
+@dataclass
 class EventSimulation:
     table_specification: TableSpecification
     work_shifts: Optional[WorkShifts] = None
@@ -162,10 +171,36 @@ def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[s
 
 @dataclass
 class SimulationConfig:
-    duration_days: int
+    # Legacy field for backward compatibility
+    duration_days: Optional[int] = None
+    
+    # New configuration fields
+    base_time_unit: str = 'days'  # Default to days for backward compatibility
+    terminating_conditions: Optional[TerminatingConditions] = None
+    
+    # Other fields
     start_date: Optional[datetime] = None
     random_seed: Optional[int] = None
     event_simulation: Optional[EventSimulation] = None
+    
+    def __post_init__(self):
+        """Validate and migrate configuration after initialization."""
+        # Validate base time unit
+        if not validate_base_time_unit(self.base_time_unit):
+            logger.warning(f"Invalid base_time_unit '{self.base_time_unit}', using 'days'")
+            self.base_time_unit = 'days'
+        
+        # Handle backward compatibility: migrate duration_days to terminating_conditions
+        if self.terminating_conditions is None and self.duration_days is not None:
+            logger.info(f"Migrating duration_days ({self.duration_days}) to terminating_conditions")
+            self.terminating_conditions = TerminatingConditions(max_time=float(self.duration_days))
+            self.base_time_unit = 'days'  # Ensure backward compatibility
+        
+        # Ensure we have some terminating condition
+        if self.terminating_conditions is None:
+            logger.warning("No terminating conditions specified, using default 30 days")
+            self.terminating_conditions = TerminatingConditions(max_time=30.0)
+            self.base_time_unit = 'days'
 
 
 def find_event_type_column(db_config: DatabaseConfig, event_table: str) -> Optional[str]:
@@ -428,8 +463,27 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
             resource_capacities=resource_capacities
         )
     
+    # Parse base time unit
+    base_time_unit = sim_dict.get('base_time_unit', 'days')
+    
+    # Parse terminating conditions
+    terminating_conditions = None
+    if 'terminating_conditions' in sim_dict:
+        tc_dict = sim_dict['terminating_conditions']
+        terminating_conditions = TerminatingConditions(
+            max_time=tc_dict.get('max_time'),
+            max_entities_processed=tc_dict.get('max_entities_processed'),
+            entity_table=tc_dict.get('entity_table'),
+            max_events=tc_dict.get('max_events')
+        )
+    
+    # Handle legacy duration_days (will be migrated in __post_init__)
+    legacy_duration_days = sim_dict.get('duration_days')
+    
     return SimulationConfig(
-        duration_days=sim_dict.get('duration_days', 30),
+        duration_days=legacy_duration_days,
+        base_time_unit=base_time_unit,
+        terminating_conditions=terminating_conditions,
         start_date=start_date,
         random_seed=sim_dict.get('random_seed'),
         event_simulation=event_simulation
@@ -646,8 +700,27 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
             resource_capacities=resource_capacities
         )
     
+    # Parse base time unit
+    base_time_unit = sim_dict.get('base_time_unit', 'days')
+    
+    # Parse terminating conditions
+    terminating_conditions = None
+    if 'terminating_conditions' in sim_dict:
+        tc_dict = sim_dict['terminating_conditions']
+        terminating_conditions = TerminatingConditions(
+            max_time=tc_dict.get('max_time'),
+            max_entities_processed=tc_dict.get('max_entities_processed'),
+            entity_table=tc_dict.get('entity_table'),
+            max_events=tc_dict.get('max_events')
+        )
+    
+    # Handle legacy duration_days (will be migrated in __post_init__)
+    legacy_duration_days = sim_dict.get('duration_days')
+    
     return SimulationConfig(
-        duration_days=sim_dict.get('duration_days', 30),
+        duration_days=legacy_duration_days,
+        base_time_unit=base_time_unit,
+        terminating_conditions=terminating_conditions,
         start_date=start_date,
         random_seed=sim_dict.get('random_seed'),
         event_simulation=event_simulation

@@ -26,7 +26,7 @@ class AssignStepProcessor(StepProcessor):
     to entities during simulation execution.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
         """
         Initialize the assign step processor.
         
@@ -37,8 +37,9 @@ class AssignStepProcessor(StepProcessor):
             entity_manager: Entity manager instance
             event_tracker: Event tracker instance
             config: Simulation configuration
+            simulator: Reference to the main simulator (for termination checking)
         """
-        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config)
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         
         # Assignment handler factory will be set during integration
         self.assignment_handler_factory: Optional[AssignmentHandlerFactory] = None

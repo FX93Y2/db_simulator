@@ -19,7 +19,7 @@ class StepProcessor(ABC):
     that inherits from this class and implements the required methods.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
         """
         Initialize the step processor.
         
@@ -30,6 +30,7 @@ class StepProcessor(ABC):
             entity_manager: Entity manager instance
             event_tracker: Event tracker instance
             config: Simulation configuration
+            simulator: Reference to the main simulator (for termination checking)
         """
         self.env = env
         self.engine = engine
@@ -37,6 +38,7 @@ class StepProcessor(ABC):
         self.entity_manager = entity_manager
         self.event_tracker = event_tracker
         self.config = config
+        self.simulator = simulator
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
     
     @abstractmethod

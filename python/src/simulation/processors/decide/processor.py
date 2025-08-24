@@ -22,7 +22,7 @@ class DecideStepProcessor(StepProcessor):
     conditional evaluation, and routing to next steps.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
         """
         Initialize the decide step processor.
         
@@ -33,8 +33,9 @@ class DecideStepProcessor(StepProcessor):
             entity_manager: Entity manager instance
             event_tracker: Event tracker instance
             config: Simulation configuration
+            simulator: Reference to the main simulator (for termination checking)
         """
-        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config)
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         
         # Entity attribute manager will be set during integration
         self.entity_attribute_manager = None

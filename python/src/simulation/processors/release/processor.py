@@ -22,6 +22,21 @@ class ReleaseStepProcessor(StepProcessor):
     hold resources throughout their lifecycle.
     """
     
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
+        """
+        Initialize the release step processor.
+        
+        Args:
+            env: SimPy environment
+            engine: SQLAlchemy engine
+            resource_manager: Resource manager instance
+            entity_manager: Entity manager instance
+            event_tracker: Event tracker instance
+            config: Simulation configuration
+            simulator: Reference to the main simulator (for termination checking)
+        """
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
+    
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle release steps."""
         return step_type == "release"

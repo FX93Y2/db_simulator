@@ -15,6 +15,7 @@ from sqlalchemy.pool import NullPool
 from ..base import StepProcessor
 from ..utils import extract_distribution_config
 from ....distributions import generate_from_distribution
+from ....utils.time_units import TimeUnitConverter
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +31,8 @@ class CreateStepProcessor(StepProcessor):
     - Support entity limits and arrival patterns
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config):
-        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config)
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         # Callback for routing entities to initial steps (set by simulator)
         self.entity_router_callback = None
     
@@ -111,21 +112,28 @@ class CreateStepProcessor(StepProcessor):
             try:
                 # Extract the actual distribution config
                 dist_config = extract_distribution_config(config.interarrival_time)
-                interarrival_days = generate_from_distribution(dist_config)
-                interarrival_minutes = interarrival_days * 24 * 60  # Convert days to minutes
+                interarrival_value = generate_from_distribution(dist_config)
+                # Convert to minutes using base time unit
+                interarrival_minutes = TimeUnitConverter.to_minutes(interarrival_value, self.config.base_time_unit)
                 
                 # Wait for the next entity arrival
                 yield self.env.timeout(interarrival_minutes)
                 
-                # Check if we've exceeded simulation duration
-                if self.env.now > self.config.duration_days * 24 * 60:
-                    logger.info(f"Create module {step.step_id} stopping - simulation duration exceeded")
-                    break
+                # Check termination conditions instead of fixed duration
+                if self.simulator:
+                    should_terminate, reason = self.simulator._check_termination_conditions()
+                    if should_terminate:
+                        logger.info(f"Create module {step.step_id} stopping - {reason}")
+                        break
                 
                 # Create the entity
                 created_entity_id = self._create_entity(config.entity_table, event_table)
                 
                 if created_entity_id:
+                    # Increment entities processed counter for termination tracking
+                    if self.simulator:
+                        self.simulator.increment_entities_processed()
+                    
                     # Route entity to first next step
                     first_next_step = step.next_steps[0]
                     self._route_entity_to_next_step(created_entity_id, first_next_step, flow, 

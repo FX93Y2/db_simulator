@@ -18,6 +18,7 @@ from sqlalchemy.pool import NullPool
 
 from ...config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig, EventFlow, Step
 from ...config_parser import Entity as DbEntity, Attribute as DbAttribute
+from ...utils.time_units import TimeUnit, TimeUnitConverter
 from ...distributions import generate_from_distribution
 from ...utils.data_generation import generate_attribute_value
 from ..managers.event_tracker import EventTracker
@@ -65,8 +66,20 @@ class EventSimulator:
         # Initialize resource manager
         self.resource_manager = ResourceManager(self.env, self.engine, self.db_path, self.db_config)
         
-        # Initialize counters
+        # Initialize counters for termination tracking
         self.processed_events = 0
+        self.entities_processed = 0
+        
+        # Initialize termination tracking
+        self.termination_reason = None
+        self.max_time_minutes = None
+        
+        # Convert termination time to minutes based on base time unit
+        if config.terminating_conditions and config.terminating_conditions.max_time:
+            self.max_time_minutes = TimeUnitConverter.to_minutes(
+                config.terminating_conditions.max_time,
+                config.base_time_unit
+            )
         
         # Set random seed if provided
         if config.random_seed is not None:
@@ -85,10 +98,10 @@ class EventSimulator:
         # Initialize entity attribute manager for Arena-style assign functionality
         self.entity_attribute_manager = EntityAttributeManager()
         
-        # Initialize step processor factory
+        # Initialize step processor factory with simulator reference
         self.step_processor_factory = StepProcessorFactory(
             self.env, self.engine, self.resource_manager, self.entity_manager, 
-            self.event_tracker, self.config, self.entity_attribute_manager
+            self.event_tracker, self.config, self.entity_attribute_manager, self
         )
     
     
@@ -111,10 +124,14 @@ class EventSimulator:
             # Start entity generation process using Create step modules
             self._start_create_modules()
             
-            # Run simulation for specified duration
-            duration_minutes = self.config.duration_days * 24 * 60  # Convert days to minutes
-            logger.debug(f"Starting simulation for {self.config.duration_days} days")
-            self.env.run(until=duration_minutes)
+            # Run simulation until termination conditions are met
+            self._log_simulation_start()
+            
+            # Start termination monitoring process
+            self.env.process(self._monitor_termination_conditions())
+            
+            # Run simulation (will be terminated by termination conditions)
+            self.env.run()
             
             # Clean up any remaining allocated resources
             if hasattr(self.resource_manager, 'event_allocations'):
@@ -137,11 +154,17 @@ class EventSimulator:
             
             # Return simulation results
             return {
-                'duration_days': self.config.duration_days,
+                'simulation_time_minutes': self.env.now,
+                'simulation_time_base_units': TimeUnitConverter.from_minutes(self.env.now, self.config.base_time_unit),
+                'base_time_unit': self.config.base_time_unit,
+                'termination_reason': self.termination_reason,
                 'entity_count': self.entity_manager.entity_count,
+                'entities_processed': self.entities_processed,
                 'processed_events': self.processed_events,
                 'resource_utilization': resource_stats,
-                'entity_attributes': attribute_stats
+                'entity_attributes': attribute_stats,
+                # Legacy field for backward compatibility
+                'duration_days': getattr(self.config, 'duration_days', None)
             }
             
         finally:
@@ -732,5 +755,111 @@ class EventSimulator:
         except Exception as e:
             logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
             return None
+    
+    def _log_simulation_start(self):
+        """Log simulation start with termination conditions."""
+        tc = self.config.terminating_conditions
+        conditions = []
+        
+        if tc.max_time is not None:
+            conditions.append(f"max_time: {tc.max_time} {self.config.base_time_unit}")
+        if tc.max_entities_processed is not None:
+            conditions.append(f"max_entities: {tc.max_entities_processed}")
+        if tc.max_events is not None:
+            conditions.append(f"max_events: {tc.max_events}")
+        
+        logger.info(f"Starting simulation with termination conditions: {', '.join(conditions)}")
+    
+    def _monitor_termination_conditions(self):
+        """
+        Monitor termination conditions and stop simulation when any condition is met.
+        
+        This runs as a SimPy process and checks termination conditions periodically.
+        """
+        # Check every simulated minute
+        check_interval = 1.0
+        
+        while True:
+            try:
+                # Wait for check interval
+                yield self.env.timeout(check_interval)
+                
+                # Check termination conditions
+                should_terminate, reason = self._check_termination_conditions()
+                
+                if should_terminate:
+                    self.termination_reason = reason
+                    logger.info(f"Termination condition met: {reason}")
+                    break
+                    
+            except simpy.Interrupt:
+                logger.debug("Termination monitor interrupted")
+                break
+        
+        # Stop all processes by interrupting the environment
+        # This will cause the run() method to exit
+        logger.debug("Stopping simulation due to termination condition")
+    
+    def _check_termination_conditions(self) -> Tuple[bool, Optional[str]]:
+        """
+        Check if any termination condition has been met.
+        
+        Returns:
+            Tuple of (should_terminate, reason)
+        """
+        tc = self.config.terminating_conditions
+        
+        if not tc:
+            return False, None
+        
+        # Check time-based termination
+        if self.max_time_minutes is not None and self.env.now >= self.max_time_minutes:
+            time_in_base_units = TimeUnitConverter.from_minutes(self.env.now, self.config.base_time_unit)
+            return True, f"max_time_reached ({time_in_base_units:.2f} {self.config.base_time_unit})"
+        
+        # Check entity-based termination
+        if tc.max_entities_processed is not None:
+            if tc.entity_table:
+                # Count entities in specific table
+                entity_count = self._count_entities_in_table(tc.entity_table)
+            else:
+                # Use total entity count
+                entity_count = self.entities_processed
+            
+            if entity_count >= tc.max_entities_processed:
+                return True, f"max_entities_reached ({entity_count} entities)"
+        
+        # Check event-based termination
+        if tc.max_events is not None and self.processed_events >= tc.max_events:
+            return True, f"max_events_reached ({self.processed_events} events)"
+        
+        return False, None
+    
+    def _count_entities_in_table(self, table_name: str) -> int:
+        """
+        Count the number of entities in a specific table.
+        
+        Args:
+            table_name: Name of the entity table
+            
+        Returns:
+            Number of entities in the table
+        """
+        try:
+            with self.engine.connect() as conn:
+                sql_query = text(f'SELECT COUNT(*) FROM "{table_name}"')
+                result = conn.execute(sql_query).fetchone()
+                return result[0] if result else 0
+        except Exception as e:
+            logger.warning(f"Error counting entities in table {table_name}: {e}")
+            return 0
+    
+    def increment_entities_processed(self):
+        """Increment the processed entities counter for termination tracking."""
+        self.entities_processed += 1
+    
+    def increment_events_processed(self):
+        """Increment the processed events counter for termination tracking."""
+        self.processed_events += 1
 
 
