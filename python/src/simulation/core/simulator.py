@@ -1,35 +1,23 @@
 """
-Simulation engine for DB Simulator.
+Refactored simulation engine for DB Simulator.
 
 This module implements the event-based simulation functionality 
 using SimPy to model resource allocation and scheduling.
+
+This refactored version uses a modular architecture with separate
+modules for initialization, execution, and lifecycle management.
 """
 
 import logging
-import simpy
-import random
-from datetime import timedelta
-from typing import Dict, List, Tuple, Any, Optional, Union
-import random
-import numpy as np
-from sqlalchemy import create_engine, inspect, select, func, text, insert
-from sqlalchemy.orm import Session
-from sqlalchemy.pool import NullPool
+from typing import Dict, Any
 
-from ...config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig, EventFlow, Step
-from ...config_parser import Entity as DbEntity, Attribute as DbAttribute
-from ...utils.time_units import TimeUnit, TimeUnitConverter
-from ..termination.formula import TerminationFormulaParser, TerminationFormulaEvaluator
-from ...distributions import generate_from_distribution
-from ...utils.data_generation import generate_attribute_value
-from ..managers.event_tracker import EventTracker
-from ..managers.resource_manager import ResourceManager
-from ..managers.entity_manager import EntityManager
-from ..managers.entity_attribute_manager import EntityAttributeManager
-from ..processors import StepProcessorFactory
-import dataclasses
+from ...config_parser import SimulationConfig, DatabaseConfig
+from .initialization import SimulatorInitializer, FlowEventTrackerSetup, ResourceInitializer
+from .execution import FlowManager
+from .lifecycle import TerminationMonitor, DatabaseCleanup, MetricsCollector
 
 logger = logging.getLogger(__name__)
+
 
 class EventSimulator:
     """
@@ -39,6 +27,11 @@ class EventSimulator:
     - Entities (e.g., Projects, Patients) arrive according to a configured pattern
     - Events (e.g., Deliverables, Treatments) are processed in primary key order
     - Resources (e.g., Consultants, Doctors) are allocated to complete events
+    
+    This refactored version delegates responsibilities to specialized modules:
+    - Initialization: SimulatorInitializer, FlowEventTrackerSetup, ResourceInitializer
+    - Execution: FlowManager, StepExecutor, EntityRouter
+    - Lifecycle: TerminationMonitor, DatabaseCleanup, MetricsCollector
     """
     
     def __init__(self, config: SimulationConfig, db_config: DatabaseConfig, db_path: str):
@@ -54,67 +47,58 @@ class EventSimulator:
         self.db_config = db_config
         self.db_path = db_path
         
-        # Use NullPool to avoid connection pool issues with SQLite
-        # and enable WAL journal mode for better concurrency
-        self.engine = create_engine(
-            f"sqlite:///{db_path}?journal_mode=WAL",
-            poolclass=NullPool
-        )
+        # Initialize core components using modular architecture
+        self.initializer = SimulatorInitializer(config, db_config, db_path)
+        self.tracker_setup = FlowEventTrackerSetup(db_path, config, db_config)
+        self.cleanup_handler = DatabaseCleanup(db_path)
         
-        # Initialize SimPy environment
-        self.env = simpy.Environment()
+        # Components that will be initialized during setup
+        self.flow_manager = None
+        self.termination_monitor = None
+        self.metrics_collector = None
+        self.resource_initializer = None
+        self.flow_event_trackers = None
         
-        # Initialize resource manager
-        self.resource_manager = ResourceManager(self.env, self.engine, self.db_path, self.db_config)
-        
-        # Initialize counters for termination tracking
-        self.processed_events = 0
-        self.entities_processed = 0
-        
-        # Initialize termination tracking
-        self.termination_reason = None
-        
-        # Initialize formula-based termination system
-        if config.terminating_conditions:
-            self.termination_parser = TerminationFormulaParser()
-            self.termination_evaluator = TerminationFormulaEvaluator()
-            try:
-                formula = config.terminating_conditions.formula
-                self.termination_condition = self.termination_parser.parse(formula)
-                logger.info(f"Parsed termination formula: {formula}")
-            except Exception as e:
-                logger.error(f"Error parsing termination formula: {e}")
-                # Fallback to default
-                self.termination_condition = self.termination_parser.parse("TIME(999999)")
-        else:
-            # No termination conditions - use very long time
-            self.termination_parser = TerminationFormulaParser()
-            self.termination_evaluator = TerminationFormulaEvaluator()
-            self.termination_condition = self.termination_parser.parse("TIME(999999)")
-        
-        # Set random seed if provided
-        if config.random_seed is not None:
-            random.seed(config.random_seed)
-            np.random.seed(config.random_seed)
-            
-        # Initialize flow-specific event trackers
-        self.flow_event_trackers = self._initialize_flow_event_trackers(db_path, config, db_config)
-        
-        # Keep a default event tracker for backward compatibility (use first flow's tracker)
-        self.event_tracker = next(iter(self.flow_event_trackers.values())) if self.flow_event_trackers else None
-        
-        # Initialize entity manager
-        self.entity_manager = EntityManager(self.env, self.engine, self.db_path, config, db_config, self.event_tracker)
-        
-        # Initialize entity attribute manager for Arena-style assign functionality
-        self.entity_attribute_manager = EntityAttributeManager()
-        
-        # Initialize step processor factory with simulator reference
-        self.step_processor_factory = StepProcessorFactory(
-            self.env, self.engine, self.resource_manager, self.entity_manager, 
-            self.event_tracker, self.config, self.entity_attribute_manager, self
-        )
+        # Set up all components
+        self._initialize_all_components()
     
+    def _initialize_all_components(self):
+        """Initialize all simulation components using the modular architecture."""
+        # Initialize core SimPy environment and database
+        self.initializer.initialize_environment()
+        self.initializer.initialize_database_engine()
+        self.initializer.initialize_random_seed()
+        self.initializer.initialize_termination_system()
+        
+        # Set up flow-specific event trackers
+        self.flow_event_trackers = self.tracker_setup.initialize_flow_event_trackers()
+        
+        # Initialize managers with flow trackers
+        self.initializer.initialize_managers(self.flow_event_trackers)
+        
+        # Initialize step processor factory with self reference
+        self.initializer.initialize_step_processor_factory(self)
+        
+        # Initialize resource setup
+        self.resource_initializer = ResourceInitializer(
+            self.initializer.resource_manager, self.config
+        )
+        
+        # Initialize execution components
+        self.flow_manager = FlowManager(
+            self.initializer.env, self.config, self.initializer.step_processor_factory,
+            self.flow_event_trackers, self.initializer.entity_manager
+        )
+        
+        # Initialize lifecycle components
+        self.termination_monitor = TerminationMonitor(
+            self.initializer.env, self.initializer, self
+        )
+        self.metrics_collector = MetricsCollector(
+            self.config, self.initializer.env, self.initializer
+        )
+        
+        logger.debug("All simulation components initialized successfully")
     
     def run(self) -> Dict[str, Any]:
         """
@@ -124,391 +108,61 @@ class EventSimulator:
             Dictionary with simulation results
         """
         try:
-            # Set random seed if specified
-            if self.config.random_seed is not None:
-                random.seed(self.config.random_seed)
-                np.random.seed(self.config.random_seed)
+            # Set random seed again to ensure consistency
+            self.initializer.initialize_random_seed()
             
-            # Setup resources
-            self.resource_manager.setup_resources(self.config.event_simulation)
+            # Setup resources using resource initializer
+            self.resource_initializer.setup_resources()
             
-            # Start entity generation process using Create step modules
-            self._start_create_modules()
+            # Start entity generation processes using flow manager
+            self.flow_manager.start_create_modules()
             
-            # Run simulation until termination conditions are met
-            self._log_simulation_start()
+            # Log simulation start
+            self.termination_monitor.log_simulation_start()
             
             # Start termination monitoring process
-            self.env.process(self._monitor_termination_conditions())
+            self.termination_monitor.start_monitoring()
             
             # Run simulation (will be terminated by termination conditions)
-            self.env.run()
+            self.initializer.env.run()
             
             # Clean up any remaining allocated resources
-            if hasattr(self.resource_manager, 'event_allocations'):
-                remaining_allocations = list(self.resource_manager.event_allocations.keys())
-                if remaining_allocations:
-                    logger.info(f"Cleaning up {len(remaining_allocations)} remaining resource allocations")
-                    for event_id in remaining_allocations:
-                        try:
-                            self.resource_manager.release_resources(event_id)
-                        except Exception as e:
-                            logger.debug(f"Error releasing resources for event {event_id}: {e}")
+            self._cleanup_remaining_resources()
             
-            logger.debug(f"Simulation completed. Processed {self.processed_events} events for {self.entity_manager.entity_count} entities")
+            logger.debug(f"Simulation completed. Processed {self.initializer.processed_events} events for {self.initializer.entity_manager.entity_count} entities")
             
-            # Get final resource utilization stats
-            resource_stats = self.resource_manager.get_utilization_stats()
-            
-            # Get entity attribute statistics
-            attribute_stats = self.entity_attribute_manager.get_statistics()
-            
-            # Return simulation results
-            return {
-                'simulation_time_minutes': self.env.now,
-                'simulation_time_base_units': TimeUnitConverter.from_minutes(self.env.now, self.config.base_time_unit),
-                'base_time_unit': self.config.base_time_unit,
-                'termination_reason': self.termination_reason,
-                'entity_count': self.entity_manager.entity_count,
-                'entities_processed': self.entities_processed,
-                'processed_events': self.processed_events,
-                'resource_utilization': resource_stats,
-                'entity_attributes': attribute_stats,
-                # Legacy field for backward compatibility
-                'duration_days': getattr(self.config, 'duration_days', None)
-            }
+            # Collect and return final results
+            return self.metrics_collector.collect_final_results(
+                self.termination_monitor.get_termination_reason()
+            )
             
         finally:
             # ALWAYS clean up database connections to prevent EBUSY errors on Windows
             self._cleanup_database_connections()
-
-    def _initialize_flow_event_trackers(self, db_path, config, db_config):
-        """
-        Initialize flow-specific EventTracker instances for each flow.
-        
-        Args:
-            db_path: Database path
-            config: Simulation configuration  
-            db_config: Database configuration
-            
-        Returns:
-            Dictionary mapping flow_id to EventTracker instance
-        """
-        flow_trackers = {}
-        
-        if not config.event_simulation or not config.event_simulation.event_flows:
-            logger.warning("No event flows found. Cannot create flow-specific EventTrackers.")
-            return flow_trackers
-        
-        # Get resource table name (shared across flows)
-        resource_table_name = None
-        if config.event_simulation.table_specification:
-            resource_table_name = config.event_simulation.table_specification.resource_table
-        elif db_config:
-            # Find resource table from database config
-            for entity in db_config.entities:
-                if entity.type == 'resource':
-                    resource_table_name = entity.name
-                    break
-        
-        if not resource_table_name:
-            logger.error("Could not determine resource table name. EventTrackers cannot be created.")
-            return flow_trackers
-        
-        # Handle both new EventFlowsConfig structure and direct list structure  
-        flows = config.event_simulation.event_flows.flows if hasattr(config.event_simulation.event_flows, 'flows') else config.event_simulation.event_flows
-        
-        for flow in flows:
-            flow_id = flow.flow_id
-            event_table_name = flow.event_table
-            
-            if not event_table_name:
-                logger.warning(f"Flow {flow_id} has no event_table specified. Skipping EventTracker creation.")
-                continue
-                
-            # Find bridge table for this flow's event table
-            bridge_table_config = self._find_bridge_table_for_flow(db_config, event_table_name, resource_table_name)
-            
-            if bridge_table_config:
-                # Create EventTracker for this flow
-                event_tracker = EventTracker(
-                    db_path,
-                    config.start_date,
-                    event_table_name=event_table_name,
-                    resource_table_name=resource_table_name,
-                    bridge_table_config=bridge_table_config
-                )
-                flow_trackers[flow_id] = event_tracker
-                logger.debug(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")
-            else:
-                logger.warning(f"Could not find bridge table for flow {flow_id} (event_table={event_table_name}). Resource tracking may not work.")
-        
-        logger.debug(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
-        return flow_trackers
     
-    def _find_bridge_table_for_flow(self, db_config, event_table_name, resource_table_name):
-        """
-        Find the bridge table configuration for a specific event table.
-        
-        Args:
-            db_config: Database configuration
-            event_table_name: Name of the event table for this flow
-            resource_table_name: Name of the resource table (shared)
-            
-        Returns:
-            Bridge table configuration dict or None if not found
-        """
-        if not db_config:
-            return None
-            
-        # Find a bridge table entity that has event_id and resource_id type attributes
-        for entity in db_config.entities:
-            event_fk_attr = None
-            resource_fk_attr = None
-            
-            # Check if this entity has attributes with type 'event_id' and 'resource_id'
-            for attr in entity.attributes:
-                if attr.type == 'event_id' and attr.ref and attr.ref.startswith(f"{event_table_name}."):
-                    event_fk_attr = attr
-                elif attr.type == 'resource_id' and attr.ref and attr.ref.startswith(f"{resource_table_name}."):
-                    resource_fk_attr = attr
-            
-            # If we found both attributes, this is the bridge table for this flow
-            if event_fk_attr and resource_fk_attr:
-                return {
-                    'name': entity.name,
-                    'event_fk_column': event_fk_attr.name,
-                    'resource_fk_column': resource_fk_attr.name
-                }
-        
-        return None
-
+    def _cleanup_remaining_resources(self):
+        """Clean up any remaining allocated resources."""
+        if hasattr(self.initializer.resource_manager, 'event_allocations'):
+            remaining_allocations = list(self.initializer.resource_manager.event_allocations.keys())
+            if remaining_allocations:
+                logger.info(f"Cleaning up {len(remaining_allocations)} remaining resource allocations")
+                for event_id in remaining_allocations:
+                    try:
+                        self.initializer.resource_manager.release_resources(event_id)
+                    except Exception as e:
+                        logger.debug(f"Error releasing resources for event {event_id}: {e}")
+    
     def _cleanup_database_connections(self):
-        """
-        Clean up all database connections to prevent EBUSY errors on Windows.
-        This method is called in a finally block to ensure cleanup happens even if simulation fails.
-        """
-        try:
-            import time
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            logger.info(f"[{timestamp}] [PYTHON] Starting simulator cleanup to prevent EBUSY errors for: {self.db_path}")
-            
-            # Dispose EventTracker engine first
-            if hasattr(self, 'event_tracker') and self.event_tracker:
-                logger.info(f"[{timestamp}] [PYTHON] Disposing EventTracker engine for: {self.db_path}")
-                self.event_tracker.dispose()
-                logger.info(f"[{timestamp}] [PYTHON] EventTracker engine disposed for: {self.db_path}")
-            
-            # Dispose main simulator engine
-            if hasattr(self, 'engine') and self.engine:
-                logger.info(f"[{timestamp}] [PYTHON] Disposing main simulator engine for: {self.db_path}")
-                self.engine.dispose()
-                logger.info(f"[{timestamp}] [PYTHON] Main simulator engine disposed successfully for: {self.db_path}")
-            
-            # Force SQLite to close all connections and cleanup WAL files
-            import sqlite3
-            try:
-                logger.info(f"[{timestamp}] [PYTHON] Opening connection for WAL checkpoint: {self.db_path}")
-                # Connect briefly to force WAL checkpoint and close
-                conn = sqlite3.connect(self.db_path, timeout=1.0)
-                logger.info(f"[{timestamp}] [PYTHON] Connection opened for WAL checkpoint: {self.db_path}")
-                conn.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-                conn.commit()
-                logger.info(f"[{timestamp}] [PYTHON] WAL checkpoint executed for: {self.db_path}")
-                conn.close()
-                logger.info(f"[{timestamp}] [PYTHON] WAL checkpoint connection closed for: {self.db_path}")
-                
-                # Small delay to ensure OS releases file handles
-                time.sleep(0.2)
-                logger.info(f"[{timestamp}] [PYTHON] File handle release delay completed for: {self.db_path}")
-                
-            except Exception as sqlite_err:
-                logger.warning(f"[{timestamp}] [PYTHON] Could not force SQLite cleanup for {self.db_path}: {sqlite_err}")
-                
-            # Clean up entity attributes
-            if hasattr(self, 'entity_attribute_manager') and self.entity_attribute_manager:
-                logger.info(f"[{timestamp}] [PYTHON] Clearing entity attribute manager for: {self.db_path}")
-                self.entity_attribute_manager.clear_all()
-            
-            logger.info(f"[{timestamp}] [PYTHON] Simulator cleanup completed for: {self.db_path}")
-            
-        except Exception as e:
-            timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-            logger.warning(f"[{timestamp}] [PYTHON] Error during simulator cleanup for {self.db_path}: {e}")
-
-    def _find_flow_entry_points(self, flow: 'EventFlow') -> List[str]:
-        """
-        Find entry point steps for a flow based on step types.
-        
-        Entry point steps are those that can start entity processing:
-        - 'create': Create modules that generate entities
-        - 'batch': Future batch arrival modules (not yet implemented)
-        
-        Args:
-            flow: Event flow to analyze
-            
-        Returns:
-            List of step IDs that are entry points
-        """
-        entry_points = []
-        entry_point_types = ['create', 'batch']  # Extensible for future module types
-        
-        for step in flow.steps:
-            if step.step_type in entry_point_types:
-                entry_points.append(step.step_id)
-                logger.debug(f"Identified entry point: {step.step_id} (type: {step.step_type})")
-        
-        return entry_points
+        """Clean up all database connections using the cleanup handler."""
+        self.cleanup_handler.cleanup_database_connections(
+            self.initializer.engine,
+            self.initializer.entity_manager.event_tracker if hasattr(self.initializer.entity_manager, 'event_tracker') else None,
+            self.initializer.entity_attribute_manager,
+            self.initializer.resource_manager
+        )
     
-    def _start_create_modules(self):
-        """
-        Start all entry point modules found in event flows.
-        
-        This method automatically detects entry point modules (Create, Batch, etc.)
-        and starts them as concurrent SimPy processes to generate entities dynamically.
-        """
-        event_sim = self.config.event_simulation
-        if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
-            logger.warning("No event flows found. No entities will be created.")
-            return
-        
-        create_modules_started = 0
-        total_entry_points = 0
-        
-        # Scan all flows for entry point modules
-        for flow in event_sim.event_flows.flows:
-            logger.debug(f"Scanning flow {flow.flow_id} for entry point modules")
-            
-            # Find entry points for this flow
-            entry_points = self._find_flow_entry_points(flow)
-            total_entry_points += len(entry_points)
-            
-            if not entry_points:
-                logger.warning(f"Flow {flow.flow_id} has no entry point modules. No entities will be created for this flow.")
-                continue
-            elif len(entry_points) > 1:
-                logger.warning(f"Flow {flow.flow_id} has multiple entry points: {entry_points}. All will be started.")
-            
-            # Start each entry point module
-            for step in flow.steps:
-                if step.step_type == 'create' and step.create_config:
-                    logger.debug(f"Starting Create module: {step.step_id} (table: {step.create_config.entity_table})")
-                    
-                    # Start the Create module as a SimPy process
-                    self.env.process(self._run_create_module(step, flow))
-                    create_modules_started += 1
-                # Future: Add support for other entry point types like 'batch'
-        
-        if total_entry_points == 0:
-            logger.warning("No entry point modules found in event flows. No entities will be created.")
-        else:
-            logger.debug(f"Found {total_entry_points} entry point(s), started {create_modules_started} Create module(s)")
-
-    def _run_create_module(self, create_step: 'Step', flow: 'EventFlow'):
-        """
-        Run a Create module as a SimPy process.
-        
-        Args:
-            create_step: The Create step configuration
-            flow: The event flow containing this Create step
-        """
-        try:
-            # Get flow-specific tables
-            entity_table = create_step.create_config.entity_table
-            event_table = flow.event_table
-            _, _, resource_table = self.entity_manager.get_table_names()  # Still need resource table
-            
-            logger.debug(f"Create module {create_step.step_id} using flow-specific tables: entity={entity_table}, event={event_table}, flow={flow.flow_id}")
-            
-            # Get the Create step processor and set up entity routing callback
-            create_processor = self.step_processor_factory.get_processor('create')
-            if create_processor:
-                # Set the entity routing callback so Create processor can route entities properly
-                create_processor.entity_router_callback = self._route_entity_from_create
-            
-            # Get flow-specific EventTracker
-            flow_event_tracker = self.flow_event_trackers.get(flow.flow_id)
-            
-            # Process the Create step using the step processor factory
-            step_generator = self.step_processor_factory.process_step(
-                0,  # entity_id not used for Create steps
-                create_step, 
-                flow, 
-                entity_table,  # Use the specific entity table from Create config
-                event_table,  # Use the flow-specific event table
-                flow_event_tracker  # Use the flow-specific EventTracker
-            )
-            
-            # Run the Create step generator
-            yield from step_generator
-            
-        except Exception as e:
-            logger.error(f"Error running Create module {create_step.step_id}: {e}", exc_info=True)
-    
-    def _route_entity_from_create(self, entity_id: int, initial_step_id: str, flow: 'EventFlow', 
-                                entity_table: str, event_table: str):
-        """
-        Callback method for Create processors to route entities to their initial steps.
-        
-        This method integrates with the simulator's main processing system.
-        
-        Args:
-            entity_id: ID of the created entity
-            initial_step_id: ID of the initial step to route to  
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-        """
-        try:
-            # Find the initial step in the flow
-            initial_step = self._find_step_by_id(initial_step_id, flow)
-            if not initial_step:
-                logger.error(f"Initial step {initial_step_id} not found in flow {flow.flow_id}")
-                return
-            
-            logger.debug(f"Routing entity {entity_id} from table {entity_table} to step {initial_step_id}")
-            
-            # Start processing the entity from the initial step using the simulator's step processing
-            self.env.process(self._process_step(entity_id, initial_step_id, flow, entity_table, event_table))
-            
-        except Exception as e:
-            logger.error(f"Error routing entity {entity_id} from Create module: {e}", exc_info=True)
-
-    def _process_entity_events(self, entity_id: int):
-        """
-        Process all events for an entity using either old or new architecture
-        
-        Args:
-            entity_id: Entity ID (0-based index)
-        """
-        entity_table, event_table, resource_table = self.entity_manager.get_table_names()
-        if not entity_table or not event_table:
-            logger.error(f"Missing entity or event table names. Cannot process events for entity {entity_id}")
-            yield self.env.timeout(0)  # Make it a generator by yielding
-            return
-        
-        # Get the adjusted entity ID (1-based indexing in the database)
-        db_entity_id = entity_id + 1
-        
-        # Legacy entity processing is no longer used - Create modules handle entity generation and routing
-        logger.error("_process_entity_events should not be called - Create modules handle entity lifecycle")
-        yield self.env.timeout(0)
-
-    
-    def _determine_required_resources(self, event_id: int) -> List[str]:
-        """
-        Determine the required resources for an event
-        
-        Args:
-            event_id: Event ID
-            
-        Returns:
-            List of resource keys
-        """
-        return self.resource_manager.determine_required_resources(event_id, self.config.event_simulation)
-    
-
-    def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
+    # Delegation methods for backward compatibility and processor access
+    def _find_step_by_id(self, step_id: str, flow):
         """
         Find a step by its ID within a flow
         
@@ -524,298 +178,22 @@ class EventSimulator:
                 return step
         return None
     
-    # Legacy method removed - now handled by DecideStepProcessor
-    
-    def _get_step_event_duration(self, step: 'Step') -> float:
+    def _check_termination_conditions(self):
         """
-        Get the duration for an event step
-        
-        Args:
-            step: Event step configuration
-            
-        Returns:
-            Duration in minutes
-        """
-        if not step.event_config or not step.event_config.duration:
-            logger.warning(f"No duration configured for event step {step.step_id}")
-            return 0.0
-        
-        duration_days = generate_from_distribution(step.event_config.duration.get('distribution', {}))
-        return duration_days * 24 * 60  # Convert days to minutes
-
-    def _process_step(self, entity_id: int, step_id: str, flow: 'EventFlow', entity_table: str, event_table: str):
-        """
-        Process a step in the event flow using modular step processors.
-        
-        Args:
-            entity_id: Entity ID
-            step_id: Current step ID
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-        """
-        step = self._find_step_by_id(step_id, flow)
-        if not step:
-            logger.error(f"Step {step_id} not found in flow {flow.flow_id}")
-            return
-        
-        logger.debug(f"Processing step {step_id} of type {step.step_type} for entity {entity_id}")
-        
-        try:
-            # Get flow-specific EventTracker
-            flow_event_tracker = self.flow_event_trackers.get(flow.flow_id)
-            
-            # Use the step processor factory to process the step
-            step_generator = self.step_processor_factory.process_step(
-                entity_id, step, flow, entity_table, event_table, flow_event_tracker
-            )
-            
-            # Process the step and get the next step ID
-            next_step_id = yield from step_generator
-            
-            # Continue to next step if applicable
-            if next_step_id:
-                self.env.process(self._process_step(entity_id, next_step_id, flow, entity_table, event_table))
-            else:
-                logger.debug(f"Entity {entity_id} flow ended at step {step_id}")
-                
-        except Exception as e:
-            logger.error(f"Error processing step {step_id} for entity {entity_id}: {str(e)}", exc_info=True)
-
-    def _process_event_step(self, entity_id: int, step: 'Step', flow: 'EventFlow', entity_table: str, event_table: str):
-        """
-        Process an event step with resource allocation and duration
-        
-        Args:
-            entity_id: Entity ID
-            step: Event step configuration
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-        """
-        if not step.event_config:
-            logger.error(f"Event step {step.step_id} has no event configuration")
-            return
-        
-        # Create a process-specific engine for isolation
-        process_engine = create_engine(
-            f"sqlite:///{self.db_path}?journal_mode=WAL",
-            poolclass=NullPool,
-            connect_args={"check_same_thread": False}
-        )
-        
-        try:
-            with Session(process_engine) as session:
-                # Create a new event in the database for this step
-                event_id = self._create_event_for_step(session, entity_id, step, entity_table, event_table)
-                if not event_id:
-                    logger.error(f"Failed to create event for step {step.step_id}")
-                    return
-                
-                # Get resource requirements and allocate resources
-                resource_requirements = step.event_config.resource_requirements
-                if resource_requirements:
-                    requirements_list = []
-                    for req in resource_requirements:
-                        requirements_list.append({
-                            'resource_table': req.resource_table,
-                            'value': req.value,
-                            'count': req.count
-                        })
-                    
-                    # Allocate resources
-                    try:
-                        yield self.env.process(
-                            self.resource_manager.allocate_resources(event_id, requirements_list)
-                        )
-                    except simpy.Interrupt:
-                        logger.warning(f"Resource allocation interrupted for event {event_id}")
-                        return
-                
-                # Record event processing start
-                start_time = self.env.now
-                start_datetime = self.config.start_date + timedelta(minutes=start_time)
-                
-                # Wait for the event duration
-                duration_minutes = self._get_step_event_duration(step)
-                yield self.env.timeout(duration_minutes)
-                
-                # Record event processing end
-                end_time = self.env.now
-                end_datetime = self.config.start_date + timedelta(minutes=end_time)
-                
-                # Record resource allocations in the tracker
-                if event_id in self.resource_manager.event_allocations:
-                    allocated_resources = self.resource_manager.event_allocations[event_id]
-                    for resource in allocated_resources:
-                        self.event_tracker.record_resource_allocation(
-                            event_id=event_id,
-                            resource_table=resource.table,
-                            resource_id=resource.id,
-                            allocation_time=start_time,
-                            release_time=end_time
-                        )
-                
-                # Release resources
-                self.resource_manager.release_resources(event_id)
-                
-                # Record the event processing
-                with process_engine.connect() as conn:
-                    stmt = insert(self.event_tracker.event_processing).values(
-                        event_table=event_table,
-                        event_id=event_id,
-                        entity_id=entity_id,
-                        start_time=start_time,
-                        end_time=end_time,
-                        duration=duration_minutes,
-                        start_datetime=start_datetime,
-                        end_datetime=end_datetime
-                    )
-                    conn.execute(stmt)
-                    conn.commit()
-                
-                # Increment the processed events counter
-                self.processed_events += 1
-                
-                logger.debug(f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} in {duration_minutes/60:.2f} hours")
-                
-                # Process next steps
-                for next_step_id in step.next_steps:
-                    self.env.process(self._process_step(entity_id, next_step_id, flow, entity_table, event_table))
-                
-        except Exception as e:
-            logger.error(f"Error processing event step {step.step_id}: {str(e)}", exc_info=True)
-        finally:
-            process_engine.dispose()
-
-    def _create_event_for_step(self, session, entity_id: int, step: 'Step', entity_table: str, event_table: str):
-        """
-        Create a new event in the database for a step
-        
-        Args:
-            session: Database session
-            entity_id: Entity ID
-            step: Event step configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-            
-        Returns:
-            Event ID of the created event
-        """
-        try:
-            # Find relationship column and event type column
-            relationship_columns = self.entity_manager.find_relationship_columns(session, entity_table, event_table)
-            if not relationship_columns:
-                logger.error(f"No relationship column found between {entity_table} and {event_table}")
-                return None
-            
-            relationship_column = relationship_columns[0]
-            event_type_column = self.entity_manager.find_event_type_column(session, event_table)
-            if not event_type_column:
-                logger.error(f"Could not find event type column in {event_table}")
-                return None
-            
-            # Get the next ID for the new event
-            sql_query = text(f'SELECT MAX("id") FROM "{event_table}"')
-            result = session.execute(sql_query).fetchone()
-            next_id = (result[0] or 0) + 1
-            
-            # Prepare data for the new event row
-            row_data = {
-                "id": next_id,
-                relationship_column: entity_id,
-                event_type_column: step.step_id
-            }
-            
-            # Generate values for other attributes using database config
-            event_entity_config = self.entity_manager.get_entity_config(event_table)
-            if event_entity_config:
-                for attr in event_entity_config.attributes:
-                    # Skip PK, the FK to the entity, and the event type column
-                    if attr.is_primary_key or attr.name == relationship_column or attr.name == event_type_column:
-                        continue
-                    
-                    # Skip other Foreign Keys for now
-                    if attr.is_foreign_key:
-                        continue
-
-                    if attr.generator:
-                        # Special handling for 'simulation_event' generator type - skip it
-                        if attr.generator.type == 'simulation_event':
-                            continue 
-                            
-                        gen_dict = dataclasses.asdict(attr.generator)
-                        attr_config_dict = {
-                            'name': attr.name,
-                            'generator': gen_dict
-                        }
-                        # Use next_id - 1 for 0-based row_index context
-                        row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
-            
-            # Build INSERT statement dynamically
-            columns = ", ".join(row_data.keys())
-            placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-            sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
-
-            logger.debug(f"Creating event in {event_table} with data: {row_data}")
-            session.execute(sql_query, row_data)
-            session.commit()
-            
-            return next_id
-            
-        except Exception as e:
-            logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
-            return None
-    
-    def _log_simulation_start(self):
-        """Log simulation start with termination conditions."""
-        if self.config.terminating_conditions:
-            formula = self.config.terminating_conditions.formula
-            logger.info(f"Starting simulation with termination formula: {formula}")
-        else:
-            logger.info("Starting simulation with default termination conditions")
-    
-    def _monitor_termination_conditions(self):
-        """
-        Monitor termination conditions and stop simulation when any condition is met.
-        
-        This runs as a SimPy process and checks termination conditions periodically.
-        """
-        # Check every simulated minute
-        check_interval = 1.0
-        
-        while True:
-            try:
-                # Wait for check interval
-                yield self.env.timeout(check_interval)
-                
-                # Check termination conditions
-                should_terminate, reason = self._check_termination_conditions()
-                
-                if should_terminate:
-                    self.termination_reason = reason
-                    logger.info(f"Termination condition met: {reason}")
-                    break
-                    
-            except simpy.Interrupt:
-                logger.debug("Termination monitor interrupted")
-                break
-        
-        # Stop all processes by interrupting the environment
-        # This will cause the run() method to exit
-        logger.debug("Stopping simulation due to termination condition")
-    
-    def _check_termination_conditions(self) -> Tuple[bool, Optional[str]]:
-        """
-        Check if termination condition is met using formula evaluator.
+        Check if termination condition is met.
         
         Returns:
             Tuple of (should_terminate, reason)
         """
-        if not self.termination_condition:
-            return False, None
-        
-        return self.termination_evaluator.evaluate(self.termination_condition, self)
+        return self.termination_monitor._check_termination_conditions()
+    
+    def increment_entities_processed(self):
+        """Increment the processed entities counter for termination tracking."""
+        self.initializer.entities_processed += 1
+    
+    def increment_events_processed(self):
+        """Increment the processed events counter for termination tracking."""
+        self.initializer.processed_events += 1
     
     def _count_entities_in_table(self, table_name: str) -> int:
         """
@@ -828,7 +206,8 @@ class EventSimulator:
             Number of entities in the table
         """
         try:
-            with self.engine.connect() as conn:
+            from sqlalchemy import text
+            with self.initializer.engine.connect() as conn:
                 sql_query = text(f'SELECT COUNT(*) FROM "{table_name}"')
                 result = conn.execute(sql_query).fetchone()
                 return result[0] if result else 0
@@ -836,12 +215,53 @@ class EventSimulator:
             logger.error(f"Error counting entities in table '{table_name}': {e}")
             return 0
     
-    def increment_entities_processed(self):
-        """Increment the processed entities counter for termination tracking."""
-        self.entities_processed += 1
+    # Properties for backward compatibility
+    @property
+    def env(self):
+        """SimPy environment."""
+        return self.initializer.env
     
-    def increment_events_processed(self):
-        """Increment the processed events counter for termination tracking."""
-        self.processed_events += 1
-
-
+    @property
+    def engine(self):
+        """SQLAlchemy engine."""
+        return self.initializer.engine
+    
+    @property
+    def resource_manager(self):
+        """Resource manager."""
+        return self.initializer.resource_manager
+    
+    @property
+    def entity_manager(self):
+        """Entity manager."""
+        return self.initializer.entity_manager
+    
+    @property
+    def entity_attribute_manager(self):
+        """Entity attribute manager."""
+        return self.initializer.entity_attribute_manager
+    
+    @property
+    def step_processor_factory(self):
+        """Step processor factory."""
+        return self.initializer.step_processor_factory
+    
+    @property
+    def event_tracker(self):
+        """Default event tracker (first flow's tracker for backward compatibility)."""
+        return next(iter(self.flow_event_trackers.values())) if self.flow_event_trackers else None
+    
+    @property
+    def processed_events(self):
+        """Number of processed events."""
+        return self.initializer.processed_events
+    
+    @property
+    def entities_processed(self):
+        """Number of processed entities."""
+        return self.initializer.entities_processed
+    
+    @property
+    def termination_reason(self):
+        """Reason for termination."""
+        return self.termination_monitor.get_termination_reason() if self.termination_monitor else None
