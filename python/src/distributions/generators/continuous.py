@@ -23,17 +23,31 @@ class ContinuousDistributions:
     @staticmethod
     def uniform(min_val: float, max_val: float, size: Optional[int] = None) -> Union[float, np.ndarray]:
         """
-        UNIF(min, max) - Uniform distribution.
+        UNIF(min, max) - Uniform distribution (INCLUSIVE of both bounds).
+        
+        Generates values in [min, max] inclusive.
+        
+        IMPORTANT: This distribution is inclusive of BOTH min and max values.
+        For example, UNIF(1, 40) can generate any value from 1 to 40, including both 1 and 40.
         
         Args:
-            min_val: Minimum value
-            max_val: Maximum value
+            min_val: Minimum value (inclusive)
+            max_val: Maximum value (inclusive)
             size: Number of samples to generate
             
         Returns:
-            Random value(s) from uniform distribution
+            Random value(s) from uniform distribution [min, max] inclusive
         """
-        return np.random.uniform(min_val, max_val, size)
+        # For integer bounds, use randint which is inclusive
+        if isinstance(min_val, (int, np.integer)) and isinstance(max_val, (int, np.integer)):
+            if size is None:
+                return np.random.randint(min_val, max_val + 1)
+            else:
+                return np.random.randint(min_val, max_val + 1, size=size)
+        else:
+            # For floats, add small epsilon to include max
+            epsilon = np.nextafter(max_val, max_val + 1) - max_val
+            return np.random.uniform(min_val, max_val + epsilon, size)
     
     @staticmethod
     def normal(mean: float, stddev: float, size: Optional[int] = None, 

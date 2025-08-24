@@ -80,24 +80,35 @@ class ForeignKeyResolver:
     
     def select_parent_id(self, parent_ids: List[Any], formula: Optional[str] = None) -> Any:
         """
-        Select a parent ID from available options using distribution formula.
+        Select a parent ID based on a distribution formula.
         
-        Args:
-            parent_ids: List of available parent IDs
-            formula: Distribution formula for selection (optional)
+        IMPORTANT: This method uses INDEX-BASED MAPPING, not direct ID selection!
+        This is a FEATURE that allows foreign keys to work with ANY primary key type.
         
-        Returns:
-            Selected parent ID, or None if no parent_ids available
+        How it works:
+        - UNIF(1, N) means "uniformly select from position 1 to position N in the parent table"
+        - Position 1 maps to parent_ids[0], position N maps to parent_ids[N-1]
+        - This works regardless of what the actual ID values are
         
         Examples:
-            # Random selection if no formula
-            resolver.select_parent_id([1, 2, 3])  # Returns random ID
+            Sequential IDs [1, 2, 3, 4, 5]:
+                UNIF(1, 5) -> positions 1-5 -> selects from all 5 IDs
+                
+            Non-sequential IDs [101, 205, 333, 421, 555]:
+                UNIF(1, 5) -> positions 1-5 -> selects from all 5 IDs
+                
+            UUID IDs ['abc-123', 'def-456', 'ghi-789']:
+                UNIF(1, 3) -> positions 1-3 -> selects from all 3 IDs
+                
+            String IDs ['CUST001', 'CUST002', 'CUST003']:
+                UNIF(1, 3) -> positions 1-3 -> selects from all 3 IDs
+        
+        Args:
+            parent_ids: List of available parent IDs (can be any type)
+            formula: Distribution formula (e.g., "UNIF(1, 40)" for positions 1-40)
             
-            # Uniform selection from range
-            resolver.select_parent_id([1, 2, 3], "UNIF(1, 3)")  # Uniform over IDs
-            
-            # Discrete weighted selection
-            resolver.select_parent_id([1, 2], "DISC(0.7, 1, 0.3, 2)")  # 70% chance of ID 1
+        Returns:
+            Selected parent ID from the list
         """
         if not parent_ids:
             return None
@@ -113,15 +124,24 @@ class ForeignKeyResolver:
             formula_upper = formula.upper().strip()
             
             if formula_upper.startswith('UNIF('):
-                # For uniform distributions, map generated value to parent IDs
+                # IMPORTANT: INDEX-BASED MAPPING
+                # The formula specifies POSITIONS (1-based), not actual ID values
+                # This allows us to work with any primary key type
+                
+                # Generate position value (1-based, inclusive)
                 value = generate_from_distribution(formula)
                 
-                # If the value is in the range of parent_ids indices (0-based or 1-based)
                 if isinstance(value, (int, float)):
-                    # Assume formula generates values in range [1, len(parent_ids)] (1-based)
-                    # Map to 0-based index
-                    index = max(0, min(len(parent_ids) - 1, int(value) - 1))
-                    return parent_ids[index]
+                    # Convert position to 0-based index
+                    # Position 1 -> index 0, Position N -> index N-1
+                    position_1based = int(round(value))
+                    index_0based = position_1based - 1
+                    
+                    # Clamp to valid range
+                    index_0based = max(0, min(len(parent_ids) - 1, index_0based))
+                    
+                    # Return the ID at this position
+                    return parent_ids[index_0based]
                 else:
                     # If somehow not numeric, fall back to random
                     return random.choice(parent_ids)

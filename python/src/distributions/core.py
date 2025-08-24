@@ -17,7 +17,7 @@ NORM(mean, stddev) - Normal distribution.
 
 TRIA(min, mode, max) - Triangular distribution.
 
-UNIF(min, max) - Uniform distribution.
+UNIF(min, max) - Uniform distribution (INCLUSIVE bounds).
 
 WEIB(alpha, beta) - Weibull distribution.
 
@@ -45,7 +45,7 @@ def generate_from_distribution(dist_config: Union[str, Dict[str, Any]],
     Generate random values from a statistical distribution.
     
     Supports both formula strings and configuration dictionaries:
-    - Formula: "UNIF(3, 10)", "NORM(5, 1)", "DISC(0.7, 'A', 0.3, 'B')"  
+    - Formula: "UNIF(3, 10)" (inclusive bounds), "NORM(5, 1)", "DISC(0.7, 'A', 0.3, 'B')"  
     - Dict: {"type": "uniform", "min": 3, "max": 10}
     
     Args:
@@ -57,10 +57,10 @@ def generate_from_distribution(dist_config: Union[str, Dict[str, Any]],
         
     Examples:
         >>> generate_from_distribution("UNIF(3, 10)")
-        7.3
+        7.3  # Can generate any value from 3 to 10, inclusive
         
         >>> generate_from_distribution({"type": "uniform", "min": 3, "max": 10}, size=3)
-        [4.1, 8.7, 5.9]
+        [4.1, 8.7, 5.9]  # All values between 3 and 10, inclusive
         
         >>> generate_from_distribution("DISC(0.7, 'simple', 0.3, 'complex')")
         'simple'
