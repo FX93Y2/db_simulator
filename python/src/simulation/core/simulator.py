@@ -19,6 +19,7 @@ from sqlalchemy.pool import NullPool
 from ...config_parser import SimulationConfig, EventSimulation, ShiftPattern, ResourceShift, DatabaseConfig, EventFlow, Step
 from ...config_parser import Entity as DbEntity, Attribute as DbAttribute
 from ...utils.time_units import TimeUnit, TimeUnitConverter
+from ..termination.formula import TerminationFormulaParser, TerminationFormulaEvaluator
 from ...distributions import generate_from_distribution
 from ...utils.data_generation import generate_attribute_value
 from ..managers.event_tracker import EventTracker
@@ -72,14 +73,24 @@ class EventSimulator:
         
         # Initialize termination tracking
         self.termination_reason = None
-        self.max_time_minutes = None
         
-        # Convert termination time to minutes based on base time unit
-        if config.terminating_conditions and config.terminating_conditions.max_time:
-            self.max_time_minutes = TimeUnitConverter.to_minutes(
-                config.terminating_conditions.max_time,
-                config.base_time_unit
-            )
+        # Initialize formula-based termination system
+        if config.terminating_conditions:
+            self.termination_parser = TerminationFormulaParser()
+            self.termination_evaluator = TerminationFormulaEvaluator()
+            try:
+                formula = config.terminating_conditions.formula
+                self.termination_condition = self.termination_parser.parse(formula)
+                logger.info(f"Parsed termination formula: {formula}")
+            except Exception as e:
+                logger.error(f"Error parsing termination formula: {e}")
+                # Fallback to default
+                self.termination_condition = self.termination_parser.parse("TIME(999999)")
+        else:
+            # No termination conditions - use very long time
+            self.termination_parser = TerminationFormulaParser()
+            self.termination_evaluator = TerminationFormulaEvaluator()
+            self.termination_condition = self.termination_parser.parse("TIME(999999)")
         
         # Set random seed if provided
         if config.random_seed is not None:
@@ -758,17 +769,11 @@ class EventSimulator:
     
     def _log_simulation_start(self):
         """Log simulation start with termination conditions."""
-        tc = self.config.terminating_conditions
-        conditions = []
-        
-        if tc.max_time is not None:
-            conditions.append(f"max_time: {tc.max_time} {self.config.base_time_unit}")
-        if tc.max_entities_processed is not None:
-            conditions.append(f"max_entities: {tc.max_entities_processed}")
-        if tc.max_events is not None:
-            conditions.append(f"max_events: {tc.max_events}")
-        
-        logger.info(f"Starting simulation with termination conditions: {', '.join(conditions)}")
+        if self.config.terminating_conditions:
+            formula = self.config.terminating_conditions.formula
+            logger.info(f"Starting simulation with termination formula: {formula}")
+        else:
+            logger.info("Starting simulation with default termination conditions")
     
     def _monitor_termination_conditions(self):
         """
@@ -802,38 +807,15 @@ class EventSimulator:
     
     def _check_termination_conditions(self) -> Tuple[bool, Optional[str]]:
         """
-        Check if any termination condition has been met.
+        Check if termination condition is met using formula evaluator.
         
         Returns:
             Tuple of (should_terminate, reason)
         """
-        tc = self.config.terminating_conditions
-        
-        if not tc:
+        if not self.termination_condition:
             return False, None
         
-        # Check time-based termination
-        if self.max_time_minutes is not None and self.env.now >= self.max_time_minutes:
-            time_in_base_units = TimeUnitConverter.from_minutes(self.env.now, self.config.base_time_unit)
-            return True, f"max_time_reached ({time_in_base_units:.2f} {self.config.base_time_unit})"
-        
-        # Check entity-based termination
-        if tc.max_entities_processed is not None:
-            if tc.entity_table:
-                # Count entities in specific table
-                entity_count = self._count_entities_in_table(tc.entity_table)
-            else:
-                # Use total entity count
-                entity_count = self.entities_processed
-            
-            if entity_count >= tc.max_entities_processed:
-                return True, f"max_entities_reached ({entity_count} entities)"
-        
-        # Check event-based termination
-        if tc.max_events is not None and self.processed_events >= tc.max_events:
-            return True, f"max_events_reached ({self.processed_events} events)"
-        
-        return False, None
+        return self.termination_evaluator.evaluate(self.termination_condition, self)
     
     def _count_entities_in_table(self, table_name: str) -> int:
         """
@@ -851,7 +833,7 @@ class EventSimulator:
                 result = conn.execute(sql_query).fetchone()
                 return result[0] if result else 0
         except Exception as e:
-            logger.warning(f"Error counting entities in table {table_name}: {e}")
+            logger.error(f"Error counting entities in table '{table_name}': {e}")
             return 0
     
     def increment_entities_processed(self):

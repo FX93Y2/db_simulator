@@ -1,8 +1,6 @@
 simulation:
   base_time_unit: hours
-  terminating_conditions:
-    max_entities_processed: 100 # Stop after 1000 orders
-    entity_table: Order
+  terminating_conditions: ENTITIES(Order, 100)
   start_date: 2024-01-01
   random_seed: 42
 event_simulation:

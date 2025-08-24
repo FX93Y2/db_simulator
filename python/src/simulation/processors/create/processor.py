@@ -81,7 +81,7 @@ class CreateStepProcessor(StepProcessor):
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
                 entity_table: str, event_table: str, event_tracker=None) -> Generator:
         """
-        Process the Create step by generating entities with specified arrival pattern.
+        Process the Create step by scheduling non-blocking entity arrivals.
         
         Args:
             entity_id: Not used for Create steps (entities are created, not processed)
@@ -91,7 +91,7 @@ class CreateStepProcessor(StepProcessor):
             event_table: Event table name for relationship setup
             
         Yields:
-            SimPy timeout events for entity arrival scheduling
+            None - this method returns immediately after scheduling first arrival
         """
         if not self.validate_step(step):
             logger.error(f"Invalid Create step configuration: {step.step_id}")
@@ -104,29 +104,60 @@ class CreateStepProcessor(StepProcessor):
         max_entities = self._get_max_entities(config)
         logger.info(f"Create module {step.step_id} will generate up to {max_entities} entities")
         
-        # Generate entities dynamically
-        entities_created = 0
+        # Schedule the first arrival (non-blocking)
+        self._schedule_next_arrival(step, flow, config, event_table, 0, max_entities)
         
-        while max_entities == -1 or entities_created < max_entities:
-            # Generate interarrival time
-            try:
-                # Extract the actual distribution config
-                dist_config = extract_distribution_config(config.interarrival_time)
-                interarrival_value = generate_from_distribution(dist_config)
-                # Convert to minutes using base time unit
-                interarrival_minutes = TimeUnitConverter.to_minutes(interarrival_value, self.config.base_time_unit)
-                
-                # Wait for the next entity arrival
-                yield self.env.timeout(interarrival_minutes)
-                
-                # Check termination conditions instead of fixed duration
-                if self.simulator:
-                    should_terminate, reason = self.simulator._check_termination_conditions()
-                    if should_terminate:
-                        logger.info(f"Create module {step.step_id} stopping - {reason}")
-                        break
-                
-                # Create the entity
+        # Return immediately - arrivals will continue independently
+        return None
+        yield  # Make this a generator (required by interface)
+    
+    def _schedule_next_arrival(self, step: 'Step', flow: 'EventFlow', config: 'CreateConfig', 
+                              event_table: str, entities_created: int, max_entities: int):
+        """Schedule the next entity arrival as a separate non-blocking process."""
+        # Generate interarrival time
+        try:
+            dist_config = extract_distribution_config(config.interarrival_time)
+            interarrival_value = generate_from_distribution(dist_config)
+            interarrival_minutes = TimeUnitConverter.to_minutes(interarrival_value, self.config.base_time_unit)
+            
+            # Schedule the arrival event
+            self.env.process(self._entity_arrival_event(
+                interarrival_minutes, step, flow, config, event_table, entities_created, max_entities
+            ))
+            
+        except Exception as e:
+            logger.error(f"Error scheduling arrival for Create module {step.step_id}: {e}", exc_info=True)
+    
+    def _entity_arrival_event(self, delay: float, step: 'Step', flow: 'EventFlow', 
+                             config: 'CreateConfig', event_table: str, entities_created: int, max_entities: int):
+        """Handle a single arrival event (possibly batch)."""
+        try:
+            # Wait for interarrival time
+            yield self.env.timeout(delay)
+            
+            # Check if we should stop creating entities
+            if max_entities != -1 and entities_created >= max_entities:
+                logger.info(f"Create module {step.step_id} reached max entities ({max_entities})")
+                return
+            
+            # Check termination conditions
+            if self.simulator:
+                should_terminate, reason = self.simulator._check_termination_conditions()
+                if should_terminate:
+                    logger.info(f"Create module {step.step_id} stopping - {reason}")
+                    return
+            
+            # Determine how many entities to create in this arrival
+            batch_size = self._get_entities_per_arrival(config)
+            
+            # Ensure we don't exceed max_entities
+            if max_entities != -1:
+                remaining_entities = max_entities - entities_created
+                batch_size = min(batch_size, remaining_entities)
+            
+            # Create and route batch of entities
+            successfully_created = 0
+            for i in range(batch_size):
                 created_entity_id = self._create_entity(config.entity_table, event_table)
                 
                 if created_entity_id:
@@ -138,20 +169,43 @@ class CreateStepProcessor(StepProcessor):
                     first_next_step = step.next_steps[0]
                     self._route_entity_to_next_step(created_entity_id, first_next_step, flow, 
                                                    config.entity_table, event_table)
-                    entities_created += 1
-                    logger.debug(f"Create module {step.step_id} created entity {created_entity_id} "
-                               f"({entities_created}/{max_entities if max_entities != -1 else '∞'})")
+                    successfully_created += 1
                 else:
                     logger.warning(f"Create module {step.step_id} failed to create entity")
-                    
+            
+            new_entities_created = entities_created + successfully_created
+            
+            if successfully_created > 0:
+                if batch_size == 1:
+                    logger.debug(f"Create module {step.step_id} created entity ({new_entities_created}/{max_entities if max_entities != -1 else '∞'})")
+                else:
+                    logger.debug(f"Create module {step.step_id} created {successfully_created} entities in batch ({new_entities_created}/{max_entities if max_entities != -1 else '∞'})")
+            
+            # Schedule next arrival if we haven't reached the limit
+            if max_entities == -1 or new_entities_created < max_entities:
+                self._schedule_next_arrival(step, flow, config, event_table, new_entities_created, max_entities)
+            else:
+                logger.info(f"Create module {step.step_id} completed. Created {new_entities_created} entities")
+                
+        except Exception as e:
+            logger.error(f"Error in arrival event for Create module {step.step_id}: {e}", exc_info=True)
+    
+    def _get_entities_per_arrival(self, config: 'CreateConfig') -> int:
+        """Get number of entities to create in this arrival."""
+        if config.entities_per_arrival is None:
+            return 1  # Default single entity
+        
+        # Support both integer and distribution
+        if isinstance(config.entities_per_arrival, int):
+            return config.entities_per_arrival
+        else:
+            # It's a distribution formula
+            try:
+                dist_config = extract_distribution_config(config.entities_per_arrival)
+                return max(1, int(generate_from_distribution(dist_config)))
             except Exception as e:
-                logger.error(f"Error in Create module {step.step_id}: {e}", exc_info=True)
-                break
-        
-        logger.info(f"Create module {step.step_id} completed. Created {entities_created} entities")
-        
-        # Create modules don't return a next step - they run continuously
-        return None
+                logger.warning(f"Error generating entities_per_arrival: {e}, using default 1")
+                return 1
     
     def _get_max_entities(self, config: 'CreateConfig') -> int:
         """

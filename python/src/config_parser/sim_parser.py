@@ -108,6 +108,7 @@ class CreateConfig:
     entity_table: str
     interarrival_time: DistributionConfig  # Supports both dict and formula string
     max_entities: Optional[Union[int, str]] = None  # Can be int or 'n/a'
+    entities_per_arrival: Optional[Union[int, DistributionConfig]] = None  # Number of entities per arrival
 
 @dataclass
 class EventStepConfig:
@@ -137,10 +138,7 @@ class EventFlowsConfig:
 @dataclass
 class TerminatingConditions:
     """Configuration for simulation termination conditions."""
-    max_time: Optional[float] = None              # Stop after time (in base time unit)
-    max_entities_processed: Optional[int] = None  # Stop after processing N entities
-    entity_table: Optional[str] = None            # Which entity table to count
-    max_events: Optional[int] = None              # Stop after N total events
+    formula: str  # Formula string like "TIME(720) OR ENTITIES(Order, 1000)"
 
 @dataclass
 class EventSimulation:
@@ -171,12 +169,8 @@ def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[s
 
 @dataclass
 class SimulationConfig:
-    # Legacy field for backward compatibility
-    duration_days: Optional[int] = None
-    
-    # New configuration fields
-    base_time_unit: str = 'days'  # Default to days for backward compatibility
-    terminating_conditions: Optional[TerminatingConditions] = None
+    base_time_unit: str
+    terminating_conditions: TerminatingConditions
     
     # Other fields
     start_date: Optional[datetime] = None
@@ -184,23 +178,10 @@ class SimulationConfig:
     event_simulation: Optional[EventSimulation] = None
     
     def __post_init__(self):
-        """Validate and migrate configuration after initialization."""
+        """Validate configuration after initialization."""
         # Validate base time unit
         if not validate_base_time_unit(self.base_time_unit):
-            logger.warning(f"Invalid base_time_unit '{self.base_time_unit}', using 'days'")
-            self.base_time_unit = 'days'
-        
-        # Handle backward compatibility: migrate duration_days to terminating_conditions
-        if self.terminating_conditions is None and self.duration_days is not None:
-            logger.info(f"Migrating duration_days ({self.duration_days}) to terminating_conditions")
-            self.terminating_conditions = TerminatingConditions(max_time=float(self.duration_days))
-            self.base_time_unit = 'days'  # Ensure backward compatibility
-        
-        # Ensure we have some terminating condition
-        if self.terminating_conditions is None:
-            logger.warning("No terminating conditions specified, using default 30 days")
-            self.terminating_conditions = TerminatingConditions(max_time=30.0)
-            self.base_time_unit = 'days'
+            raise ValueError(f"Invalid base_time_unit '{self.base_time_unit}'. Must be one of: seconds, minutes, hours, days")
 
 
 def find_event_type_column(db_config: DatabaseConfig, event_table: str) -> Optional[str]:
@@ -414,7 +395,8 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
                             interarrival_time=create_dict.get('interarrival_time', {}),
-                            max_entities=create_dict.get('max_entities')
+                            max_entities=create_dict.get('max_entities'),
+                            entities_per_arrival=create_dict.get('entities_per_arrival')
                         )
                     
                     steps.append(Step(
@@ -464,24 +446,25 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         )
     
     # Parse base time unit
-    base_time_unit = sim_dict.get('base_time_unit', 'days')
+    if 'base_time_unit' not in sim_dict:
+        raise ValueError("base_time_unit is required in simulation configuration")
+    base_time_unit = sim_dict['base_time_unit']
     
     # Parse terminating conditions
-    terminating_conditions = None
-    if 'terminating_conditions' in sim_dict:
-        tc_dict = sim_dict['terminating_conditions']
-        terminating_conditions = TerminatingConditions(
-            max_time=tc_dict.get('max_time'),
-            max_entities_processed=tc_dict.get('max_entities_processed'),
-            entity_table=tc_dict.get('entity_table'),
-            max_events=tc_dict.get('max_events')
-        )
+    if 'terminating_conditions' not in sim_dict:
+        raise ValueError("terminating_conditions is required in simulation configuration")
     
-    # Handle legacy duration_days (will be migrated in __post_init__)
-    legacy_duration_days = sim_dict.get('duration_days')
+    tc_value = sim_dict['terminating_conditions']
+    if isinstance(tc_value, str):
+        # Direct formula string (unquoted in YAML)
+        terminating_conditions = TerminatingConditions(formula=tc_value)
+    elif isinstance(tc_value, dict) and 'formula' in tc_value:
+        # Dictionary with formula field
+        terminating_conditions = TerminatingConditions(formula=tc_value['formula'])
+    else:
+        raise ValueError("terminating_conditions must be either a formula string or a dictionary with 'formula' field")
     
     return SimulationConfig(
-        duration_days=legacy_duration_days,
         base_time_unit=base_time_unit,
         terminating_conditions=terminating_conditions,
         start_date=start_date,
@@ -651,7 +634,8 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
                             interarrival_time=create_dict.get('interarrival_time', {}),
-                            max_entities=create_dict.get('max_entities')
+                            max_entities=create_dict.get('max_entities'),
+                            entities_per_arrival=create_dict.get('entities_per_arrival')
                         )
                     
                     steps.append(Step(
@@ -701,24 +685,25 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         )
     
     # Parse base time unit
-    base_time_unit = sim_dict.get('base_time_unit', 'days')
+    if 'base_time_unit' not in sim_dict:
+        raise ValueError("base_time_unit is required in simulation configuration")
+    base_time_unit = sim_dict['base_time_unit']
     
     # Parse terminating conditions
-    terminating_conditions = None
-    if 'terminating_conditions' in sim_dict:
-        tc_dict = sim_dict['terminating_conditions']
-        terminating_conditions = TerminatingConditions(
-            max_time=tc_dict.get('max_time'),
-            max_entities_processed=tc_dict.get('max_entities_processed'),
-            entity_table=tc_dict.get('entity_table'),
-            max_events=tc_dict.get('max_events')
-        )
+    if 'terminating_conditions' not in sim_dict:
+        raise ValueError("terminating_conditions is required in simulation configuration")
     
-    # Handle legacy duration_days (will be migrated in __post_init__)
-    legacy_duration_days = sim_dict.get('duration_days')
+    tc_value = sim_dict['terminating_conditions']
+    if isinstance(tc_value, str):
+        # Direct formula string (unquoted in YAML)
+        terminating_conditions = TerminatingConditions(formula=tc_value)
+    elif isinstance(tc_value, dict) and 'formula' in tc_value:
+        # Dictionary with formula field
+        terminating_conditions = TerminatingConditions(formula=tc_value['formula'])
+    else:
+        raise ValueError("terminating_conditions must be either a formula string or a dictionary with 'formula' field")
     
     return SimulationConfig(
-        duration_days=legacy_duration_days,
         base_time_unit=base_time_unit,
         terminating_conditions=terminating_conditions,
         start_date=start_date,
