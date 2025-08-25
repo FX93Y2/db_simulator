@@ -84,7 +84,8 @@ const createProjectStore = (projectId = 'default') => {
           
           // ===== SIMULATION STATE =====
           simulationData: {
-            duration_days: 30,
+            base_time_unit: 'hours',
+            terminating_conditions: 'TIME(720)',
             start_date: '2024-01-01',
             random_seed: 42
           },

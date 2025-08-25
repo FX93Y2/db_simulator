@@ -5,7 +5,7 @@
 export const createSimulationActions = (set, get) => ({
   /**
    * Update a simulation field (in memory only)
-   * @param {string} field - Field name (duration_days, start_date, random_seed)
+   * @param {string} field - Field name (base_time_unit, terminating_conditions, start_date, random_seed)
    * @param {any} value - New value
    */
   updateSimulationField: (field, value) => {
@@ -81,7 +81,8 @@ export const createSimulationActions = (set, get) => ({
     set((state) => {
       // Update simulation data from YAML - preserve complete simulation object including resources
       state.simulationData = {
-        duration_days: parsedSchema.simulation.duration_days || 30,
+        base_time_unit: parsedSchema.simulation.base_time_unit || 'hours',
+        terminating_conditions: parsedSchema.simulation.terminating_conditions || 'TIME(720)',
         start_date: parsedSchema.simulation.start_date || '2024-01-01', 
         random_seed: parsedSchema.simulation.random_seed || 42,
         // Preserve resources array if it exists

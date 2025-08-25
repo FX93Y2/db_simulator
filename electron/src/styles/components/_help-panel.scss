@@ -1,0 +1,45 @@
+// Help Panel Styling
+.shared-help-panel {
+  .help-tag {
+    background-color: var(--theme-hover-bg);
+    color: var(--theme-text);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 12px;
+    display: inline-block;
+    font-weight: 500;
+  }
+  
+  .help-item {
+    .help-description {
+      color: var(--theme-text);
+      font-size: 11px;
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    
+    .help-example {
+      color: var(--theme-muted-text);
+      font-size: 10px;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      line-height: 1.2;
+      word-break: break-all;
+    }
+  }
+
+  // Remove card borders
+  .card {
+    border: none !important;
+    background-color: var(--theme-card-bg);
+    
+    .card-header {
+      border-bottom: none !important;
+      background-color: var(--theme-card-bg);
+    }
+    
+    .card-body {
+      background-color: var(--theme-card-bg);
+    }
+  }
+}

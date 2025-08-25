@@ -2,6 +2,8 @@
 .modal-content {
   background-color: var(--theme-card-bg);
   border: none;
+  border-radius: var(--bs-modal-border-radius, 0.5rem);
+  overflow: hidden;
   
   .modal-header {
     border-bottom: none;
@@ -14,6 +16,12 @@
   .modal-body {
     color: var(--theme-text);
     // Form styles are now handled by consolidated styles in _forms.scss
+    
+    // When modal-body is the last child (no footer), add bottom border-radius
+    &:last-child {
+      border-bottom-left-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px));
+      border-bottom-right-radius: var(--bs-modal-inner-border-radius, calc(0.5rem - 1px));
+    }
 
     // InputGroup dropdown button styling in modals
     .input-group {

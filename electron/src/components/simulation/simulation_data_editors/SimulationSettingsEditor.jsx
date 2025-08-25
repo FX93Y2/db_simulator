@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Form, Card, Row, Col, Button, Alert } from 'react-bootstrap';
-import { FiClock, FiCalendar, FiHash, FiSave, FiRotateCcw } from 'react-icons/fi';
+import { FiClock, FiCalendar, FiHash, FiSave, FiRotateCcw, FiHelpCircle } from 'react-icons/fi';
 import { 
   useHasUnsavedSimulation, 
   useSimulationActions 
 } from '../../../stores/simulationConfigStore';
+import { SharedHelpPanel } from '../../shared/help';
 
 const SimulationSettingsEditor = ({ projectId }) => {
   // Store hooks  
@@ -16,6 +17,9 @@ const SimulationSettingsEditor = ({ projectId }) => {
     getFieldValue,
     hasFieldPendingChanges
   } = useSimulationActions(projectId);
+
+  // Help panel state
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
 
   // Handle field changes (store in pending changes only)
   const handleFieldChange = (field, value) => {
@@ -41,67 +45,35 @@ const SimulationSettingsEditor = ({ projectId }) => {
 
 
   return (
-    <div className="simulation-editor">
-      <div className="simulation-editor-content">
-        {/* Simulation Settings Section */}
-        <Card className="mb-4">
-          <Card.Header className="d-flex align-items-center justify-content-between">
-            <div className="d-flex align-items-center">
-              <FiClock className="me-2" />
-              <h5 className="mb-0">
-                Simulation Settings
-                {hasUnsaved && <span className="text-warning ms-2">*</span>}
-              </h5>
-            </div>
-            <div>
-              <Button
-                variant="outline-secondary"
-                size="sm"
-                onClick={handleResetChanges}
-                className="me-2"
-                title={hasUnsaved ? "Reset to saved values" : "No changes to reset"}
-                disabled={!hasUnsaved}
-              >
-                Reset
-              </Button>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={handleApplyChanges}
-                title="Apply current simulation settings to YAML"
-              >
-                Apply
-              </Button>
-            </div>
-          </Card.Header>
-          <Card.Body>
-            <Row>
+    <>
+      <div className="simulation-editor">
+        <div className="simulation-editor-content">
+          {/* Remove card wrapper to match Figma design - just the content */}
+          <div className="simulation-setup-content">
+            {/* Three-column layout for base settings */}
+            <Row className="mb-4">
               <Col md={4}>
                 <Form.Group className="mb-3">
                   <Form.Label>
-                    <FiClock className="me-2" />
-                    Duration (days)
-                    {hasFieldPendingChanges('duration_days') && (
+                    Base Time Unit
+                    {hasFieldPendingChanges('base_time_unit') && (
                       <span className="text-warning ms-1">*</span>
                     )}
                   </Form.Label>
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    value={getFieldValue('duration_days')}
-                    onChange={(e) => handleFieldChange('duration_days', parseInt(e.target.value) || 1)}
-                    placeholder="Enter duration in days"
-                    className={hasFieldPendingChanges('duration_days') ? 'border-warning' : ''}
-                  />
-                  <Form.Text className="text-muted">
-                    How long the simulation should run
-                  </Form.Text>
+                  <Form.Select
+                    value={getFieldValue('base_time_unit')}
+                    onChange={(e) => handleFieldChange('base_time_unit', e.target.value)}
+                    className={hasFieldPendingChanges('base_time_unit') ? 'border-warning' : ''}
+                  >
+                    <option value="minutes">Minutes</option>
+                    <option value="hours">Hours</option>
+                    <option value="days">Days</option>
+                  </Form.Select>
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group className="mb-3">
                   <Form.Label>
-                    <FiCalendar className="me-2" />
                     Start Date
                     {hasFieldPendingChanges('start_date') && (
                       <span className="text-warning ms-1">*</span>
@@ -113,15 +85,11 @@ const SimulationSettingsEditor = ({ projectId }) => {
                     onChange={(e) => handleFieldChange('start_date', e.target.value)}
                     className={hasFieldPendingChanges('start_date') ? 'border-warning' : ''}
                   />
-                  <Form.Text className="text-muted">
-                    Simulation start date
-                  </Form.Text>
                 </Form.Group>
               </Col>
               <Col md={4}>
                 <Form.Group className="mb-3">
                   <Form.Label>
-                    <FiHash className="me-2" />
                     Random Seed
                     {hasFieldPendingChanges('random_seed') && (
                       <span className="text-warning ms-1">*</span>
@@ -134,16 +102,80 @@ const SimulationSettingsEditor = ({ projectId }) => {
                     placeholder="Enter random seed"
                     className={hasFieldPendingChanges('random_seed') ? 'border-warning' : ''}
                   />
-                  <Form.Text className="text-muted">
-                    Seed for reproducible results
-                  </Form.Text>
                 </Form.Group>
               </Col>
             </Row>
-          </Card.Body>
-        </Card>
+            
+            {/* Full-width termination condition with integrated help button */}
+            <Row>
+              <Col md={12}>
+                <Form.Group className="mb-4">
+                  <Form.Label>
+                    Termination Condition
+                    {hasFieldPendingChanges('terminating_conditions') && (
+                      <span className="text-warning ms-1">*</span>
+                    )}
+                  </Form.Label>
+                  <div className="position-relative">
+                    <Form.Control
+                      type="text"
+                      value={getFieldValue('terminating_conditions')}
+                      onChange={(e) => handleFieldChange('terminating_conditions', e.target.value)}
+                      placeholder="e.g., TIME(720) OR ENTITIES(Order, 1000)"
+                      className={`pe-5 ${hasFieldPendingChanges('terminating_conditions') ? 'border-warning' : ''}`}
+                      style={{ paddingRight: '40px' }}
+                    />
+                    {/* Integrated help button */}
+                    <Button
+                      variant=""
+                      size="sm"
+                      onClick={() => setShowHelpPanel(!showHelpPanel)}
+                      className={`position-absolute top-50 translate-middle-y border-0 help-toggle-btn ${showHelpPanel ? 'active' : ''}`}
+                      style={{
+                        right: '8px',
+                        zIndex: 5,
+                        padding: '4px',
+                        borderRadius: 'inherit'
+                      }}
+                      title={showHelpPanel ? "Hide termination conditions help" : "Show termination conditions help"}
+                    >
+                      <FiHelpCircle size={18} />
+                    </Button>
+                  </div>
+                </Form.Group>
+              </Col>
+            </Row>
+            
+            {/* Action buttons */}
+            <Row>
+              <Col md={12} className="d-flex justify-content-end">
+                <Button
+                  variant="outline-secondary"
+                  className="me-2"
+                  onClick={handleResetChanges}
+                  disabled={!hasUnsaved}
+                >
+                  Reset
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={handleApplyChanges}
+                >
+                  Apply
+                </Button>
+              </Col>
+            </Row>
+          </div>
+        </div>
       </div>
-    </div>
+      
+      {/* Help Panel */}
+      <SharedHelpPanel 
+        show={showHelpPanel}
+        onHide={() => setShowHelpPanel(false)}
+        helpType="termination"
+      />
+    </>
   );
 };
 
