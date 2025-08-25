@@ -5,7 +5,7 @@ import FakerGeneratorEditor from './FakerGeneratorEditor';
 import TemplateGeneratorEditor from './TemplateGeneratorEditor';
 import DistributionGeneratorEditor from './DistributionGeneratorEditor';
 import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
-import { FormulaGeneratorEditor } from './formula';
+import FormulaGeneratorEditor from './FormulaGeneratorEditor';
 
 const AttributeEditor = ({ 
   attribute, 

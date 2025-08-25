@@ -9,27 +9,6 @@
   }
 
 
-  // Help toggle button styling
-  .help-toggle-btn {
-    background-color: transparent !important;
-    color: var(--theme-muted-text) !important;
-    transition: all 0.2s ease;
-
-    &:hover {
-      background-color: var(--theme-hover-bg) !important;
-      color: var(--theme-primary) !important;
-      transform: scale(1.1);
-    }
-
-    &.active {
-      color: var(--theme-primary) !important;
-    }
-
-    &:focus {
-      box-shadow: none !important;
-      outline: none !important;
-    }
-  }
 
   .simulation-editor-empty {
     height: 100%;

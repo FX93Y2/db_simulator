@@ -58,7 +58,6 @@ const ForeignKeyGeneratorEditor = ({
               onChange={handleFormulaChange}
               label="Foreign Key Distribution"
               placeholder="e.g., DISC(0.7, 'high', 0.3, 'low') or UNIF(1, 10)"
-              helpText="Distribution for foreign key value selection"
             />
           </Card.Body>
         </Card>

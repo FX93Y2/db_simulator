@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Form, InputGroup, Button } from 'react-bootstrap';
-import { BsQuestionCircle } from 'react-icons/bs';
-import DistributionHelpPanel from './DistributionHelpPanel';
+import { Form, Button } from 'react-bootstrap';
+import { FiHelpCircle } from 'react-icons/fi';
+import { SharedHelpPanel } from '../help';
 
 const DistributionFormulaInput = ({ 
   value = '', 
@@ -21,13 +21,6 @@ const DistributionFormulaInput = ({
     };
   }, []);
 
-  const handleHelpClick = () => {
-    setShowHelpPanel(!showHelpPanel);
-  };
-
-  const handleHelpClose = () => {
-    setShowHelpPanel(false);
-  };
 
   return (
     <>
@@ -36,25 +29,32 @@ const DistributionFormulaInput = ({
           {label}
           {required && <span className="text-danger ms-1">*</span>}
         </Form.Label>
-        <InputGroup>
+        <div className="position-relative">
           <Form.Control
             type="text"
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
             required={required}
-            className="formula-input"
+            className="pe-5"
+            style={{ paddingRight: '40px' }}
           />
           <Button
-            variant="outline-secondary"
-            onClick={handleHelpClick}
+            variant=""
             size="sm"
-            className="help-button"
-            title="Show distribution help"
+            onClick={() => setShowHelpPanel(!showHelpPanel)}
+            className={`position-absolute top-50 translate-middle-y border-0 help-toggle-btn ${showHelpPanel ? 'active' : ''}`}
+            style={{
+              right: '8px',
+              zIndex: 5,
+              padding: '4px',
+              borderRadius: 'inherit'
+            }}
+            title={showHelpPanel ? "Hide distribution formula help" : "Show distribution formula help"}
           >
-            <BsQuestionCircle />
+            <FiHelpCircle size={18} />
           </Button>
-        </InputGroup>
+        </div>
         {helpText && (
           <Form.Text className="text-muted">
             {helpText}
@@ -62,9 +62,10 @@ const DistributionFormulaInput = ({
         )}
       </Form.Group>
 
-      <DistributionHelpPanel
+      <SharedHelpPanel 
         show={showHelpPanel}
-        onHide={handleHelpClose}
+        onHide={() => setShowHelpPanel(false)}
+        helpType="distribution"
       />
     </>
   );
