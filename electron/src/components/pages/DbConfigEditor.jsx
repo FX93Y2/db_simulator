@@ -78,7 +78,7 @@ const DbConfigEditor = ({
   
   // Resizable grid hook
   const { handleMouseDown } = useResizableGrid({
-    minWidthPercent: 15,
+    minWidthPercent: 22,
     maxWidthPercent: 60,
     defaultWidthPercent: 20,
     cssVariable: '--yaml-panel-width',

@@ -44,7 +44,7 @@ const EditorHeader = ({
             disabled={isLoading}
             title="Import YAML"
           >
-            <FiUpload />
+            <FiDownload />
           </button>
           <button
             className="yaml-action-btn"
@@ -52,7 +52,7 @@ const EditorHeader = ({
             disabled={!yamlContent || isLoading}
             title="Export YAML"
           >
-            <FiDownload />
+            <FiUpload />
           </button>
           <button
             className="yaml-action-btn"

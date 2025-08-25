@@ -312,7 +312,7 @@ const YamlEditor = ({
             onClick={handleImport}
             title="Import YAML file"
           >
-            <FiUpload className="me-1" />
+            <FiDownload className="me-1" />
             Import
           </Button>
           <Button
@@ -322,7 +322,7 @@ const YamlEditor = ({
             disabled={!value}
             title="Export YAML file"
           >
-            <FiDownload className="me-1" />
+            <FiUpload className="me-1" />
             Export
           </Button>
           <input
