@@ -1,7 +1,15 @@
 simulation:
-  duration_days: 30
+  base_time_unit: hours
+  terminating_conditions: TIME(200)
   start_date: 2024-01-01
   random_seed: 42
+  resources:
+    - resource_table: Staff
+      capacities:
+        SRE: 1
+        Tech Support: 1
+        Dev: 1
+        Security: 1
 event_simulation:
   event_flows:
     - flow_id: flow_1_Create_Ticket
@@ -12,7 +20,7 @@ event_simulation:
           create_config:
             entity_table: Online_Ticket
             interarrival_time:
-              formula: "EXPO(2)"
+              formula: EXPO(2)
             max_entities: n/a
           next_steps:
             - Event_Ticket_Assignment
@@ -20,15 +28,13 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: "NORM(5, 1)"
+              formula: NORM(5, 1)
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
           next_steps:
             - ticket_complexity_decision
-        
-        # Decision: Route ticket based on complexity (70% simple, 30% complex)
         - step_id: ticket_complexity_decision
           step_type: decide
           decide_config:
@@ -38,26 +44,22 @@ event_simulation:
                 next_step_id: simple_ticket_processing
                 conditions:
                   - if: Probability
-                    is: "=="
+                    is: ==
                     value: 0.7
               - outcome_id: complex_ticket
                 next_step_id: complex_ticket_processing
                 conditions: []
-        
-        # Simple ticket processing (faster)
         - step_id: simple_ticket_processing
           step_type: event
           event_config:
             duration:
-              formula: "NORM(10, 2)"
+              formula: NORM(10, 2)
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
                 count: 1
           next_steps:
             - assign_simple_complete
-        
-        # Assign status complete for simple tickets
         - step_id: assign_simple_complete
           step_type: assign
           assign_config:
@@ -67,21 +69,19 @@ event_simulation:
                 value: complete
           next_steps:
             - release_1
-        
-        # Complex ticket processing (slower, may need Dev team)
+        - step_id: release_1
+          step_type: release
         - step_id: complex_ticket_processing
           step_type: event
           event_config:
             duration:
-              formula: "NORM(30, 5)"
+              formula: NORM(30, 5)
             resource_requirements:
               - resource_table: Staff
                 value: Dev
                 count: 1
           next_steps:
             - assign_complex_complete
-        
-        # Assign status complete for complex tickets
         - step_id: assign_complex_complete
           step_type: assign
           assign_config:
@@ -91,10 +91,6 @@ event_simulation:
                 value: complete
           next_steps:
             - release_1
-        
-        - step_id: release_1
-          step_type: release
-          event_config: {}
     - flow_id: flow_2_Create_Phone_Call
       event_table: Call_Task
       steps:
@@ -103,7 +99,7 @@ event_simulation:
           create_config:
             entity_table: Phone_Call
             interarrival_time:
-              formula: "EXPO(2)"
+              formula: EXPO(2)
             max_entities: n/a
           next_steps:
             - Phone_Call
@@ -111,7 +107,7 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: "NORM(5, 1)"
+              formula: NORM(5, 1)
             resource_requirements:
               - resource_table: Staff
                 value: Tech Support
@@ -120,4 +116,3 @@ event_simulation:
             - release_2
         - step_id: release_2
           step_type: release
-          event_config: {}
