@@ -44,10 +44,10 @@
 }
 
 // Ensure table within responsive container gets themed
-.table-responsive {
-   .table {
-      // Styles defined above will apply
-   }
+.table-responsive .table {
+  // Inherit styles from .table above
+  background-color: var(--theme-card-bg);
+  color: var(--theme-text);
 }
 
 .data-table {
@@ -88,16 +88,26 @@
 }
 
 .table-container {
-  overflow-x: auto;
+  overflow: auto; // Both horizontal and vertical scrolling
   border: 1px solid var(--theme-border); // Use theme border
   border-radius: 4px;
-  max-height: 400px; 
+  max-height: 500px; // Default max height for other contexts
   margin-top: 1rem;
 
   // Ensure the sticky header works correctly
   thead {
-    // border-bottom: 1px solid $border-color; // REMOVED OLD
-    border-bottom: 1px solid var(--theme-border); // ADDED
+    border-bottom: 1px solid var(--theme-border);
+  }
+  
+  // Style for sortable table headers
+  .table th {
+    &:hover {
+      background-color: var(--theme-hover-bg);
+    }
+    
+    .sort-icons {
+      transition: opacity 0.2s ease;
+    }
   }
 }
 
@@ -162,4 +172,100 @@
   border: 1px solid var(--theme-border);
   background-color: var(--theme-bg);
   color: var(--theme-text);
+}
+
+// Results table specific styling
+.results-table {
+  &.data-table {
+    margin: 0; // Remove default margin inside container
+    
+    thead th {
+      position: sticky;
+      top: 0;
+      background-color: var(--theme-card-bg);
+      z-index: 10;
+      border-bottom: 2px solid var(--theme-border);
+      
+      &:hover {
+        background-color: var(--theme-hover-bg);
+      }
+    }
+    
+    tbody {
+      tr:hover {
+        background-color: var(--theme-hover-bg);
+      }
+    }
+  }
+}
+
+// Results Viewer page styling
+.results-viewer {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+
+  .results-viewer-content {
+    flex: 1;
+    padding: 3rem;
+    overflow: auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; // Important for flex child to shrink
+  }
+
+  // Table container wrapper to take up remaining space
+  .table-container-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0; // Important for flex child to shrink
+    margin-top: 0.5rem;
+
+    .table-container {
+      flex: 1;
+      overflow: auto;
+      border: 1px solid var(--theme-border);
+      border-radius: 4px;
+      min-height: 300px; // Minimum height to ensure usability
+      max-height: none; // Remove previous max-height limitation
+    }
+  }
+
+  // Ensure dashboard card doesn't take up too much space
+  .dashboard-card {
+    flex-shrink: 0;
+  }
+
+  // Compact simulation summary styling
+  .simulation-summary-compact {
+    flex-shrink: 0;
+    
+    .card-body {
+      padding: 0.75rem 1rem;
+    }
+    
+    .summary-item {
+      min-width: 120px;
+      
+      small {
+        display: block;
+        font-size: 0.75rem;
+        line-height: 1.2;
+        margin-bottom: 2px;
+      }
+      
+      .fw-medium {
+        font-size: 0.875rem;
+        line-height: 1.2;
+        font-weight: 500;
+      }
+    }
+  }
+
+  // Make tabs area flex-shrink
+  .mb-3 {
+    flex-shrink: 0;
+  }
 }

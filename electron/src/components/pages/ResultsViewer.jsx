@@ -14,12 +14,12 @@ import {
   InputGroup
 } from 'react-bootstrap';
 import {
-  FiArrowLeft,
-  FiDatabase,
   FiList,
   FiBarChart2,
   FiDownload,
-  FiFolder
+  FiFolder,
+  FiChevronUp,
+  FiChevronDown
 } from 'react-icons/fi';
 import ChartView from '../shared/ChartView';
 import {
@@ -55,6 +55,10 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportPath, setExportPath] = useState('');
   const [exportLoading, setExportLoading] = useState(false);
+  
+  // Sorting state
+  const [sortColumn, setSortColumn] = useState('');
+  const [sortDirection, setSortDirection] = useState('asc');
   
   // Get the selected table from the URL query parameter
   useEffect(() => {
@@ -349,14 +353,54 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
     });
   };
   
-  // Handle the back button
-  const handleBack = () => {
-    if (projectId) {
-      navigate(`/project/${projectId}`);
+  // Handle column sorting
+  const handleSort = (column) => {
+    if (sortColumn === column) {
+      // Toggle direction if same column
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
-      navigate('/');
+      // Set new column and default to ascending
+      setSortColumn(column);
+      setSortDirection('asc');
     }
   };
+  
+  // Sort table data
+  const sortedTableData = React.useMemo(() => {
+    if (!sortColumn || !tableData.length) return tableData;
+    
+    return [...tableData].sort((a, b) => {
+      let aVal = a[sortColumn];
+      let bVal = b[sortColumn];
+      
+      // Handle null/undefined values
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      
+      // Convert to strings for comparison
+      aVal = String(aVal);
+      bVal = String(bVal);
+      
+      // Check if values are numeric
+      const aNum = parseFloat(aVal);
+      const bNum = parseFloat(bVal);
+      const aIsNum = !isNaN(aNum) && isFinite(aNum);
+      const bIsNum = !isNaN(bNum) && isFinite(bNum);
+      
+      let comparison = 0;
+      if (aIsNum && bIsNum) {
+        // Numeric comparison
+        comparison = aNum - bNum;
+      } else {
+        // String comparison (case insensitive)
+        comparison = aVal.toLowerCase().localeCompare(bVal.toLowerCase());
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
+    });
+  }, [tableData, sortColumn, sortDirection]);
+  
   
   // Display the current table name
   const renderTableHeader = () => {
@@ -399,41 +443,43 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
   
   return (
     <div className="results-viewer">
-      {loading && !results ? (
-        <div className="text-center py-5">
-          <Spinner animation="border" />
-          <div className="mt-2">Loading results...</div>
-        </div>
-      ) : (
+      <div className="results-viewer-content">
+        {loading && !results ? (
+          <div className="text-center py-5">
+            <Spinner animation="border" />
+            <div className="mt-2">Loading results...</div>
+          </div>
+        ) : (
         <>
           {results && (
-            <Card className="mb-4 dashboard-card">
-              <Card.Body>
-                <div className="dashboard-card__header">
-                  <h3>Simulation Summary</h3>
-                </div>
-                <div className="dashboard-card__content">
-                  <Row>
-                    <Col md={6}>
-                      <p><strong>Simulation ID:</strong> {results.simulationId || 'N/A'}</p>
-                      <p><strong>Run Date:</strong> {results.runDate || 'N/A'}</p>
-                    </Col>
-                    <Col md={6}>
-                      <p><strong>Database:</strong> {databasePath ? databasePath.split('/').pop() : 'N/A'}</p>
-                    </Col>
-                  </Row>
-                  {!isProjectTab && (
-                    <div className="mt-3">
-                      <Button
-                        className="btn-custom-toolbar"
-                        onClick={handleShowExportModal}
-                        disabled={loading}
-                        title="Export Data"
-                      >
-                        <FiDownload className="me-2" />
-                        Download
-                      </Button>
+            <Card className="mb-3 simulation-summary-compact">
+              <Card.Body className="py-2">
+                <div className="d-flex align-items-center justify-content-between flex-wrap">
+                  <div className="d-flex align-items-center gap-4 flex-wrap">
+                    <div className="summary-item">
+                      <small className="text-muted">Simulation ID:</small>
+                      <div className="fw-medium">{results.simulationId || 'N/A'}</div>
                     </div>
+                    <div className="summary-item">
+                      <small className="text-muted">Run Date:</small>
+                      <div className="fw-medium">{results.runDate || 'N/A'}</div>
+                    </div>
+                    <div className="summary-item">
+                      <small className="text-muted">Database:</small>
+                      <div className="fw-medium">{databasePath ? databasePath.split('/').pop() : 'N/A'}</div>
+                    </div>
+                  </div>
+                  {!isProjectTab && (
+                    <Button
+                      size="sm"
+                      className="btn-custom-toolbar"
+                      onClick={handleShowExportModal}
+                      disabled={loading}
+                      title="Export Data"
+                    >
+                      <FiDownload className="me-1" />
+                      Export
+                    </Button>
                   )}
                 </div>
               </Card.Body>
@@ -471,27 +517,60 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
           </div>
           
           {selectedView === 'table' ? (
-            <div className="table-responsive">
-              {loading ? (
-                <div className="text-center py-4">
-                  <Spinner animation="border" size="sm" />
-                  <span className="ms-2">Loading table data...</span>
-                </div>
-              ) : tableData.length === 0 ? (
-                <div className="text-center py-4">
-                  <p>No data available in this table</p>
-                </div>
-              ) : (
-                <Table striped bordered hover className="results-table">
+            <div className="table-container-wrapper">
+              <div className="table-container">
+                {loading ? (
+                  <div className="text-center py-4">
+                    <Spinner animation="border" size="sm" />
+                    <span className="ms-2">Loading table data...</span>
+                  </div>
+                ) : tableData.length === 0 ? (
+                  <div className="text-center py-4">
+                    <p>No data available in this table</p>
+                  </div>
+                ) : (
+                <Table striped bordered hover className="results-table data-table">
                   <thead>
                     <tr>
                       {tableColumns.map(column => (
-                        <th key={column}>{column}</th>
+                        <th 
+                          key={column}
+                          style={{ 
+                            cursor: 'pointer', 
+                            userSelect: 'none',
+                            position: 'sticky',
+                            top: 0,
+                            backgroundColor: 'var(--theme-card-bg)',
+                            zIndex: 10
+                          }}
+                          onClick={() => handleSort(column)}
+                          title={`Click to sort by ${column}`}
+                        >
+                          <div className="d-flex align-items-center justify-content-between">
+                            <span>{column}</span>
+                            <div className="sort-icons" style={{ marginLeft: '8px', display: 'flex', flexDirection: 'column' }}>
+                              <FiChevronUp 
+                                size={12} 
+                                style={{ 
+                                  opacity: sortColumn === column && sortDirection === 'asc' ? 1 : 0.3,
+                                  marginBottom: '-2px'
+                                }} 
+                              />
+                              <FiChevronDown 
+                                size={12} 
+                                style={{ 
+                                  opacity: sortColumn === column && sortDirection === 'desc' ? 1 : 0.3,
+                                  marginTop: '-2px'
+                                }} 
+                              />
+                            </div>
+                          </div>
+                        </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {tableData.map((row, index) => (
+                    {sortedTableData.map((row, index) => (
                       <tr key={index}>
                         {tableColumns.map(column => (
                           <td key={`${index}-${column}`}>
@@ -502,7 +581,8 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
                     ))}
                   </tbody>
                 </Table>
-              )}
+                )}
+              </div>
             </div>
           ) : (
             <div>
@@ -680,7 +760,8 @@ const ResultsViewer = ({ projectId, isProjectTab }) => {
             </Modal.Footer>
           </Modal>
         </>
-      )}
+        )}
+      </div>
     </div>
   );
 };
