@@ -66,7 +66,7 @@ export const createConfigActions = (set, get) => ({
           });
           
           // Load positions for this project
-          positionService.loadProject(projectId);
+          positionService.loadProject(projectId, 'simulation');
           
           // Load YAML content
           if (result.config.content) {
@@ -82,7 +82,7 @@ export const createConfigActions = (set, get) => ({
           });
           
           // Load positions for this project (even if no config yet)
-          positionService.loadProject(projectId);
+          positionService.loadProject(projectId, 'simulation');
         }
       } else {
         // Load standalone config
@@ -98,7 +98,7 @@ export const createConfigActions = (set, get) => ({
           });
           
           // Load positions for standalone config (using config ID as project ID)
-          positionService.loadProject(`config_${configId}`);
+          positionService.loadProject(`config_${configId}`, 'simulation');
           
           // Load YAML content
           if (result.config.content) {
@@ -264,13 +264,13 @@ export const createConfigActions = (set, get) => ({
     const currentNodeIds = new Set(canonicalSteps.map(step => step.step_id));
     
     // Get all stored positions for this project
-    const allPositions = positionService.getAllPositions(projectId);
+    const allPositions = positionService.getAllPositions(projectId, 'simulation');
     
     // Remove positions for nodes that no longer exist
     let cleanedCount = 0;
     for (const nodeId of allPositions.keys()) {
       if (!currentNodeIds.has(nodeId)) {
-        positionService.removePosition(projectId, nodeId);
+        positionService.removePosition(projectId, nodeId, 'simulation');
         cleanedCount++;
       }
     }
@@ -331,7 +331,7 @@ export const createConfigActions = (set, get) => ({
     const validStepIds = new Set(canonicalSteps.map(step => step.step_id));
     
     // Get all stored positions for this project
-    const allPositions = positionService.getAllPositions(projectId);
+    const allPositions = positionService.getAllPositions(projectId, 'simulation');
     
     // Remove positions for steps that no longer exist in saved config
     let cleanedCount = 0;
@@ -342,7 +342,7 @@ export const createConfigActions = (set, get) => ({
       // Only clean up nodes that look like simulation steps (contain underscores or other patterns)
       // Skip nodes that look like simple entity names
       if (isStepPattern && !isValidStep) {
-        positionService.removePosition(projectId, nodeId);
+        positionService.removePosition(projectId, nodeId, 'simulation');
         cleanedCount++;
       }
     }

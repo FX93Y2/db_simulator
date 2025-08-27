@@ -75,7 +75,7 @@ export const createEntityYamlActions = (set, get) => ({
       
       // Load positions and integrate with entities
       const { projectId } = get();
-      const savedPositionsMap = projectId ? positionService.getAllPositions(projectId) : new Map();
+      const savedPositionsMap = projectId ? positionService.getAllPositions(projectId, 'database') : new Map();
       const savedPositions = Object.fromEntries(savedPositionsMap);
       
       const updatedEntities = newEntities.map((entity, index) => {
@@ -243,7 +243,7 @@ export const createEntityYamlActions = (set, get) => ({
     }
 
     const { projectId } = get();
-    const savedPositionsMap = projectId ? positionService.getAllPositions(projectId) : new Map();
+    const savedPositionsMap = projectId ? positionService.getAllPositions(projectId, 'database') : new Map();
     const savedPositions = Object.fromEntries(savedPositionsMap);
     
     const entities = parsedObj.entities.map((entity, index) => {

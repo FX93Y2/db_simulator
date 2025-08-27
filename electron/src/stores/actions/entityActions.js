@@ -72,7 +72,7 @@ export const createEntityActions = (set, get) => ({
     
     // Save position using PositionService
     if (projectId) {
-      positionService.setPosition(projectId, entityData.name, newPosition);
+      positionService.setPosition(projectId, entityData.name, newPosition, 'database');
     }
     
     // Update visual state
@@ -117,8 +117,8 @@ export const createEntityActions = (set, get) => ({
       const { canonicalEntities } = get();
       const entity = canonicalEntities.find(e => e.name === newData.name);
       if (entity && entity.position) {
-        positionService.removePosition(projectId, entityId);
-        positionService.setPosition(projectId, newData.name, entity.position);
+        positionService.removePosition(projectId, entityId, 'database');
+        positionService.setPosition(projectId, newData.name, entity.position, 'database');
       }
     }
     
@@ -176,7 +176,7 @@ export const createEntityActions = (set, get) => ({
     
     // Remove position
     if (projectId) {
-      positionService.removePosition(projectId, entityId);
+      positionService.removePosition(projectId, entityId, 'database');
     }
     
     // Update visual state
@@ -201,7 +201,7 @@ export const createEntityActions = (set, get) => ({
     
     // Save position using PositionService
     if (projectId) {
-      positionService.setPosition(projectId, entityId, newPosition);
+      positionService.setPosition(projectId, entityId, newPosition, 'database');
     }
     
     // Update visual nodes directly for immediate feedback
@@ -233,7 +233,7 @@ export const createEntityActions = (set, get) => ({
     }
 
     // Load positions from PositionService
-    const savedPositionsMap = projectId ? positionService.getAllPositions(projectId) : new Map();
+    const savedPositionsMap = projectId ? positionService.getAllPositions(projectId, 'database') : new Map();
     const savedPositions = Object.fromEntries(savedPositionsMap);
     
     // Generate visual nodes with position integration
@@ -435,7 +435,7 @@ export const createEntityActions = (set, get) => ({
     const { projectId } = get();
     if (projectId) {
       entityIds.forEach(entityId => {
-        positionService.removePosition(projectId, entityId);
+        positionService.removePosition(projectId, entityId, 'database');
       });
     }
     
@@ -483,7 +483,7 @@ export const createEntityActions = (set, get) => ({
       
       // Remove position
       if (projectId) {
-        positionService.removePosition(projectId, entityId);
+        positionService.removePosition(projectId, entityId, 'database');
       }
     });
     

@@ -47,7 +47,7 @@ export const createCanvasActions = (set, get) => ({
       state.positions.set(nodeId, position);
       
       // Save to PositionService (memory + persistent storage)
-      positionService.setPosition(state.projectId, nodeId, position);
+      positionService.setPosition(state.projectId, nodeId, position, 'simulation');
     });
     
     // Note: Not updating canonicalSteps here to avoid triggering visual state rebuild
@@ -67,7 +67,7 @@ export const createCanvasActions = (set, get) => ({
     const { projectId } = get();
     if (projectId) {
       nodeIds.forEach(nodeId => {
-        positionService.removePosition(projectId, nodeId);
+        positionService.removePosition(projectId, nodeId, 'simulation');
       });
     }
     
@@ -126,7 +126,7 @@ export const createCanvasActions = (set, get) => ({
       nodeIds.forEach(id => {
         state.positions.delete(id);
         // Remove from PositionService
-        positionService.removePosition(state.projectId, id);
+        positionService.removePosition(state.projectId, id, 'simulation');
       });
       
       // Clear selection if deleted
@@ -160,7 +160,7 @@ export const createCanvasActions = (set, get) => ({
       state.positions.set(stepData.step_id, position);
       
       // Save to PositionService
-      positionService.setPosition(state.projectId, stepData.step_id, position);
+      positionService.setPosition(state.projectId, stepData.step_id, position, 'simulation');
       
     });
     
@@ -267,7 +267,7 @@ export const createCanvasActions = (set, get) => ({
         
         // Position priority: PositionService -> step.position -> calculated default
         // PositionService has the most recent user-dragged position
-        let position = positionService.getPosition(state.projectId, step.step_id);
+        let position = positionService.getPosition(state.projectId, step.step_id, 'simulation');
         
         if (!position) {
           // Fallback to stored position in canonical step
@@ -292,7 +292,7 @@ export const createCanvasActions = (set, get) => ({
         state.positions.set(step.step_id, position);
         
         // Ensure PositionService has the position
-        positionService.setPosition(state.projectId, step.step_id, position);
+        positionService.setPosition(state.projectId, step.step_id, position, 'simulation');
         
         return {
           id: step.step_id,

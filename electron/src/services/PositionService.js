@@ -26,20 +26,23 @@ class PositionService {
   }
 
   /**
-   * Get storage key for a project
+   * Get storage key for a project and canvas type
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    * @returns {string} - localStorage key
    */
-  _getStorageKey(projectId) {
-    return `${this.STORAGE_PREFIX}${projectId || 'default'}`;
+  _getStorageKey(projectId, canvasType = 'default') {
+    const projectKey = projectId || 'default';
+    return `${this.STORAGE_PREFIX}${canvasType}_${projectKey}`;
   }
 
   /**
    * Load project positions into memory cache from localStorage
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    */
-  loadProject(projectId) {
-    const cacheKey = projectId || 'default';
+  loadProject(projectId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     if (this.cache.has(cacheKey)) {
       console.log(`[PositionService] Project ${cacheKey} already loaded in cache`);
@@ -47,7 +50,7 @@ class PositionService {
     }
 
     try {
-      const storageKey = this._getStorageKey(projectId);
+      const storageKey = this._getStorageKey(projectId, canvasType);
       const savedData = localStorage.getItem(storageKey);
       
       if (savedData) {
@@ -85,14 +88,15 @@ class PositionService {
    * Get position for a node (memory-first lookup)
    * @param {string} projectId - Project identifier
    * @param {string} nodeId - Node identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    * @returns {Object|null} - Position {x, y} or null if not found
    */
-  getPosition(projectId, nodeId) {
-    const cacheKey = projectId || 'default';
+  getPosition(projectId, nodeId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
-      this.loadProject(projectId);
+      this.loadProject(projectId, canvasType);
     }
 
     const projectCache = this.cache.get(cacheKey);
@@ -113,13 +117,14 @@ class PositionService {
    * @param {string} projectId - Project identifier
    * @param {string} nodeId - Node identifier
    * @param {Object} position - Position {x, y}
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    */
-  setPosition(projectId, nodeId, position) {
-    const cacheKey = projectId || 'default';
+  setPosition(projectId, nodeId, position, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
-      this.loadProject(projectId);
+      this.loadProject(projectId, canvasType);
     }
 
     const projectCache = this.cache.get(cacheKey);
@@ -133,21 +138,22 @@ class PositionService {
       projectCache.dirty = true;
       
       // Debounced save to localStorage
-      this._debouncedSave(projectId);
+      this._debouncedSave(projectId, canvasType);
     }
   }
 
   /**
    * Get all positions for a project
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    * @returns {Map<string, Object>} - Map of nodeId -> position
    */
-  getAllPositions(projectId) {
-    const cacheKey = projectId || 'default';
+  getAllPositions(projectId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
-      this.loadProject(projectId);
+      this.loadProject(projectId, canvasType);
     }
 
     const projectCache = this.cache.get(cacheKey);
@@ -158,9 +164,10 @@ class PositionService {
    * Remove a node position
    * @param {string} projectId - Project identifier
    * @param {string} nodeId - Node identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    */
-  removePosition(projectId, nodeId) {
-    const cacheKey = projectId || 'default';
+  removePosition(projectId, nodeId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     const projectCache = this.cache.get(cacheKey);
     if (projectCache && projectCache.positions.has(nodeId)) {
@@ -171,7 +178,7 @@ class PositionService {
       console.log(`[PositionService] Removed position for ${cacheKey}/${nodeId}`);
       
       // Debounced save to localStorage
-      this._debouncedSave(projectId);
+      this._debouncedSave(projectId, canvasType);
     }
   }
 
@@ -285,9 +292,10 @@ class PositionService {
   /**
    * Debounced save to localStorage
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    */
-  _debouncedSave(projectId) {
-    const cacheKey = projectId || 'default';
+  _debouncedSave(projectId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     // Clear existing timer
     if (this.saveTimers.has(cacheKey)) {
@@ -296,7 +304,7 @@ class PositionService {
 
     // Set new timer
     const timer = setTimeout(() => {
-      this._saveToStorage(projectId);
+      this._saveToStorage(projectId, canvasType);
       this.saveTimers.delete(cacheKey);
     }, this.SAVE_DEBOUNCE_MS);
 
@@ -306,9 +314,10 @@ class PositionService {
   /**
    * Save project positions to localStorage
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    */
-  _saveToStorage(projectId) {
-    const cacheKey = projectId || 'default';
+  _saveToStorage(projectId, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     const projectCache = this.cache.get(cacheKey);
     
     if (!projectCache || !projectCache.dirty) {
@@ -316,11 +325,12 @@ class PositionService {
     }
 
     try {
-      const storageKey = this._getStorageKey(projectId);
+      const storageKey = this._getStorageKey(projectId, canvasType);
       const data = {
         positions: Array.from(projectCache.positions.entries()),
         lastSaved: Date.now(),
-        projectId: projectId
+        projectId: projectId,
+        canvasType: canvasType
       };
       
       localStorage.setItem(storageKey, JSON.stringify(data));
@@ -344,7 +354,7 @@ class PositionService {
             projectId: projectId
           };
           
-          localStorage.setItem(this._getStorageKey(projectId), JSON.stringify(cleanData));
+          localStorage.setItem(this._getStorageKey(projectId, canvasType), JSON.stringify(cleanData));
           projectCache.dirty = false;
           
           console.log(`[PositionService] Successfully saved after cleaning proxies for project: ${cacheKey}`);
@@ -358,15 +368,16 @@ class PositionService {
   /**
    * Unload a project from memory cache (with optional save)
    * @param {string} projectId - Project identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
    * @param {boolean} forceSave - Force save before unloading
    */
-  unloadProject(projectId, forceSave = true) {
-    const cacheKey = projectId || 'default';
+  unloadProject(projectId, canvasType = 'default', forceSave = true) {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
     
     if (this.cache.has(cacheKey)) {
       // Save if dirty or forced
       if (forceSave) {
-        this._saveToStorage(projectId);
+        this._saveToStorage(projectId, canvasType);
       }
       
       // Clear save timer
@@ -390,10 +401,14 @@ class PositionService {
     let removedCount = 0;
 
     // Clean memory cache
-    for (const [projectId, projectCache] of this.cache.entries()) {
+    for (const [cacheKey, projectCache] of this.cache.entries()) {
       const age = now - projectCache.lastAccess;
       if (age > this.MAX_CACHE_AGE_MS) {
-        this.unloadProject(projectId === 'default' ? null : projectId, true);
+        // Parse cacheKey to extract canvasType and projectId
+        const parts = cacheKey.split('_');
+        const canvasType = parts[0];
+        const projectId = parts.slice(1).join('_');
+        this.unloadProject(projectId === 'default' ? null : projectId, canvasType, true);
         removedCount++;
       }
     }
@@ -457,8 +472,12 @@ const positionService = new PositionService();
 if (typeof window !== 'undefined') {
   window.addEventListener('beforeunload', () => {
     console.log('[PositionService] Page unload - saving all dirty projects');
-    for (const [projectId] of positionService.cache.entries()) {
-      positionService._saveToStorage(projectId === 'default' ? null : projectId);
+    for (const [cacheKey] of positionService.cache.entries()) {
+      // Parse cacheKey to extract canvasType and projectId
+      const parts = cacheKey.split('_');
+      const canvasType = parts[0];
+      const projectId = parts.slice(1).join('_');
+      positionService._saveToStorage(projectId === 'default' ? null : projectId, canvasType);
     }
   });
   

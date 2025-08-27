@@ -196,13 +196,13 @@ export const createDatabaseConfigActions = (set, get) => ({
     const currentEntityIds = new Set(canonicalEntities.map(entity => entity.name));
     
     // Get all stored positions for this project
-    const allPositions = positionService.getAllPositions(projectId);
+    const allPositions = positionService.getAllPositions(projectId, 'database');
     
     // Remove positions for entities that no longer exist
     let cleanedCount = 0;
     for (const entityId of allPositions.keys()) {
       if (!currentEntityIds.has(entityId)) {
-        positionService.removePosition(projectId, entityId);
+        positionService.removePosition(projectId, entityId, 'database');
         cleanedCount++;
       }
     }
@@ -225,7 +225,7 @@ export const createDatabaseConfigActions = (set, get) => ({
     const validEntityIds = new Set(canonicalEntities.map(entity => entity.name));
     
     // Get all stored positions for this project
-    const allPositions = positionService.getAllPositions(projectId);
+    const allPositions = positionService.getAllPositions(projectId, 'database');
     
     // Remove positions for entities that no longer exist in saved config
     let cleanedCount = 0;
@@ -236,7 +236,7 @@ export const createDatabaseConfigActions = (set, get) => ({
       // Only clean up nodes that look like entity names (not simulation steps)
       // Skip nodes that contain underscores or other patterns that suggest they're simulation steps
       if (isEntityPattern && !isValidEntity) {
-        positionService.removePosition(projectId, nodeId);
+        positionService.removePosition(projectId, nodeId, 'database');
         cleanedCount++;
       }
     }
