@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
-from ..utils import extract_distribution_config
+from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
 from ....utils.data_generation import generate_attribute_value
 from ....utils.time_units import TimeUnitConverter
@@ -259,11 +259,12 @@ class EventStepProcessor(StepProcessor):
     def _calculate_event_duration(self, event_config) -> float:
         """Calculate event duration in minutes from configuration."""
         try:
-            # Extract the actual distribution config from duration field
-            dist_config = extract_distribution_config(event_config.duration)
+            # Extract the actual distribution config and time unit from duration field
+            dist_config, time_unit = extract_distribution_config_with_time_unit(event_config.duration)
             duration_value = generate_from_distribution(dist_config)
-            # Convert to minutes using base time unit
-            return TimeUnitConverter.to_minutes(duration_value, self.config.base_time_unit)
+            # Use specified time_unit or fall back to base_time_unit
+            time_unit_to_use = time_unit if time_unit is not None else self.config.base_time_unit
+            return TimeUnitConverter.to_minutes(duration_value, time_unit_to_use)
         except Exception as e:
             self.logger.warning(f"Error calculating event duration: {str(e)}, using default")
             return 60.0  # Default 1 hour

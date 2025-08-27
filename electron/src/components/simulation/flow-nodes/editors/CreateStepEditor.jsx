@@ -114,14 +114,33 @@ const CreateStepEditor = ({
       <div className="step-info-section">
         <div className="section-title">Interarrival Time</div>
         
-        <DistributionFormulaInput
-          value={getCurrentFormula()}
-          onChange={handleFormulaChange}
-          label="Interarrival Time Distribution"
-          placeholder="e.g., NORM(5, 1) or UNIF(1, 10)"
-          required
-          helpText="Distribution for time between entity arrivals"
-        />
+        <Row>
+          <Col md={8}>
+            <DistributionFormulaInput
+              value={getCurrentFormula()}
+              onChange={handleFormulaChange}
+              label="Interarrival Time Distribution"
+              placeholder="e.g., NORM(5, 1) or UNIF(1, 10)"
+              required
+              helpText="Distribution for time between entity arrivals"
+            />
+          </Col>
+          <Col md={4}>
+            <Form.Group className="mb-3">
+              <Form.Label>Units</Form.Label>
+              <Form.Select
+                value={formData.interarrival_time_unit || ''}
+                onChange={(e) => onFormDataChange({ interarrival_time_unit: e.target.value || undefined })}
+              >
+                <option value="">Select time unit...</option>
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+        </Row>
       </div>
 
       {/* Next Steps Selection */}

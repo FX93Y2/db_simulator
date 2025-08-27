@@ -10,7 +10,8 @@ This document provides comprehensive documentation for the DB Simulator's simula
 4. [Step Types Documentation](#step-types-documentation)
 5. [Resource Management](#resource-management)
 6. [Distribution Formulas](#distribution-formulas)
-7. [Complete Working Examples](#complete-working-examples)
+7. [Time Unit Best Practices](#time-unit-best-practices)
+8. [Complete Working Examples](#complete-working-examples)
 
 ## Overall YAML Structure
 
@@ -76,14 +77,21 @@ simulation:
 
 ### Base Time Units
 
+The `base_time_unit` serves as the reference unit for:
+- **Termination conditions**: TIME() formulas use base_time_unit
+- **Statistical reporting**: Results and metrics are reported in base_time_unit
+- **Default fallback**: Used when no specific time_unit is specified for modules
+
+**Module-Specific Time Units**: Individual modules (Create and Event steps) can now specify their own time units for user convenience, eliminating the need for manual time conversions.
+
 Supported time units with their conversion factors:
 
-| Unit | String | Conversion to Minutes |
-|------|--------|--------------------|
-| Seconds | `seconds` | 1/60 |
-| Minutes | `minutes` | 1 (base unit) |
-| Hours | `hours` | 60 |
-| Days | `days` | 1440 |
+| Unit | String | Conversion to Minutes | Common Usage |
+|------|--------|--------------------|--------------|
+| Seconds | `seconds` | 1/60 | Fast arrivals, quick processes |
+| Minutes | `minutes` | 1 (internal base) | Standard processing times |
+| Hours | `hours` | 60 | Long processes, work shifts |
+| Days | `days` | 1440 | Project timelines, rare events |
 
 ### Terminating Conditions
 
@@ -169,11 +177,33 @@ The simulation system supports five core step types, each serving a specific pur
   create_config:
     entity_table: Online_Ticket          # Required: Target entity table
     interarrival_time:                    # Required: Time between arrivals
-      formula: EXPO(2)                    # Exponential distribution with mean 2
+      formula: EXPO(120)                  # 120 seconds = 2 minutes
+      time_unit: seconds                  # Optional: module-specific time unit
     max_entities: n/a                     # Optional: Limit (n/a = unlimited)
     entities_per_arrival: 1               # Optional: Entities per arrival event
   next_steps:
     - Event_Ticket_Assignment
+```
+
+**Alternative formats for interarrival_time:**
+
+```yaml
+# Using base_time_unit (traditional approach)
+interarrival_time:
+  formula: EXPO(2)                        # 2 base_time_units
+
+# Using specific time units for clarity
+interarrival_time:
+  formula: EXPO(30)                       # 30 seconds
+  time_unit: seconds
+
+interarrival_time:
+  formula: NORM(5, 1)                     # 5 minutes ± 1 minute  
+  time_unit: minutes
+
+interarrival_time:
+  formula: UNIF(1, 4)                     # 1-4 hours
+  time_unit: hours
 ```
 
 **Create Configuration Options:**
@@ -182,6 +212,7 @@ The simulation system supports five core step types, each serving a specific pur
 |----------|------|----------|-------------|
 | `entity_table` | string | Yes | Database table to create entities in |
 | `interarrival_time` | distribution | Yes | Time between entity arrivals |
+| `interarrival_time.time_unit` | string | No | Time unit (seconds/minutes/hours/days). Uses base_time_unit if not specified |
 | `max_entities` | int/string | No | Maximum entities to create (n/a = unlimited) |
 | `entities_per_arrival` | int/distribution | No | Number of entities per arrival event |
 
@@ -194,7 +225,8 @@ The simulation system supports five core step types, each serving a specific pur
   step_type: event
   event_config:
     duration:                             # Required: Processing duration
-      formula: NORM(5, 1)                 # Normal distribution: mean=5, stddev=1
+      formula: NORM(5, 1)                 # 5 minutes ± 1 minute
+      time_unit: minutes                  # Optional: module-specific time unit
     resource_requirements:                # Optional: Required resources
       - resource_table: Staff             # Resource table name
         value: "Tech Support"             # Resource type value
@@ -204,11 +236,37 @@ The simulation system supports five core step types, each serving a specific pur
     - ticket_complexity_decision
 ```
 
+**Alternative formats for duration:**
+
+```yaml
+# Using base_time_unit (traditional approach)
+duration:
+  formula: NORM(5, 1)                     # 5 base_time_units ± 1
+
+# Using specific time units for different processes
+duration:
+  formula: NORM(30, 10)                   # 30 seconds ± 10 seconds
+  time_unit: seconds
+
+duration:
+  formula: NORM(15, 3)                    # 15 minutes ± 3 minutes  
+  time_unit: minutes
+
+duration:
+  formula: NORM(2.5, 0.5)                 # 2.5 hours ± 30 minutes
+  time_unit: hours
+
+duration:
+  formula: UNIF(1, 3)                     # 1-3 days
+  time_unit: days
+```
+
 **Event Configuration Options:**
 
 | Property | Type | Required | Description |
 |----------|------|----------|-------------|
 | `duration` | distribution | Yes | Time to complete the processing |
+| `duration.time_unit` | string | No | Time unit (seconds/minutes/hours/days). Uses base_time_unit if not specified |
 | `resource_requirements` | array | No | List of required resources |
 
 **Resource Requirement Structure:**
@@ -485,29 +543,47 @@ event_simulation:
 
 The simulation system supports multiple formats for specifying statistical distributions:
 
-### Format 1: Formula String (Recommended)
+### Format 1: Formula String (Uses base_time_unit)
 
 Direct formula syntax for common distributions:
 
 ```yaml
 duration:
-  formula: EXPO(2)                      # Exponential with mean 2
+  formula: EXPO(2)                      # Exponential with mean 2 (in base_time_unit)
   
 interarrival_time:
-  formula: NORM(5, 1)                   # Normal with mean=5, stddev=1
+  formula: NORM(5, 1)                   # Normal with mean=5, stddev=1 (in base_time_unit)
   
 processing_time:
-  formula: UNIF(3, 10)                  # Uniform between 3 and 10
+  formula: UNIF(3, 10)                  # Uniform between 3 and 10 (in base_time_unit)
 ```
 
 ### Format 2: Dictionary with Formula
 
 ```yaml
 duration:
-  formula: EXPO(2)                      # Same as Format 1, wrapped in dict
+  formula: EXPO(2)                      # Same as Format 1, wrapped in dict (uses base_time_unit)
 ```
 
-### Format 3: Distribution Dictionary
+### Format 3: Dictionary with Formula and Time Unit (New)
+
+Specify module-specific time units for user convenience:
+
+```yaml
+duration:
+  formula: EXPO(30)                     # 30 seconds between events
+  time_unit: seconds
+
+interarrival_time:
+  formula: NORM(2, 0.5)                 # 2 minutes ± 30 seconds
+  time_unit: minutes
+  
+processing_time:
+  formula: UNIF(0.5, 2.0)               # 0.5 to 2 hours
+  time_unit: hours
+```
+
+### Format 4: Distribution Dictionary
 
 Explicit distribution configuration:
 
@@ -515,19 +591,21 @@ Explicit distribution configuration:
 duration:
   distribution:
     type: exponential
-    scale: 2                            # Mean = 2
+    scale: 2                            # Mean = 2 (in base_time_unit)
     
 processing_time:
   distribution:
     type: normal
     mean: 5
     stddev: 1
+  time_unit: minutes                    # Can include time_unit with any format
     
 wait_time:
   distribution:
     type: uniform
     min: 3
     max: 10
+  time_unit: seconds
 ```
 
 ### Supported Distributions
@@ -572,34 +650,237 @@ wait_time:
 ### Distribution Usage Examples
 
 ```yaml
-# Entity creation with exponential inter-arrival times
+# Entity creation with exponential inter-arrival times (using specific time unit)
 create_config:
   interarrival_time:
-    formula: EXPO(3)                    # Average 3 time units between arrivals
+    formula: EXPO(90)                   # Average 90 seconds between arrivals
+    time_unit: seconds
 
-# Processing with normal duration
+# Processing with normal duration (using base_time_unit)
 event_config:
   duration:
-    formula: NORM(8, 1.5)               # Mean 8, std dev 1.5
+    formula: NORM(8, 1.5)               # Mean 8, std dev 1.5 (base_time_unit)
 
-# Resource capacity with uniform variation
+# Long process with hours as natural unit
+event_config:
+  duration:
+    formula: NORM(2.5, 0.5)             # 2.5 hours ± 30 minutes
+    time_unit: hours
+
+# Resource capacity with uniform variation (no time component)
 resource_capacities:
   Equipment:
     capacity_rules:
       - resource_type: "Machine"
         capacity:
           formula: UNIF(2, 5)           # 2-5 machines available
+
+# Mixed time units in different steps
+steps:
+  - step_id: fast_arrivals
+    create_config:
+      interarrival_time:
+        formula: EXPO(30)               # 30 seconds
+        time_unit: seconds
+        
+  - step_id: standard_processing  
+    event_config:
+      duration:
+        formula: NORM(5, 1)             # 5 minutes
+        time_unit: minutes
+        
+  - step_id: complex_analysis
+    event_config:
+      duration:
+        formula: NORM(2, 0.3)           # 2 hours
+        time_unit: hours
+```
+
+## Time Unit Best Practices
+
+### Choosing Appropriate Time Units
+
+Select time units that make your configuration intuitive and easy to understand:
+
+#### **Seconds** - Fast Operations
+- **API calls**: `EXPO(5)` seconds for API response times
+- **User interactions**: `NORM(2, 0.5)` seconds for button clicks
+- **Network requests**: `UNIF(1, 10)` seconds for network latency
+- **Cache lookups**: `CONST(0.1)` seconds for memory access
+
+#### **Minutes** - Standard Processing
+- **Form processing**: `NORM(3, 1)` minutes for data validation
+- **Email sending**: `EXPO(2)` minutes between email batches
+- **File uploads**: `UNIF(1, 5)` minutes depending on file size
+- **Database queries**: `NORM(0.5, 0.1)` minutes for complex queries
+
+#### **Hours** - Long Processes
+- **Data analysis**: `NORM(2, 0.5)` hours for report generation
+- **Code deployment**: `UNIF(0.5, 2)` hours for deployment pipelines
+- **Batch processing**: `EXPO(4)` hours between batch jobs
+- **Human review**: `NORM(1, 0.25)` hours for code reviews
+
+#### **Days** - Project Timelines
+- **Development tasks**: `UNIF(1, 5)` days for feature implementation
+- **Testing cycles**: `NORM(3, 1)` days for QA processes
+- **Approval workflows**: `EXPO(2)` days for management approval
+- **Maintenance windows**: Scheduled every `7` days
+
+### Configuration Strategies
+
+#### **Mixed Time Units** (Recommended)
+Use natural units for each process type:
+
+```yaml
+simulation:
+  base_time_unit: hours                   # For reporting and termination
+  terminating_conditions: TIME(24)       # 24 hours = 1 day
+
+steps:
+  - step_id: user_requests
+    create_config:
+      interarrival_time:
+        formula: EXPO(30)                 # Every 30 seconds
+        time_unit: seconds
+        
+  - step_id: initial_processing
+    event_config:
+      duration:
+        formula: NORM(2, 0.5)             # 2 minutes
+        time_unit: minutes
+        
+  - step_id: complex_analysis  
+    event_config:
+      duration:
+        formula: NORM(1.5, 0.3)           # 1.5 hours
+        time_unit: hours
+```
+
+#### **Uniform Time Units** (Simpler)
+Use base_time_unit throughout for consistency:
+
+```yaml
+simulation:
+  base_time_unit: minutes
+
+steps:
+  - step_id: user_requests
+    create_config:
+      interarrival_time:
+        formula: EXPO(0.5)                # 0.5 minutes = 30 seconds
+        
+  - step_id: processing
+    event_config:
+      duration:
+        formula: NORM(2, 0.5)             # 2 minutes (natural)
+        
+  - step_id: analysis
+    event_config:
+      duration:
+        formula: NORM(90, 18)             # 90 minutes = 1.5 hours
+```
+
+### Conversion Guidelines
+
+When migrating from single time unit to mixed units:
+
+#### **From Hours to Mixed Units**
+```yaml
+# Before (everything in hours)
+base_time_unit: hours
+interarrival_time:
+  formula: EXPO(0.0083)                   # 30 seconds = 0.0083 hours
+
+# After (natural units)  
+base_time_unit: hours                     # Keep for reporting
+interarrival_time:
+  formula: EXPO(30)                       # Much clearer!
+  time_unit: seconds
+```
+
+#### **From Minutes to Mixed Units**
+```yaml
+# Before (everything in minutes)
+base_time_unit: minutes
+duration:
+  formula: NORM(120, 24)                  # 2 hours ± 24 minutes
+
+# After (natural units)
+base_time_unit: minutes                   # Keep for reporting
+duration:
+  formula: NORM(2, 0.4)                   # Much clearer!
+  time_unit: hours
+```
+
+### Backward Compatibility
+
+All existing configurations continue to work:
+
+```yaml
+# Existing config (no changes needed)
+simulation:
+  base_time_unit: hours
+  
+steps:
+  - create_config:
+      interarrival_time:
+        formula: EXPO(2)                  # Still works (uses base_time_unit)
+        
+  - event_config:
+      duration: NORM(5, 1)                # Still works (uses base_time_unit)
+```
+
+### Common Patterns
+
+#### **Support System**
+```yaml
+base_time_unit: hours                     # For shift reporting
+steps:
+  - step_id: ticket_creation
+    interarrival_time:
+      formula: EXPO(300)                  # Every 5 minutes  
+      time_unit: seconds
+      
+  - step_id: initial_response
+    duration:
+      formula: NORM(3, 1)                 # 3 minutes response
+      time_unit: minutes
+      
+  - step_id: investigation
+    duration:
+      formula: NORM(0.75, 0.25)           # 45 minutes ± 15 min
+      time_unit: hours
+```
+
+#### **Manufacturing Process**
+```yaml
+base_time_unit: hours                     # For production reporting
+steps:
+  - step_id: part_arrival
+    interarrival_time:
+      formula: EXPO(90)                   # Every 1.5 minutes
+      time_unit: seconds
+      
+  - step_id: machining
+    duration:
+      formula: NORM(8, 2)                 # 8 minutes ± 2 minutes
+      time_unit: minutes
+      
+  - step_id: quality_control
+    duration:
+      formula: UNIF(0.25, 0.5)            # 15-30 minutes
+      time_unit: hours
 ```
 
 ## Complete Working Examples
 
-### Example 1: Simple Single-Flow Configuration
+### Example 1: E-Commerce Order Processing (Mixed Time Units)
 
-A basic configuration with one flow for order processing:
+A realistic e-commerce configuration demonstrating mixed time units for natural modeling:
 
 ```yaml
 simulation:
-  base_time_unit: hours
+  base_time_unit: hours                    # For reporting and termination
   terminating_conditions: ENTITIES(Order, 100)
   start_date: 2024-01-01
   random_seed: 42
@@ -614,7 +895,8 @@ event_simulation:
           create_config:
             entity_table: Order
             interarrival_time:
-              formula: EXPO(2)
+              formula: EXPO(45)            # Every 45 seconds on average
+              time_unit: seconds           # Natural unit for web orders
             max_entities: n/a
           next_steps:
             - process_payment
@@ -623,7 +905,8 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: UNIF(0.15, 0.2)
+              formula: UNIF(10, 15)        # 10-15 seconds payment processing
+              time_unit: seconds
             resource_requirements: []
           next_steps:
             - payment_decision
@@ -647,7 +930,8 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: NORM(1, 0.1)
+              formula: NORM(45, 10)        # 45 minutes ± 10 minutes fulfillment
+              time_unit: minutes           # Natural unit for warehouse operations
             resource_requirements: []
           next_steps:
             - mark_complete
@@ -669,11 +953,18 @@ event_simulation:
           step_type: event
           event_config:
             duration:
-              formula: EXPO(0.5)
+              formula: EXPO(5)             # 5 minute delay before retry
+              time_unit: minutes
             resource_requirements: []
           next_steps:
             - process_payment
 ```
+
+**Key Features Demonstrated:**
+- **Mixed Time Units**: Seconds for payments, minutes for fulfillment, hours for reporting
+- **Natural Modeling**: Each process uses its most intuitive time unit
+- **Clear Intent**: No complex decimal calculations needed
+- **Backward Compatibility**: Existing patterns still supported
 
 ### Example 2: Multi-Flow Support Ticket System
 

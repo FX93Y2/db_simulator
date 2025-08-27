@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
-from ..utils import extract_distribution_config
+from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
 from ....utils.time_units import TimeUnitConverter
 
@@ -116,9 +116,11 @@ class CreateStepProcessor(StepProcessor):
         """Schedule the next entity arrival as a separate non-blocking process."""
         # Generate interarrival time
         try:
-            dist_config = extract_distribution_config(config.interarrival_time)
+            dist_config, time_unit = extract_distribution_config_with_time_unit(config.interarrival_time)
             interarrival_value = generate_from_distribution(dist_config)
-            interarrival_minutes = TimeUnitConverter.to_minutes(interarrival_value, self.config.base_time_unit)
+            # Use specified time_unit or fall back to base_time_unit
+            time_unit_to_use = time_unit if time_unit is not None else self.config.base_time_unit
+            interarrival_minutes = TimeUnitConverter.to_minutes(interarrival_value, time_unit_to_use)
             
             # Schedule the arrival event
             self.env.process(self._entity_arrival_event(

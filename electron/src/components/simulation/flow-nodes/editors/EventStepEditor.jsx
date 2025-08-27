@@ -57,13 +57,31 @@ const EventStepEditor = ({
           className="mb-3"
         />
 
-        <DistributionFormulaInput
-          value={getCurrentFormula()}
-          onChange={handleFormulaChange}
-          label="Duration Distribution"
-          placeholder="e.g., NORM(5, 1) or DISC(0.7, 'fast', 0.3, 'slow')"
-          helpText="Distribution for event processing time"
-        />
+        <Row>
+          <Col md={8}>
+            <DistributionFormulaInput
+              value={getCurrentFormula()}
+              onChange={handleFormulaChange}
+              label="Duration Distribution"
+              placeholder="e.g., NORM(5, 1) or DISC(0.7, 'fast', 0.3, 'slow')"
+            />
+          </Col>
+          <Col md={4}>
+            <Form.Group className="mb-3">
+              <Form.Label>Units</Form.Label>
+              <Form.Select
+                value={formData.duration_time_unit || ''}
+                onChange={(e) => onFormDataChange({ duration_time_unit: e.target.value || undefined })}
+              >
+                <option value="">Select time unit...</option>
+                <option value="seconds">Seconds</option>
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </Form.Select>
+            </Form.Group>
+          </Col>
+        </Row>
       </div>
       <div className="step-editor-section">
         <div className="section-header">

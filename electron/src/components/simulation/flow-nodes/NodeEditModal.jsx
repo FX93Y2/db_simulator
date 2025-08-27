@@ -78,6 +78,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     setFormData({
       name: stepName,
       duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : 'NORM(5, 1)'),
+      duration_time_unit: duration.time_unit || undefined,
       // Keep old format for backward compatibility during migration
       distribution_type: duration.distribution?.type || 'normal',
       duration_mean: duration.distribution?.mean || 1,
@@ -204,6 +205,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       entity_table: createConfig.entity_table || '',
       event_table: createConfig.event_table || '',
       interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
+      interarrival_time_unit: interarrivalTime.time_unit || undefined,
       max_entities: createConfig.max_entities || 'n/a',
       next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
     });
@@ -433,8 +435,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildEventConfig = () => {
+    const duration = { formula: formData.duration_formula || 'NORM(5, 1)' };
+    if (formData.duration_time_unit) {
+      duration.time_unit = formData.duration_time_unit;
+    }
+    
     return {
-      duration: { formula: formData.duration_formula || 'NORM(5, 1)' },
+      duration,
       resource_requirements: resourceRequirements
     };
   };
@@ -493,10 +500,15 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildCreateConfig = () => {
+    const interarrivalTime = { formula: formData.interarrival_formula || '' };
+    if (formData.interarrival_time_unit) {
+      interarrivalTime.time_unit = formData.interarrival_time_unit;
+    }
+    
     return {
       entity_table: formData.entity_table || '',
       event_table: formData.event_table || '',
-      interarrival_time: { formula: formData.interarrival_formula || '' },
+      interarrival_time: interarrivalTime,
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
   };

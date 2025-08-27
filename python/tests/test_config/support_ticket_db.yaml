@@ -114,13 +114,13 @@ entities:
         ref: Staff.id
       - name: ticket_task_id
         type: event_id
-        ref: Ticket_Task.id
         generator:
           type: foreign_key
           subtype: one_to_many
-      - name: end_date
-        type: datetime
+        ref: Ticket_Task.id
       - name: start_date
+        type: datetime
+      - name: end_date
         type: datetime
   - name: Staff_Call_Task
     type: bridging
@@ -140,7 +140,7 @@ entities:
           type: foreign_key
           subtype: one_to_many
         ref: Call_Task.id
-      - name: end_date
-        type: datetime
       - name: start_date
+        type: datetime
+      - name: end_date
         type: datetime
