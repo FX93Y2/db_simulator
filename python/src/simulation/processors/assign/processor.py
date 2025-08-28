@@ -156,7 +156,7 @@ class AssignStepProcessor(StepProcessor):
         
         # Log results
         if successful_assignments == total_assignments:
-            self.logger.info(f"Successfully executed all {total_assignments} assignments for entity {entity_id} in step {step.step_id}")
+            self.logger.debug(f"Successfully executed all {total_assignments} assignments for entity {entity_id} in step {step.step_id}")
         elif successful_assignments > 0:
             self.logger.warning(f"Executed {successful_assignments}/{total_assignments} assignments for entity {entity_id} in step {step.step_id}")
         else:

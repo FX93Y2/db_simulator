@@ -95,7 +95,7 @@ class EventStepProcessor(StepProcessor):
                     
                     try:
                         yield self.env.process(
-                            self.resource_manager.allocate_resources(event_id, requirements_list)
+                            self.resource_manager.allocate_resources(event_id, requirements_list, event_table)
                         )
                         self.logger.debug(f"Resources allocated for event {event_id}")
                     except Exception as e:
@@ -112,7 +112,7 @@ class EventStepProcessor(StepProcessor):
                 end_time = self.env.now
                 
                 # Record resource allocations in the tracker
-                self._record_resource_allocations(event_id, start_time, end_time, active_event_tracker)
+                self._record_resource_allocations(event_id, start_time, end_time, event_table, active_event_tracker)
                 
                 # Increment events processed counter for termination tracking
                 if self.simulator:
@@ -125,9 +125,9 @@ class EventStepProcessor(StepProcessor):
                 )
                 
                 # Release resources
-                self.resource_manager.release_resources(event_id)
+                self.resource_manager.release_resources(event_id, event_table)
                 
-                self.logger.info(
+                self.logger.debug(
                     f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} "
                     f"in {duration_minutes/60:.2f} hours"
                 )
@@ -304,12 +304,14 @@ class EventStepProcessor(StepProcessor):
         except Exception as e:
             self.logger.warning(f"Error recording event processing: {str(e)}")
     
-    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_tracker=None):
+    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_table: str, event_tracker=None):
         """Record resource allocations in the event tracker."""
         try:
             active_event_tracker = event_tracker or self.event_tracker
-            if active_event_tracker and event_id in self.resource_manager.event_allocations:
-                allocated_resources = self.resource_manager.event_allocations[event_id]
+            # Use composite key to handle ID collisions between event tables
+            allocation_key = f"{event_table}_{event_id}" if event_table else str(event_id)
+            if active_event_tracker and allocation_key in self.resource_manager.event_allocations:
+                allocated_resources = self.resource_manager.event_allocations[allocation_key]
                 for resource in allocated_resources:
                     # Record in the event tracker
                     active_event_tracker.record_resource_allocation(

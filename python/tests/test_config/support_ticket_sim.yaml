@@ -1,6 +1,6 @@
 simulation:
   base_time_unit: hours
-  terminating_conditions: TIME(24)
+  terminating_conditions: TIME(5)
   start_date: 2024-01-01
   random_seed: 42
   resources:
@@ -83,6 +83,9 @@ event_simulation:
               - resource_table: Staff
                 value: Dev
                 count: 1
+              - resource_table: Staff
+                value: SRE
+                count: 1
           next_steps:
             - assign_complex_complete
         - step_id: assign_complex_complete
@@ -102,7 +105,8 @@ event_simulation:
           create_config:
             entity_table: Phone_Call
             interarrival_time:
-              formula: EXPO(2)
+              formula: EXPO(20)
+              time_unit: minutes
             max_entities: n/a
           next_steps:
             - Phone_Call

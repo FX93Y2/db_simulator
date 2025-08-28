@@ -89,7 +89,7 @@ class AttributeAssignmentHandler(BaseAssignmentHandler):
             )
             
             if success:
-                self.logger.info(f"Assigned attribute '{assignment.attribute_name}' = {assignment.value} to entity {entity_id}")
+                self.logger.debug(f"Assigned attribute '{assignment.attribute_name}' = {assignment.value} to entity {entity_id}")
             else:
                 self.logger.error(f"Failed to assign attribute '{assignment.attribute_name}' to entity {entity_id}")
             

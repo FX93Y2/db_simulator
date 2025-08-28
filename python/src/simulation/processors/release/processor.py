@@ -78,7 +78,7 @@ class ReleaseStepProcessor(StepProcessor):
         self._record_entity_completion(entity_id, step, flow)
         
         # Log completion
-        self.logger.info(f"Entity {entity_id} completed flow {flow.flow_id} at release step {step.step_id}")
+        self.logger.debug(f"Entity {entity_id} completed flow {flow.flow_id} at release step {step.step_id}")
         
         self.log_step_end(entity_id, step, None)
         
