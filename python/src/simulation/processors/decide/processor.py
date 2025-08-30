@@ -357,6 +357,8 @@ class DecideStepProcessor(StepProcessor):
                 self.logger.error(f"Invalid attribute condition for entity {entity_id}: missing name field")
                 return False
             return self._evaluate_attribute_condition(entity_id, condition.name, operator, value)
+        elif if_type == "expression":
+            return self._evaluate_expression_condition(entity_id, operator, value)
         else:
             self.logger.error(f"Unsupported if type: {if_type}")
             return False
@@ -440,6 +442,45 @@ class DecideStepProcessor(StepProcessor):
             
         except Exception as e:
             self.logger.error(f"Error evaluating attribute condition for entity {entity_id}: {e}")
+            return False
+    
+    def _evaluate_expression_condition(self, entity_id: int, operator: str, expression_value: str) -> bool:
+        """
+        Evaluate expression condition.
+        
+        Args:
+            entity_id: Entity ID
+            operator: Comparison operator (==, !=, etc.)
+            expression_value: Expression string to evaluate
+            
+        Returns:
+            Boolean result of the condition evaluation
+        """
+        try:
+            # For Step 1: Simple boolean string evaluation
+            # TODO: In later steps, this will support SQL queries and helper functions
+            if expression_value.lower() == "true":
+                actual_value = True
+            elif expression_value.lower() == "false":
+                actual_value = False
+            else:
+                self.logger.warning(f"Unknown expression value for entity {entity_id}: {expression_value}, defaulting to False")
+                actual_value = False
+            
+            # Apply the operator (for now just handle ==)
+            if operator == "==":
+                result = actual_value == True
+            elif operator == "!=":
+                result = actual_value != True
+            else:
+                self.logger.error(f"Unsupported operator for expression condition: {operator}")
+                return False
+            
+            self.logger.debug(f"Entity {entity_id}: expression '{expression_value}' {operator} True -> {result}")
+            return result
+            
+        except Exception as e:
+            self.logger.error(f"Error evaluating expression condition for entity {entity_id}: {e}")
             return False
     
     def get_supported_decision_types(self) -> list:

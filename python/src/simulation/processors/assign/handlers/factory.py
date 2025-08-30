@@ -9,9 +9,10 @@ from typing import List, Optional, TYPE_CHECKING
 
 from .base import BaseAssignmentHandler
 from .attribute import AttributeAssignmentHandler
+from .sql import SQLAssignmentHandler
 
 if TYPE_CHECKING:
-    from ......config_parser.sim_parser import AssignmentOperation
+    from .....config_parser.sim_parser import AssignmentOperation
     from ....managers.entity_attribute_manager import EntityAttributeManager
 
 logger = logging.getLogger(__name__)
@@ -25,19 +26,22 @@ class AssignmentHandlerFactory:
     assignment operations based on assignment type.
     """
     
-    def __init__(self, entity_attribute_manager: 'EntityAttributeManager'):
+    def __init__(self, entity_attribute_manager: 'EntityAttributeManager', engine=None):
         """
         Initialize the assignment handler factory.
         
         Args:
             entity_attribute_manager: Manager for entity attributes
+            engine: SQLAlchemy engine for SQL operations (optional)
         """
         self.entity_attribute_manager = entity_attribute_manager
+        self.engine = engine
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
         # Initialize handlers
         self.handlers: List[BaseAssignmentHandler] = [
-            AttributeAssignmentHandler(entity_attribute_manager)
+            AttributeAssignmentHandler(entity_attribute_manager),
+            SQLAssignmentHandler(entity_attribute_manager, engine)
             # Future handlers will be added here:
             # VariableAssignmentHandler(),
             # VariableArrayAssignmentHandler()
@@ -55,7 +59,7 @@ class AssignmentHandlerFactory:
         
         for handler in self.handlers:
             # Check standard assignment types
-            standard_types = ["attribute", "variable", "variable_array"]
+            standard_types = ["attribute", "sql", "variable", "variable_array"]
             for assignment_type in standard_types:
                 if handler.can_handle(assignment_type):
                     if assignment_type in self._handler_cache:
@@ -149,7 +153,7 @@ class AssignmentHandlerFactory:
         
         # Log supported assignment types for this handler
         supported_types = []
-        for assignment_type in ["attribute", "variable", "variable_array"]:
+        for assignment_type in ["attribute", "sql", "variable", "variable_array"]:
             if handler.can_handle(assignment_type):
                 supported_types.append(assignment_type)
         

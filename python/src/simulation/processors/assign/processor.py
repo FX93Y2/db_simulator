@@ -134,8 +134,19 @@ class AssignStepProcessor(StepProcessor):
                 if success:
                     successful_assignments += 1
                     # Track attribute assignments for database persistence
-                    if assignment.assignment_type == 'attribute' and assignment.attribute_name:
-                        db_attributes[assignment.attribute_name] = assignment.value
+                    if assignment.attribute_name:
+                        if assignment.assignment_type == 'attribute':
+                            # For regular attribute assignments, use the direct value
+                            db_attributes[assignment.attribute_name] = assignment.value
+                        elif assignment.assignment_type == 'sql':
+                            # For SQL SELECT assignments, get the value from entity_attribute_manager
+                            if self.assignment_handler_factory and self.assignment_handler_factory.entity_attribute_manager:
+                                value = self.assignment_handler_factory.entity_attribute_manager.get_attribute(entity_id, assignment.attribute_name)
+                                if value is not None:
+                                    db_attributes[assignment.attribute_name] = value
+                                    self.logger.debug(f"Retrieved SQL result {assignment.attribute_name} = {value} for database persistence")
+                                else:
+                                    self.logger.warning(f"SQL assignment {assignment.attribute_name} returned None - not persisting to database")
                 else:
                     self.logger.warning(f"Failed to execute assignment for entity {entity_id}: {assignment}")
             except Exception as e:

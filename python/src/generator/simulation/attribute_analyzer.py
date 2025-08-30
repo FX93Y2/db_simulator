@@ -82,7 +82,7 @@ class SimulationAttributeAnalyzer:
             for step in flow.steps:
                 if step.step_type == 'assign' and step.assign_config:
                     for assignment in step.assign_config.assignments:
-                        if assignment.assignment_type == 'attribute' and assignment.attribute_name:
+                        if assignment.attribute_name and assignment.assignment_type in ('attribute', 'sql'):
                             attr_name = assignment.attribute_name
                             attr_value = assignment.value
                             

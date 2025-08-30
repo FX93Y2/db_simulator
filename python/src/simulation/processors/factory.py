@@ -76,7 +76,7 @@ class StepProcessorFactory:
         from .assign.handlers.factory import AssignmentHandlerFactory
         
         # Create assignment handler factory
-        assignment_handler_factory = AssignmentHandlerFactory(self.entity_attribute_manager)
+        assignment_handler_factory = AssignmentHandlerFactory(self.entity_attribute_manager, self.engine)
         
         # Configure processors
         for processor in self.processors:

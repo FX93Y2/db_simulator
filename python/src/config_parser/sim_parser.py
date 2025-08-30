@@ -90,13 +90,15 @@ class DecideConfig:
     decision_type: str
     outcomes: List[Outcome] = field(default_factory=list)
 
-# Arena-style Assignment module dataclasses
+# Assignment module dataclasses
 @dataclass
 class AssignmentOperation:
-    assignment_type: str  # "attribute", future: "variable", "variable_array"
+    assignment_type: str  # "attribute", "sql", future: "variable", "variable_array"
     # Attribute-specific fields
     attribute_name: Optional[str] = None
     value: Optional[Union[str, int, float]] = None
+    # SQL-specific fields
+    expression: Optional[str] = None  # SQL statement for sql assignment type
 
 @dataclass
 class AssignConfig:
@@ -382,7 +384,8 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                                 assignments.append(AssignmentOperation(
                                     assignment_type=assignment_dict.get('assignment_type', ''),
                                     attribute_name=assignment_dict.get('attribute_name'),
-                                    value=assignment_dict.get('value')
+                                    value=assignment_dict.get('value'),
+                                    expression=assignment_dict.get('expression')
                                 ))
                         assign_config = AssignConfig(
                             assignments=assignments
@@ -621,7 +624,8 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                                 assignments.append(AssignmentOperation(
                                     assignment_type=assignment_dict.get('assignment_type', ''),
                                     attribute_name=assignment_dict.get('attribute_name'),
-                                    value=assignment_dict.get('value')
+                                    value=assignment_dict.get('value'),
+                                    expression=assignment_dict.get('expression')
                                 ))
                         assign_config = AssignConfig(
                             assignments=assignments
