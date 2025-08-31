@@ -92,13 +92,14 @@ class AssignmentHandlerFactory:
         self.logger.error(f"No handler found for assignment type: {assignment_type}")
         return None
     
-    def execute_assignment(self, entity_id: int, assignment: 'AssignmentOperation') -> bool:
+    def execute_assignment(self, entity_id: int, assignment: 'AssignmentOperation', entity_table: str = None) -> bool:
         """
         Execute an assignment operation using the appropriate handler.
         
         Args:
             entity_id: ID of the entity to assign to
             assignment: Assignment operation configuration
+            entity_table: Entity table name (for SQL handlers)
             
         Returns:
             True if assignment was successful, False otherwise
@@ -109,7 +110,11 @@ class AssignmentHandlerFactory:
             return False
         
         self.logger.debug(f"Executing {assignment.assignment_type} assignment for entity {entity_id}")
-        return handler.execute_assignment(entity_id, assignment)
+        # Check if handler supports entity_table parameter (SQL handler)
+        if hasattr(handler, 'supports_entity_table') and handler.supports_entity_table():
+            return handler.execute_assignment(entity_id, assignment, entity_table)
+        else:
+            return handler.execute_assignment(entity_id, assignment)
     
     def validate_assignment(self, assignment: 'AssignmentOperation') -> bool:
         """

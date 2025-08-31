@@ -130,7 +130,7 @@ class AssignStepProcessor(StepProcessor):
         # Execute all assignment operations
         for assignment in assign_config.assignments:
             try:
-                success = self.assignment_handler_factory.execute_assignment(entity_id, assignment)
+                success = self.assignment_handler_factory.execute_assignment(entity_id, assignment, entity_table)
                 if success:
                     successful_assignments += 1
                     # Track attribute assignments for database persistence

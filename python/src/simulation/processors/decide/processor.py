@@ -10,6 +10,7 @@ import random
 from typing import Any, Generator, Optional
 
 from ..base import StepProcessor
+from ....utils.sql_helpers import SQLExpressionEvaluator
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +40,8 @@ class DecideStepProcessor(StepProcessor):
         
         # Entity attribute manager will be set during integration
         self.entity_attribute_manager = None
+        # SQL expression evaluator will be initialized when entity_attribute_manager is set
+        self.sql_expression_evaluator = None
     
     def set_entity_attribute_manager(self, manager):
         """
@@ -48,6 +51,10 @@ class DecideStepProcessor(StepProcessor):
             manager: EntityAttributeManager instance
         """
         self.entity_attribute_manager = manager
+        # Initialize SQL expression evaluator when we have both engine and entity_attribute_manager
+        if self.engine and manager:
+            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager)
+            self.logger.debug("SQL expression evaluator initialized")
         self.logger.debug("Entity attribute manager set")
     
     def can_handle(self, step_type: str) -> bool:
@@ -122,7 +129,7 @@ class DecideStepProcessor(StepProcessor):
         decide_config = step.decide_config
         
         # Determine next step based on decision type
-        next_step_id = self._evaluate_decision(entity_id, decide_config)
+        next_step_id = self._evaluate_decision(entity_id, decide_config, entity_table)
         
         if next_step_id:
             self.logger.debug(f"Entity {entity_id} decision at {step.step_id}: chose {next_step_id}")
@@ -135,13 +142,14 @@ class DecideStepProcessor(StepProcessor):
         yield self.env.timeout(0)  # Instantaneous event
         return next_step_id
     
-    def _evaluate_decision(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+    def _evaluate_decision(self, entity_id: int, decide_config: 'DecideConfig', entity_table: str = None) -> Optional[str]:
         """
         Evaluate the decision and return the next step ID.
         
         Args:
             entity_id: Entity ID for context
             decide_config: Decision configuration
+            entity_table: Entity table name for database lookups
             
         Returns:
             Next step ID or None if no valid outcome
@@ -151,11 +159,11 @@ class DecideStepProcessor(StepProcessor):
         if decision_type == "2way-chance":
             return self._evaluate_2way_chance(entity_id, decide_config)
         elif decision_type == "2way-condition":
-            return self._evaluate_2way_condition(entity_id, decide_config)
+            return self._evaluate_2way_condition(entity_id, decide_config, entity_table)
         elif decision_type == "nway-chance":
             return self._evaluate_nway_chance(entity_id, decide_config)
         elif decision_type == "nway-condition":
-            return self._evaluate_nway_condition(entity_id, decide_config)
+            return self._evaluate_nway_condition(entity_id, decide_config, entity_table)
         else:
             self.logger.error(f"Invalid decision type: {decision_type}")
             return None
@@ -194,7 +202,7 @@ class DecideStepProcessor(StepProcessor):
             self.logger.debug(f"Entity {entity_id}: 2-way chance chose else outcome ({1-probability:.1%})")
             return outcomes[1].next_step_id
     
-    def _evaluate_2way_condition(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+    def _evaluate_2way_condition(self, entity_id: int, decide_config: 'DecideConfig', entity_table: str = None) -> Optional[str]:
         """
         Evaluate 2-way conditional decision. First outcome has the condition,
         second outcome is the "else" case.
@@ -218,7 +226,7 @@ class DecideStepProcessor(StepProcessor):
         first_outcome = outcomes[0]
         
         # Evaluate first outcome's conditions - if they match, choose it, else choose second
-        if self._evaluate_outcome_conditions(entity_id, first_outcome.conditions):
+        if self._evaluate_outcome_conditions(entity_id, first_outcome.conditions, entity_table):
             self.logger.debug(f"Entity {entity_id}: 2-way condition matched primary condition")
             return first_outcome.next_step_id
         else:
@@ -279,7 +287,7 @@ class DecideStepProcessor(StepProcessor):
         self.logger.warning(f"N-way chance probability fallback for entity {entity_id}, choosing last outcome")
         return outcome_ids[-1]
     
-    def _evaluate_nway_condition(self, entity_id: int, decide_config: 'DecideConfig') -> Optional[str]:
+    def _evaluate_nway_condition(self, entity_id: int, decide_config: 'DecideConfig', entity_table: str = None) -> Optional[str]:
         """
         Evaluate N-way conditional decision. Evaluates conditions in order,
         returns first matching outcome.
@@ -302,7 +310,7 @@ class DecideStepProcessor(StepProcessor):
         
         # Evaluate each outcome's conditions in order
         for i, outcome in enumerate(outcomes):
-            if self._evaluate_outcome_conditions(entity_id, outcome.conditions):
+            if self._evaluate_outcome_conditions(entity_id, outcome.conditions, entity_table):
                 self.logger.debug(f"Entity {entity_id}: N-way condition matched outcome {i} ({outcome.outcome_id})")
                 return outcome.next_step_id
         
@@ -310,7 +318,7 @@ class DecideStepProcessor(StepProcessor):
         self.logger.warning(f"No outcome conditions matched for entity {entity_id} in N-way conditional decision")
         return None
     
-    def _evaluate_outcome_conditions(self, entity_id: int, conditions: list) -> bool:
+    def _evaluate_outcome_conditions(self, entity_id: int, conditions: list, entity_table: str = None) -> bool:
         """
         Evaluate all conditions for an outcome (AND logic).
         
@@ -325,12 +333,12 @@ class DecideStepProcessor(StepProcessor):
             return True  # No conditions means always true
         
         for condition in conditions:
-            if not self._evaluate_single_condition(entity_id, condition):
+            if not self._evaluate_single_condition(entity_id, condition, entity_table):
                 return False  # AND logic - one false condition fails the outcome
         
         return True  # All conditions passed
     
-    def _evaluate_single_condition(self, entity_id: int, condition) -> bool:
+    def _evaluate_single_condition(self, entity_id: int, condition, entity_table: str = None) -> bool:
         """
         Evaluate a single condition using the new if/name/is/value format.
         
@@ -358,7 +366,7 @@ class DecideStepProcessor(StepProcessor):
                 return False
             return self._evaluate_attribute_condition(entity_id, condition.name, operator, value)
         elif if_type == "expression":
-            return self._evaluate_expression_condition(entity_id, operator, value)
+            return self._evaluate_expression_condition(entity_id, operator, value, entity_table)
         else:
             self.logger.error(f"Unsupported if type: {if_type}")
             return False
@@ -444,40 +452,63 @@ class DecideStepProcessor(StepProcessor):
             self.logger.error(f"Error evaluating attribute condition for entity {entity_id}: {e}")
             return False
     
-    def _evaluate_expression_condition(self, entity_id: int, operator: str, expression_value: str) -> bool:
+    def _evaluate_expression_condition(self, entity_id: int, operator: str, expression_value: str, entity_table: str = None) -> bool:
         """
-        Evaluate expression condition.
+        Evaluate expression condition with Entity.property support.
         
         Args:
             entity_id: Entity ID
             operator: Comparison operator (==, !=, etc.)
-            expression_value: Expression string to evaluate
+            expression_value: Expression string to evaluate (can contain Entity.property references)
+            entity_table: Entity table name (for database lookups)
             
         Returns:
             Boolean result of the condition evaluation
         """
         try:
-            # For Step 1: Simple boolean string evaluation
-            # TODO: In later steps, this will support SQL queries and helper functions
-            if expression_value.lower() == "true":
-                actual_value = True
-            elif expression_value.lower() == "false":
-                actual_value = False
-            else:
-                self.logger.warning(f"Unknown expression value for entity {entity_id}: {expression_value}, defaulting to False")
-                actual_value = False
+            # Check if we have Entity.property references in the expression
+            if 'Entity.' in expression_value and self.sql_expression_evaluator and entity_table:
+                # Step 3: Use SQL expression evaluator for Entity property access
+                self.logger.debug(f"Entity {entity_id}: Evaluating expression with Entity properties: {expression_value}")
+                
+                # Check if expression already contains a comparison operator
+                if any(op in expression_value for op in [' == ', ' != ', ' > ', ' < ', ' >= ', ' <= ']):
+                    # Expression already complete (e.g., "Entity.status == 'processing'")
+                    full_expression = expression_value
+                else:
+                    # Simple expression needs operator (e.g., "true" with operator "==")
+                    if operator == "==":
+                        full_expression = f"{expression_value} == true"
+                    else:
+                        full_expression = expression_value
+                
+                result = self.sql_expression_evaluator.evaluate_boolean_expression(
+                    entity_id, entity_table, full_expression
+                )
+                self.logger.debug(f"Entity {entity_id}: Entity property expression result: {result}")
+                return result
             
-            # Apply the operator (for now just handle ==)
-            if operator == "==":
-                result = actual_value == True
-            elif operator == "!=":
-                result = actual_value != True
             else:
-                self.logger.error(f"Unsupported operator for expression condition: {operator}")
-                return False
-            
-            self.logger.debug(f"Entity {entity_id}: expression '{expression_value}' {operator} True -> {result}")
-            return result
+                # Step 1: Simple boolean string evaluation (backward compatibility)
+                if expression_value.lower() == "true":
+                    actual_value = True
+                elif expression_value.lower() == "false":
+                    actual_value = False
+                else:
+                    self.logger.warning(f"Unknown expression value for entity {entity_id}: {expression_value}, defaulting to False")
+                    actual_value = False
+                
+                # Apply the operator (for now just handle ==)
+                if operator == "==":
+                    result = actual_value == True
+                elif operator == "!=":
+                    result = actual_value != True
+                else:
+                    self.logger.error(f"Unsupported operator for expression condition: {operator}")
+                    return False
+                
+                self.logger.debug(f"Entity {entity_id}: simple expression '{expression_value}' {operator} True -> {result}")
+                return result
             
         except Exception as e:
             self.logger.error(f"Error evaluating expression condition for entity {entity_id}: {e}")
