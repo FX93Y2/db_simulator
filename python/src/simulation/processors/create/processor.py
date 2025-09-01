@@ -6,9 +6,10 @@ and routes them to their initial processing steps.
 """
 
 import logging
+import random
 from datetime import timedelta
 from typing import Optional, Generator
-from sqlalchemy import create_engine, insert
+from sqlalchemy import create_engine, insert, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
@@ -248,6 +249,9 @@ class CreateStepProcessor(StepProcessor):
                 entity_id = self.entity_manager.create_entity(session, entity_table)
                 
                 if entity_id:
+                    # Handle inventory selection if required for this entity table
+                    self._handle_inventory_selection(entity_id, entity_table, session)
+                    
                     session.commit()
                     
                     # Entity arrival time is now automatically tracked via created_at column
@@ -305,3 +309,166 @@ class CreateStepProcessor(StepProcessor):
             if step.step_id == step_id:
                 return step
         return None
+    
+    def _handle_inventory_selection(self, entity_id: int, entity_table: str, session):
+        """
+        Handle inventory selection for an entity if inventory requirements are configured.
+        
+        Args:
+            entity_id: ID of the created entity
+            entity_table: Name of the entity table
+            session: SQLAlchemy session for database operations
+        """
+        try:
+            # Check if this entity table has inventory requirements
+            inventory_req = self._get_inventory_requirement(entity_table)
+            if not inventory_req:
+                return  # No inventory requirements for this entity type
+            
+            logger.debug(f"Processing inventory selection for entity {entity_id} in table {entity_table}")
+            
+            # Select inventory items based on requirements
+            selected_items = self._select_inventory_items(inventory_req)
+            
+            if selected_items:
+                # Populate bridge table with selected items
+                self._populate_bridge_table(entity_id, selected_items, inventory_req.bridge_table, session)
+                logger.debug(f"Populated bridge table {inventory_req.bridge_table} with {len(selected_items)} items for entity {entity_id}")
+            
+        except Exception as e:
+            logger.error(f"Error handling inventory selection for entity {entity_id}: {e}", exc_info=True)
+    
+    def _get_inventory_requirement(self, entity_table: str):
+        """
+        Get inventory requirement configuration for the given entity table.
+        
+        Args:
+            entity_table: Name of the entity table
+            
+        Returns:
+            InventoryRequirement object or None if not found
+        """
+        if not self.config.event_simulation or not self.config.event_simulation.entities:
+            return None
+        
+        for inventory_req in self.config.event_simulation.entities:
+            if inventory_req.entity_table == entity_table:
+                return inventory_req
+        
+        return None
+    
+    def _select_inventory_items(self, inventory_req):
+        """
+        Select inventory items based on the selection strategy and quantity requirements.
+        
+        Args:
+            inventory_req: InventoryRequirement configuration
+            
+        Returns:
+            List of tuples (inventory_id, quantity_needed)
+        """
+        try:
+            # Get available inventory items
+            available_items = self._get_available_inventory_items(inventory_req.inventory_table)
+            
+            if not available_items:
+                logger.warning(f"No available inventory items in table {inventory_req.inventory_table}")
+                return []
+            
+            # Determine how many different items to select
+            num_items = self._evaluate_quantity_formula(inventory_req.quantity)
+            num_items = min(num_items, len(available_items))  # Can't select more than available
+            
+            if num_items <= 0:
+                return []
+            
+            # Select items based on strategy
+            if inventory_req.selection_strategy == "random":
+                selected_items = random.sample(available_items, num_items)
+            else:
+                # For now, default to random selection
+                logger.warning(f"Selection strategy '{inventory_req.selection_strategy}' not implemented, using random")
+                selected_items = random.sample(available_items, num_items)
+            
+            # Determine quantity needed for each selected item
+            result = []
+            for item_id in selected_items:
+                quantity_needed = self._evaluate_quantity_formula(inventory_req.unit_quantity)
+                result.append((item_id, max(1, quantity_needed)))  # Ensure at least 1
+            
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error selecting inventory items: {e}", exc_info=True)
+            return []
+    
+    def _get_available_inventory_items(self, inventory_table: str):
+        """
+        Get list of available inventory item IDs from the inventory table.
+        
+        Args:
+            inventory_table: Name of the inventory table
+            
+        Returns:
+            List of inventory item IDs
+        """
+        try:
+            # Create a direct connection to avoid session issues
+            with self.engine.connect() as connection:
+                query = text(f'SELECT id FROM "{inventory_table}" WHERE quantity > 0 ORDER BY id')
+                results = connection.execute(query).fetchall()
+                return [row[0] for row in results]
+                
+        except Exception as e:
+            logger.error(f"Error getting available inventory items from {inventory_table}: {e}")
+            return []
+    
+    def _evaluate_quantity_formula(self, formula):
+        """
+        Evaluate a quantity formula (can be int or distribution formula).
+        
+        Args:
+            formula: Integer value or distribution formula string
+            
+        Returns:
+            Integer quantity value
+        """
+        try:
+            if isinstance(formula, int):
+                return formula
+            
+            # It's a distribution formula
+            dist_config = extract_distribution_config(formula)
+            return max(1, int(generate_from_distribution(dist_config)))
+            
+        except Exception as e:
+            logger.warning(f"Error evaluating quantity formula '{formula}': {e}, using default 1")
+            return 1
+    
+    def _populate_bridge_table(self, entity_id: int, selected_items, bridge_table: str, session):
+        """
+        Populate the bridge table with selected inventory items.
+        
+        Args:
+            entity_id: ID of the entity
+            selected_items: List of tuples (inventory_id, quantity_needed)
+            bridge_table: Name of the bridge table
+            session: SQLAlchemy session
+        """
+        try:
+            for inventory_id, quantity_needed in selected_items:
+                # Insert into bridge table
+                insert_stmt = text(f'''
+                    INSERT INTO "{bridge_table}" (entity_id, inventory_id, quantity_needed)
+                    VALUES (:entity_id, :inventory_id, :quantity_needed)
+                ''')
+                
+                session.execute(insert_stmt, {
+                    "entity_id": entity_id,
+                    "inventory_id": inventory_id,
+                    "quantity_needed": quantity_needed
+                })
+                
+        except Exception as e:
+            logger.error(f"Error populating bridge table {bridge_table}: {e}", exc_info=True)
+            raise  # Re-raise to trigger transaction rollback

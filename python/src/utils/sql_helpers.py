@@ -8,41 +8,48 @@ database column values during simulation execution.
 
 import logging
 import re
-from typing import Any, Dict, Optional, TYPE_CHECKING
+from typing import Any, Dict, List, Optional, TYPE_CHECKING
 from sqlalchemy import text
 
 if TYPE_CHECKING:
     from ..simulation.managers.entity_attribute_manager import EntityAttributeManager
+    from ..simulation.helpers.inventory_helpers import InventoryHelpers
 
 logger = logging.getLogger(__name__)
 
 
 class SQLExpressionEvaluator:
     """
-    Evaluates expressions containing Entity.property syntax.
+    Evaluates expressions containing Entity.property syntax and helper functions.
     
     Supports:
     - Entity.id - Primary key access
     - Entity.<column_name> - Database column access
     - Entity.<attribute_name> - In-memory attribute access
+    - Helper function: CHECK_INVENTORY for inventory availability checking
     - Boolean expressions for decide conditions
     - SQL variable substitution for assign operations
     """
     
-    def __init__(self, engine, entity_attribute_manager: 'EntityAttributeManager'):
+    def __init__(self, engine, entity_attribute_manager: 'EntityAttributeManager', inventory_helpers: 'InventoryHelpers' = None):
         """
         Initialize the expression evaluator.
         
         Args:
             engine: SQLAlchemy engine for database operations
             entity_attribute_manager: Manager for in-memory entity attributes
+            inventory_helpers: Helper functions for inventory operations (optional)
         """
         self.engine = engine
         self.entity_attribute_manager = entity_attribute_manager
+        self.inventory_helpers = inventory_helpers
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
         
         # Regex pattern to match Entity.property references
         self.entity_property_pattern = re.compile(r'\bEntity\.(\w+)\b')
+        
+        # Regex pattern to match helper function calls (CHECK_INVENTORY only)
+        self.function_pattern = re.compile(r'\b(CHECK_INVENTORY)\s*\((.*?)\)', re.DOTALL)
     
     def evaluate_boolean_expression(self, entity_id: int, entity_table: str, expression: str) -> bool:
         """
@@ -57,17 +64,22 @@ class SQLExpressionEvaluator:
             Boolean result of the expression
         """
         try:
-            # Replace Entity.property references with actual values
-            resolved_expression = self._resolve_entity_properties(entity_id, entity_table, expression)
+            # Step 4: First resolve helper functions
+            expression_with_functions = self._resolve_helper_functions(entity_id, entity_table, expression)
+            if expression_with_functions is None:
+                self.logger.error(f"Failed to resolve helper functions in expression: {expression}")
+                return False
+            
+            # Then replace Entity.property references with actual values
+            resolved_expression = self._resolve_entity_properties(entity_id, entity_table, expression_with_functions)
             
             if resolved_expression is None:
-                self.logger.error(f"Failed to resolve entity properties in expression: {expression}")
+                self.logger.error(f"Failed to resolve entity properties in expression: {expression_with_functions}")
                 return False
             
             self.logger.debug(f"Entity {entity_id}: Resolved '{expression}' -> '{resolved_expression}'")
             
-            # For Step 3, we'll support simple boolean expressions
-            # In future steps, this could be extended to use eval() safely or a proper expression parser
+            # Support both simple boolean expressions and helper function results
             return self._evaluate_simple_boolean_expression(resolved_expression)
             
         except Exception as e:
@@ -87,11 +99,17 @@ class SQLExpressionEvaluator:
             SQL statement with variables substituted, or None if substitution failed
         """
         try:
-            # Replace Entity.property references with actual values
-            resolved_sql = self._resolve_entity_properties(entity_id, entity_table, sql_statement, for_sql=True)
+            # Step 4: First resolve helper functions
+            sql_with_functions = self._resolve_helper_functions(entity_id, entity_table, sql_statement, for_sql=True)
+            if sql_with_functions is None:
+                self.logger.error(f"Failed to resolve helper functions in SQL: {sql_statement}")
+                return None
+            
+            # Then replace Entity.property references with actual values
+            resolved_sql = self._resolve_entity_properties(entity_id, entity_table, sql_with_functions, for_sql=True)
             
             if resolved_sql is None:
-                self.logger.error(f"Failed to resolve entity properties in SQL: {sql_statement}")
+                self.logger.error(f"Failed to resolve entity properties in SQL: {sql_with_functions}")
                 return None
             
             self.logger.debug(f"Entity {entity_id}: SQL resolved '{sql_statement}' -> '{resolved_sql}'")
@@ -99,6 +117,133 @@ class SQLExpressionEvaluator:
             
         except Exception as e:
             self.logger.error(f"Error substituting SQL variables for entity {entity_id}: {e}")
+            return None
+    
+    def _resolve_helper_functions(self, entity_id: int, entity_table: str, expression: str, for_sql: bool = False) -> Optional[str]:
+        """
+        Resolve helper function calls in an expression.
+        
+        Args:
+            entity_id: ID of the entity
+            entity_table: Name of the entity table
+            expression: Expression containing helper function calls
+            for_sql: Whether this is for SQL substitution
+            
+        Returns:
+            Expression with helper functions resolved to actual values
+        """
+        if not self.inventory_helpers:
+            # No helper functions available, return as-is
+            return expression
+        
+        # Find all function calls
+        function_matches = self.function_pattern.findall(expression)
+        
+        if not function_matches:
+            # No functions to resolve
+            return expression
+        
+        resolved_expression = expression
+        
+        # Process each function call
+        for func_name, func_args in function_matches:
+            try:
+                # Parse function arguments
+                args = self._parse_function_arguments(func_args)
+                
+                # First resolve Entity properties in arguments
+                resolved_args = []
+                for arg in args:
+                    if 'Entity.' in arg:
+                        resolved_arg = self._resolve_entity_properties(entity_id, entity_table, arg, for_sql=False)
+                        if resolved_arg is not None:
+                            resolved_args.append(resolved_arg)
+                        else:
+                            self.logger.error(f"Failed to resolve Entity properties in function argument: {arg}")
+                            return None
+                    else:
+                        resolved_args.append(arg)
+                
+                # Execute the helper function
+                result = self._execute_helper_function(func_name, resolved_args, entity_table)
+                
+                if result is None:
+                    self.logger.error(f"Helper function {func_name} returned None")
+                    return None
+                
+                # Format result for substitution
+                if for_sql:
+                    if isinstance(result, str) and result != "NULL":
+                        # For SQL, string results from INVENTORY_IDS don't need quotes
+                        formatted_result = result
+                    elif isinstance(result, bool):
+                        formatted_result = "1" if result else "0"
+                    else:
+                        formatted_result = str(result)
+                else:
+                    # For boolean expressions
+                    if isinstance(result, bool):
+                        formatted_result = "true" if result else "false"
+                    else:
+                        formatted_result = str(result)
+                
+                # Replace the function call with the result
+                func_call_pattern = f"{func_name}({func_args})"
+                resolved_expression = resolved_expression.replace(func_call_pattern, formatted_result)
+                
+                self.logger.debug(f"Entity {entity_id}: Resolved {func_call_pattern} -> {formatted_result}")
+                
+            except Exception as e:
+                self.logger.error(f"Error resolving function {func_name} for entity {entity_id}: {e}")
+                return None
+        
+        return resolved_expression
+    
+    def _parse_function_arguments(self, args_string: str) -> List[str]:
+        """
+        Parse function arguments from argument string.
+        
+        Args:
+            args_string: String containing function arguments
+            
+        Returns:
+            List of argument strings
+        """
+        if not args_string.strip():
+            return []
+        
+        # Simple comma-based splitting (could be enhanced for nested calls)
+        args = [arg.strip() for arg in args_string.split(',')]
+        return args
+    
+    def _execute_helper_function(self, func_name: str, args: List[str], entity_table: str = None) -> Any:
+        """
+        Execute a helper function with given arguments.
+        
+        Args:
+            func_name: Name of the helper function
+            args: List of resolved arguments
+            entity_table: Entity table name (for context)
+            
+        Returns:
+            Result of the helper function
+        """
+        func_name = func_name.upper()
+        
+        try:
+            if func_name == "CHECK_INVENTORY":
+                if len(args) != 3:
+                    self.logger.error(f"CHECK_INVENTORY requires 3 arguments (entity_id, bridge_table, inventory_table), got {len(args)}")
+                    return None
+                # Bridge table approach: CHECK_INVENTORY(entity_id, bridge_table, inventory_table)
+                return self.inventory_helpers.check_inventory(args[0], args[1], args[2])
+            
+            else:
+                self.logger.error(f"Unknown helper function: {func_name}")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"Error executing helper function {func_name}: {e}")
             return None
     
     def _resolve_entity_properties(self, entity_id: int, entity_table: str, expression: str, for_sql: bool = False) -> Optional[str]:

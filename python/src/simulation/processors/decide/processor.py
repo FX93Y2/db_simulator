@@ -11,6 +11,7 @@ from typing import Any, Generator, Optional
 
 from ..base import StepProcessor
 from ....utils.sql_helpers import SQLExpressionEvaluator
+from ...helpers.inventory_helpers import InventoryHelpers
 
 logger = logging.getLogger(__name__)
 
@@ -53,8 +54,10 @@ class DecideStepProcessor(StepProcessor):
         self.entity_attribute_manager = manager
         # Initialize SQL expression evaluator when we have both engine and entity_attribute_manager
         if self.engine and manager:
-            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager)
-            self.logger.debug("SQL expression evaluator initialized")
+            # Create inventory helpers for use in expressions
+            inventory_helpers = InventoryHelpers(self.engine)
+            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager, inventory_helpers)
+            self.logger.debug("SQL expression evaluator initialized with inventory helpers")
         self.logger.debug("Entity attribute manager set")
     
     def can_handle(self, step_type: str) -> bool:
