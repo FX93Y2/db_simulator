@@ -204,8 +204,14 @@
   .btn-outline-secondary {
     border-color: var(--theme-muted-text);
     color: var(--theme-muted-text);
+    transition: border-color 0.15s ease-in-out, background-color 0.15s ease-in-out;
     
     &:hover {
+      border-color: var(--theme-input-focus-border);
+      color: var(--theme-muted-text);
+    }
+    
+    &:active, &:focus {
       background-color: var(--theme-muted-text);
       border-color: var(--theme-muted-text);
       color: white;

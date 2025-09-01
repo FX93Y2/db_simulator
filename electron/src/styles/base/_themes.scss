@@ -287,10 +287,10 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
     background-color: var(--theme-dropdown-bg);
     border-color: var(--theme-border);
     color: var(--theme-text);
+    transition: border-color 0.15s ease-in-out, background-color 0.15s ease-in-out;
     
     &:hover {
-      background-color: var(--theme-hover-bg);
-      border-color: var(--theme-border);
+      border-color: var(--theme-input-focus-border);
       color: var(--theme-text);
     }
     

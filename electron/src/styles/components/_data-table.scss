@@ -5,8 +5,9 @@
   .data-grid-container {
     border: 1px solid var(--theme-border);
     border-radius: 8px;
-    overflow: hidden;
+    overflow: visible;
     background-color: var(--theme-editor-bg);
+    position: relative;
   }
   
   .data-grid-header {
@@ -44,6 +45,8 @@
         display: flex;
         align-items: center;
         min-height: 44px;
+        position: relative;
+        overflow: visible;
       }
     }
   }
@@ -86,7 +89,7 @@
   .data-grid-header,
   .data-grid-row {
     display: grid;
-    grid-template-columns: 40px 200px 150px 1fr 60px;
+    grid-template-columns: 40px 200px 200px 1fr 60px;
     gap: 0;
   }
 }
@@ -211,7 +214,7 @@
     gap: 8px;
     flex-wrap: wrap;
     width: 100%;
-    overflow: hidden;
+    overflow: visible;
   }
   
   .add-attribute-btn {

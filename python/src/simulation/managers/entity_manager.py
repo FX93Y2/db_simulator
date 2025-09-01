@@ -17,6 +17,7 @@ from ...config_parser import SimulationConfig, DatabaseConfig
 from ...config_parser import Entity as DbEntity
 from ...distributions import generate_from_distribution
 from ...utils.data_generation import generate_attribute_value
+from ...utils.type_processing import process_value_for_type
 
 logger = logging.getLogger(__name__)
 
@@ -409,7 +410,9 @@ class EntityManager:
                         'generator': gen_dict
                     }
                     # Use next_id - 1 for 0-based row_index context for generators
-                    row_data[attr.name] = generate_attribute_value(attr_config_dict, next_id - 1)
+                    generated_value = generate_attribute_value(attr_config_dict, next_id - 1)
+                    # Apply type-aware processing
+                    row_data[attr.name] = process_value_for_type(generated_value, attr.type)
                 else:
                     # Handle attributes without generators if necessary (e.g., default NULL or specific value)
                     # For now, let the DB handle defaults or NULL

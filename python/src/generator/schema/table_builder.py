@@ -7,12 +7,11 @@ and database tables from configuration.
 
 import logging
 from typing import Any, Dict
-from datetime import datetime
 
-from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
+from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, Numeric, Float, Boolean, Text, Date, Time
 from sqlalchemy.ext.declarative import declarative_base
 
-from ...config_parser import DatabaseConfig, Entity, Attribute
+from ...config_parser import DatabaseConfig, Entity
 
 logger = logging.getLogger(__name__)
 
@@ -104,14 +103,58 @@ class TableBuilder:
         Returns:
             SQLAlchemy column type
         """
+        # Handle parameterized types like decimal(10,2), varchar(50)
+        if '(' in attr_type:
+            base_type = attr_type.split('(')[0].lower()
+            params = attr_type.split('(')[1].rstrip(')').split(',')
+            
+            if base_type == 'decimal' or base_type == 'numeric':
+                precision = int(params[0]) if len(params) > 0 else 10
+                scale = int(params[1]) if len(params) > 1 else 2
+                return Numeric(precision, scale)
+            elif base_type == 'varchar':
+                length = int(params[0]) if len(params) > 0 else 255
+                return String(length)
+            elif base_type == 'char':
+                length = int(params[0]) if len(params) > 0 else 1
+                return String(length)
+        
+        # Basic type mapping
         type_map = {
+            # Legacy mappings
             'string': String,
             'int': Integer,
             'pk': Integer,
-            'fk': Integer
+            'fk': Integer,
+            
+            # Standard SQL types
+            'integer': Integer,
+            'int': Integer,
+            'bigint': Integer,
+            'smallint': Integer,
+            'tinyint': Integer,
+            
+            'decimal': Numeric,
+            'numeric': Numeric,
+            'float': Float,
+            'double': Float,
+            'real': Float,
+            
+            'varchar': String,
+            'char': String,
+            'text': Text,
+            'string': String,
+            
+            'boolean': Boolean,
+            'bool': Boolean,
+            
+            'datetime': DateTime,
+            'timestamp': DateTime,
+            'date': Date,
+            'time': Time,
         }
         
-        return type_map.get(attr_type, String)
+        return type_map.get(attr_type.lower(), String)
     
     def _get_attributes_for_entity(self, entity_name: str) -> Dict[str, Any]:
         """

@@ -7,6 +7,7 @@ import TemplateGeneratorEditor from './TemplateGeneratorEditor';
 import DistributionGeneratorEditor from './DistributionGeneratorEditor';
 import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
 import FormulaGeneratorEditor from './FormulaGeneratorEditor';
+import TypeSelector from '../../../shared/TypeSelector';
 
 const AttributeTable = ({ 
   attributes = [], 
@@ -14,7 +15,6 @@ const AttributeTable = ({
   onAddAttribute, 
   onDeleteAttribute,
   entityType = '', 
-  theme = 'light',
   onGeneratorModalChange
 }) => {
   const [editingIndex, setEditingIndex] = useState(-1);
@@ -79,23 +79,88 @@ const AttributeTable = ({
     
     // Handle generator configuration based on data type
     if (field === 'type') {
+      const oldType = attributes[index].type;
+      const existingGenerator = updatedAttribute.generator;
+      
       if (!shouldHaveGenerator(value)) {
         delete updatedAttribute.generator;
       } else if (value === 'fk') {
+        // Foreign key type always needs specific generator
         updatedAttribute.generator = {
           type: 'foreign_key',
           subtype: 'one_to_many'
         };
-      } else if (value === 'resource_type') {
-        updatedAttribute.generator = {
-          type: 'distribution',
-          formula: ''
-        };
+      } else if (oldType === 'fk') {
+        // Changing FROM foreign key - need to create new appropriate generator
+        if (value === 'resource_type') {
+          updatedAttribute.generator = {
+            type: 'distribution',
+            formula: ''
+          };
+        } else {
+          updatedAttribute.generator = {
+            type: 'faker',
+            method: 'name'
+          };
+        }
+      } else if (existingGenerator) {
+        // Helper functions for type checking
+        const isNumericType = (type) => ['integer', 'float', 'decimal', 'numeric'].includes(type.split('(')[0]);
+        const isTextType = (type) => ['string', 'varchar', 'char', 'text'].includes(type.split('(')[0]);
+        const isDateType = (type) => ['date', 'datetime'].includes(type);
+        
+        let shouldPreserve = false;
+        
+        // Check if we should preserve the existing generator
+        if (existingGenerator.type === 'distribution' && 
+            (isNumericType(oldType) && isNumericType(value))) {
+          shouldPreserve = true;
+        }
+        else if (existingGenerator.type === 'faker' && 
+                 ((isTextType(oldType) && isTextType(value)) ||
+                  (isDateType(oldType) && isDateType(value)) ||
+                  (isNumericType(oldType) && isNumericType(value)))) {
+          shouldPreserve = true;
+        }
+        else if (existingGenerator.type === 'distribution' && 
+                 !isNumericType(value) && value !== 'resource_type') {
+          // Distribution on non-numeric type - convert to faker
+          shouldPreserve = false;
+        }
+        else {
+          // Default: try to preserve unless it's clearly incompatible
+          shouldPreserve = true;
+        }
+        
+        if (shouldPreserve) {
+          // Keep the existing generator unchanged
+        } else {
+          // Create new appropriate generator
+          if (value === 'resource_type') {
+            updatedAttribute.generator = {
+              type: 'distribution',
+              formula: ''
+            };
+          } else {
+            updatedAttribute.generator = {
+              type: 'faker',
+              method: 'name'
+            };
+          }
+        }
       } else {
-        updatedAttribute.generator = {
-          type: 'faker',
-          method: 'name'
-        };
+        // No existing generator - create default for new type
+        if (value === 'resource_type') {
+          updatedAttribute.generator = {
+            type: 'distribution',
+            formula: ''
+          };
+        } else {
+          updatedAttribute.generator = {
+            type: 'faker',
+            method: 'name'
+          };
+        }
       }
     }
     
@@ -281,7 +346,7 @@ const AttributeTable = ({
                                 value={attribute.name}
                                 onChange={(e) => handleAttributeChange(index, 'name', e.target.value)}
                                 onBlur={() => setEditingIndex(-1)}
-                                onKeyPress={(e) => {
+                                onKeyDown={(e) => {
                                   if (e.key === 'Enter') setEditingIndex(-1);
                                 }}
                                 autoFocus
@@ -302,25 +367,13 @@ const AttributeTable = ({
                                 {attribute.type === 'event_type' ? 'Event Type' : 'DateTime'}
                               </span>
                             ) : (
-                              <Form.Select
-                                size="sm"
+                              <TypeSelector
                                 value={attribute.type}
-                                onChange={(e) => handleAttributeChange(index, 'type', e.target.value)}
-                              >
-                                <option value="string">String</option>
-                                <option value="integer">Integer</option>
-                                <option value="float">Float</option>
-                                <option value="boolean">Boolean</option>
-                                <option value="date">Date</option>
-                                <option value="datetime">DateTime</option>
-                                <option value="pk">Primary Key</option>
-                                <option value="fk">Foreign Key</option>
-                                <option value="event_id">Event ID (FK)</option>
-                                <option value="entity_id">Entity ID (FK)</option>
-                                <option value="resource_id">Resource ID (FK)</option>
-                                <option value="event_type">Event Type</option>
-                                <option value="resource_type">Resource Type</option>
-                              </Form.Select>
+                                onChange={(value) => handleAttributeChange(index, 'type', value)}
+                                size="sm"
+                                disabled={false}
+                                className=""
+                              />
                             )}
                           </div>
                           <div className="grid-cell">

@@ -11,6 +11,7 @@ from typing import List, Any
 
 from ...config_parser import DatabaseConfig, Entity, Attribute
 from ...utils.data_generation import generate_attribute_value
+from ...utils.type_processing import process_value_for_type
 
 logger = logging.getLogger(__name__)
 
@@ -180,7 +181,10 @@ class DataPopulator:
         }
         
         # Note: Pass 0-based row_index to the utility function
-        return generate_attribute_value(attr_config_dict, row_index)
+        generated_value = generate_attribute_value(attr_config_dict, row_index)
+        
+        # Process the value based on the attribute's data type
+        return process_value_for_type(generated_value, attr.type)
     
     def has_pending_formulas(self) -> bool:
         """
