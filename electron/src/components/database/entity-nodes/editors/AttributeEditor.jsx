@@ -30,7 +30,7 @@ const AttributeEditor = ({
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
     // Only exclude system-managed fields that are auto-generated
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'inventory_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
@@ -316,7 +316,7 @@ const AttributeEditor = ({
         
         {/* Reference field for foreign keys */}
         {(localAttribute.type === 'fk' || localAttribute.type === 'event_id' ||
-          localAttribute.type === 'entity_id' || localAttribute.type === 'resource_id') && (
+          localAttribute.type === 'entity_id' || localAttribute.type === 'resource_id' || localAttribute.type === 'inventory_id') && (
           <div className="reference-section">
             <h6 className="section-title">Reference Configuration</h6>
             <Form.Group>

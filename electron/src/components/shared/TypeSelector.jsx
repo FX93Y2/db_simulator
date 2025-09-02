@@ -40,6 +40,7 @@ const TypeSelector = ({
       event_id: { display: 'Event ID (FK)', template: 'event_id' },
       entity_id: { display: 'Entity ID (FK)', template: 'entity_id' },
       resource_id: { display: 'Resource ID (FK)', template: 'resource_id' },
+      inventory_id: { display: 'Inventory ID (FK)', template: 'inventory_id' },
       event_type: { display: 'Event Type', template: 'event_type' },
       resource_type: { display: 'Resource Type', template: 'resource_type' }
     }

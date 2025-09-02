@@ -246,7 +246,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       const updatedEntity = {
         name: name.trim(),
         type: entityType || undefined,
-        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : 
+        rows: entityType === 'resource' || entityType === 'inventory' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : 
               (rows === 'n/a' || rows === '' ? rows : (typeof rows === 'number' ? rows : parseInt(rows) || rows)),
         attributes: attributes.map(attr => {
           const cleanedAttr = {
@@ -261,7 +261,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           
           // Add reference for foreign key types
           if ((attr.type === 'fk' || attr.type === 'event_id' || 
-               attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+               attr.type === 'entity_id' || attr.type === 'resource_id' || attr.type === 'inventory_id') && attr.ref) {
             cleanedAttr.ref = attr.ref;
           }
           
@@ -340,7 +340,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                         <option value="entity">Entity</option>
                         <option value="event">Event</option>
                         <option value="resource">Resource</option>
-                        <option value="bridging">Bridging</option>
+                        <option value="inventory">Inventory</option>
+                        <option value="bridge">Bridge</option>
                       </Form.Select>
                       <Form.Text className="text-muted">
                         Specify the role in simulations
@@ -353,7 +354,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
               <div className="col-md-4">
                 <Form.Group className="mb-3">
                   <Form.Label>Number of Rows</Form.Label>
-                  {entityType === 'resource' ? (
+                  {entityType === 'resource' || entityType === 'inventory' ? (
                     <Form.Control
                       type="number"
                       min="1"
@@ -364,7 +365,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       }}
                       placeholder="Number of rows"
                     />
-                  ) : entityType === 'bridging' || entityType === 'entity' || entityType === 'event' ? (
+                  ) : entityType === 'bridge' || entityType === 'entity' || entityType === 'event' ? (
                     <Form.Select
                       value={rows}
                       onChange={(e) => handleRowsChange(e.target.value)}

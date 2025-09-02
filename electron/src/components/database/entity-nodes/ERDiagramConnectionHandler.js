@@ -52,6 +52,8 @@ export const determineForeignKeyType = (targetEntity) => {
       return 'event_id';
     case 'resource':
       return 'resource_id';
+    case 'inventory':
+      return 'inventory_id';
     default:
       return 'fk';
   }
@@ -126,7 +128,7 @@ export const handleTableConnection = (params, dbSchema, onSchemaUpdate) => {
   
   // Check if a foreign key relationship already exists
   const existingFk = sourceEntity.attributes?.find(attr => 
-    (attr.type === 'fk' || attr.type === 'entity_id' || attr.type === 'event_id' || attr.type === 'resource_id') &&
+    (attr.type === 'fk' || attr.type === 'entity_id' || attr.type === 'event_id' || attr.type === 'resource_id' || attr.type === 'inventory_id') &&
     attr.ref && attr.ref.startsWith(`${params.target}.`)
   );
   
@@ -153,9 +155,9 @@ export const handleTableConnection = (params, dbSchema, onSchemaUpdate) => {
   // Sort attributes to ensure primary key first, then foreign keys, then others
   sourceEntity.attributes.sort((a, b) => {
     const aPriority = a.type === 'pk' ? 0 : 
-                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
+                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id' || a.type === 'inventory_id') ? 1 : 2;
     const bPriority = b.type === 'pk' ? 0 : 
-                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id') ? 1 : 2;
+                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id' || b.type === 'inventory_id') ? 1 : 2;
     
     if (aPriority !== bPriority) {
       return aPriority - bPriority;
@@ -197,7 +199,7 @@ export const handleEdgeDeletion = (deletedEdges, dbSchema, onSchemaUpdate) => {
     if (sourceEntity && sourceEntity.attributes) {
       // Find and remove the foreign key attribute
       const fkIndex = sourceEntity.attributes.findIndex(attr => 
-        (attr.type === 'fk' || attr.type === 'entity_id' || attr.type === 'event_id' || attr.type === 'resource_id') &&
+        (attr.type === 'fk' || attr.type === 'entity_id' || attr.type === 'event_id' || attr.type === 'resource_id' || attr.type === 'inventory_id') &&
         attr.ref && attr.ref.startsWith(`${targetTable}.`)
       );
       
@@ -242,7 +244,7 @@ export const handleTableDeletion = (deletedTableNames, dbSchema, onSchemaUpdate)
       const originalLength = entity.attributes.length;
       entity.attributes = entity.attributes.filter(attr => {
         // Keep non-foreign key attributes
-        if (!['fk', 'entity_id', 'event_id', 'resource_id'].includes(attr.type)) {
+        if (!['fk', 'entity_id', 'event_id', 'resource_id', 'inventory_id'].includes(attr.type)) {
           return true;
         }
         
@@ -313,6 +315,22 @@ export const getSuggestedConnectionTypes = (sourceEntity, targetEntity) => {
     suggestions.push({
       type: 'entity_id',
       description: 'Entity references resource',
+      cardinality: 'many-to-one'
+    });
+  }
+
+  if (sourceEntity.type === 'bridge' && targetEntity.type === 'inventory') {
+    suggestions.push({
+      type: 'inventory_id',
+      description: 'Bridge table references inventory item',
+      cardinality: 'many-to-one'
+    });
+  }
+
+  if (sourceEntity.type === 'bridge' && targetEntity.type === 'entity') {
+    suggestions.push({
+      type: 'entity_id',
+      description: 'Bridge table references entity',
       cardinality: 'many-to-one'
     });
   }

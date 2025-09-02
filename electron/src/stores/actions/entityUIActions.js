@@ -162,11 +162,12 @@ export const createEntityUIActions = (set, get) => ({
       // Find and remove the foreign key attribute
       const updatedAttributes = sourceEntity.attributes.filter(attr => {
         // Check if this attribute is a foreign key pointing to the target entity
-        // Handle both standard FK types (fk) and simulation FK types (resource_id, event_id, entity_id)
+        // Handle both standard FK types (fk) and simulation FK types (resource_id, event_id, entity_id, inventory_id)
         const isForeignKey = attr.type.startsWith('fk') || 
                             attr.type === 'resource_id' || 
                             attr.type === 'event_id' || 
-                            attr.type === 'entity_id';
+                            attr.type === 'entity_id' || 
+                            attr.type === 'inventory_id';
         
         const pointsToTarget = attr.ref && attr.ref.startsWith(`${targetEntityId}.`);
         
