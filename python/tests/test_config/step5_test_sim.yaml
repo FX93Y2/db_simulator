@@ -1,0 +1,149 @@
+simulation:
+  base_time_unit: minutes
+  terminating_conditions: ENTITIES(Order, 10)
+  start_date: 2024-01-01
+  random_seed: 42
+
+# Define inventory requirements for entities
+entities:
+  - entity_table: Order
+    inventory_requirements:
+      inventory_table: Book
+      bridge_table: OrderBooks
+      selection_strategy: random
+      quantity: DISC(0.6, 1, 0.3, 2, 0.1, 3)  # Number of different books
+      unit_quantity: DISC(0.8, 1, 0.15, 2, 0.05, 100)  # Quantity per book
+
+event_simulation:
+  event_flows:
+    - flow_id: order_processing
+      event_table: OrderEvent
+      steps:
+        # Create orders with inventory selection
+        - step_id: create_orders
+          step_type: create
+          create_config:
+            entity_table: Order
+            interarrival_time: UNIF(0.5, 1.5)
+            max_entities: n/a
+          next_steps:
+            - check_inventory_availability
+            
+        # Check if all selected inventory is available
+        - step_id: check_inventory_availability
+          step_type: decide
+          decide_config:
+            decision_type: 2way-condition
+            outcomes:
+              - outcome_id: inventory_available
+                next_step_id: calculate_order_total
+                conditions:
+                  - if: |
+                      SELECT CASE 
+                        WHEN COUNT(*) = 0 THEN 'true'
+                        WHEN SUM(CASE WHEN ob.quantity_needed > b.quantity THEN 1 ELSE 0 END) = 0 THEN 'true'
+                        ELSE 'false'
+                       END
+                       FROM OrderBooks ob 
+                       LEFT JOIN Book b ON ob.inventory_id = b.id 
+                       WHERE ob.entity_id = Entity.id
+                    is: ==
+                    value: true
+              - outcome_id: inventory_unavailable
+                next_step_id: set_status_backorder
+          
+        # Calculate order total using inventory items
+        - step_id: calculate_order_total
+          step_type: assign
+          assign_config:
+            assignments:
+              # Calculate total cost using helper functions
+              - assignment_type: sql
+                attribute_name: total_cost
+                expression: |
+                  SELECT SUM(Book.price * OrderBooks.quantity_needed)
+                  FROM Book 
+                  JOIN OrderBooks ON Book.id = OrderBooks.inventory_id
+                  WHERE OrderBooks.entity_id = Entity.id
+          next_steps:
+            - update_inventory_quantities
+        
+        # Update book quantities by decrementing them
+        - step_id: update_inventory_quantities
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |
+                  UPDATE Book 
+                  SET quantity = quantity - (
+                      SELECT OrderBooks.quantity_needed 
+                      FROM OrderBooks 
+                      WHERE OrderBooks.entity_id = Entity.id 
+                      AND OrderBooks.inventory_id = Book.id
+                  )
+                  WHERE Book.id IN (
+                      SELECT inventory_id 
+                      FROM OrderBooks 
+                      WHERE entity_id = Entity.id
+                  )
+          next_steps:
+            - set_status_completed
+        
+        # Mark order as completed
+        - step_id: set_status_completed
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: completed
+        
+        # Handle backorder scenario - set status and move to delay
+        - step_id: set_status_backorder
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: backorder
+          next_steps:
+            - backorder_delay
+
+        # Add delay simulating backorder processing time
+        - step_id: backorder_delay
+          step_type: event
+          event_config:
+            event_type: backorder_processing
+            event_table: OrderEvent
+            duration: UNIF(2, 5)  # 2-5 minutes delay for restocking
+          next_steps:
+            - restock_inventory
+
+        # Restock inventory with the required amounts + buffer
+        - step_id: restock_inventory
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |
+                  UPDATE Book 
+                  SET quantity = quantity + (
+                      SELECT COALESCE(
+                          MAX(ob.quantity_needed - COALESCE(b.quantity, 0) + 20), 
+                          ob.quantity_needed + 20
+                      )
+                      FROM OrderBooks ob 
+                      LEFT JOIN Book b ON ob.inventory_id = b.id
+                      WHERE ob.entity_id = Entity.id 
+                      AND ob.inventory_id = Book.id
+                  )
+                  WHERE Book.id IN (
+                      SELECT ob.inventory_id 
+                      FROM OrderBooks ob
+                      LEFT JOIN Book b ON ob.inventory_id = b.id
+                      WHERE ob.entity_id = Entity.id
+                      AND COALESCE(b.quantity, 0) < ob.quantity_needed
+                  )
+          next_steps:
+            - check_inventory_availability  # Loop back to check again

@@ -1,0 +1,70 @@
+entities:
+  # Inventory table for books
+  - name: Book
+    type: inventory
+    rows: 10
+    attributes:
+      - name: id
+        type: pk
+      - name: title
+        type: varchar(100)
+        generator:
+          type: faker
+          template: book.title
+      - name: price
+        type: decimal(10,2)
+        generator:
+          type: distribution
+          formula: UNIF(9.99, 29.99)
+      - name: quantity
+        type: integer
+        generator:
+          type: distribution
+          formula: UNIF(50, 100)
+  
+  # Entity table for orders
+  - name: Order
+    type: entity
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: customer_name
+        type: varchar(50)
+        generator:
+          type: faker
+          method: name
+      - name: status
+        type: varchar(20)
+        generator:
+          type: template
+          template: "pending"
+  
+  # Bridge table for order-book relationships
+  - name: OrderBooks
+    type: bridge
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: entity_id
+        type: integer
+        ref: Order.id
+      - name: inventory_id
+        type: integer
+        ref: Book.id
+      - name: quantity_needed
+        type: integer
+  
+  # Event table for order events
+  - name: OrderEvent
+    type: event
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: order_id
+        type: entity_id
+        ref: Order.id
+      - name: event_type
+        type: event_type

@@ -23,7 +23,6 @@ coverage.xml
 *.cover
 instruction.txt
 backup/
-tests/
 # Node.js
 node_modules/
 npm-debug.log

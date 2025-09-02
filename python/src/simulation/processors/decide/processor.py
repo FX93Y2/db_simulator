@@ -11,7 +11,6 @@ from typing import Any, Generator, Optional
 
 from ..base import StepProcessor
 from ....utils.sql_helpers import SQLExpressionEvaluator
-from ...helpers.inventory_helpers import InventoryHelpers
 
 logger = logging.getLogger(__name__)
 
@@ -54,10 +53,9 @@ class DecideStepProcessor(StepProcessor):
         self.entity_attribute_manager = manager
         # Initialize SQL expression evaluator when we have both engine and entity_attribute_manager
         if self.engine and manager:
-            # Create inventory helpers for use in expressions
-            inventory_helpers = InventoryHelpers(self.engine)
-            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager, inventory_helpers)
-            self.logger.debug("SQL expression evaluator initialized with inventory helpers")
+            # Create SQL expression evaluator for Entity.property support
+            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager)
+            self.logger.debug("SQL expression evaluator initialized")
         self.logger.debug("Entity attribute manager set")
     
     def can_handle(self, step_type: str) -> bool:
@@ -357,10 +355,12 @@ class DecideStepProcessor(StepProcessor):
             self.logger.error(f"Invalid condition format for entity {entity_id}: missing required fields (if, is, value)")
             return False
             
-        if_type = condition.if_.lower()
+        if_content = condition.if_.strip() if condition.if_ else ""
+        if_type = if_content.lower()
         operator = condition.is_
         value = condition.value
         
+        # Detect different condition types
         if if_type == "probability":
             return self._evaluate_probability_condition(entity_id, operator, value)
         elif if_type == "attribute":
@@ -369,9 +369,17 @@ class DecideStepProcessor(StepProcessor):
                 return False
             return self._evaluate_attribute_condition(entity_id, condition.name, operator, value)
         elif if_type == "expression":
-            return self._evaluate_expression_condition(entity_id, operator, value, entity_table)
+            # Legacy format: if: expression
+            expression_to_evaluate = condition.if_
+            expected_value = value
+            return self._evaluate_expression_condition(entity_id, expression_to_evaluate, operator, expected_value, entity_table)
+        elif "SELECT" in if_content.upper() or "Entity." in if_content:
+            # New intuitive format: SQL query or Entity expression directly in 'if' field
+            expression_to_evaluate = condition.if_
+            expected_value = value
+            return self._evaluate_expression_condition(entity_id, expression_to_evaluate, operator, expected_value, entity_table)
         else:
-            self.logger.error(f"Unsupported if type: {if_type}")
+            self.logger.error(f"Unsupported if type or unrecognized expression: {if_type}")
             return False
     
     def _evaluate_probability_condition(self, entity_id: int, operator: str, probability_value: float) -> bool:
@@ -455,67 +463,138 @@ class DecideStepProcessor(StepProcessor):
             self.logger.error(f"Error evaluating attribute condition for entity {entity_id}: {e}")
             return False
     
-    def _evaluate_expression_condition(self, entity_id: int, operator: str, expression_value: str, entity_table: str = None) -> bool:
+    def _evaluate_expression_condition(self, entity_id: int, expression: str, operator: str, expected_value, entity_table: str = None) -> bool:
         """
-        Evaluate expression condition with Entity.property support.
+        Evaluate expression condition with improved intuitive format.
         
         Args:
             entity_id: Entity ID
-            operator: Comparison operator (==, !=, etc.)
-            expression_value: Expression string to evaluate (can contain Entity.property references)
+            expression: Expression/SQL query to evaluate (can contain Entity.property references)
+            operator: Comparison operator (==, !=, >, <, >=, <=)
+            expected_value: Expected result to compare against
             entity_table: Entity table name (for database lookups)
             
         Returns:
             Boolean result of the condition evaluation
         """
         try:
-            # Check if we have Entity.property references in the expression
-            if 'Entity.' in expression_value and self.sql_expression_evaluator and entity_table:
-                # Step 3: Use SQL expression evaluator for Entity property access
-                self.logger.debug(f"Entity {entity_id}: Evaluating expression with Entity properties: {expression_value}")
-                
-                # Check if expression already contains a comparison operator
-                if any(op in expression_value for op in [' == ', ' != ', ' > ', ' < ', ' >= ', ' <= ']):
-                    # Expression already complete (e.g., "Entity.status == 'processing'")
-                    full_expression = expression_value
-                else:
-                    # Simple expression needs operator (e.g., "true" with operator "==")
-                    if operator == "==":
-                        full_expression = f"{expression_value} == true"
-                    else:
-                        full_expression = expression_value
-                
-                result = self.sql_expression_evaluator.evaluate_boolean_expression(
-                    entity_id, entity_table, full_expression
-                )
-                self.logger.debug(f"Entity {entity_id}: Entity property expression result: {result}")
-                return result
+            # First, evaluate the expression to get the actual result
+            actual_result = self._evaluate_expression_to_value(entity_id, expression, entity_table)
             
-            else:
-                # Step 1: Simple boolean string evaluation (backward compatibility)
-                if expression_value.lower() == "true":
-                    actual_value = True
-                elif expression_value.lower() == "false":
-                    actual_value = False
-                else:
-                    self.logger.warning(f"Unknown expression value for entity {entity_id}: {expression_value}, defaulting to False")
-                    actual_value = False
-                
-                # Apply the operator (for now just handle ==)
-                if operator == "==":
-                    result = actual_value == True
-                elif operator == "!=":
-                    result = actual_value != True
-                else:
-                    self.logger.error(f"Unsupported operator for expression condition: {operator}")
-                    return False
-                
-                self.logger.debug(f"Entity {entity_id}: simple expression '{expression_value}' {operator} True -> {result}")
-                return result
+            # Then compare the actual result with the expected value using the operator
+            result = self._compare_values(actual_result, operator, expected_value)
+            
+            self.logger.debug(f"Entity {entity_id}: Expression '{expression}' returned '{actual_result}', comparing '{actual_result}' {operator} '{expected_value}' -> {result}")
+            return result
             
         except Exception as e:
             self.logger.error(f"Error evaluating expression condition for entity {entity_id}: {e}")
             return False
+    
+    def _evaluate_expression_to_value(self, entity_id: int, expression: str, entity_table: str = None):
+        """
+        Evaluate an expression and return its value.
+        
+        Args:
+            entity_id: Entity ID
+            expression: Expression to evaluate (SQL query or simple expression)
+            entity_table: Entity table name
+            
+        Returns:
+            The result value from evaluating the expression
+        """
+        # Check if this is a SQL query or has Entity.property references
+        if (('SELECT' in expression.upper() or 'Entity.' in expression) and 
+            self.sql_expression_evaluator and entity_table):
+            
+            self.logger.debug(f"Entity {entity_id}: Evaluating SQL/Entity expression: {expression}")
+            
+            # Use SQL expression evaluator to handle Entity.property substitution and SQL execution
+            # For SQL queries, we want the raw result, not just boolean
+            if 'SELECT' in expression.upper():
+                # Execute SQL query directly to get the raw result
+                resolved_sql = self.sql_expression_evaluator.substitute_sql_variables(entity_id, entity_table, expression)
+                if resolved_sql is None:
+                    self.logger.error(f"Failed to resolve variables in SQL expression: {expression}")
+                    return None
+                
+                # Execute the SQL and return the result
+                try:
+                    with self.sql_expression_evaluator.engine.connect() as connection:
+                        from sqlalchemy import text
+                        result = connection.execute(text(resolved_sql))
+                        row = result.fetchone()
+                        if row is not None:
+                            value = row[0]
+                            self.logger.debug(f"Entity {entity_id}: SQL query returned: {value} (type: {type(value)})")
+                            return value
+                        else:
+                            self.logger.warning(f"Entity {entity_id}: SQL query returned no rows")
+                            return None
+                except Exception as e:
+                    self.logger.error(f"Error executing SQL expression for entity {entity_id}: {e}")
+                    return None
+            else:
+                # Simple Entity.property expression - use boolean evaluator
+                return self.sql_expression_evaluator.evaluate_boolean_expression(entity_id, entity_table, expression)
+        else:
+            # Simple string literal evaluation (backward compatibility)
+            expression = expression.strip()
+            if expression.lower() == "true":
+                return True
+            elif expression.lower() == "false":
+                return False
+            else:
+                # Try to parse as number
+                try:
+                    if '.' in expression:
+                        return float(expression)
+                    else:
+                        return int(expression)
+                except ValueError:
+                    # Return as string
+                    return expression
+    
+    def _compare_values(self, actual_value, operator: str, expected_value) -> bool:
+        """
+        Compare two values using the specified operator.
+        
+        Args:
+            actual_value: The actual result from expression evaluation
+            operator: Comparison operator
+            expected_value: The expected value to compare against
+            
+        Returns:
+            Boolean result of the comparison
+        """
+        # Convert string representations to appropriate types for comparison
+        if isinstance(actual_value, str) and isinstance(expected_value, (bool, str)):
+            if actual_value.lower() == 'true':
+                actual_value = True
+            elif actual_value.lower() == 'false':
+                actual_value = False
+        
+        if isinstance(expected_value, str):
+            if expected_value.lower() == 'true':
+                expected_value = True
+            elif expected_value.lower() == 'false':
+                expected_value = False
+        
+        # Perform the comparison
+        if operator == "==":
+            return actual_value == expected_value
+        elif operator == "!=" or operator == "<>":
+            return actual_value != expected_value
+        elif operator == ">":
+            return actual_value > expected_value
+        elif operator == ">=":
+            return actual_value >= expected_value
+        elif operator == "<":
+            return actual_value < expected_value
+        elif operator == "<=":
+            return actual_value <= expected_value
+        else:
+            raise ValueError(f"Unsupported comparison operator: {operator}")
     
     def get_supported_decision_types(self) -> list:
         """

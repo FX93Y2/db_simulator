@@ -12,7 +12,6 @@ from sqlalchemy import text
 
 from .base import BaseAssignmentHandler
 from .....utils.sql_helpers import SQLExpressionEvaluator
-from ....helpers.inventory_helpers import InventoryHelpers
 
 if TYPE_CHECKING:
     from .....config_parser.sim_parser import AssignmentOperation
@@ -42,9 +41,8 @@ class SQLAssignmentHandler(BaseAssignmentHandler):
         # Initialize SQL expression evaluator if we have both dependencies
         self.sql_expression_evaluator = None
         if engine and entity_attribute_manager:
-            # Create inventory helpers for use in SQL expressions
-            inventory_helpers = InventoryHelpers(engine)
-            self.sql_expression_evaluator = SQLExpressionEvaluator(engine, entity_attribute_manager, inventory_helpers)
+            # Create SQL expression evaluator for Entity.property support
+            self.sql_expression_evaluator = SQLExpressionEvaluator(engine, entity_attribute_manager)
         
     def can_handle(self, assignment_type: str) -> bool:
         """

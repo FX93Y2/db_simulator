@@ -1,0 +1,59 @@
+entities:
+  - name: Customer
+    rows: 40
+    attributes:
+      - name: id
+        type: pk
+      - name: Name
+        type: string
+        generator:
+          type: faker
+          method: name
+      - name: Email
+        type: string
+        generator:
+          type: faker
+          method: email
+      - name: SignupDate
+        type: datetime
+        generator:
+          type: formula
+          expression: MIN(SELECT created_at FROM Order WHERE customer_id = @id) +
+            DAYS(RANDOM(30, 365))
+  - name: Order
+    type: entity
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: customer_id
+        type: fk
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+          formula: UNIF(1,40)
+        ref: Customer.id
+      - name: created_at
+        type: datetime
+      - name: TotalAmount
+        type: integer
+        generator:
+          type: distribution
+          formula: DISC(0.4, 1, 0.3, 2, 0.2, 3, 0.1, 5)
+      - name: TotalPaid
+        type: decimal(10,2)
+        generator:
+          type: distribution
+          formula: UNIF(9.99, 29.99)
+
+  - name: Order_Event
+    type: event
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: order_id
+        type: entity_id
+        ref: Order.id
+      - name: event_type
+        type: event_type
