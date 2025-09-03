@@ -47,11 +47,11 @@ entities:
     attributes:
       - name: id
         type: pk
-      - name: entity_id
-        type: integer
+      - name: order_id
+        type: entity_id
         ref: Order.id
-      - name: inventory_id
-        type: integer
+      - name: book_id
+        type: inventory_id
         ref: Book.id
       - name: quantity_needed
         type: integer

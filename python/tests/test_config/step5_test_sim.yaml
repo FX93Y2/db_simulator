@@ -45,8 +45,8 @@ event_simulation:
                         ELSE 'false'
                        END
                        FROM OrderBooks ob 
-                       LEFT JOIN Book b ON ob.inventory_id = b.id 
-                       WHERE ob.entity_id = Entity.id
+                       LEFT JOIN Book b ON ob.book_id = b.id 
+                       WHERE ob.order_id = Entity.id
                     is: ==
                     value: true
               - outcome_id: inventory_unavailable
@@ -63,8 +63,8 @@ event_simulation:
                 expression: |
                   SELECT SUM(Book.price * OrderBooks.quantity_needed)
                   FROM Book 
-                  JOIN OrderBooks ON Book.id = OrderBooks.inventory_id
-                  WHERE OrderBooks.entity_id = Entity.id
+                  JOIN OrderBooks ON Book.id = OrderBooks.book_id
+                  WHERE OrderBooks.order_id = Entity.id
           next_steps:
             - update_inventory_quantities
         
@@ -79,13 +79,13 @@ event_simulation:
                   SET quantity = quantity - (
                       SELECT OrderBooks.quantity_needed 
                       FROM OrderBooks 
-                      WHERE OrderBooks.entity_id = Entity.id 
-                      AND OrderBooks.inventory_id = Book.id
+                      WHERE OrderBooks.order_id = Entity.id 
+                      AND OrderBooks.book_id = Book.id
                   )
                   WHERE Book.id IN (
-                      SELECT inventory_id 
+                      SELECT book_id 
                       FROM OrderBooks 
-                      WHERE entity_id = Entity.id
+                      WHERE order_id = Entity.id
                   )
           next_steps:
             - set_status_completed
@@ -134,15 +134,15 @@ event_simulation:
                           ob.quantity_needed + 20
                       )
                       FROM OrderBooks ob 
-                      LEFT JOIN Book b ON ob.inventory_id = b.id
-                      WHERE ob.entity_id = Entity.id 
-                      AND ob.inventory_id = Book.id
+                      LEFT JOIN Book b ON ob.book_id = b.id
+                      WHERE ob.order_id = Entity.id 
+                      AND ob.book_id = Book.id
                   )
                   WHERE Book.id IN (
-                      SELECT ob.inventory_id 
+                      SELECT ob.book_id 
                       FROM OrderBooks ob
-                      LEFT JOIN Book b ON ob.inventory_id = b.id
-                      WHERE ob.entity_id = Entity.id
+                      LEFT JOIN Book b ON ob.book_id = b.id
+                      WHERE ob.order_id = Entity.id
                       AND COALESCE(b.quantity, 0) < ob.quantity_needed
                   )
           next_steps:

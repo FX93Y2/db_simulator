@@ -456,19 +456,65 @@ class CreateStepProcessor(StepProcessor):
             session: SQLAlchemy session
         """
         try:
+            # Resolve actual FK column names by attribute type in DB config
+            entity_fk_col, inventory_fk_col = self._resolve_inventory_bridge_fk_columns(bridge_table)
+
             for inventory_id, quantity_needed in selected_items:
-                # Insert into bridge table
+                # Insert into bridge table using resolved column names
                 insert_stmt = text(f'''
-                    INSERT INTO "{bridge_table}" (entity_id, inventory_id, quantity_needed)
+                    INSERT INTO "{bridge_table}" ("{entity_fk_col}", "{inventory_fk_col}", quantity_needed)
                     VALUES (:entity_id, :inventory_id, :quantity_needed)
                 ''')
-                
+
                 session.execute(insert_stmt, {
                     "entity_id": entity_id,
                     "inventory_id": inventory_id,
                     "quantity_needed": quantity_needed
                 })
-                
+
         except Exception as e:
             logger.error(f"Error populating bridge table {bridge_table}: {e}", exc_info=True)
             raise  # Re-raise to trigger transaction rollback
+
+    def _resolve_inventory_bridge_fk_columns(self, bridge_table: str):
+        """
+        Determine the correct FK column names in the inventory bridge table by type.
+
+        Falls back to conventional names if DB config is unavailable or types are missing.
+
+        Returns:
+            Tuple (entity_fk_column, inventory_fk_column)
+        """
+        # Default conventional names
+        default_entity_fk = "entity_id"
+        default_inventory_fk = "inventory_id"
+
+        try:
+            db_config = getattr(self.entity_manager, 'db_config', None)
+            if not db_config or not getattr(db_config, 'entities', None):
+                return default_entity_fk, default_inventory_fk
+
+            bridge_entity = None
+            for ent in db_config.entities:
+                if ent.name == bridge_table:
+                    bridge_entity = ent
+                    break
+
+            if not bridge_entity or not getattr(bridge_entity, 'attributes', None):
+                return default_entity_fk, default_inventory_fk
+
+            entity_fk_col = None
+            inventory_fk_col = None
+            for attr in bridge_entity.attributes:
+                if getattr(attr, 'type', None) == 'entity_id' and not entity_fk_col:
+                    entity_fk_col = attr.name
+                elif getattr(attr, 'type', None) == 'inventory_id' and not inventory_fk_col:
+                    inventory_fk_col = attr.name
+
+            return (
+                entity_fk_col or default_entity_fk,
+                inventory_fk_col or default_inventory_fk,
+            )
+        except Exception:
+            # Be resilient; use defaults if anything goes wrong
+            return default_entity_fk, default_inventory_fk
