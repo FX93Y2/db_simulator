@@ -3,7 +3,7 @@
  * Orchestrates all application modules and manages the application lifecycle
  */
 
-const { app } = require('electron');
+const { app, powerMonitor } = require('electron');
 const path = require('path');
 
 // Import modular components
@@ -15,6 +15,16 @@ const { registerApiHandlers } = require('./src/main/api-handlers');
 // Application state
 let appPaths = null;
 let isAppReady = false;
+
+// Mitigation for GPU/IPC glitches after hibernate/resume (common on WSL/WSLg)
+// Disable hardware acceleration and force software GL before app 'ready'
+try {
+  app.disableHardwareAcceleration();
+  app.commandLine.appendSwitch('use-gl', 'swiftshader');
+  console.log('Hardware acceleration disabled; using SwiftShader (software GL)');
+} catch (e) {
+  console.warn('Failed to set GPU/GL switches:', e);
+}
 
 /**
  * Initialize the application
@@ -71,6 +81,20 @@ app.on('ready', () => {
   initializeApp();
 });
 
+// On system resume, reload the window to rebind renderer/IPC cleanly
+powerMonitor.on('resume', () => {
+  try {
+    console.log('System resume detected; reloading main window');
+    const { getMainWindow } = require('./src/main/window');
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.reloadIgnoringCache();
+    }
+  } catch (e) {
+    console.warn('Error handling resume:', e);
+  }
+});
+
 // Window all closed event - called when all windows have been closed
 app.on('window-all-closed', () => {
   console.log('All windows closed');
@@ -107,6 +131,36 @@ app.on('will-quit', () => {
 app.on('before-quit', (event) => {
   console.log('Application before quit event received');
   // Perform any final cleanup here if needed
+});
+
+// Recover from GPU/renderer crashes by reloading the main window
+app.on('child-process-gone', (_event, details) => {
+  try {
+    if (details && (details.type === 'GPU' || details.reason === 'crashed')) {
+      console.warn('Child process gone:', details);
+      const { getMainWindow } = require('./src/main/window');
+      const win = getMainWindow();
+      if (win && !win.isDestroyed()) {
+        win.webContents.reloadIgnoringCache();
+      }
+    }
+  } catch (e) {
+    console.warn('Error handling child-process-gone:', e);
+  }
+});
+
+// Legacy GPU crash event (some Electron versions)
+app.on('gpu-process-crashed', () => {
+  try {
+    console.warn('GPU process crashed; reloading main window');
+    const { getMainWindow } = require('./src/main/window');
+    const win = getMainWindow();
+    if (win && !win.isDestroyed()) {
+      win.webContents.reloadIgnoringCache();
+    }
+  } catch (e) {
+    console.warn('Error handling gpu-process-crashed:', e);
+  }
 });
 
 // Certificate error handling for development
