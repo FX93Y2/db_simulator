@@ -71,12 +71,12 @@ class ColumnResolver:
             Name of the inventory quantity column
             
         Raises:
-            ValueError: If no column with type='inventory_quantity' is found
+            ValueError: If no column with type='inv_qty' is found
         """
-        col = self.get_column_by_type(table_name, 'inventory_quantity')
+        col = self.get_column_by_type(table_name, 'inv_qty')
         if not col:
             raise ValueError(
-                f"Inventory table '{table_name}' has no column with type='inventory_quantity'. "
+                f"Inventory table '{table_name}' has no column with type='inv_qty'. "
                 f"Inventory tables must have a column marking the stock/quantity level."
             )
         return col
@@ -94,12 +94,12 @@ class ColumnResolver:
             Name of the inventory requirement column
             
         Raises:
-            ValueError: If no column with type='entity_invReq' is found
+            ValueError: If no column with type='inv_req' is found
         """
-        col = self.get_column_by_type(table_name, 'entity_invReq')
+        col = self.get_column_by_type(table_name, 'inv_req')
         if not col:
             raise ValueError(
-                f"Bridge table '{table_name}' has no column with type='entity_invReq'. "
+                f"Bridge table '{table_name}' has no column with type='inv_req'. "
                 f"Bridge tables must have a column storing inventory requirements (unit_quantity values)."
             )
         return col
@@ -235,7 +235,7 @@ class ColumnResolver:
             )
             
         # Search for column with matching type
-        # Support parameterized types like inventory_quantity(10,2) by matching base type
+        # Support parameterized types like inv_qty(10,2) by matching base type
         for attr in table.attributes:
             attr_type = attr.type
             base_type = attr_type.split('(')[0] if isinstance(attr_type, str) and '(' in attr_type else attr_type

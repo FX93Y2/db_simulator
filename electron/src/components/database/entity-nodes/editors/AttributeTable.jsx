@@ -171,7 +171,7 @@ const AttributeTable = ({
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
     // Only exclude system-managed fields that are auto-generated
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'inventory_id', 'event_type'];
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'inventory_id', 'event_type', 'inv_req'];
     return !typesWithoutGenerators.includes(type);
   };
 

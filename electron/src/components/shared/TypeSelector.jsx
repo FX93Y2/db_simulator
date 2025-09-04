@@ -34,6 +34,10 @@ const TypeSelector = ({
       varchar: { display: 'Varchar', template: 'varchar(255)' },
       char: { display: 'Char', template: 'char(1)' }
     },
+    'Semantic Types': {
+      inv_qty: { display: 'Inventory Qty', template: 'inv_qty(10,2)' },
+      inv_req: { display: 'Inventory Req', template: 'inv_req' }
+    },
     'System Types': {
       pk: { display: 'Primary Key', template: 'pk' },
       fk: { display: 'Foreign Key', template: 'fk' },

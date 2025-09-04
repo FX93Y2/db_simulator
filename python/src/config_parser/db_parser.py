@@ -82,8 +82,8 @@ VALID_COLUMN_TYPES = {
     'resource_id',     # FK to resource table
     
     # Semantic column types (support parameterized versions)
-    'inventory_quantity',  # Stock/quantity in inventory table (defaults to INTEGER)
-    'entity_invReq',      # Inventory requirement in bridge table (defaults to INTEGER)
+    'inv_qty',            # Stock/quantity in inventory table (defaults to INTEGER)
+    'inv_req',            # Inventory requirement in bridge table (defaults to INTEGER)
     'event_type',         # Event type identifier
     'resource_type',      # Resource type identifier (for resource tables)
     
@@ -101,8 +101,8 @@ VALID_COLUMN_TYPES = {
 # Required column types by table type
 REQUIRED_TYPES_BY_TABLE = {
     'entity': ['pk'],
-    'inventory': ['pk', 'inventory_quantity'],
-    'bridge': ['pk', 'entity_id', 'inventory_id', 'entity_invReq'],
+    'inventory': ['pk', 'inv_qty'],
+    'bridge': ['pk', 'entity_id', 'inventory_id', 'inv_req'],
     'event': ['pk', 'entity_id', 'event_type'],
     'resource': ['pk'],
 }
@@ -128,11 +128,11 @@ def validate_entity_config(entity: Entity) -> None:
                 f"in attribute '{attr.name}'. Valid base types: {sorted(VALID_COLUMN_TYPES)}"
             )
         
-        # entity_invReq must NOT be parameterized; quantities are defined by simulation unit_quantity
-        if base_type == 'entity_invReq' and '(' in attr.type:
+        # inv_req must NOT be parameterized; quantities are defined by simulation unit_quantity
+        if base_type == 'inv_req' and '(' in attr.type:
             raise ValueError(
                 f"Entity '{entity.name}' attribute '{attr.name}' uses parameterized '{attr.type}'. "
-                f"'entity_invReq' does not support parameters. Use 'entity_invReq' without (p,s); "
+                f"'inv_req' does not support parameters. Use 'inv_req' without (p,s); "
                 f"required amounts come from simulation 'unit_quantity'."
             )
     
@@ -147,7 +147,7 @@ def validate_entity_config(entity: Entity) -> None:
     # Check table-specific requirements
     if entity.type in REQUIRED_TYPES_BY_TABLE:
         required_types = REQUIRED_TYPES_BY_TABLE[entity.type]
-        # Extract base types to handle parameterized types like inventory_quantity(10,2)
+        # Extract base types to handle parameterized types like inv_qty(10,2)
         found_base_types = {attr.type.split('(')[0] if '(' in attr.type else attr.type for attr in entity.attributes}
         missing_types = set(required_types) - found_base_types
         
@@ -170,7 +170,7 @@ def _validate_bridge_table(entity: Entity) -> None:
     # Extract base types to handle parameterized types
     entity_fks = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'entity_id']
     inventory_fks = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inventory_id']
-    invreq_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'entity_invReq']
+    invreq_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inv_req']
     
     if len(entity_fks) != 1:
         raise ValueError(
@@ -182,16 +182,16 @@ def _validate_bridge_table(entity: Entity) -> None:
         )
     if len(invreq_cols) != 1:
         raise ValueError(
-            f"Bridge table '{entity.name}' must have exactly one column with type='entity_invReq'"
+            f"Bridge table '{entity.name}' must have exactly one column with type='inv_req'"
         )
 
 def _validate_inventory_table(entity: Entity) -> None:
     """Validate inventory table specific requirements."""
-    # Extract base types to handle parameterized types like inventory_quantity(10,2)
-    qty_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inventory_quantity']
+    # Extract base types to handle parameterized types like inv_qty(10,2)
+    qty_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inv_qty']
     if len(qty_cols) != 1:
         raise ValueError(
-            f"Inventory table '{entity.name}' must have exactly one column with type='inventory_quantity'"
+            f"Inventory table '{entity.name}' must have exactly one column with type='inv_qty'"
         )
 
 def _validate_event_table(entity: Entity) -> None:

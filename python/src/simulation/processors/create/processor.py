@@ -486,4 +486,3 @@ class CreateStepProcessor(StepProcessor):
         except Exception as e:
             logger.error(f"Error populating bridge table {bridge_table}: {e}", exc_info=True)
             raise  # Re-raise to trigger transaction rollback
-

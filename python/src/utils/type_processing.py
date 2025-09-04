@@ -44,7 +44,7 @@ def process_value_for_type(value: Any, attr_type: str) -> Any:
                 return float(rounded_decimal)
             return value
             
-        elif base_type in ['inventory_quantity', 'entity_invreq']:
+        elif base_type in ['inv_qty', 'inv_req']:
             # Parameterized semantic types - treat as decimal
             precision = int(params[0]) if len(params) > 0 else 10
             scale = int(params[1]) if len(params) > 1 else 2
@@ -67,7 +67,7 @@ def process_value_for_type(value: Any, attr_type: str) -> Any:
     base_type = attr_type.lower()
     
     if base_type in ['integer', 'int', 'bigint', 'smallint', 'tinyint', 
-                     'inventory_quantity', 'entity_invreq']:
+                     'inv_qty', 'inv_req']:
         # Convert to integer, rounding if necessary
         # Semantic types default to integer for whole units/requirements
         if isinstance(value, float):
