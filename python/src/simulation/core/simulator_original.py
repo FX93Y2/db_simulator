@@ -107,7 +107,7 @@ class EventSimulator:
         self.entity_manager = EntityManager(self.env, self.engine, self.db_path, config, db_config, self.event_tracker)
         
         # Initialize entity attribute manager for Arena-style assign functionality
-        self.entity_attribute_manager = EntityAttributeManager()
+        self.entity_attribute_manager = EntityAttributeManager(self.entity_manager)
         
         # Initialize step processor factory with simulator reference
         self.step_processor_factory = StepProcessorFactory(

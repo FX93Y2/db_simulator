@@ -13,6 +13,9 @@ from sqlalchemy import text
 
 if TYPE_CHECKING:
     from ..simulation.managers.entity_attribute_manager import EntityAttributeManager
+    from ..config_parser.db_parser import DatabaseConfig
+    
+from .column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -29,17 +32,23 @@ class SQLExpressionEvaluator:
     - SQL variable substitution for assign operations
     """
     
-    def __init__(self, engine, entity_attribute_manager: 'EntityAttributeManager'):
+    def __init__(self, engine, entity_attribute_manager: 'EntityAttributeManager', db_config: 'DatabaseConfig' = None):
         """
         Initialize the expression evaluator.
         
         Args:
             engine: SQLAlchemy engine for database operations
             entity_attribute_manager: Manager for in-memory entity attributes
+            db_config: Database configuration for column resolution
         """
         self.engine = engine
         self.entity_attribute_manager = entity_attribute_manager
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        
+        # Initialize column resolver if db_config is provided
+        self.column_resolver = None
+        if db_config:
+            self.column_resolver = ColumnResolver(db_config)
         
         # Regex pattern to match Entity.property references
         self.entity_property_pattern = re.compile(r'\bEntity\.(\w+)\b')
@@ -260,16 +269,22 @@ class SQLExpressionEvaluator:
         
         try:
             with self.engine.connect() as connection:
-                # Handle special case for 'id' property
+                # Resolve primary key column and build query
+                if not self.column_resolver:
+                    raise ValueError("ColumnResolver required for database queries - no hardcoded column names allowed")
+                    
+                pk_column = self.column_resolver.get_primary_key(entity_table)
+                
+                # Handle special case for 'id' property (map to actual primary key column)
                 columns_to_query = []
                 for prop_name in property_names:
                     if prop_name == 'id':
-                        columns_to_query.append('id')
+                        columns_to_query.append(f'"{pk_column}"')
                     else:
                         columns_to_query.append(f'"{prop_name}"')
                 
                 columns_clause = ', '.join(columns_to_query)
-                query = text(f'SELECT {columns_clause} FROM "{entity_table}" WHERE "id" = :entity_id')
+                query = text(f'SELECT {columns_clause} FROM "{entity_table}" WHERE "{pk_column}" = :entity_id')
                 
                 result = connection.execute(query, {"entity_id": entity_id})
                 row = result.fetchone()

@@ -53,8 +53,10 @@ class DecideStepProcessor(StepProcessor):
         self.entity_attribute_manager = manager
         # Initialize SQL expression evaluator when we have both engine and entity_attribute_manager
         if self.engine and manager:
+            # Get db_config from entity_manager for column resolution
+            db_config = getattr(self.entity_manager, 'db_config', None)
             # Create SQL expression evaluator for Entity.property support
-            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager)
+            self.sql_expression_evaluator = SQLExpressionEvaluator(self.engine, manager, db_config)
             self.logger.debug("SQL expression evaluator initialized")
         self.logger.debug("Entity attribute manager set")
     

@@ -103,7 +103,7 @@ class TableBuilder:
         Returns:
             SQLAlchemy column type
         """
-        # Handle parameterized types like decimal(10,2), varchar(50)
+        # Handle parameterized types like decimal(10,2), varchar(50), inventory_quantity(10,2)
         if '(' in attr_type:
             base_type = attr_type.split('(')[0].lower()
             params = attr_type.split('(')[1].rstrip(')').split(',')
@@ -118,6 +118,12 @@ class TableBuilder:
             elif base_type == 'char':
                 length = int(params[0]) if len(params) > 0 else 1
                 return String(length)
+            elif base_type == 'inventory_quantity':
+                # Parameterized inventory_quantity creates decimal column
+                precision = int(params[0]) if len(params) > 0 else 10
+                scale = int(params[1]) if len(params) > 1 else 2
+                return Numeric(precision, scale)
+            # entity_invReq is intentionally NOT parameterizable; validation enforces this
         
         # Basic type mapping
         type_map = {
@@ -126,6 +132,15 @@ class TableBuilder:
             'int': Integer,
             'pk': Integer,
             'fk': Integer,
+            
+            # Semantic column types (defaults)
+            'inventory_quantity': Integer,   # Default to integer for whole units
+            'entity_invreq': Integer,        # Default to integer for whole requirements
+            'entity_id': Integer,            # Foreign key to entity table
+            'inventory_id': Integer,         # Foreign key to inventory table
+            'event_id': Integer,             # Foreign key to event table
+            'resource_id': Integer,          # Foreign key to resource table
+            'event_type': String,            # Event type identifier
             
             # Standard SQL types
             'integer': Integer,

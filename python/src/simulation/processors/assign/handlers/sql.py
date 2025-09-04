@@ -41,8 +41,12 @@ class SQLAssignmentHandler(BaseAssignmentHandler):
         # Initialize SQL expression evaluator if we have both dependencies
         self.sql_expression_evaluator = None
         if engine and entity_attribute_manager:
+            # Get db_config from entity_attribute_manager's entity_manager
+            db_config = None
+            if hasattr(entity_attribute_manager, 'entity_manager') and hasattr(entity_attribute_manager.entity_manager, 'db_config'):
+                db_config = entity_attribute_manager.entity_manager.db_config
             # Create SQL expression evaluator for Entity.property support
-            self.sql_expression_evaluator = SQLExpressionEvaluator(engine, entity_attribute_manager)
+            self.sql_expression_evaluator = SQLExpressionEvaluator(engine, entity_attribute_manager, db_config)
         
     def can_handle(self, assignment_type: str) -> bool:
         """

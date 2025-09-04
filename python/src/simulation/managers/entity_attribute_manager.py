@@ -20,11 +20,16 @@ class EntityAttributeManager:
     assigned by Assign modules during simulation execution.
     """
     
-    def __init__(self):
-        """Initialize the entity attribute manager."""
+    def __init__(self, entity_manager=None):
+        """Initialize the entity attribute manager.
+        
+        Args:
+            entity_manager: Optional entity manager reference for db_config access
+        """
         # Storage: {entity_id: {attribute_name: value}}
         self._entity_attributes: Dict[int, Dict[str, Union[str, int, float]]] = {}
         self._lock = Lock()  # Thread safety for concurrent access
+        self.entity_manager = entity_manager  # For db_config access
         
     def set_attribute(self, entity_id: int, attribute_name: str, value: Union[str, int, float]) -> bool:
         """

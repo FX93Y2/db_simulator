@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from sqlalchemy import create_engine, Table, Column, Integer, String, DateTime, Float, MetaData, insert, text, ForeignKey
 from sqlalchemy.pool import NullPool
+from ...utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +26,8 @@ class EventTracker:
     def __init__(self, db_path: str, start_date: Optional[datetime] = None,
                  event_table_name: Optional[str] = None,
                  resource_table_name: Optional[str] = None,
-                 bridge_table_config: Optional[Dict[str, Any]] = None):
+                 bridge_table_config: Optional[Dict[str, Any]] = None,
+                 db_config=None):
         """
         Initialize the event tracker
         
@@ -56,6 +58,11 @@ class EventTracker:
         
         self.metadata = MetaData()
         self.start_date = start_date or datetime.now()
+        
+        # Initialize column resolver for strict column resolution
+        if not db_config:
+            raise ValueError("db_config is required for EventTracker - cannot use hardcoded column names")
+        self.column_resolver = ColumnResolver(db_config)
         
         # Use custom bridge table configuration if provided
         if bridge_table_config:
@@ -127,8 +134,13 @@ class EventTracker:
                 # Use dynamic column names and attempt to add FK constraints
                 # Note: FK constraints might fail if target tables don't exist yet during init.
                 # Consider creating tables sequentially or adding constraints later if issues arise.
-                Column(self.event_fk_column, Integer, ForeignKey(f"{self.event_table_name}.id"), nullable=False), 
-                Column(self.resource_fk_column, Integer, ForeignKey(f"{self.resource_table_name}.id"), nullable=False),
+                # Resolve primary key columns for FK constraints
+                Column(self.event_fk_column, Integer, 
+                      ForeignKey(f"{self.event_table_name}.{self._get_pk_column(self.event_table_name)}"), 
+                      nullable=False), 
+                Column(self.resource_fk_column, Integer, 
+                      ForeignKey(f"{self.resource_table_name}.{self._get_pk_column(self.resource_table_name)}"), 
+                      nullable=False),
                 Column('start_date', DateTime, nullable=False),
                 Column('end_date', DateTime, nullable=True) # Allow NULL for ongoing allocations
             )
@@ -220,4 +232,12 @@ class EventTracker:
             else:
                 logger.debug("EventTracker engine was already disposed or never created")
         except Exception as e:
-            logger.warning(f"Error disposing EventTracker engine: {e}") 
+            logger.warning(f"Error disposing EventTracker engine: {e}")
+    
+    def _get_pk_column(self, table_name: str) -> str:
+        """Get primary key column name using ColumnResolver."""
+        try:
+            return self.column_resolver.get_primary_key(table_name)
+        except Exception as e:
+            raise ValueError(f"Cannot resolve primary key for table '{table_name}': {e}. "
+                           f"Ensure table has column with type='pk' defined in db_config.") 

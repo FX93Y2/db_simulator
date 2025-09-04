@@ -17,6 +17,7 @@ from ..utils import extract_distribution_config, extract_distribution_config_wit
 from ....distributions import generate_from_distribution
 from ....utils.data_generation import generate_attribute_value
 from ....utils.time_units import TimeUnitConverter
+from ....utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -28,6 +29,16 @@ class EventStepProcessor(StepProcessor):
     Handles resource allocation, event duration, database event creation,
     and resource release upon completion.
     """
+    
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
+        """Initialize EventStepProcessor with ColumnResolver support."""
+        super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
+        
+        # Initialize column resolver for strict column resolution
+        db_config = getattr(entity_manager, 'db_config', None)
+        if not db_config:
+            raise ValueError("db_config is required for EventStepProcessor - cannot use hardcoded column names")
+        self.column_resolver = ColumnResolver(db_config)
     
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle event steps."""
@@ -175,14 +186,15 @@ class EventStepProcessor(StepProcessor):
                 self.logger.error(f"Could not find event type column in {event_table}")
                 return None
             
-            # Get next event ID
-            sql_query = text(f'SELECT MAX("id") FROM "{event_table}"')
+            # Get next event ID using resolved primary key column
+            pk_column = self.column_resolver.get_primary_key(event_table)
+            sql_query = text(f'SELECT MAX("{pk_column}") FROM "{event_table}"')
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
             
             # Create event record
             row_data = {
-                "id": next_id,
+                pk_column: next_id,
                 relationship_column: entity_id,
                 event_type_column: step.step_id
             }

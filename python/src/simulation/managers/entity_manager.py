@@ -18,6 +18,7 @@ from ...config_parser import Entity as DbEntity
 from ...distributions import generate_from_distribution
 from ...utils.data_generation import generate_attribute_value
 from ...utils.type_processing import process_value_for_type
+from ...utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +48,11 @@ class EntityManager:
         self.db_config = db_config
         self.event_tracker = event_tracker
         
+        # Initialize column resolver for strict column type resolution
+        if not db_config:
+            raise ValueError("db_config is required for EntityManager - cannot use hardcoded column names")
+        self.column_resolver = ColumnResolver(db_config)
+        
         # Dictionary to track the current event type for each entity
         self.entity_current_event_types = {}
         
@@ -70,10 +76,11 @@ class EntityManager:
         try:
             with Session(self.engine) as session:
                 # Use parameterized query to prevent SQL injection
-                # Note: Column name can't be parameterized, but we validate it's from assign config
-                sql_query = text(f'UPDATE "{entity_table}" SET "{attribute_name}" = :value WHERE "id" = :id')
+                # Get primary key column using column resolver
+                pk_column = self.column_resolver.get_primary_key(entity_table)
+                sql_query = text(f'UPDATE "{entity_table}" SET "{attribute_name}" = :value WHERE "{pk_column}" = :entity_id')
                 
-                result = session.execute(sql_query, {"value": value, "id": entity_id})
+                result = session.execute(sql_query, {"value": value, "entity_id": entity_id})
                 
                 if result.rowcount > 0:
                     session.commit()
@@ -104,17 +111,18 @@ class EntityManager:
             return True
         
         try:
+            pk_column = self.column_resolver.get_primary_key(entity_table)
             with Session(self.engine) as session:
                 # Build dynamic SET clause
                 set_clauses = []
-                params = {"id": entity_id}
+                params = {pk_column: entity_id}
                 
                 for attr_name, attr_value in attributes.items():
                     set_clauses.append(f'"{attr_name}" = :{attr_name}')
                     params[attr_name] = attr_value
                 
                 set_clause = ", ".join(set_clauses)
-                sql_query = text(f'UPDATE "{entity_table}" SET {set_clause} WHERE "id" = :id')
+                sql_query = text(f'UPDATE "{entity_table}" SET {set_clause} WHERE "{pk_column}" = :{pk_column}')
                 
                 result = session.execute(sql_query, params)
                 
@@ -353,12 +361,13 @@ class EntityManager:
                 logger.error(f"Database configuration not found for entity: {entity_table}")
                 return None
 
-            # Get the next ID
-            sql_query = text(f'SELECT MAX("id") FROM "{entity_table}"')
+            # Get the next ID using resolved primary key column
+            pk_column = self.column_resolver.get_primary_key(entity_table)
+            sql_query = text(f'SELECT MAX("{pk_column}") FROM "{entity_table}"')
             result = session.execute(sql_query).fetchone()
             next_id = (result[0] or 0) + 1
             
-            row_data = {"id": next_id}
+            row_data = {pk_column: next_id}
             
             # Generate values for other attributes
             for attr in entity_config.attributes:
@@ -418,19 +427,19 @@ class EntityManager:
                     # For now, let the DB handle defaults or NULL
                     pass
             
-            # Check if the table has a created_at column and populate it automatically
+            # Check if the table has a datetime column and populate it automatically
+            # Note: This assumes datetime columns are properly typed in the db_config
             try:
-                inspector = inspect(session.get_bind())
-                columns_info = inspector.get_columns(entity_table)
-                column_names = [col['name'] for col in columns_info]
-                
-                if 'created_at' in column_names:
-                    # Calculate the current simulation datetime
-                    creation_datetime = self.config.start_date + timedelta(minutes=self.env.now)
-                    row_data['created_at'] = creation_datetime
-                    logger.debug(f"Added created_at={creation_datetime} for entity in {entity_table}")
+                entity_config = self.get_entity_config(entity_table)
+                if entity_config:
+                    for attr in entity_config.attributes:
+                        if attr.type in ['datetime', 'timestamp'] and attr.name not in row_data:
+                            # Calculate the current simulation datetime
+                            creation_datetime = self.config.start_date + timedelta(minutes=self.env.now)
+                            row_data[attr.name] = creation_datetime
+                            logger.debug(f"Added {attr.name}={creation_datetime} for entity in {entity_table}")
             except Exception as e:
-                logger.warning(f"Error checking for created_at column in {entity_table}: {e}")
+                logger.warning(f"Error setting datetime columns for {entity_table}: {e}")
             
             # Build INSERT statement dynamically
             columns = ", ".join([f'"{col}"' for col in row_data.keys()])
@@ -447,28 +456,10 @@ class EntityManager:
     
     
     def find_event_type_column(self, session, event_table: str) -> Optional[str]:
-        """ Find the column used for event types in the event table (handle potential errors) """
+        """ Find the column used for event types in the event table using ColumnResolver """
         try:
-            # Common column names for event types
-            common_names = ['event_type', 'type', 'event_name', 'status']
-            
-            # Get all column names for this table
-            bind = session.get_bind()
-            if not bind:
-                 logger.error("No database engine bound to the session.")
-                 return 'type' # Fallback
-
-            inspector = inspect(bind)
-            columns = [col['name'] for col in inspector.get_columns(event_table)]
-            
-            # Try to find a matching column
-            for name in common_names:
-                if name in columns:
-                    return name
-                    
-            # If no match found, return the first one in our list that makes sense
-            logger.warning(f"Could not find standard event type column in {event_table}, falling back to 'type'")
-            return 'type'  # Default fallback
+            # Use ColumnResolver to get the event_type column
+            return self.column_resolver.get_event_type_column(event_table)
         except Exception as e:
             logger.error(f"Error finding event type column in {event_table}: {str(e)}", exc_info=True)
-            return 'type'  # Default fallback
+            raise ValueError(f"Table '{event_table}' must have a column with type='event_type' defined in db_config")

@@ -75,7 +75,8 @@ class FlowEventTrackerSetup:
                     self.config.start_date,
                     event_table_name=event_table_name,
                     resource_table_name=resource_table_name,
-                    bridge_table_config=bridge_table_config
+                    bridge_table_config=bridge_table_config,
+                    db_config=self.db_config
                 )
                 flow_trackers[flow_id] = event_tracker
                 logger.debug(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")

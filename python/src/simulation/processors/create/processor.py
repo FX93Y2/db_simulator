@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
+from ....utils.column_resolver import ColumnResolver
 from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
 from ....utils.time_units import TimeUnitConverter
@@ -36,6 +37,12 @@ class CreateStepProcessor(StepProcessor):
         super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         # Callback for routing entities to initial steps (set by simulator)
         self.entity_router_callback = None
+        
+        # Initialize column resolver for strict column type resolution
+        db_config = getattr(entity_manager, 'db_config', None)
+        if not db_config:
+            raise ValueError("db_config is required for CreateStepProcessor - cannot use hardcoded column names")
+        self.column_resolver = ColumnResolver(db_config)
     
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle the given step type."""
@@ -415,7 +422,9 @@ class CreateStepProcessor(StepProcessor):
         try:
             # Create a direct connection to avoid session issues
             with self.engine.connect() as connection:
-                query = text(f'SELECT id FROM "{inventory_table}" WHERE quantity > 0 ORDER BY id')
+                pk_column = self.column_resolver.get_primary_key(inventory_table)
+                quantity_column = self.column_resolver.get_inventory_quantity_column(inventory_table)
+                query = text(f'SELECT "{pk_column}" FROM "{inventory_table}" WHERE "{quantity_column}" > 0 ORDER BY "{pk_column}"')
                 results = connection.execute(query).fetchall()
                 return [row[0] for row in results]
                 
@@ -456,13 +465,15 @@ class CreateStepProcessor(StepProcessor):
             session: SQLAlchemy session
         """
         try:
-            # Resolve actual FK column names by attribute type in DB config
-            entity_fk_col, inventory_fk_col = self._resolve_inventory_bridge_fk_columns(bridge_table)
+            # Resolve FK column names using ColumnResolver
+            entity_fk_col = self.column_resolver.get_entity_fk_column(bridge_table)
+            inventory_fk_col = self.column_resolver.get_inventory_fk_column(bridge_table)
+            quantity_req_col = self.column_resolver.get_entity_invreq_column(bridge_table)
 
             for inventory_id, quantity_needed in selected_items:
                 # Insert into bridge table using resolved column names
                 insert_stmt = text(f'''
-                    INSERT INTO "{bridge_table}" ("{entity_fk_col}", "{inventory_fk_col}", quantity_needed)
+                    INSERT INTO "{bridge_table}" ("{entity_fk_col}", "{inventory_fk_col}", "{quantity_req_col}")
                     VALUES (:entity_id, :inventory_id, :quantity_needed)
                 ''')
 
@@ -476,45 +487,3 @@ class CreateStepProcessor(StepProcessor):
             logger.error(f"Error populating bridge table {bridge_table}: {e}", exc_info=True)
             raise  # Re-raise to trigger transaction rollback
 
-    def _resolve_inventory_bridge_fk_columns(self, bridge_table: str):
-        """
-        Determine the correct FK column names in the inventory bridge table by type.
-
-        Falls back to conventional names if DB config is unavailable or types are missing.
-
-        Returns:
-            Tuple (entity_fk_column, inventory_fk_column)
-        """
-        # Default conventional names
-        default_entity_fk = "entity_id"
-        default_inventory_fk = "inventory_id"
-
-        try:
-            db_config = getattr(self.entity_manager, 'db_config', None)
-            if not db_config or not getattr(db_config, 'entities', None):
-                return default_entity_fk, default_inventory_fk
-
-            bridge_entity = None
-            for ent in db_config.entities:
-                if ent.name == bridge_table:
-                    bridge_entity = ent
-                    break
-
-            if not bridge_entity or not getattr(bridge_entity, 'attributes', None):
-                return default_entity_fk, default_inventory_fk
-
-            entity_fk_col = None
-            inventory_fk_col = None
-            for attr in bridge_entity.attributes:
-                if getattr(attr, 'type', None) == 'entity_id' and not entity_fk_col:
-                    entity_fk_col = attr.name
-                elif getattr(attr, 'type', None) == 'inventory_id' and not inventory_fk_col:
-                    inventory_fk_col = attr.name
-
-            return (
-                entity_fk_col or default_entity_fk,
-                inventory_fk_col or default_inventory_fk,
-            )
-        except Exception:
-            # Be resilient; use defaults if anything goes wrong
-            return default_entity_fk, default_inventory_fk

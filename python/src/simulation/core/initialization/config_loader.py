@@ -135,7 +135,7 @@ class SimulatorInitializer:
         )
         
         # Initialize entity attribute manager for Arena-style assign functionality
-        self.entity_attribute_manager = EntityAttributeManager()
+        self.entity_attribute_manager = EntityAttributeManager(self.entity_manager)
         
         logger.debug("Initialized all manager components")
     

@@ -38,16 +38,11 @@ class ContinuousDistributions:
         Returns:
             Random value(s) from uniform distribution [min, max] inclusive
         """
-        # For integer bounds, use randint which is inclusive
-        if isinstance(min_val, (int, np.integer)) and isinstance(max_val, (int, np.integer)):
-            if size is None:
-                return np.random.randint(min_val, max_val + 1)
-            else:
-                return np.random.randint(min_val, max_val + 1, size=size)
-        else:
-            # For floats, add small epsilon to include max
-            epsilon = np.nextafter(max_val, max_val + 1) - max_val
-            return np.random.uniform(min_val, max_val + epsilon, size)
+        # Always generate float values for continuous distributions
+        # The column type will determine the final data type during processing
+        # Add small epsilon to include max value
+        epsilon = np.nextafter(float(max_val), float(max_val) + 1) - float(max_val)
+        return np.random.uniform(float(min_val), float(max_val) + epsilon, size)
     
     @staticmethod
     def normal(mean: float, stddev: float, size: Optional[int] = None, 

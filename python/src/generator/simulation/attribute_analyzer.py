@@ -9,7 +9,7 @@ to database tables.
 import logging
 from typing import Dict, Any, Optional
 
-from sqlalchemy import Integer, String
+from sqlalchemy import Integer, String, Numeric
 
 from ...config_parser import DatabaseConfig, SimulationConfig
 
@@ -84,26 +84,32 @@ class SimulationAttributeAnalyzer:
                     for assignment in step.assign_config.assignments:
                         if assignment.attribute_name and assignment.assignment_type in ('attribute', 'sql'):
                             attr_name = assignment.attribute_name
-                            attr_value = assignment.value
                             
-                            # Infer column type from assigned value
-                            if isinstance(attr_value, int):
-                                column_type = Integer
-                            elif isinstance(attr_value, float):
-                                column_type = Integer  # Use Integer for numbers, SQLite is flexible
-                            elif isinstance(attr_value, str):
-                                # Try to detect if string represents a number
-                                try:
-                                    int(attr_value)
-                                    column_type = Integer
-                                except ValueError:
-                                    try:
-                                        float(attr_value)
-                                        column_type = Integer  # Use Integer for numeric strings too
-                                    except ValueError:
-                                        column_type = String
+                            # Infer column type
+                            if assignment.assignment_type == 'sql':
+                                # For SQL SELECT assignments, default to Numeric to support decimals
+                                # (COUNT/SUM can be integers; Numeric handles both safely)
+                                column_type = Numeric
                             else:
-                                column_type = String
+                                attr_value = assignment.value
+                                if isinstance(attr_value, int):
+                                    column_type = Integer
+                                elif isinstance(attr_value, float):
+                                    # Prefer Numeric to preserve decimals
+                                    column_type = Numeric
+                                elif isinstance(attr_value, str):
+                                    # Try to detect if string represents a number
+                                    try:
+                                        int(attr_value)
+                                        column_type = Integer
+                                    except ValueError:
+                                        try:
+                                            float(attr_value)
+                                            column_type = Numeric
+                                        except ValueError:
+                                            column_type = String
+                                else:
+                                    column_type = String
                             
                             # Add attribute to all entity tables in this flow
                             for entity_table in entity_tables:

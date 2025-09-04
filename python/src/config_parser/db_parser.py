@@ -70,6 +70,139 @@ class Entity:
 class DatabaseConfig:
     entities: List[Entity]
 
+# Valid column types for strict validation
+VALID_COLUMN_TYPES = {
+    # Primary key
+    'pk',
+    
+    # Foreign keys
+    'entity_id',       # FK to entity table
+    'inventory_id',    # FK to inventory table
+    'event_id',        # FK to event table
+    'resource_id',     # FK to resource table
+    
+    # Semantic column types (support parameterized versions)
+    'inventory_quantity',  # Stock/quantity in inventory table (defaults to INTEGER)
+    'entity_invReq',      # Inventory requirement in bridge table (defaults to INTEGER)
+    'event_type',         # Event type identifier
+    'resource_type',      # Resource type identifier (for resource tables)
+    
+    # Standard data types
+    'integer', 'int',
+    'decimal', 'float', 'number',
+    'string', 'text', 'varchar',
+    'datetime', 'timestamp', 'date',
+    'boolean', 'bool',
+    
+    # Legacy types (for backward compatibility during migration)
+    'fk',  # Will be removed in future versions
+}
+
+# Required column types by table type
+REQUIRED_TYPES_BY_TABLE = {
+    'entity': ['pk'],
+    'inventory': ['pk', 'inventory_quantity'],
+    'bridge': ['pk', 'entity_id', 'inventory_id', 'entity_invReq'],
+    'event': ['pk', 'entity_id', 'event_type'],
+    'resource': ['pk'],
+}
+
+def validate_entity_config(entity: Entity) -> None:
+    """
+    Validate entity configuration for required column types.
+    
+    Args:
+        entity: Entity configuration to validate
+        
+    Raises:
+        ValueError: If validation fails
+    """
+    # Check that all column types are valid
+    for attr in entity.attributes:
+        # Extract base type from parameterized types like decimal(10,2), varchar(100)
+        base_type = attr.type.split('(')[0] if '(' in attr.type else attr.type
+        
+        if base_type not in VALID_COLUMN_TYPES:
+            raise ValueError(
+                f"Entity '{entity.name}' has invalid column type '{attr.type}' "
+                f"in attribute '{attr.name}'. Valid base types: {sorted(VALID_COLUMN_TYPES)}"
+            )
+        
+        # entity_invReq must NOT be parameterized; quantities are defined by simulation unit_quantity
+        if base_type == 'entity_invReq' and '(' in attr.type:
+            raise ValueError(
+                f"Entity '{entity.name}' attribute '{attr.name}' uses parameterized '{attr.type}'. "
+                f"'entity_invReq' does not support parameters. Use 'entity_invReq' without (p,s); "
+                f"required amounts come from simulation 'unit_quantity'."
+            )
+    
+    # Check for required primary key
+    pk_attrs = [attr for attr in entity.attributes if attr.type == 'pk']
+    if len(pk_attrs) != 1:
+        raise ValueError(
+            f"Entity '{entity.name}' must have exactly one column with type='pk', "
+            f"found {len(pk_attrs)}"
+        )
+    
+    # Check table-specific requirements
+    if entity.type in REQUIRED_TYPES_BY_TABLE:
+        required_types = REQUIRED_TYPES_BY_TABLE[entity.type]
+        # Extract base types to handle parameterized types like inventory_quantity(10,2)
+        found_base_types = {attr.type.split('(')[0] if '(' in attr.type else attr.type for attr in entity.attributes}
+        missing_types = set(required_types) - found_base_types
+        
+        if missing_types:
+            raise ValueError(
+                f"Table '{entity.name}' of type '{entity.type}' is missing required column types: "
+                f"{sorted(missing_types)}. Required types: {sorted(required_types)}"
+            )
+    
+    # Additional validations for specific table types
+    if entity.type == 'bridge':
+        _validate_bridge_table(entity)
+    elif entity.type == 'inventory':
+        _validate_inventory_table(entity)
+    elif entity.type == 'event':
+        _validate_event_table(entity)
+
+def _validate_bridge_table(entity: Entity) -> None:
+    """Validate bridge table specific requirements."""
+    # Extract base types to handle parameterized types
+    entity_fks = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'entity_id']
+    inventory_fks = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inventory_id']
+    invreq_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'entity_invReq']
+    
+    if len(entity_fks) != 1:
+        raise ValueError(
+            f"Bridge table '{entity.name}' must have exactly one column with type='entity_id'"
+        )
+    if len(inventory_fks) != 1:
+        raise ValueError(
+            f"Bridge table '{entity.name}' must have exactly one column with type='inventory_id'"
+        )
+    if len(invreq_cols) != 1:
+        raise ValueError(
+            f"Bridge table '{entity.name}' must have exactly one column with type='entity_invReq'"
+        )
+
+def _validate_inventory_table(entity: Entity) -> None:
+    """Validate inventory table specific requirements."""
+    # Extract base types to handle parameterized types like inventory_quantity(10,2)
+    qty_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'inventory_quantity']
+    if len(qty_cols) != 1:
+        raise ValueError(
+            f"Inventory table '{entity.name}' must have exactly one column with type='inventory_quantity'"
+        )
+
+def _validate_event_table(entity: Entity) -> None:
+    """Validate event table specific requirements."""
+    # Extract base types to handle parameterized types
+    type_cols = [attr for attr in entity.attributes if (attr.type.split('(')[0] if '(' in attr.type else attr.type) == 'event_type']
+    if len(type_cols) != 1:
+        raise ValueError(
+            f"Event table '{entity.name}' must have exactly one column with type='event_type'"
+        )
+
 def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
     if isinstance(file_path, str):
         file_path = Path(file_path)
@@ -114,11 +247,97 @@ def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
                 relationship=relationship
             ))
         
-        entities.append(Entity(
+        entity = Entity(
             name=entity_dict['name'],
             attributes=attributes,
             rows=entity_dict.get('rows', 0),
             type=entity_dict.get('type')  # Parse the type field
-        ))
+        )
+        
+        # Validate entity configuration
+        validate_entity_config(entity)
+        
+        entities.append(entity)
     
-    return DatabaseConfig(entities=entities) 
+    config = DatabaseConfig(entities=entities)
+    
+    # Log validation success
+    logger.info(f"Successfully parsed and validated {len(entities)} entities with strict column type validation")
+    
+    return config
+
+
+def parse_db_config_from_string(content: str) -> DatabaseConfig:
+    """
+    Parse database configuration from YAML string with strict validation.
+    
+    Args:
+        content: YAML configuration string
+        
+    Returns:
+        Parsed and validated database configuration
+        
+    Raises:
+        ValueError: If configuration is invalid or validation fails
+    """
+    try:
+        config_dict = yaml.safe_load(content)
+    except yaml.YAMLError as e:
+        raise ValueError(f"Invalid YAML content: {e}")
+    
+    if not config_dict or 'entities' not in config_dict:
+        raise ValueError("Configuration must contain 'entities' section")
+    
+    entities = []
+    for entity_dict in config_dict['entities']:
+        # Parse attributes
+        attributes = []
+        for attr_dict in entity_dict.get('attributes', []):
+            generator = None
+            if 'generator' in attr_dict:
+                gen_dict = attr_dict['generator']
+                generator = Generator(
+                    type=gen_dict['type'],
+                    method=gen_dict.get('method'),
+                    template=gen_dict.get('template'),
+                    formula=gen_dict.get('formula'),
+                    expression=gen_dict.get('expression'), 
+                    values=gen_dict.get('values'),
+                    weights=gen_dict.get('weights'),
+                    subtype=gen_dict.get('subtype')
+                )
+            
+            relationship = None
+            if 'relationship' in attr_dict:
+                rel_dict = attr_dict['relationship']
+                relationship = Relationship(
+                    type=rel_dict['type'],
+                    multiplicity=rel_dict.get('multiplicity', {})
+                )
+            
+            attributes.append(Attribute(
+                name=attr_dict['name'],
+                type=attr_dict['type'],
+                generator=generator,
+                ref=attr_dict.get('ref'),
+                relationship=relationship
+            ))
+        
+        entity = Entity(
+            name=entity_dict['name'],
+            attributes=attributes,
+            rows=entity_dict.get('rows', 0),
+            type=entity_dict.get('type')
+        )
+        
+        # Validate entity configuration
+        validate_entity_config(entity)
+        
+        entities.append(entity)
+    
+    config = DatabaseConfig(entities=entities)
+    
+    # Log validation success
+    logger.info(f"Successfully parsed and validated {len(entities)} entities from string with strict column type validation")
+    
+    return config 
