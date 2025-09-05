@@ -73,7 +73,8 @@ export const createEntityUIActions = (set, get) => ({
   closeEntityModal: () => {
     set((state) => {
       state.showEntityModal = false;
-      state.selectedEntity = null;
+      // Keep selectedEntity intact to maintain node selection consistency
+      // state.selectedEntity = null;
     });
   },
 
