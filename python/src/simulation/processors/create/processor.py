@@ -375,11 +375,11 @@ class CreateStepProcessor(StepProcessor):
             List of tuples (inventory_id, quantity_needed)
         """
         try:
-            # Get available inventory items
-            available_items = self._get_available_inventory_items(inventory_req.inventory_table)
+            # Get all inventory items for selection
+            available_items = self._get_inventory_items(inventory_req.inventory_table)
             
             if not available_items:
-                logger.warning(f"No available inventory items in table {inventory_req.inventory_table}")
+                logger.warning(f"No inventory items found in table {inventory_req.inventory_table}")
                 return []
             
             # Determine how many different items to select
@@ -409,9 +409,13 @@ class CreateStepProcessor(StepProcessor):
             logger.error(f"Error selecting inventory items: {e}", exc_info=True)
             return []
     
-    def _get_available_inventory_items(self, inventory_table: str):
+    def _get_inventory_items(self, inventory_table: str):
         """
-        Get list of available inventory item IDs from the inventory table.
+        Get list of all inventory item IDs from the inventory table.
+        
+        This method returns ALL inventory items for selection purposes based on
+        the entity's inventory requirements configuration. Stock availability 
+        checks are handled later in the simulation flow.
         
         Args:
             inventory_table: Name of the inventory table
@@ -423,13 +427,15 @@ class CreateStepProcessor(StepProcessor):
             # Create a direct connection to avoid session issues
             with self.engine.connect() as connection:
                 pk_column = self.column_resolver.get_primary_key(inventory_table)
-                quantity_column = self.column_resolver.get_inventory_quantity_column(inventory_table)
-                query = text(f'SELECT "{pk_column}" FROM "{inventory_table}" WHERE "{quantity_column}" > 0 ORDER BY "{pk_column}"')
+                # Remove stock level filter to allow selection of out-of-stock items
+                # This enables proper backorder simulation by creating OrderBooks entries
+                # even when inventory is depleted
+                query = text(f'SELECT "{pk_column}" FROM "{inventory_table}" ORDER BY "{pk_column}"')
                 results = connection.execute(query).fetchall()
                 return [row[0] for row in results]
                 
         except Exception as e:
-            logger.error(f"Error getting available inventory items from {inventory_table}: {e}")
+            logger.error(f"Error getting inventory items from {inventory_table}: {e}")
             return []
     
     def _evaluate_quantity_formula(self, formula):
