@@ -382,12 +382,12 @@ const AttributeTable = ({
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
-                                  className="me-1"
+                                  className="me-1 generator-button"
                                   onClick={() => openGeneratorModal(index)}
                                   title="Configure data generator"
                                 >
-                                  <FiSettings className="me-1" />
-                                  {getGeneratorDisplayText(attribute)}
+                                  <FiSettings />
+                                  <span>{getGeneratorDisplayText(attribute)}</span>
                                 </Button>
                               )}
                               {(attribute.type === 'fk' || attribute.type === 'event_id' ||

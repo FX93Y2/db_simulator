@@ -43,6 +43,8 @@ const EntityNode = ({ data, theme }) => {
         return 'event-type';
       case 'resource':
         return 'resource-type';
+      case 'inventory':
+        return 'inventory-type';
       default:
         return '';
     }

@@ -217,6 +217,32 @@
     overflow: visible;
   }
   
+  // Generator/distribution button styling for single-row display
+  .generator-button {
+    height: 31px; // Fixed height to match other small buttons
+    max-width: 200px; // Prevent overflow from the table column
+    white-space: nowrap;
+    overflow: hidden;
+    display: inline-flex;
+    align-items: center;
+    min-width: 0; // Allow button to shrink
+    
+    // Icon spacing
+    svg {
+      margin-right: 0.25rem;
+      flex-shrink: 0;
+    }
+    
+    // Content after icon should be truncated
+    span {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      min-width: 0; // Allow flex item to shrink below content size
+      flex: 1; // Take remaining space
+    }
+  }
+  
   .add-attribute-btn {
     border: 2px dashed var(--theme-border);
     background: transparent;

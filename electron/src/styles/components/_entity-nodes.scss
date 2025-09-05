@@ -154,3 +154,8 @@
   background: linear-gradient(135deg, var(--theme-secondary), var(--theme-secondary));
   color: #ffffff;
 }
+
+.entity-node.inventory-type .entity-table__header {
+  background: linear-gradient(135deg, #9333ea, #6d26af);
+  color: #ffffff;
+}
