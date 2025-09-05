@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiTrash2, FiCode } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import SQLEditorModal from '../../../shared/SQLEditorModal';
 
 const DecideStepEditor = ({ 
   formData, 
@@ -14,6 +15,55 @@ const DecideStepEditor = ({
   availableAttributes,
   nameValidation = { valid: true, error: null }
 }) => {
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [editingSqlIndex, setEditingSqlIndex] = useState(-1);
+  const [currentSqlValue, setCurrentSqlValue] = useState('');
+
+  const handleSqlEdit = (index) => {
+    setEditingSqlIndex(index);
+    // Immediately capture the SQL value when opening the editor
+    const outcome = outcomes[index];
+    const sqlValue = (outcome && isSQL(outcome.if)) ? outcome.if : '';
+    setCurrentSqlValue(sqlValue);
+    setShowSqlModal(true);
+  };
+
+  // Update currentSqlValue when editingSqlIndex or outcomes change
+  useEffect(() => {
+    if (editingSqlIndex >= 0 && outcomes[editingSqlIndex]) {
+      const outcome = outcomes[editingSqlIndex];
+      const sqlValue = isSQL(outcome.if) ? outcome.if : '';
+      setCurrentSqlValue(sqlValue);
+    }
+  }, [editingSqlIndex, outcomes]);
+
+  const handleSqlSave = (sqlValue) => {
+    if (editingSqlIndex >= 0) {
+      // Store the SQL directly in the outcome's 'if' field
+      onOutcomeChange(editingSqlIndex, 'if', sqlValue);
+    }
+  };
+
+  // Helper function to detect if a string is SQL
+  const isSQL = (str) => {
+    if (!str || typeof str !== 'string') return false;
+    const trimmed = str.trim().toUpperCase();
+    return trimmed.includes('SELECT') || trimmed.includes('UPDATE') || trimmed.includes('INSERT') || trimmed.includes('DELETE');
+  };
+
+  const getSqlButtonText = (outcome) => {
+    if (outcome && isSQL(outcome.if)) {
+      return 'SQL Set';
+    }
+    return 'Edit SQL';
+  };
+
+  const getSqlButtonVariant = (outcome) => {
+    if (outcome && isSQL(outcome.if)) {
+      return 'success';
+    }
+    return 'outline-secondary';
+  };
   return (
     <>
       <div className="step-info-section">
@@ -90,23 +140,37 @@ const DecideStepEditor = ({
                 <div className="grid-cell">
                   <div className="condition-fields">
                     <Form.Select
-                      value={outcome.if || 'Attribute'}
+                      value={isSQL(outcome.if) ? 'SQL' : (outcome.if || 'Attribute')}
                       onChange={(e) => onOutcomeChange(index, 'if', e.target.value)}
                       size="sm"
                     >
                       <option value="Attribute">Attribute</option>
+                      <option value="SQL">SQL</option>
                     </Form.Select>
                     
-                    <Form.Select
-                      value={outcome.name || ''}
-                      onChange={(e) => onOutcomeChange(index, 'name', e.target.value)}
-                      size="sm"
-                    >
-                      <option value="">Select attribute...</option>
-                      {availableAttributes.map(attr => (
-                        <option key={attr} value={attr}>{attr}</option>
-                      ))}
-                    </Form.Select>
+                    {outcome.if === 'SQL' || isSQL(outcome.if) ? (
+                      <Button
+                        variant={getSqlButtonVariant(outcome)}
+                        size="sm"
+                        onClick={() => handleSqlEdit(index)}
+                        className="d-flex align-items-center"
+                        style={{ width: '100%', height: '31px' }}
+                      >
+                        <FiCode className="me-1" />
+                        {getSqlButtonText(outcome)}
+                      </Button>
+                    ) : (
+                      <Form.Select
+                        value={outcome.name || ''}
+                        onChange={(e) => onOutcomeChange(index, 'name', e.target.value)}
+                        size="sm"
+                      >
+                        <option value="">Select attribute...</option>
+                        {availableAttributes.map(attr => (
+                          <option key={attr} value={attr}>{attr}</option>
+                        ))}
+                      </Form.Select>
+                    )}
                     
                     <Form.Select
                       value={outcome.is || '=='}
@@ -170,6 +234,15 @@ const DecideStepEditor = ({
           </div>
         )}
       </div>
+
+      {/* SQL Editor Modal */}
+      <SQLEditorModal
+        show={showSqlModal}
+        onHide={() => setShowSqlModal(false)}
+        onSave={handleSqlSave}
+        initialValue={currentSqlValue}
+        title="Edit SQL Expression"
+      />
     </>
   );
 };

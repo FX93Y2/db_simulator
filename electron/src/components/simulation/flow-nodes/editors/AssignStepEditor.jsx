@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Button, InputGroup, DropdownButton, Dropdown } from 'react-bootstrap';
-import { FiTrash2 } from 'react-icons/fi';
+import { FiTrash2, FiCode, FiCheck } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import SQLEditorModal from '../../../shared/SQLEditorModal';
 
 const AssignStepEditor = ({ 
   formData, 
@@ -13,6 +14,45 @@ const AssignStepEditor = ({
   availableAttributes,
   nameValidation = { valid: true, error: null }
 }) => {
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [editingSqlIndex, setEditingSqlIndex] = useState(-1);
+  const [currentSqlValue, setCurrentSqlValue] = useState('');
+
+  const handleSqlEdit = (index) => {
+    setEditingSqlIndex(index);
+    // Capture the SQL value immediately to avoid timing issues on first open
+    const assignment = assignments[index];
+    const sqlValue = assignment?.expression || '';
+    setCurrentSqlValue(sqlValue);
+    setShowSqlModal(true);
+  };
+
+  const handleSqlSave = (sqlValue) => {
+    if (editingSqlIndex >= 0) {
+      onAssignmentChange(editingSqlIndex, 'expression', sqlValue);
+    }
+  };
+
+  const getSqlButtonText = (assignment) => {
+    if (assignment.expression && assignment.expression.trim()) {
+      return 'SQL Set';
+    }
+    return 'Edit SQL';
+  };
+
+  const getSqlButtonVariant = (assignment) => {
+    if (assignment.expression && assignment.expression.trim()) {
+      return 'success';
+    }
+    return 'outline-secondary';
+  };
+
+  // Keep currentSqlValue in sync if the selected index or assignments change
+  useEffect(() => {
+    if (editingSqlIndex >= 0 && assignments[editingSqlIndex]) {
+      setCurrentSqlValue(assignments[editingSqlIndex].expression || '');
+    }
+  }, [editingSqlIndex, assignments]);
   return (
     <>
       <div className="step-info-section">
@@ -47,11 +87,11 @@ const AssignStepEditor = ({
                   <Form.Select
                     value={assignment.assignment_type || 'attribute'}
                     onChange={(e) => onAssignmentChange(index, 'assignment_type', e.target.value)}
-                    disabled
                     size="sm"
                     style={{ width: '100%' }}
                   >
                     <option value="attribute">Attribute</option>
+                    <option value="sql">SQL</option>
                   </Form.Select>
                 </div>
               </div>
@@ -62,8 +102,8 @@ const AssignStepEditor = ({
                     type="text"
                     value={assignment.attribute_name || ''}
                     onChange={(e) => onAssignmentChange(index, 'attribute_name', e.target.value)}
-                    placeholder="Type attribute name..."
-                    isInvalid={!assignment.attribute_name}
+                    placeholder={assignment.assignment_type === 'sql' ? 'optional for SQL...' : 'Type attribute name...'}
+                    isInvalid={assignment.assignment_type !== 'sql' && !assignment.attribute_name}
                   />
                   {availableAttributes.length > 0 && (
                     <DropdownButton
@@ -83,24 +123,36 @@ const AssignStepEditor = ({
                       ))}
                     </DropdownButton>
                   )}
-                  <Form.Control.Feedback type="invalid">
-                    Attribute name is required.
-                  </Form.Control.Feedback>
                 </InputGroup>
               </div>
 
               <div className="grid-cell">
-                <Form.Control
-                  type="text"
-                  value={assignment.value || ''}
-                  onChange={(e) => onAssignmentChange(index, 'value', e.target.value)}
-                  isInvalid={!assignment.value}
-                  size="sm"
-                  style={{ width: '100%' }}
-                />
-                <Form.Control.Feedback type="invalid">
-                  Value is required.
-                </Form.Control.Feedback>
+                {assignment.assignment_type === 'sql' ? (
+                  <Button
+                    variant={getSqlButtonVariant(assignment)}
+                    size="sm"
+                    onClick={() => handleSqlEdit(index)}
+                    className="d-flex align-items-center"
+                    style={{ width: '100%', height: '31px' }}
+                  >
+                    <FiCode className="me-1" />
+                    {getSqlButtonText(assignment)}
+                    {assignment.expression && assignment.expression.trim() && (
+                      <FiCheck className="ms-1" size={12} />
+                    )}
+                  </Button>
+                ) : (
+                  <>
+                    <Form.Control
+                      type="text"
+                      value={assignment.value ?? ''}
+                      onChange={(e) => onAssignmentChange(index, 'value', e.target.value)}
+                      isInvalid={assignment.value === undefined || assignment.value === '' || assignment.value === null}
+                      size="sm"
+                      style={{ width: '100%' }}
+                    />
+                  </>
+                )}
               </div>
               
               <div className="grid-cell cell-center">
@@ -128,6 +180,15 @@ const AssignStepEditor = ({
           </Button>
         </div>
       </div>
+
+      {/* SQL Editor Modal */}
+      <SQLEditorModal
+        show={showSqlModal}
+        onHide={() => setShowSqlModal(false)}
+        onSave={handleSqlSave}
+        initialValue={currentSqlValue}
+        title="Edit SQL Expression"
+      />
     </>
   );
 };

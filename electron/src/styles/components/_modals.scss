@@ -113,3 +113,23 @@ body.theme-dark {
     }
   }
 }
+
+// SQL Editor Modal - smaller than parent step editor modals
+.sql-editor-modal {
+  .modal-dialog {
+    max-width: 600px;
+    width: 85vw;
+  }
+  
+  .modal-body {
+    padding: 1rem;
+  }
+
+  .modal-header {
+    padding: 1rem 1rem 0.5rem;
+  }
+
+  .modal-footer {
+    padding: 0.5rem 1rem 1rem;
+  }
+}

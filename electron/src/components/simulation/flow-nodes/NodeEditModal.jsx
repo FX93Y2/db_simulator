@@ -169,7 +169,9 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const convertedAssignments = (assignConfig.assignments || []).map((assignment) => ({
       assignment_type: assignment.assignment_type || 'attribute',
       attribute_name: assignment.attribute_name || '',
-      value: assignment.value || ''
+      // Preserve both fields; UI and save logic will pick correct one by type
+      value: assignment.value ?? '',
+      expression: assignment.expression || ''
     }));
     
     // Ensure at least one assignment
@@ -372,7 +374,15 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
       // Validate all assignments have required fields
       for (const assignment of assignments) {
-        if (!assignment.attribute_name || !assignment.value) {
+        const isSql = assignment.assignment_type === 'sql';
+        const hasValue = isSql
+          ? (assignment.expression && assignment.expression.toString().trim() !== '')
+          : (assignment.value !== undefined && assignment.value !== '' && assignment.value !== null);
+
+        // Attribute name is required only for non-SQL assignments
+        const requiresAttribute = !isSql;
+
+        if ((requiresAttribute && !assignment.attribute_name) || !hasValue) {
           return false; // Don't save if any assignment is incomplete
         }
       }
@@ -419,7 +429,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.decide_config = buildDecideConfig(stepId);
     } else if (stepType === 'assign') {
       updatedStepConfig.assign_config = buildAssignConfig(stepId);
-      updatedStepConfig.next_steps = [];
+      // Preserve existing next_steps for assign nodes (connections handled via canvas)
     } else if (stepType === 'release') {
       // Release steps no longer need event_config.name
       // Display name is derived from step_id instead
@@ -470,14 +480,34 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         }];
       } else {
         // Condition-based decision
-        const condition = {
-          if: outcome.if || 'Attribute',
-          name: outcome.name || '',
-          is: outcome.is || '==',
-          value: outcome.value || ''
-        };
+        const ifValue = outcome.if || 'Attribute';
+        const isSqlExpr = typeof ifValue === 'string' && (
+          ifValue.toUpperCase().includes('SELECT') ||
+          ifValue.toUpperCase().includes('UPDATE') ||
+          ifValue.toUpperCase().includes('INSERT') ||
+          ifValue.toUpperCase().includes('DELETE') ||
+          ifValue.includes('Entity.')
+        );
 
-        baseOutcome.conditions = [condition];
+        if (isSqlExpr) {
+          // SQL/Entity expressions: compare result to true by default if value not provided
+          const operator = outcome.is || '==';
+          const hasExplicitValue = outcome.value !== undefined && outcome.value !== '' && outcome.value !== null;
+          const expectedValue = hasExplicitValue ? outcome.value : true;
+          baseOutcome.conditions = [{
+            if: ifValue,
+            is: operator,
+            value: expectedValue
+          }];
+        } else {
+          // Attribute-based condition
+          baseOutcome.conditions = [{
+            if: ifValue || 'Attribute',
+            name: outcome.name || '',
+            is: outcome.is || '==',
+            value: outcome.value || ''
+          }];
+        }
       }
 
       return baseOutcome;
@@ -491,11 +521,17 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const buildAssignConfig = (stepId) => {
     return {
-      assignments: assignments.map((assignment) => ({
-        assignment_type: assignment.assignment_type,
-        attribute_name: assignment.attribute_name,
-        value: assignment.value
-      }))
+      assignments: assignments.map((assignment) => {
+        const base = { assignment_type: assignment.assignment_type };
+        if (assignment.assignment_type === 'sql') {
+          const out = { ...base, expression: assignment.expression || '' };
+          // Include attribute_name only if provided (optional for SQL)
+          if (assignment.attribute_name) out.attribute_name = assignment.attribute_name;
+          return out;
+        }
+        // For non-SQL, attribute_name is required
+        return { ...base, attribute_name: assignment.attribute_name, value: assignment.value };
+      })
     };
   };
 

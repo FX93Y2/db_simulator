@@ -236,12 +236,64 @@ export const createYamlActions = (set, get) => ({
     
     /**
      * Helper function to clean step object and remove canvas/frontend-only properties
+     * Also handles SQL expression formatting for backend compatibility
      */
     const cleanStep = (step) => {
       const { position, displayName, ...stepWithoutFrontendProps } = step;
-      // Deep clone to prevent YAML anchor references
-      // displayName is frontend-only and not included in YAML
-      return JSON.parse(JSON.stringify(stepWithoutFrontendProps));
+      
+      // No debug logging in production
+      
+      // Deep clone first to avoid modifying read-only objects
+      const cleanedStep = JSON.parse(JSON.stringify(stepWithoutFrontendProps));
+      
+      // Handle conditions for decide steps - just clean up empty values
+      if (cleanedStep.step_type === 'decide' && cleanedStep.decide_config?.outcomes) {
+        cleanedStep.decide_config.outcomes = cleanedStep.decide_config.outcomes.map((outcome, outcomeIndex) => {
+          if (outcome.conditions && outcome.conditions.length > 0) {
+            // Process conditions within each outcome - clean up empty values
+            outcome.conditions = outcome.conditions.map((condition, conditionIndex) => {
+              // Clean up empty values but preserve the structure
+              const cleanCondition = {};
+              Object.keys(condition).forEach(key => {
+                if (condition[key] !== '' && condition[key] !== undefined) {
+                  cleanCondition[key] = condition[key];
+                }
+              });
+              return cleanCondition;
+            });
+          }
+          
+          // Clean up outcome level - remove any frontend-only fields
+          const { sqlExpression, ...cleanOutcome } = outcome;
+          return cleanOutcome;
+        });
+      }
+      
+      // Handle SQL expressions for assign steps
+      if (cleanedStep.step_type === 'assign' && cleanedStep.assign_config?.assignments) {
+        cleanedStep.assign_config.assignments = cleanedStep.assign_config.assignments.map(assignment => {
+          if (assignment.assignment_type === 'sql') {
+            // For SQL assignments, keep expression field and remove value field
+            const cleanAssignment = {};
+            Object.keys(assignment).forEach(key => {
+              if (key !== 'value' && assignment[key] !== '' && assignment[key] !== undefined) {
+                cleanAssignment[key] = assignment[key];
+              }
+            });
+            return cleanAssignment;
+          }
+          // For non-SQL assignments, remove expression field and clean empty values
+          const cleanAssignment = {};
+          Object.keys(assignment).forEach(key => {
+            if (key !== 'expression' && assignment[key] !== '' && assignment[key] !== undefined) {
+              cleanAssignment[key] = assignment[key];
+            }
+          });
+          return cleanAssignment;
+        });
+      }
+      
+      return cleanedStep;
     };
     
     /**
