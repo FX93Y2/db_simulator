@@ -33,11 +33,25 @@ export const createYamlActions = (set, get) => ({
       }
 
       // Extract canonical steps from parsed schema - collect from ALL flows
+      // Also migrate legacy create_config.event_table to _eventTable
       const canonicalSteps = [];
       if (parsedObj.event_simulation?.event_flows) {
         parsedObj.event_simulation.event_flows.forEach(flow => {
           if (flow.steps) {
-            canonicalSteps.push(...flow.steps);
+            flow.steps.forEach(step => {
+              if (step.step_type === 'create') {
+                // Migrate legacy per-step event_table
+                if (step.create_config?.event_table) {
+                  step._eventTable = step.create_config.event_table;
+                  delete step.create_config.event_table;
+                }
+                // Also inherit flow-level event_table if present
+                if (!step._eventTable && flow.event_table) {
+                  step._eventTable = flow.event_table;
+                }
+              }
+              canonicalSteps.push(step);
+            });
           }
         });
       }
@@ -150,7 +164,19 @@ export const createYamlActions = (set, get) => ({
       if (parsedObj.event_simulation?.event_flows) {
         parsedObj.event_simulation.event_flows.forEach(flow => {
           if (flow.steps) {
-            canonicalSteps.push(...flow.steps);
+            flow.steps.forEach(step => {
+              // Migrate legacy per-step event_table and inherit flow-level event_table
+              if (step.step_type === 'create') {
+                if (step.create_config?.event_table) {
+                  step._eventTable = step.create_config.event_table;
+                  delete step.create_config.event_table;
+                }
+                if (!step._eventTable && flow.event_table) {
+                  step._eventTable = flow.event_table;
+                }
+              }
+              canonicalSteps.push(step);
+            });
           }
         });
       }
@@ -293,6 +319,9 @@ export const createYamlActions = (set, get) => ({
         });
       }
       
+      // Remove internal _eventTable field (used for flow-level event_table generation)
+      delete cleanedStep._eventTable;
+      
       return cleanedStep;
     };
     
@@ -407,14 +436,14 @@ export const createYamlActions = (set, get) => ({
       
       // Only create flow if there are connected steps
       if (connectedSteps.length > 0) {
-        // Use event_table from create_config if available, otherwise find it automatically
+        // Use event_table from stepConfig or derive from DB config; no legacy fallback
+        const stepEventTable = createModule._eventTable;
         const entityTable = createModule.create_config?.entity_table;
-        const configEventTable = createModule.create_config?.event_table;
-        const eventTable = configEventTable || get().findEventTableForEntity(entityTable, parsedDbConfig);
+        const eventTable = stepEventTable || get().findEventTableForEntity(entityTable, parsedDbConfig);
         
         flows.push({
           flow_id: flowId,
-          event_table: eventTable || entityTable || 'Event',
+          event_table: eventTable || '',
           steps: connectedSteps
         });
       }

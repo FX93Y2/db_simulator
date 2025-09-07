@@ -54,7 +54,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     }
   }, [show, node, parsedSchema]);
 
-  const initializeFormData = (stepConfig) => {
+  const initializeFormData = (stepConfig, nodeData = node) => {
     if (stepConfig.step_type === 'event') {
       initializeEventForm(stepConfig);
     } else if (stepConfig.step_type === 'decide') {
@@ -64,7 +64,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepConfig.step_type === 'release') {
       initializeReleaseForm(stepConfig);
     } else if (stepConfig.step_type === 'create') {
-      initializeCreateForm(stepConfig);
+      initializeCreateForm(stepConfig, nodeData);
     }
   };
 
@@ -195,17 +195,20 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     });
   };
 
-  const initializeCreateForm = (stepConfig) => {
+  const initializeCreateForm = (stepConfig, nodeData) => {
     const createConfig = stepConfig.create_config || {};
     const interarrivalTime = createConfig.interarrival_time || {};
     
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
     
+    // Get event table from stepConfig (legacy field is migrated during YAML parse/import)
+    const savedEventTable = stepConfig._eventTable || '';
+    
     setFormData({
       name: stepName,
       entity_table: createConfig.entity_table || '',
-      event_table: createConfig.event_table || '',
+      event_table: savedEventTable,
       interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
       interarrival_time_unit: interarrivalTime.time_unit || undefined,
       max_entities: createConfig.max_entities || 'n/a',
@@ -407,6 +410,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         }
       };
 
+
       onNodeUpdate(updatedNode);
       return true;
     } catch (error) {
@@ -439,6 +443,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
       updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
+      // Store event_table in stepConfig for YAML generation (not in create_config)
+      updatedStepConfig._eventTable = formData.event_table || '';
     }
 
     return updatedStepConfig;
@@ -543,7 +549,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     
     return {
       entity_table: formData.entity_table || '',
-      event_table: formData.event_table || '',
       interarrival_time: interarrivalTime,
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };

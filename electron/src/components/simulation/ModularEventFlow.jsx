@@ -380,7 +380,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         break;
       case 'create':
         newStep.create_config = {
-          entity_table: "Entity",
+          entity_table: "",
           max_entities: "n/a"
         };
         break;

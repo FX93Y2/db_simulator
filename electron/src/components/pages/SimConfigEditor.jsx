@@ -250,7 +250,7 @@ const SimConfigEditor = ({
         break;
       case 'create':
         newStep.create_config = {
-          entity_table: "Entity",
+          entity_table: "",
           interarrival_time: {
             distribution: {
               type: "exponential",
