@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
-import { FiHelpCircle } from 'react-icons/fi';
+import { FiHelpCircle, FiCode, FiCheck } from 'react-icons/fi';
 import { SharedHelpPanel } from '../../../shared/help';
+import SQLEditorModal from '../../../shared/SQLEditorModal';
 
 const FormulaGeneratorEditor = ({ generator, onExpressionChange }) => {
-  // Local state for expression and help panel
+  // Local state for expression, help panel, and SQL modal
   const [expression, setExpression] = useState('');
   const [showHelpPanel, setShowHelpPanel] = useState(false);
+  const [showSqlModal, setShowSqlModal] = useState(false);
   
   // Initialize expression from generator when component mounts or generator changes
   useEffect(() => {
@@ -14,40 +16,61 @@ const FormulaGeneratorEditor = ({ generator, onExpressionChange }) => {
     setExpression(initialExpression);
   }, [generator.expression]);
 
-  // Close panel when component unmounts (modal closes)
-  useEffect(() => {
-    return () => {
-      setShowHelpPanel(false);
-    };
-  }, []);
-
-  const handleExpressionChange = (e) => {
-    const newExpression = e.target.value;
+  const handleSqlSave = (newExpression) => {
     setExpression(newExpression);
     onExpressionChange(newExpression);
   };
 
+  const handleSqlEdit = () => {
+    setShowSqlModal(true);
+  };
+
+  // Get display text for the SQL button - show truncated SQL content
+  const getSqlButtonText = () => {
+    if (expression && expression.trim()) {
+      // Truncate long expressions for display
+      const maxLength = 50;
+      return expression.trim().length > maxLength 
+        ? expression.trim().substring(0, maxLength) + '...'
+        : expression.trim();
+    }
+    return 'Enter SQL expression...';
+  };
+
+  const isPlaceholder = !expression || !expression.trim();
+
   return (
     <>
-      <Form.Group className="mb-3">
+      <Form.Group className="mb-3" controlId="formula-expression-input">
         <Form.Label>
           Formula Expression
         </Form.Label>
         <div className="position-relative">
-          <Form.Control
-            as="textarea"
-            rows={3}
-            value={expression}
-            onChange={handleExpressionChange}
-            placeholder="e.g., MIN(SELECT created_at FROM Tickets WHERE user_id = @id) - DAYS(RANDOM(30, 365))"
-            className="pe-5"
+          <Button
+            id="formula-expression-input"
+            variant="outline-secondary"
+            onClick={handleSqlEdit}
+            className={`formula-expression-button d-flex align-items-center justify-content-start ${isPlaceholder ? 'is-placeholder' : ''}`}
             style={{
+              width: '100%',
+              height: '38px',
+              textAlign: 'left',
               paddingRight: '40px',
               fontFamily: 'Monaco, Consolas, "Courier New", monospace',
               fontSize: '13px',
-              resize: 'vertical'
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis'
             }}
-          />
+          >
+            <FiCode className="me-2 flex-shrink-0" size={14} />
+            <span className="text-truncate">
+              {getSqlButtonText()}
+            </span>
+            {expression && expression.trim() && (
+              <FiCheck className="ms-auto flex-shrink-0" size={12} />
+            )}
+          </Button>
           <Button
             variant=""
             size="sm"
@@ -70,6 +93,15 @@ const FormulaGeneratorEditor = ({ generator, onExpressionChange }) => {
         show={showHelpPanel}
         onHide={() => setShowHelpPanel(false)}
         helpType="formula"
+      />
+
+      {/* SQL Editor Modal */}
+      <SQLEditorModal
+        show={showSqlModal}
+        onHide={() => setShowSqlModal(false)}
+        onSave={handleSqlSave}
+        initialValue={expression}
+        title="Edit Formula Expression"
       />
     </>
   );

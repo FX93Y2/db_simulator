@@ -613,3 +613,82 @@ body.theme-dark {
   overflow: visible !important;
   position: relative !important;
 }
+
+// ============================================
+// FORMULA EXPRESSION BUTTON STYLES
+// ============================================
+// Button that mimics Form.Select appearance for SQL editor trigger
+
+.formula-expression-button {
+  // Base styling to match Form.Select
+  background-color: var(--theme-input-bg) !important;
+  border: 1px solid var(--theme-input-border) !important;
+  color: var(--theme-text) !important;
+  transition: border-color 0.15s ease-in-out !important;
+  
+  // Match Form.Select padding and sizing
+  padding: 0.375rem 0.75rem !important;
+  border-radius: 0.375rem !important;
+  
+  // Small size variant
+  &.btn-sm {
+    padding: 0.25rem 0.5rem !important;
+    border-radius: 0.25rem !important;
+  }
+  
+  // Hover state to match Form.Select
+  &:hover:not(:focus):not(:disabled) {
+    border-color: var(--theme-input-focus-border) !important;
+    background-color: var(--theme-input-bg) !important;
+    color: var(--theme-text) !important;
+  }
+  
+  // Focus state to match Form.Select
+  &:focus {
+    background-color: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-focus-border) !important;
+    color: var(--theme-text) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25) !important;
+    outline: none !important;
+  }
+  
+  // Active state
+  &:active,
+  &.active {
+    background-color: var(--theme-input-bg) !important;
+    border-color: var(--theme-input-focus-border) !important;
+    color: var(--theme-text) !important;
+    box-shadow: 0 0 0 0.2rem rgba(var(--theme-primary-rgb), 0.25) !important;
+  }
+  
+  // Disabled state
+  &:disabled {
+    background-color: var(--theme-table-header-bg) !important;
+    border-color: var(--theme-input-border) !important;
+    color: var(--theme-muted-text) !important;
+    opacity: 0.8 !important;
+    cursor: not-allowed !important;
+  }
+  
+  // Text content styling
+  .text-truncate {
+    color: inherit !important;
+  }
+
+  // Placeholder state styling
+  &.is-placeholder .text-truncate {
+    font-style: italic;
+    opacity: 0.8;
+  }
+  
+  // Icon styling
+  svg {
+    color: var(--theme-muted-text) !important;
+    flex-shrink: 0 !important;
+  }
+  
+  // Check icon when expression exists
+  .ms-auto svg {
+    color: var(--bs-success, #198754) !important;
+  }
+}
