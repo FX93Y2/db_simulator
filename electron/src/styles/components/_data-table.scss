@@ -45,7 +45,8 @@
         // Round bottom corners on the final row so the body matches container radius
         border-bottom-left-radius: 8px;
         border-bottom-right-radius: 8px;
-        overflow: hidden; // clip row contents to the rounded edges
+        // Let menus and popovers overflow above the table row
+        overflow: visible;
       }
       
       .grid-cell {

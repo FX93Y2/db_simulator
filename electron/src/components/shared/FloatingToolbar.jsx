@@ -50,6 +50,8 @@ const FloatingToolbar = ({
             key={index} 
             className="floating-toolbar__dropdown"
             drop={dropDirection}
+            // Render menu in body to prevent clipping
+            container={typeof document !== 'undefined' ? document.body : undefined}
           >
             <Dropdown.Toggle 
               {...buttonProps}

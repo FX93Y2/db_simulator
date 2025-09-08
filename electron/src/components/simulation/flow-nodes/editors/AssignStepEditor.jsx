@@ -112,6 +112,8 @@ const AssignStepEditor = ({
                       id={`attribute-dropdown-${index}`}
                       align="end"
                       size="sm"
+                      // Render menu in body to avoid clipping by overflow/scroll containers
+                      container={typeof document !== 'undefined' ? document.body : undefined}
                     >
                       {availableAttributes.map(attr => (
                         <Dropdown.Item 
