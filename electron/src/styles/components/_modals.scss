@@ -4,6 +4,8 @@
   border: none;
   border-radius: var(--bs-modal-border-radius, 0.5rem);
   overflow: hidden;
+  // Elevation for all modals
+  @include shadow(xl);
   
   .modal-header {
     border-bottom: none;
@@ -52,6 +54,12 @@
 }
 
 // Dark theme modal styles are handled in _themes.scss to avoid duplication
+// Add dark theme shadow elevation
+body.theme-dark {
+  .modal-content {
+    @include shadow(xl, true);
+  }
+}
 
 // Entity Editor and Attribute Editor Modals
 .entity-editor-modal {

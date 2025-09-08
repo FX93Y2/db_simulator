@@ -91,6 +91,10 @@
   background-color: var(--theme-table-header-bg);
   filter: brightness(0.9); // Make slightly darker than modal body
   border-bottom: 2px solid var(--theme-border);
+  // Round top corners to visually match container while preserving overflow visibility
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+  overflow: hidden; // ensure header contents respect rounded corners
   
   .grid-header-cell {
     padding: 8px 12px;
@@ -136,6 +140,10 @@
   
   &:last-child {
     border-bottom: none;
+    // Round bottom corners on the final row so the body matches container radius
+    border-bottom-left-radius: 8px;
+    border-bottom-right-radius: 8px;
+    overflow: hidden; // clip row contents to the rounded edges
   }
   
   .grid-cell {
