@@ -9,6 +9,7 @@ pandas==2.2.3
 psycopg2-binary==2.9.10
 simpy==4.1.1
 python-dateutil==2.9.0.post0
+mini-racer==0.12.4
 
 # Testing dependencies
 pytest==8.3.5

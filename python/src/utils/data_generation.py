@@ -9,7 +9,7 @@ import logging
 import random
 from typing import Any, Dict
 
-from ..generator.data.faker import generate_fake_data
+from ..generator.data.faker_js import generate_fake_data
 
 logger = logging.getLogger(__name__)
 
