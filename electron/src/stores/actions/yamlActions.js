@@ -321,6 +321,15 @@ export const createYamlActions = (set, get) => ({
       
       // Remove internal _eventTable field (used for flow-level event_table generation)
       delete cleanedStep._eventTable;
+
+      // For release steps, drop empty or trivial event_config to avoid useless YAML
+      if (cleanedStep.step_type === 'release' && cleanedStep.event_config) {
+        const keys = Object.keys(cleanedStep.event_config || {});
+        const onlyNameKey = keys.length === 1 && keys[0] === 'name';
+        if (keys.length === 0 || onlyNameKey) {
+          delete cleanedStep.event_config;
+        }
+      }
       
       return cleanedStep;
     };

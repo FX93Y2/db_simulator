@@ -435,10 +435,9 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.assign_config = buildAssignConfig(stepId);
       // Preserve existing next_steps for assign nodes (connections handled via canvas)
     } else if (stepType === 'release') {
-      // Release steps no longer need event_config.name
-      // Display name is derived from step_id instead
-      if (!updatedStepConfig.event_config) {
-        updatedStepConfig.event_config = {};
+      // Release steps should not include event_config in YAML
+      if (updatedStepConfig.event_config) {
+        delete updatedStepConfig.event_config;
       }
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
