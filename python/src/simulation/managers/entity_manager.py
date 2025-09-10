@@ -58,6 +58,50 @@ class EntityManager:
         
         # Counter for entities
         self.entity_count = 0
+        
+        # Precompute attributes that will be assigned by flows, per entity table
+        self._assigned_attrs_by_entity = self._compute_assigned_attributes_by_entity()
+
+    def _compute_assigned_attributes_by_entity(self) -> Dict[str, set]:
+        """
+        Analyze the simulation config to determine which entity attributes
+        will be assigned by Assign steps in any flow. Returns a mapping of
+        entity table name -> set of attribute names.
+        """
+        result: Dict[str, set] = {}
+        
+        event_sim = getattr(self.config, 'event_simulation', None)
+        if not event_sim or not event_sim.event_flows:
+            return result
+            
+        flows = event_sim.event_flows.flows if hasattr(event_sim.event_flows, 'flows') else event_sim.event_flows
+        if not flows:
+            return result
+            
+        # Map flow -> entity tables via Create steps
+        flow_entities: Dict[str, set] = {}
+        for flow in flows:
+            ents = set()
+            for step in flow.steps:
+                if getattr(step, 'step_type', None) == 'create' and step.create_config and step.create_config.entity_table:
+                    ents.add(step.create_config.entity_table)
+            flow_entities[flow.flow_id] = ents
+            
+        # Collect assigned attribute names per entity across flows
+        for flow in flows:
+            target_entities = flow_entities.get(flow.flow_id, set())
+            if not target_entities:
+                continue
+            for step in flow.steps:
+                if getattr(step, 'step_type', None) == 'assign' and step.assign_config:
+                    for assignment in step.assign_config.assignments or []:
+                        attr_name = getattr(assignment, 'attribute_name', None)
+                        if not attr_name:
+                            continue
+                        for ent in target_entities:
+                            result.setdefault(ent, set()).add(attr_name)
+                            
+        return result
     
     def update_entity_attribute_column(self, entity_id: int, entity_table: str, 
                                      attribute_name: str, value) -> bool:
@@ -412,6 +456,11 @@ class EntityManager:
                                 row_data[attr.name] = random.choice(parent_ids)
                 # Handle other generator types
                 elif attr.generator:
+                    # If this attribute is assigned later in flows for this entity,
+                    # leave it NULL at creation time (no placeholder default).
+                    assigned_for_entity = self._assigned_attrs_by_entity.get(entity_table, set())
+                    if attr.name in assigned_for_entity:
+                        continue
                      # Convert generator dataclass to dict for the utility function
                     gen_dict = dataclasses.asdict(attr.generator) if attr.generator else None
                     attr_config_dict = {

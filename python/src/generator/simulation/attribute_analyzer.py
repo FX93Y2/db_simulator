@@ -141,3 +141,24 @@ class SimulationAttributeAnalyzer:
             logger.info("No attribute assignments found in simulation config")
         
         return flow_attributes
+
+    def get_entity_attribute_names_map(self, flow_attributes: Optional[Dict[str, Dict[str, Dict[str, Any]]]] = None) -> Dict[str, set]:
+        """
+        Build a mapping of entity table -> set of attribute names that are assigned in any flow.
+
+        Args:
+            flow_attributes: Optional precomputed flow attribute mapping from analyze_simulation_attributes().
+
+        Returns:
+            Dictionary mapping entity table name to a set of attribute names.
+        """
+        flow_attrs = flow_attributes if flow_attributes is not None else self.analyze_simulation_attributes()
+        entity_to_attrs: Dict[str, set] = {}
+
+        for _flow_id, entities in flow_attrs.items():
+            for entity_table, attrs in entities.items():
+                if entity_table not in entity_to_attrs:
+                    entity_to_attrs[entity_table] = set()
+                entity_to_attrs[entity_table].update(attrs.keys())
+
+        return entity_to_attrs

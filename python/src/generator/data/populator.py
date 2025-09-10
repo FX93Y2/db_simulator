@@ -24,6 +24,7 @@ class DataPopulator:
         self.pending_formulas = {}  # Store formula attributes for post-simulation resolution
     
     def populate_tables(self, models: dict, config: DatabaseConfig, session, 
+                       flow_assigned_attributes: dict,
                        dynamic_entity_tables: List[str] = None):
         """
         Populate tables with data based on configuration
@@ -33,10 +34,13 @@ class DataPopulator:
             config: Database configuration
             session: SQLAlchemy session
             dynamic_entity_tables: List of tables to skip during population
+            flow_assigned_attributes: Map of entity_table -> set(attribute_names) that will be assigned in flows
         """
         self.models = models
         self.session = session
         self.dynamic_entity_tables = dynamic_entity_tables or []
+        # Map of entity_table -> set(attribute_names) that will be assigned in flows
+        self.flow_assigned_attributes = flow_assigned_attributes
         
         # Sort entities to handle dependencies (this will be moved to dependency_sorter)
         from ..schema import DependencySorter
@@ -113,7 +117,13 @@ class DataPopulator:
                             row_data[attr.name] = fk_resolver.select_parent_id(parent_ids, formula)
                 # Generate data based on other generator configuration
                 elif attr.generator:
-                    row_data[attr.name] = self._generate_attribute_value(attr, i)
+                    # If this attribute is assigned by any Assign step in flows,
+                    # leave it NULL initially (no placeholder), so simulation can set it.
+                    assigned_for_entity = self.flow_assigned_attributes.get(entity.name, set())
+                    if attr.name in assigned_for_entity:
+                        row_data[attr.name] = None
+                    else:
+                        row_data[attr.name] = self._generate_attribute_value(attr, i)
                 # Handle foreign keys without generator
                 elif attr.is_foreign_key:
                     logger.error(f"Missing generator for foreign key '{attr.name}' in table '{entity.name}'. Assigning None.")

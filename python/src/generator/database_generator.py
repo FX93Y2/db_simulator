@@ -101,6 +101,8 @@ class DatabaseGenerator:
         
         # Analyze simulation config for flow-specific attributes
         flow_attributes = self.simulation_analyzer.analyze_simulation_attributes()
+        # Also compute union-by-entity attribute names for generation-time nulling
+        entity_assigned_attrs = self.simulation_analyzer.get_entity_attribute_names_map(flow_attributes)
         
         # Create tables
         models = self.table_builder.create_tables(self.config, self.engine, flow_attributes)
@@ -110,8 +112,13 @@ class DatabaseGenerator:
         self.session = Session()
         
         # Populate tables with data
-        self.data_populator.populate_tables(models, self.config, self.session, 
-                                           self.dynamic_entity_tables)
+        self.data_populator.populate_tables(
+            models,
+            self.config,
+            self.session,
+            entity_assigned_attrs,
+            self.dynamic_entity_tables,
+        )
         
         # Commit and close session
         self.session.commit()

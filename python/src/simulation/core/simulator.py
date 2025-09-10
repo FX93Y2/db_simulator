@@ -120,11 +120,13 @@ class EventSimulator:
             # Log simulation start
             self.termination_monitor.log_simulation_start()
             
-            # Start termination monitoring process
-            self.termination_monitor.start_monitoring()
+            # Start termination monitoring process and run until it finishes
+            # This ensures the environment stops exactly when a termination
+            # condition is met, rather than running until the event queue is empty.
+            termination_event = self.termination_monitor.start_monitoring()
             
-            # Run simulation (will be terminated by termination conditions)
-            self.initializer.env.run()
+            # Run simulation until the termination monitor process exits
+            self.initializer.env.run(until=termination_event)
             
             # Clean up any remaining allocated resources
             self._cleanup_remaining_resources()
