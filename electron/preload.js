@@ -74,6 +74,7 @@ contextBridge.exposeInMainWorld(
     reloadApp: () => ipcRenderer.invoke('api:reloadApp'),
     closeApp: () => ipcRenderer.invoke('api:closeApp'),
     checkUnsavedChanges: (hasChanges) => ipcRenderer.invoke('api:checkUnsavedChanges', hasChanges),
+    openExternalUrl: (url) => ipcRenderer.invoke('api:openExternalUrl', url),
     
     // App Events
     onAppCloseRequested: (callback) => {

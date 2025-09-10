@@ -3,7 +3,7 @@
  * Contains all IPC handlers for communication between renderer and main processes
  */
 
-const { ipcMain, app } = require('electron');
+const { ipcMain, app, shell } = require('electron');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -382,6 +382,47 @@ function registerAppControlHandlers() {
   ipcMain.handle('api:checkUnsavedChanges', async (_, hasChanges) => {
     // This can be used to store unsaved changes state in main process if needed
     return { success: true, hasUnsavedChanges: hasChanges };
+  });
+
+  ipcMain.handle('api:openExternalUrl', async (_, url) => {
+    try {
+      // Validate URL format
+      const urlObj = new URL(url);
+      
+      // Allow only HTTPS URLs to trusted documentation domains
+      const allowedDomains = [
+        'fakerjs.dev',
+        'docs.python.org',
+        'numpy.org',
+        'pandas.pydata.org',
+        'matplotlib.org',
+        'seaborn.pydata.org',
+        'plotly.com',
+        'github.com',
+        'stackoverflow.com',
+        'developer.mozilla.org'
+      ];
+      
+      if (urlObj.protocol !== 'https:') {
+        return { success: false, error: 'Only HTTPS URLs are allowed' };
+      }
+      
+      const isAllowedDomain = allowedDomains.some(domain => 
+        urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
+      );
+      
+      if (!isAllowedDomain) {
+        return { success: false, error: 'URL domain not in allowed list' };
+      }
+      
+      // Open URL in user's default browser
+      await shell.openExternal(url);
+      return { success: true };
+      
+    } catch (error) {
+      console.error('Error opening external URL:', error);
+      return { success: false, error: error.message };
+    }
   });
 }
 
