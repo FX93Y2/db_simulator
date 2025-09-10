@@ -28,7 +28,8 @@ const ResultsList = ({
         const resultKey = `${projectId}-${result.id}`;
         const isExpanded = expandedResults[resultKey];
         const tables = resultTables[resultKey];
-        const isActive = currentResultId === result.id;
+        // Only highlight result if no table is selected
+        const isActive = currentResultId === result.id && !currentTable;
         
         return (
           <ResultItem

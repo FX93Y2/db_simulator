@@ -58,6 +58,8 @@
   // Interactive states
   --theme-hover-bg: #{color(neutral, 100)};             // Hover backgrounds
   --theme-active-bg: #{color(neutral, 200)};            // Active backgrounds
+  // Selection highlight (VS Code-like translucent blue)
+  --theme-selected-bg: rgba(var(--theme-primary-rgb), 0.16);
   
   // Editor hierarchy
   --theme-editor-bg: #{color(neutral, 50)};             // Code editor background
@@ -113,6 +115,8 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
   // Interactive states
   --theme-hover-bg: #{color(gray, 700)};                // Regular hover - #333333
   --theme-active-bg: #{color(gray, 600)};               // Active states - #454545
+  // Selection highlight in dark theme (slightly stronger)
+  --theme-selected-bg: rgba(var(--theme-primary-rgb), 0.28);
   
   // Editor hierarchy
   --theme-editor-bg: #{color(gray, 800)};               // Used for value editors inside modals

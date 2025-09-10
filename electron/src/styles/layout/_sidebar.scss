@@ -88,8 +88,12 @@
     }
     
     &.active {
-      background-color: var(--theme-active-bg);
+      background-color: var(--theme-selected-bg);
       border-left: 3px solid var(--theme-primary);
+    }
+    // Preserve selection color on hover
+    &.active:hover {
+      background-color: var(--theme-selected-bg);
     }
     
     .project-item-expand-icon {
@@ -155,7 +159,8 @@
     }
     
     .project-result-item {
-      padding: 8px 10px 8px 40px;
+      // Reduce left indentation so hover starts nearer the edge
+      padding: 8px 10px 8px 20px;
       display: flex;
       align-items: center;
       cursor: pointer;
@@ -167,8 +172,11 @@
       }
       
       &.active {
-        background-color: var(--theme-active-bg);
+        background-color: var(--theme-selected-bg);
         font-weight: 500;
+      }
+      &.active:hover {
+        background-color: var(--theme-selected-bg);
       }
       
       .result-item-icon {
@@ -214,14 +222,16 @@
         }
         
         .no-tables {
-          padding: 10px 15px 10px 70px;
+          // Match reduced indentation for empty state
+          padding: 10px 15px 10px 32px;
           color: var(--theme-muted-text);
           font-size: 12px;
           font-style: italic;
         }
         
         .database-table-item {
-          padding: 6px 10px 6px 70px;
+          // Reduce indentation so hover background has no large leading gap
+          padding: 6px 10px 6px 32px;
           display: flex;
           align-items: center;
           cursor: pointer;

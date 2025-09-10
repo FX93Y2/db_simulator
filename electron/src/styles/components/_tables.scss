@@ -122,12 +122,15 @@
 }
 
 .database-tables-list {
-  padding-left: 40px; // Indent tables under results
+  // Remove container padding so hover backgrounds can span full width.
+  // We'll apply indentation on each row so the hover color covers it.
+  padding-left: 0;
   
   .database-table-item {
     display: flex;
     align-items: center;
-    padding: 6px 10px 6px 0; // Adjust padding
+    // Add left padding on the row itself so the hover background isn't clipped
+    padding: 6px 10px 6px 24px;
     cursor: pointer;
     font-size: 0.85rem;
     color: var(--theme-muted-text); // Use muted text for non-active
@@ -148,22 +151,27 @@
       color: var(--theme-text);
     }
     
-    // Active state styling
+    // Active state styling (VS Code-like selection)
     &.active {
-      background-color: var(--theme-active-bg);
-      color: var(--theme-active-text);
+      background-color: var(--theme-selected-bg);
+      color: var(--theme-text);
       font-weight: 500; // Slightly bolder for active
       
       .table-item-icon {
-         color: var(--theme-active-text); // Match icon color to text
+         color: var(--theme-text); // Match icon color to text
       }
+    }
+    // Keep selection color when hovered
+    &.active:hover {
+      background-color: var(--theme-selected-bg);
     }
   }
   
   .no-tables {
     font-size: 0.8rem;
     color: var(--theme-muted-text);
-    padding: 6px 10px 6px 0;
+    // Match table row indentation
+    padding: 6px 10px 6px 24px;
   }
 }
 

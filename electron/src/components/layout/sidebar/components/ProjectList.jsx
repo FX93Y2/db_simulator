@@ -45,7 +45,8 @@ const ProjectList = ({
                   >
                     <ProjectItem
                       project={project}
-                      isActive={project.id === currentProjectId}
+                      // Only highlight project if no deeper selection is active
+                      isActive={project.id === currentProjectId && !currentResultId && !currentTable}
                       isExpanded={expandedProjects[project.id]}
                       isCompact={isCompact}
                       isDragging={snapshot.isDragging}
