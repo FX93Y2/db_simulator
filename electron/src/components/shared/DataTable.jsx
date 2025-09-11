@@ -29,8 +29,12 @@ const DataTable = ({
     return null;
   }
 
+  // Ensure header and rows use CSS grid regardless of helper classes
+  // This prevents vertical stacking when using custom column counts
   const gridStyle = {
-    gridTemplateColumns: gridColumns
+    display: 'grid',
+    gridTemplateColumns: gridColumns,
+    gap: 0,
   };
 
   const handleRowClick = (item, index) => {

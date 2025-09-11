@@ -178,7 +178,11 @@
 
 .module-sidebar__grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  // Keep button size consistent; container width only changes columns count
+  // Use a CSS variable so we can tune size globally if needed
+  --module-card-size: 120px;
+  grid-template-columns: repeat(auto-fill, minmax(var(--module-card-size), var(--module-card-size)));
+  justify-content: start; // Left-align remaining space instead of stretching cards
   gap: 12px;
   width: 100%;
   min-width: 0; // Allow grid to shrink below content size
@@ -196,8 +200,8 @@
   cursor: grab;
   transition: all 0.2s ease;
   text-decoration: none;
-  min-width: 70px; // Ensure minimum touch-friendly size
-  aspect-ratio: 1; // Square proportions
+  width: 100%; // Fill the fixed grid track width
+  aspect-ratio: 1; // Square proportions ensure uniform height
   min-height: 0; // Allow flexible height
   
   &:active:not(.disabled) {

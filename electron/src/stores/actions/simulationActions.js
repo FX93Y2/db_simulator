@@ -79,14 +79,16 @@ export const createSimulationActions = (set, get) => ({
     }
 
     set((state) => {
-      // Update simulation data from YAML - preserve complete simulation object including resources
+      // Update simulation data from YAML - preserve complete simulation object including resources and entities
       state.simulationData = {
         base_time_unit: parsedSchema.simulation.base_time_unit || 'hours',
         terminating_conditions: parsedSchema.simulation.terminating_conditions || 'TIME(720)',
         start_date: parsedSchema.simulation.start_date || '2024-01-01', 
         random_seed: parsedSchema.simulation.random_seed || 42,
         // Preserve resources array if it exists
-        ...(parsedSchema.simulation.resources && { resources: parsedSchema.simulation.resources })
+        ...(parsedSchema.simulation.resources && { resources: parsedSchema.simulation.resources }),
+        // Preserve entities array if it exists
+        ...(parsedSchema.simulation.entities && { entities: parsedSchema.simulation.entities })
       };
       
       // Clear any pending changes since we're loading from source
@@ -232,5 +234,100 @@ export const createSimulationActions = (set, get) => ({
     });
     
     return { success: true, message: `Resource ${resourceTable} removed` };
+  },
+
+  /**
+   * Update inventory requirements for an entity
+   * @param {string} entityTable - Entity table name
+   * @param {Object} inventoryConfig - Inventory requirements configuration
+   */
+  updateInventoryRequirements: (entityTable, inventoryConfig) => {
+    set((state) => {
+      // Ensure entities array exists in simulationData
+      if (!state.simulationData.entities) {
+        state.simulationData.entities = [];
+      }
+      
+      // Find or create entity entry
+      let entityEntry = state.simulationData.entities.find(e => e.entity_table === entityTable);
+      if (!entityEntry) {
+        entityEntry = {
+          entity_table: entityTable,
+          inventory_requirements: inventoryConfig
+        };
+        state.simulationData.entities.push(entityEntry);
+      } else {
+        // Update existing entry
+        entityEntry.inventory_requirements = inventoryConfig;
+      }
+    });
+    
+    return { success: true, message: `Inventory requirements updated for ${entityTable}` };
+  },
+
+  /**
+   * Get inventory requirements for an entity
+   * @param {string} entityTable - Entity table name
+   * @returns {Object|null} - Inventory requirements or null if not found
+   */
+  getInventoryRequirements: (entityTable) => {
+    const { simulationData } = get();
+    
+    if (!simulationData.entities) return null;
+    
+    const entity = simulationData.entities.find(e => e.entity_table === entityTable);
+    return entity?.inventory_requirements || null;
+  },
+
+  /**
+   * Check if entity has inventory requirements configured
+   * @param {string} entityTable - Entity table name
+   * @returns {boolean} - True if entity has inventory requirements
+   */
+  hasInventoryRequirements: (entityTable) => {
+    const inventoryReq = get().getInventoryRequirements(entityTable);
+    return !!inventoryReq;
+  },
+
+  /**
+   * Remove inventory requirements for an entity
+   * @param {string} entityTable - Entity table name
+   */
+  removeInventoryRequirements: (entityTable) => {
+    set((state) => {
+      if (state.simulationData.entities) {
+        // Remove the entire entity entry if it only has inventory_requirements
+        state.simulationData.entities = state.simulationData.entities.filter(
+          e => e.entity_table !== entityTable
+        );
+      }
+    });
+    
+    return { success: true, message: `Inventory requirements removed for ${entityTable}` };
+  },
+
+  /**
+   * Get all entities with inventory requirements
+   * @returns {Array} - Array of entities with inventory requirements
+   */
+  getAllInventoryRequirements: () => {
+    const { simulationData } = get();
+    
+    if (!simulationData.entities) return [];
+    
+    return simulationData.entities.filter(e => e.inventory_requirements);
+  },
+
+  /**
+   * Clear all inventory requirements
+   */
+  clearAllInventoryRequirements: () => {
+    set((state) => {
+      if (state.simulationData.entities) {
+        state.simulationData.entities = [];
+      }
+    });
+    
+    return { success: true, message: 'All inventory requirements cleared' };
   }
 });

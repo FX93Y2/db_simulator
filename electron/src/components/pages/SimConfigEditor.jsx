@@ -471,6 +471,8 @@ const SimConfigEditor = ({
         <Modal.Body>
           <SimulationEntityEditor
             dbConfigContent={dbConfigContent}
+            theme={theme}
+            projectId={projectId}
           />
         </Modal.Body>
         <Modal.Footer>
