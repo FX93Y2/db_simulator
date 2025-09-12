@@ -7,7 +7,7 @@ Database education tool for creating realistic synthetic data across various tea
 - [Database Configuration](#database-configuration)
 - [Data Generation Methods](#data-generation-methods)
 - [Special Tables and Columns](#special-tables-and-columns)
-- [Simulation Components](#simulation-components)
+- [Simulation Configuration](#simulation-configuration)
 - [Simulation Steps](#simulation-steps)
 - [Result Viewer](#result-viewer)
 
@@ -29,6 +29,8 @@ Double click on any table to access the database entity editor
 
 **Faker.js**: Generate realistic synthetic data
 
+![Data Generator: Faker](doc/database/faker.png)
+
 ```yaml
 #Example
 name: last_name
@@ -38,9 +40,9 @@ generator:
   method: person.lastName
 ```
 
-![Data Generator: Faker](doc/database/faker.png)
-
 **Distributions**: Statistical data generation
+
+![Distribution Generator](doc/database/distribution_generator.png)
 
 ```yaml
 #Example
@@ -49,9 +51,9 @@ generator:
   formula: UNIF(1, 100)  # NORM, EXPO, DISC
 ```
 
-![Distribution Generator](doc/database/distribution_generator.png)
-
 **SQL Formulas**: Relationship-aware data
+
+![SQL Formula Generator](doc/database/sql_formula_expression.png)
 
 ```yaml
 #Example
@@ -60,7 +62,6 @@ generator:
   expression: MIN(SELECT created_at FROM Order WHERE customer_id = @id) + DAYS(30)
 ```
 
-![SQL Formula Generator](doc/database/sql_formula_expression.png)
 ## Special Tables and Columns
 
 ### Table Types
@@ -80,54 +81,80 @@ generator:
 - **inv_req**: Inventory requirement specification
 - **inv_qty**: Inventory quantity tracking
 
-## Simulation Components
-Modular designed discrete event simulation
+## Simulation Configuration
+Configure simulation parameters, termination conditions, and resource constraints for your discrete event simulation.
 
 ![Simulation Dashboard](doc/simulation/simulation_dashboard.png)
 
 ### Termination Conditions
-Navigate to Simulation Setting button in float tool bar
+Define when your simulation should stop. Access termination settings via the Simulation Settings button in the floating toolbar.
 
 ![Simulation Setting Button](doc/simulation/simulation_setting_in_toolbar.png)
-Control when simulation ends:
 
 ![Simulation Setting](doc/simulation/simulation_setting.png)
-- `TIME(200)` - Run for 200 time units
-- `ENTITIES(Order, 100)` - Stop after 100 entities
+
+**Termination Types:**
+- **Time-based**: `TIME(200)` - Run for 200 time units
+- **Entity count**: `ENTITIES(Order, 100)` - Stop when Order table reaches 100 entities
+- **Combined conditions**: 
+  - `TIME(720) OR ENTITIES(Order, 1000)` - Stop at either condition
+  - `TIME(480) AND ENTITIES(Ticket, 200)` - Stop when both conditions are met
 
 
 ### Resource Configuration
-Set resource capacity constraints:
+Define capacity constraints for shared resources (staff, equipment, etc.) that entities compete for during simulation.
 
 ![Resource Editor](doc/simulation/resource_editor.png)
 
-Resource settings: Currently only support configuring fixed resource capacity
+Configure resource types and their available capacities. Resources are allocated to entities during Event steps and automatically released upon flow completion.
 
 ![Resource Editor Modal](doc/simulation/resource_editor_modal.png)
+
 ```yaml
-#Example
+# Example: Staff resource configuration
 resources:
   Staff:
-    capacity: 10
+    "Tech Support": 2    # 2 tech support staff available
+    Developer: 1         # 1 developer available  
+    Manager: 1           # 1 manager available
 ```
 
+**Resource Features:**
+- **Fixed capacity**: Set maximum available units per resource type
+- **FIFO allocation**: Resources allocated first-come, first-served
+- **Automatic release**: Resources freed when entity completes or reaches Release step
+- **Blocking behavior**: Entities wait when required resources are unavailable
+
 ### Entity Configuration
-Configure entity inventory requirements:
+Define inventory requirements and resource consumption for different entity types during simulation.
 
 ![Entity Editor](doc/simulation/entity_editor.png)
 
-Entity settings: Currently only support configuring consumable/inventory cost
+Configure which inventory items entities consume and their quantities. Inventory is automatically deducted when entities are created or processed.
 
 ![Entity Editor Modal](doc/simulation/entity_editor_modal.png)
 
 ```yaml
-#Example
+# Example: Entity inventory requirements
 entities:
   Order:
     inventory_requirements:
-      - item: Book
+      - item: Book          # Inventory item name
+        quantity: 1         # Quantity consumed per entity
+      - item: Packaging
         quantity: 1
+  
+  BulkOrder:
+    inventory_requirements:
+      - item: Book
+        quantity: 5         # Bulk orders consume more inventory
 ```
+
+**Entity Features:**
+- **Inventory consumption**: Automatic deduction from inventory tables
+- **Multi-item requirements**: Entities can consume multiple inventory types
+- **Quantity control**: Specify exact consumption amounts per entity
+- **Blocking behavior**: Entity creation blocked if insufficient inventory available
 
 ## Simulation Steps
 Double click on nodes to open editor
@@ -214,8 +241,6 @@ Bookstore Inventory check example:
 
 - **Operators**: `==`, `!=`, `>`, `>=`, `<`, `<=`
 
-
-
 ```yaml
 #Example: Probability-based
 step_type: decide
@@ -230,22 +255,6 @@ decide_config:
           value: 0.8
     - outcome_id: reject
       next_step_id: handle_rejection
-      conditions: []  # else case
-
-#Example: Attribute-based
-step_type: decide
-decide_config:
-  decision_type: 2way-condition
-  outcomes:
-    - outcome_id: high_priority
-      next_step_id: fast_track
-      conditions:
-        - if: Attribute
-          name: priority_level
-          is: ==
-          value: critical
-    - outcome_id: normal_priority
-      next_step_id: standard_queue
       conditions: []  # else case
 ```
 
