@@ -150,6 +150,8 @@ body.theme-dark { // Dark theme overrides - "Darker When Outer" VS Code inspired
     background-color: var(--theme-card-bg) !important;
     border-color: var(--theme-border) !important;
     color: var(--theme-text) !important;
+    border-radius: var(--border-radius-card, 8px);
+    overflow: hidden; // Clip inner backgrounds to match rounded corners
     
     .card-header {
       background-color: var(--theme-card-bg) !important;
