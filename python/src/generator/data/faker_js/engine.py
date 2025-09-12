@@ -76,7 +76,9 @@ class FakerJSEngine:
         """
         try:
             # Use the generateFake helper function from the bundle
-            result = self.ctx.eval(f"generateFake('{method}')")
+            # Properly escape the method string to handle quotes
+            escaped_method = method.replace("'", "\\'").replace('"', '\\"')
+            result = self.ctx.eval(f"generateFake('{escaped_method}')")
             
             # Check if result is an error message
             if isinstance(result, str) and result.startswith("Unsupported Faker Method:"):

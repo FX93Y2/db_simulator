@@ -96,26 +96,65 @@ if (typeof globalThis !== 'undefined') {
     global.faker = faker;
 }
 
-// Helper function for PyMiniRacer
+// Helper function for PyMiniRacer with JSON parameter support
 const generateFake = function(method) {
     try {
-        const parts = method.split('.');
+        // Parse method call with parameters (e.g., "phone.number({ style: 'national' })")
+        // Use a more robust regex that handles unescaped parentheses
+        const methodMatch = method.match(/^([^(]+)(?:\\((.*)\\))?$/) || method.match(/^([^(]+)(?:\\((.*)\\))?$/);
+        
+        let methodPath, paramString;
+        
+        // Try to find the last opening parenthesis to split method and parameters
+        const lastOpenParen = method.lastIndexOf('(');
+        const lastCloseParen = method.lastIndexOf(')');
+        
+        if (lastOpenParen > 0 && lastCloseParen > lastOpenParen) {
+            methodPath = method.substring(0, lastOpenParen).trim();
+            paramString = method.substring(lastOpenParen + 1, lastCloseParen).trim();
+        } else {
+            methodPath = method.trim();
+            paramString = null;
+        }
+        
+        // Navigate to the method
+        const parts = methodPath.split('.');
         let obj = faker;
         
         for (const part of parts) {
             if (!obj || (typeof obj !== 'object' && typeof obj !== 'function')) {
-                throw new Error(\`Cannot access '\${part}' in method '\${method}'\`);
+                throw new Error(\`Cannot access '\${part}' in method '\${methodPath}'\`);
             }
             
             obj = obj[part];
             
             if (obj === undefined) {
-                throw new Error(\`Method '\${method}' not found\`);
+                throw new Error(\`Method '\${methodPath}' not found\`);
             }
         }
         
-        // If it's a function, call it; otherwise return the value
-        return typeof obj === 'function' ? obj() : obj;
+        // If it's a function, call it with parameters if provided
+        if (typeof obj === 'function') {
+            if (paramString && paramString.length > 0) {
+                try {
+                    // Try to parse as a single JSON object first
+                    const params = eval(\`(\${paramString})\`);
+                    return obj(params);
+                } catch (evalError) {
+                    // Fallback: try to parse as array of parameters
+                    try {
+                        const params = eval(\`[\${paramString}]\`);
+                        return obj(...params);
+                    } catch (arrayError) {
+                        throw new Error(\`Invalid parameters '\${paramString}': \${evalError.message}\`);
+                    }
+                }
+            } else {
+                return obj();
+            }
+        } else {
+            return obj;
+        }
     } catch (error) {
         return \`Unsupported Faker Method: \${method} (\${error.message})\`;
     }
