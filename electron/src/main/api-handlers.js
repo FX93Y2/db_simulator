@@ -4,6 +4,8 @@
  */
 
 const { ipcMain, app, shell } = require('electron');
+const { execFile } = require('child_process');
+const os = require('os');
 const axios = require('axios');
 const fs = require('fs');
 const path = require('path');
@@ -415,7 +417,36 @@ function registerAppControlHandlers() {
         return { success: false, error: 'URL domain not in allowed list' };
       }
       
-      // Open URL in user's default browser
+      // Open URL: handle WSL explicitly to avoid xdg-open failures
+      const isWSL = process.platform === 'linux' && (
+        process.env.WSL_DISTRO_NAME || os.release().toLowerCase().includes('microsoft')
+      );
+
+      if (isWSL) {
+        // Prefer wslview when available (opens in Windows default browser)
+        const tryExec = (cmd, args) => new Promise((resolve, reject) => {
+          const child = execFile(cmd, args, (err) => err ? reject(err) : resolve());
+          // In case the process cannot spawn at all (ENOENT), handle via callback
+          child.on('error', reject);
+        });
+
+        try {
+          await tryExec('wslview', [url]);
+          return { success: true };
+        } catch (e1) {
+          try {
+            // Fallback: use Windows cmd to start default browser
+            await tryExec('cmd.exe', ['/c', 'start', '', url]);
+            return { success: true };
+          } catch (e2) {
+            // Final fallback to Electron shell; may still fail if xdg-open missing
+            await shell.openExternal(url);
+            return { success: true };
+          }
+        }
+      }
+
+      // Non-WSL: open in user's default browser
       await shell.openExternal(url);
       return { success: true };
       
