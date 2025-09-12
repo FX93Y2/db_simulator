@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from ..base import StepProcessor
-from ....utils.column_resolver import ColumnResolver
+from ...utils.column_resolver import ColumnResolver
 from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
 from ....utils.time_units import TimeUnitConverter

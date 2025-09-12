@@ -10,7 +10,7 @@ import random
 from typing import Any, Generator, Optional
 
 from ..base import StepProcessor
-from ....utils.sql_helpers import SQLExpressionEvaluator
+from ...utils.sql_helpers import SQLExpressionEvaluator
 
 logger = logging.getLogger(__name__)
 

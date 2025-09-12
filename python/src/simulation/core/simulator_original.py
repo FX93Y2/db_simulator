@@ -21,7 +21,7 @@ from ...config_parser import Entity as DbEntity, Attribute as DbAttribute
 from ...utils.time_units import TimeUnit, TimeUnitConverter
 from ..termination.formula import TerminationFormulaParser, TerminationFormulaEvaluator
 from ...distributions import generate_from_distribution
-from ...utils.data_generation import generate_attribute_value
+from ...generator.data.attribute_generator import generate_attribute_value
 from ..managers.event_tracker import EventTracker
 from ..managers.resource_manager import ResourceManager
 from ..managers.entity_manager import EntityManager

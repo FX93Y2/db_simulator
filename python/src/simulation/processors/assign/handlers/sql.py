@@ -11,7 +11,7 @@ from typing import Any, TYPE_CHECKING
 from sqlalchemy import text
 
 from .base import BaseAssignmentHandler
-from .....utils.sql_helpers import SQLExpressionEvaluator
+from ....utils.sql_helpers import SQLExpressionEvaluator
 
 if TYPE_CHECKING:
     from .....config_parser.sim_parser import AssignmentOperation

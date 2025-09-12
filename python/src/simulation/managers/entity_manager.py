@@ -16,9 +16,9 @@ from sqlalchemy.pool import NullPool
 from ...config_parser import SimulationConfig, DatabaseConfig
 from ...config_parser import Entity as DbEntity
 from ...distributions import generate_from_distribution
-from ...utils.data_generation import generate_attribute_value
-from ...utils.type_processing import process_value_for_type
-from ...utils.column_resolver import ColumnResolver
+from ...generator.data.attribute_generator import generate_attribute_value
+from ...generator.data.type_processor import process_value_for_type
+from ..utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 

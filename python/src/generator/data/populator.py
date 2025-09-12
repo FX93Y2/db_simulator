@@ -10,8 +10,8 @@ import dataclasses
 from typing import List, Any
 
 from ...config_parser import DatabaseConfig, Entity, Attribute
-from ...utils.data_generation import generate_attribute_value
-from ...utils.type_processing import process_value_for_type
+from .attribute_generator import generate_attribute_value
+from .type_processor import process_value_for_type
 
 logger = logging.getLogger(__name__)
 

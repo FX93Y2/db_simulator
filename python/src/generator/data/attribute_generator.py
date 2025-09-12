@@ -9,7 +9,8 @@ import logging
 import random
 from typing import Any, Dict
 
-from ..generator.data.faker_js import generate_fake_data
+from .faker_js import generate_fake_data
+from .template import generate_from_template
 
 logger = logging.getLogger(__name__)
 
@@ -67,9 +68,9 @@ def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any
         # Use row_index + 1 for 1-based ID in template context
         context = {'id': row_index + 1} 
         try:
-            return template.format(**context)
-        except KeyError as e:
-            logger.warning(f"KeyError in template for {attr_name}: {e}. Context: {context}")
+            return generate_from_template(template, context)
+        except Exception as e:
+            logger.warning(f"Error in template for {attr_name}: {e}. Context: {context}")
             return f"Template_Error_{attr_name}_{row_index}"
 
     # Distribution generator - supports both formula and dict formats
@@ -78,7 +79,7 @@ def generate_attribute_value(attr_config: Dict[str, Any], row_index: int) -> Any
         formula = generator_config.get('formula')
         if formula:
             try:
-                from ..distributions import generate_from_distribution
+                from ...distributions import generate_from_distribution
                 return generate_from_distribution(formula)
             except Exception as e:
                 logger.error(f"Error generating from formula '{formula}' for {attr_name}: {e}")

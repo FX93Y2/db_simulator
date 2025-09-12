@@ -15,9 +15,9 @@ from sqlalchemy.pool import NullPool
 from ..base import StepProcessor
 from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
-from ....utils.data_generation import generate_attribute_value
+from ....generator.data.attribute_generator import generate_attribute_value
 from ....utils.time_units import TimeUnitConverter
-from ....utils.column_resolver import ColumnResolver
+from ...utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 

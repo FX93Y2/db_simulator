@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from sqlalchemy import create_engine, Table, Column, Integer, String, DateTime, Float, MetaData, insert, text, ForeignKey
 from sqlalchemy.pool import NullPool
-from ...utils.column_resolver import ColumnResolver
+from ..utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 

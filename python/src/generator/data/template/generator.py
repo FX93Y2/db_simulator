@@ -1,13 +1,17 @@
 """
-Template utility functions for generating data from templates
+Template-based data generation for database entities.
+
+This module provides template string processing with variable substitution
+and support for special functions like random selection from lists.
 """
 
 import re
 import logging
-from typing import Dict, Any, Optional, List
 import random
+from typing import Dict, Any, Optional
 
 logger = logging.getLogger(__name__)
+
 
 def generate_from_template(template: str, context: Dict[str, Any], size: Optional[int] = None) -> Any:
     """
@@ -20,6 +24,16 @@ def generate_from_template(template: str, context: Dict[str, Any], size: Optiona
         
     Returns:
         Generated data from template
+        
+    Examples:
+        # Basic variable substitution
+        generate_from_template("user_{id}", {"id": 123})  # Returns "user_123"
+        
+        # Random selection from list
+        generate_from_template("priority_{random_high,medium,low}", {})  # Returns e.g. "priority_medium"
+        
+        # Array generation
+        generate_from_template("item_{id}", {"id": 1}, size=3)  # Returns ["item_1", "item_1", "item_1"]
     """
     if size is not None:
         return [generate_from_template(template, context) for _ in range(size)]
@@ -37,7 +51,7 @@ def generate_from_template(template: str, context: Dict[str, Any], size: Optiona
         # Handle special cases
         if var_name.startswith('random_'):
             # Random selection from a list
-            options_str = var_name[7:]
+            options_str = var_name[7:]  # Remove 'random_' prefix
             options = [opt.strip() for opt in options_str.split(',')]
             return random.choice(options)
             
@@ -47,3 +61,64 @@ def generate_from_template(template: str, context: Dict[str, Any], size: Optiona
     # Replace all variables in the template
     result = re.sub(pattern, replace_var, template)
     return result
+
+
+def validate_template(template: str) -> tuple[bool, str]:
+    """
+    Validate a template string for syntax errors.
+    
+    Args:
+        template: Template string to validate
+        
+    Returns:
+        Tuple of (is_valid, error_message)
+    """
+    if not template:
+        return False, "Template cannot be empty"
+    
+    try:
+        # Check for balanced braces
+        pattern = r'\{([^}]+)\}'
+        matches = re.findall(pattern, template)
+        
+        # Check for empty variables
+        for match in matches:
+            if not match.strip():
+                return False, f"Empty variable placeholder found: {{{match}}}"
+                
+            # Validate random_ syntax
+            if match.startswith('random_'):
+                options_str = match[7:]
+                if not options_str:
+                    return False, f"Empty options list for random variable: {{{match}}}"
+                options = [opt.strip() for opt in options_str.split(',')]
+                if not options or any(not opt for opt in options):
+                    return False, f"Invalid options list for random variable: {{{match}}}"
+        
+        return True, ""
+        
+    except Exception as e:
+        return False, f"Template validation error: {str(e)}"
+
+
+def extract_template_variables(template: str) -> list[str]:
+    """
+    Extract all variable names from a template string.
+    
+    Args:
+        template: Template string to analyze
+        
+    Returns:
+        List of variable names found in the template
+    """
+    pattern = r'\{([^}]+)\}'
+    matches = re.findall(pattern, template)
+    
+    variables = []
+    for match in matches:
+        if match.startswith('random_'):
+            variables.append(match)  # Include the full random_ specification
+        else:
+            variables.append(match)
+    
+    return list(set(variables))  # Remove duplicates
