@@ -121,13 +121,18 @@ def build_with_direct_command(current_dir):
     """Build using direct PyInstaller command without a spec file"""
     logger.info("Building with direct PyInstaller command...")
     main_script = current_dir / "main.py"
+    
+    # Use correct separator for --add-data based on platform
+    # Windows uses ';', Unix/Linux/macOS use ':'
+    separator = ';' if os.name == 'nt' else ':'
+    
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--name=db_simulator_api",
         "--clean",
-        "--add-data", f"{current_dir / 'config_storage'};config_storage",
+        "--add-data", f"{current_dir / 'config_storage'}{separator}config_storage",
         "--hidden-import=flask",
         "--hidden-import=flask_cors",
         "--hidden-import=sqlalchemy",
