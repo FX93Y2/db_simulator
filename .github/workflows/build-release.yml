@@ -8,6 +8,8 @@ on:
 
 jobs:
   build:
+    permissions:
+      contents: write  # Required for creating releases
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
