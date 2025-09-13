@@ -16,6 +16,10 @@
   },
   "author": "FX93V2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FX93Y2/db_simulator.git"
+  },
   "devDependencies": {
     "@babel/core": "^7.22.9",
     "@babel/preset-env": "^7.22.9",
@@ -113,9 +117,6 @@
       "createDesktopShortcut": true,
       "installerIcon": "public/app-icon.ico",
       "uninstallerIcon": "public/app-icon.ico",
-      "installerHeader": "public/app-icon.ico",
-      "installerSidebar": "public/app-icon.ico",
-      "uninstallerSidebar": "public/app-icon.ico",
       "perMachine": true,
       "artifactName": "${productName} Setup ${version}.${ext}",
       "shortcutName": "${productName}",

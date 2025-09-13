@@ -64,7 +64,7 @@ jobs:
       - name: Build Python executable
         run: |
           cd python
-          python -m PyInstaller main.spec
+          python build_api.py
           echo "" > USE_EXECUTABLE
         shell: bash
 
