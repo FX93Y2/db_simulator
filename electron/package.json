@@ -75,6 +75,7 @@
   "build": {
     "appId": "com.fx93v2.db-simulator",
     "productName": "DB Simulator",
+    "publish": "never",
     "files": [
       "dist/**/*",
       "src/main/**/*",
