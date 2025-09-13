@@ -1,6 +1,6 @@
 {
   "name": "db-simulator-ui",
-  "version": "1.0.0",
+  "version": "0.1.0",
   "description": "Electron frontend for DB Simulator",
   "main": "main.js",
   "scripts": {
@@ -129,7 +129,7 @@
         "dmg",
         "zip"
       ],
-      "icon": "public/app-icon.icns",
+      "icon": "public/app-icon.iconset",
       "category": "public.app-category.developer-tools"
     },
     "dmg": {
