@@ -110,10 +110,11 @@ coll = COLLECT(
     
     # Build the executable
     subprocess.check_call([
-        sys.executable, 
-        "-m", 
-        "PyInstaller", 
+        sys.executable,
+        "-m",
+        "PyInstaller",
         "--clean",
+        "-y",  # Force overwrite output directory
         str(current_dir / "db_simulator_api.spec")
     ], cwd=current_dir)
 
@@ -121,13 +122,17 @@ def build_with_direct_command(current_dir):
     """Build using direct PyInstaller command without a spec file"""
     logger.info("Building with direct PyInstaller command...")
     main_script = current_dir / "main.py"
+
+    # Use platform-appropriate path separator for --add-data
+    separator = ";" if os.name == "nt" else ":"
+
     cmd = [
         sys.executable,
         "-m",
         "PyInstaller",
         "--name=db_simulator_api",
         "--clean",
-        "--add-data", f"{current_dir / 'config_storage'};config_storage",
+        f"--add-data={current_dir / 'config_storage'}{separator}config_storage",
         "--hidden-import=flask",
         "--hidden-import=flask_cors",
         "--hidden-import=sqlalchemy",
@@ -138,7 +143,7 @@ def build_with_direct_command(current_dir):
         "--hidden-import=faker",
         str(main_script)
     ]
-    
+
     logger.info(f"Running command: {' '.join(cmd)}")
     subprocess.check_call(cmd, cwd=current_dir)
 
