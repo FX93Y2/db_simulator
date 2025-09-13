@@ -16,6 +16,11 @@
   },
   "author": "FX93V2",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/FX93Y2/db_simulator.git"
+  },
+  "homepage": "https://github.com/FX93Y2/db_simulator",
   "devDependencies": {
     "@babel/core": "^7.22.9",
     "@babel/preset-env": "^7.22.9",
