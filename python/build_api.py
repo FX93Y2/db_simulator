@@ -32,16 +32,31 @@ def build_api():
     # Get the current directory
     current_dir = Path(__file__).parent.absolute()
     
+    # Clean up any existing build/dist directories
+    cleanup_build_directories(current_dir)
+    
     try:
         # First approach: Try with a spec file
         build_with_spec_file(current_dir)
     except Exception as e:
         print(f"Error using spec file approach: {e}")
         print("Falling back to direct PyInstaller command...")
+        # Clean up again before fallback
+        cleanup_build_directories(current_dir)
         build_with_direct_command(current_dir)
     
     print("API executable built successfully!")
     return str(current_dir / "dist" / "db_simulator_api")
+
+def cleanup_build_directories(current_dir):
+    """Clean up build and dist directories"""
+    build_dir = current_dir / "build"
+    dist_dir = current_dir / "dist"
+    
+    for directory in [build_dir, dist_dir]:
+        if directory.exists():
+            print(f"Cleaning up {directory}")
+            shutil.rmtree(directory, ignore_errors=True)
 
 def build_with_spec_file(current_dir):
     # Create a spec file for the API - Fix path formatting for Windows
@@ -114,6 +129,7 @@ coll = COLLECT(
         "-m", 
         "PyInstaller", 
         "--clean",
+        "--noconfirm",
         str(current_dir / "db_simulator_api.spec")
     ], cwd=current_dir)
 
@@ -132,6 +148,7 @@ def build_with_direct_command(current_dir):
         "PyInstaller",
         "--name=db_simulator_api",
         "--clean",
+        "--noconfirm",
         "--add-data", f"{current_dir / 'config_storage'}{separator}config_storage",
         "--hidden-import=flask",
         "--hidden-import=flask_cors",
