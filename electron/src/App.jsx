@@ -108,7 +108,7 @@ const App = () => {
 
   // Guide overlay state
   const [guideOverlayVisible, setGuideOverlayVisible] = useState(false);
-  const [activeGuideSection, setActiveGuideSection] = useState('introduction');
+  const [activeGuideSection, setActiveGuideSection] = useState('database-configuration');
 
   // Handle guide section selection from navigation sidebar
   const handleGuideSectionSelect = (sectionId) => {
@@ -203,7 +203,6 @@ const App = () => {
           visible={guideOverlayVisible}
           activeSection={activeGuideSection}
           onClose={closeGuideOverlay}
-          theme={theme}
         />
         </div>
       </DndProvider>

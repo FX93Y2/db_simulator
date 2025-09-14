@@ -1,4 +1,5 @@
 const path = require('path');
+const webpack = require('webpack');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 
 module.exports = {
@@ -67,6 +68,10 @@ module.exports = {
   plugins: [
     new MiniCssExtractPlugin({
       filename: 'index.css',
+    }),
+    // Provide a default base for static assets referenced via process.env.PUBLIC_URL
+    new webpack.DefinePlugin({
+      'process.env.PUBLIC_URL': JSON.stringify('public'),
     }),
   ],
   target: 'electron-renderer',

@@ -5,22 +5,51 @@ import { FiSearch, FiBook, FiDatabase, FiSettings, FiUsers, FiClock, FiGitBranch
 const NavigationSidebar = ({ theme = 'light', visible = true, onSectionSelect, activeSection }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Navigation items with their corresponding sections
+  // Navigation items adapted from README Table of Contents
   const navigationItems = [
-    { id: 'introduction', label: 'Introduction', icon: FiBook },
-    { id: 'entities', label: 'Entities', icon: FiDatabase, children: [
-      { id: 'entity-properties', label: 'Entity Properties' },
-      { id: 'attributes', label: 'Attributes' },
-      { id: 'data-generators', label: 'Data Generators' }
-    ]},
-    { id: 'simulation-settings', label: 'Simulation Settings', icon: FiClock },
-    { id: 'event-simulation', label: 'Event Simulation', icon: FiSettings, children: [
-      { id: 'entity-arrival', label: 'Entity Arrival' },
-      { id: 'resource-capacities', label: 'Resource Capacities' },
-      { id: 'event-flows', label: 'Event Flows' },
-      { id: 'step-types', label: 'Step Types' },
-      { id: 'decide-modules', label: 'Decide Modules' }
-    ]}
+    { id: 'database-configuration', label: 'Database Configuration', icon: FiDatabase },
+    { 
+      id: 'data-generation-methods', 
+      label: 'Data Generation Methods', 
+      icon: FiEdit3,
+      children: [
+        { id: 'fakerjs-generator', label: 'Faker.js Generator' },
+        { id: 'distribution-generator', label: 'Distribution Generator' },
+        { id: 'sql-formula-generator', label: 'SQL Formula Generator' },
+      ]
+    },
+    { 
+      id: 'special-tables-and-columns', 
+      label: 'Special Tables and Columns', 
+      icon: FiFolder,
+      children: [
+        { id: 'table-types', label: 'Table Types' },
+        { id: 'column-types', label: 'Column Types' },
+      ]
+    },
+    { 
+      id: 'simulation-configuration', 
+      label: 'Simulation Configuration', 
+      icon: FiSettings,
+      children: [
+        { id: 'termination-conditions', label: 'Termination Conditions' },
+        { id: 'resource-configuration', label: 'Resource Configuration' },
+        { id: 'entity-configuration', label: 'Entity Configuration' },
+      ]
+    },
+    {
+      id: 'simulation-steps',
+      label: 'Simulation Steps',
+      icon: FiGitBranch,
+      children: [
+        { id: 'create', label: 'Create' },
+        { id: 'event', label: 'Event' },
+        { id: 'assign', label: 'Assign' },
+        { id: 'decide', label: 'Decide' },
+        { id: 'release', label: 'Release' },
+      ]
+    },
+    { id: 'result-viewer', label: 'Result Viewer', icon: FiMonitor },
   ];
 
   // Filter navigation items based on search term

@@ -1,8 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { Card, Button } from 'react-bootstrap';
-import { FiX } from 'react-icons/fi';
 
-// Simple code block component without syntax highlighting for now
+// Minimal code block wrapper matching existing styles
 const CodeBlock = ({ children }) => (
   <div className="code-example">
     <pre>
@@ -11,272 +9,383 @@ const CodeBlock = ({ children }) => (
   </div>
 );
 
-const GuideOverlay = ({ visible, activeSection, onClose, theme = 'light' }) => {
+// Standalone overlay that renders the README content verbatim
+const GuideOverlay = React.memo(({ visible, onClose, activeSection }) => {
   const overlayRef = useRef(null);
+  const contentRef = useRef(null);
+  const PUBLIC_URL = (typeof process !== 'undefined' && process.env && process.env.PUBLIC_URL) ? process.env.PUBLIC_URL : 'public';
 
-  // Documentation sections as simple objects (extracted from original ConfigurationGuide)
-  const documentationSections = [
-    {
-      id: 'introduction',
-      title: 'Introduction',
-      content: (
-        <div>
-          <p className="lead">
-            Welcome to the Database Simulator Configuration Guide. This tool uses YAML configuration files to define both your database schema and simulation logic.
-          </p>
-          <p>The configuration is split into two main parts:</p>
-          <ul>
-            <li><strong>Entities Section:</strong> Defines the database schema, including tables, columns, and data generation rules</li>
-            <li><strong>Simulation Section:</strong> Defines the simulation logic, including timing, resource allocation, and process flows</li>
-          </ul>
-          <div className="alert alert-info">
-            <strong>Tip:</strong> Use the search bar in the sidebar to quickly find specific configuration options, or navigate through the sections using the navigation links.
-          </div>
-        </div>
-      )
-    },
-    {
-      id: 'entities',
-      title: 'Entities',
-      content: (
-        <div>
-          <p>The <code>entities</code> section defines the tables in your simulated database. Each entity represents a table with its columns (attributes) and data generation rules.</p>
-          <CodeBlock>{`entities:
-  - name: Consultant
-    type: resource
-    rows: 30
-    attributes:
-      - name: id
-        type: pk
-      - name: role
-        type: resource_type
-        generator:
-          type: distribution
-          distribution:
-            type: choice
-            values: ["Developer", "Tester"]
-            weights: [0.7, 0.3]`}</CodeBlock>
-        </div>
-      )
-    },
-    {
-      id: 'entity-properties',
-      title: 'Entity Properties',
-      content: (
-        <div>
-          <h3>Entity Properties</h3>
-          <p>Each entity has the following properties:</p>
-          
-          <h4><code>name</code></h4>
-          <p>The name of the table (e.g., "Consultant", "Project").</p>
-          
-          <h4><code>type</code></h4>
-          <p>Defines the entity type and its role in the simulation:</p>
-          <ul>
-            <li><strong>resource:</strong> A table of resources that can be assigned to tasks. Must have a fixed row count.</li>
-            <li><strong>entity:</strong> A primary table in the simulation (e.g., projects, customers).</li>
-            <li><strong>event:</strong> A table that records events occurring over time.</li>
-          </ul>
-          
-          <h4><code>rows</code></h4>
-          <p>The number of rows to generate for this table:</p>
-          <ul>
-            <li><strong>Number:</strong> Fixed number of rows (required for resource tables)</li>
-            <li><strong>"n/a":</strong> Dynamic row count based on simulation events</li>
-          </ul>
-          
-          <CodeBlock>{`- name: Consultant
-  type: resource    # Resource table
-  rows: 30         # Fixed 30 consultants
-
-- name: Project
-  type: entity     # Main entity
-  rows: n/a        # Dynamic based on simulation`}</CodeBlock>
-        </div>
-      )
-    },
-    {
-      id: 'attributes',
-      title: 'Attributes',
-      content: (
-        <div>
-          <h3>Attributes (Table Columns)</h3>
-          <p>Attributes define the columns of each table. Each attribute has a name, type, and optional generator.</p>
-          
-          <h4>Special Column Types</h4>
-          <ul>
-            <li><strong>pk:</strong> Primary Key - unique identifier for each row</li>
-            <li><strong>fk:</strong> Foreign Key - references another table (requires <code>ref</code> property)</li>
-            <li><strong>resource_type:</strong> Categorizes resources (used in resource_capacities)</li>
-            <li><strong>event_type:</strong> Categorizes events (used in event_flows)</li>
-            <li><strong>resource_id:</strong> References a resource table</li>
-            <li><strong>entity_id:</strong> References an entity table</li>
-            <li><strong>event_id:</strong> References an event table</li>
-          </ul>
-          
-          <h4>Common Data Types</h4>
-          <ul>
-            <li><strong>string:</strong> Text data</li>
-            <li><strong>datetime:</strong> Date and time values</li>
-            <li><strong>integer:</strong> Whole numbers</li>
-            <li><strong>float:</strong> Decimal numbers</li>
-          </ul>
-          
-          <CodeBlock>{`attributes:
-  - name: id
-    type: pk                    # Primary key
-  - name: department_id
-    type: fk                    # Foreign key
-    ref: Department.id          # References Department table
-  - name: role
-    type: resource_type         # Special type for resources
-  - name: email
-    type: string               # Regular string column`}</CodeBlock>
-        </div>
-      )
-    },
-    {
-      id: 'data-generators',
-      title: 'Data Generators',
-      content: (
-        <div>
-          <h3>Data Generators</h3>
-          <p>Generators create realistic data for each column. There are three main types:</p>
-          
-          <h4>1. Faker Generator</h4>
-          <p>Generates realistic fake data using predefined methods:</p>
-          <CodeBlock>{`generator:
-  type: faker
-  method: name        # Generates random names
-  
-# Other faker methods:
-# method: email       # Random email addresses
-# method: company     # Company names
-# method: address     # Street addresses`}</CodeBlock>
-          
-          <h4>2. Template Generator</h4>
-          <p>Creates data from a string template with placeholders:</p>
-          <CodeBlock>{`generator:
-  type: template
-  template: "Department_{id}"    # Creates "Department_1", "Department_2", etc.
-  
-# Other examples:
-# template: "Project_{id}"
-# template: "User_{id}_{name}"`}</CodeBlock>
-          
-          <h4>3. Distribution Generator</h4>
-          <p>Assigns values based on probability distributions:</p>
-          <CodeBlock>{`generator:
-  type: distribution
-  distribution:
-    type: choice
-    values: ["Developer", "Tester", "Manager"]
-    weights: [0.6, 0.3, 0.1]     # 60% Developer, 30% Tester, 10% Manager`}</CodeBlock>
-        </div>
-      )
-    },
-    {
-      id: 'simulation-settings',
-      title: 'Simulation Settings',
-      content: (
-        <div>
-          <h3>Simulation Settings</h3>
-          <p>The <code>simulation</code> section controls the overall simulation environment and timing.</p>
-          
-          <h4><code>duration_days</code></h4>
-          <p>The total length of the simulation in days. This determines how long the simulation will run.</p>
-          
-          <h4><code>start_date</code></h4>
-          <p>The simulation's starting date in YYYY-MM-DD format. All events will be scheduled relative to this date.</p>
-          
-          <h4><code>random_seed</code></h4>
-          <p>A seed for the random number generator to ensure reproducible results. Using the same seed will produce identical simulation runs.</p>
-          
-          <CodeBlock>{`simulation:
-  duration_days: 60        # Run simulation for 60 days
-  start_date: 2024-06-01   # Start on June 1st, 2024
-  random_seed: 42          # Seed for reproducible results`}</CodeBlock>
-          
-          <div className="alert alert-info">
-            <strong>Tip:</strong> Use different random seeds to explore various simulation scenarios, or keep the same seed for consistent testing.
-          </div>
-        </div>
-      )
-    },
-    // Add the rest of the sections... I'll include the key ones for demo
-    {
-      id: 'event-simulation',
-      title: 'Event Simulation',
-      content: (
-        <div>
-          <h3>Event Simulation</h3>
-          <p>
-            The <code>event_simulation</code> section defines the core logic of your process simulation. It controls how entities arrive, how resources are allocated, and how events flow through your process.
-          </p>
-          <p>This section contains several main subsections:</p>
-          <ul>
-            <li><strong>Entity Arrival:</strong> Controls when new entities enter the system</li>
-            <li><strong>Resource Capacities:</strong> Defines available work capacity for different resource types</li>
-            <li><strong>Event Flows:</strong> Defines the process flow using step-based configuration</li>
-            <li><strong>Step Types:</strong> Different types of steps (event, decide, release)</li>
-            <li><strong>Decide Modules:</strong> Advanced decision logic with probability and conditions</li>
-          </ul>
-        </div>
-      )
-    }
-  ];
-
-  // Find the active section content
-  const activeContent = documentationSections.find(section => section.id === activeSection);
-
-  // Handle click outside to close overlay
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (overlayRef.current && !overlayRef.current.contains(event.target)) {
-        onClose();
-      }
+    const onKeyDown = (e) => {
+      if (e.key === 'Escape') onClose();
     };
-
-    if (visible) {
-      document.addEventListener('mousedown', handleClickOutside);
-      // Prevent scrolling on the body when overlay is open
-      document.body.style.overflow = 'hidden';
-    }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-      document.body.style.overflow = 'unset';
-    };
+    if (visible) document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
   }, [visible, onClose]);
 
-  if (!visible || !activeContent) {
-    return null;
-  }
+  // Scroll to active section within the overlay content when set
+  useEffect(() => {
+    if (!visible || !activeSection) return;
+    const container = contentRef.current;
+    const safeId = (typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(activeSection) : activeSection;
+    const target = container?.querySelector(`#${safeId}`);
+    if (target) {
+      target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [visible, activeSection]);
+
+  if (!visible) return null;
 
   return (
-    <div className="guide-overlay-backdrop">
-      <div 
+    <div className="guide-overlay-backdrop" onMouseDown={onClose}>
+      <div
         ref={overlayRef}
-        className={`guide-overlay-card ${visible ? 'slide-in' : 'slide-out'}`}
+        className="guide-overlay-card"
+        onMouseDown={(e) => e.stopPropagation()}
       >
         <div className="guide-overlay-header">
-          <h2 className="guide-overlay-title">{activeContent.title}</h2>
-          <Button
-            variant="link"
+          <button
+            type="button"
             className="guide-overlay-close"
+            aria-label="Close guide"
             onClick={onClose}
-            title="Close guide"
           >
-            <FiX />
-          </Button>
+            ×
+          </button>
         </div>
-        
-        <div className="guide-overlay-content">
-          {activeContent.content}
+        <div className="guide-overlay-content" ref={contentRef}>
+          <h1 id="db-simulator">DB Simulator</h1>
+          <p>Database education tool for creating realistic synthetic data across various teaching scenarios.</p>
+
+          {/* Table of Contents moved to NavigationSidebar */}
+
+          <h2 id="database-configuration">Database Configuration</h2>
+          <p>Configure database schemas through an intuitive interface to create entities with attributes, relationships, and data generators.</p>
+
+          <p><strong>Database Configuration Dashboard</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/database/database_config_dashboard.png`} alt="Database Configuration Interface" />
+          </p>
+          <p><em>Main interface showing table creation, relationships, and schema management</em></p>
+
+          <p>Define table types (entity, event, resource, inventory, bridging) and configure column properties for your simulation database.</p>
+
+          <h2 id="data-generation-methods">Data Generation Methods</h2>
+          <p>Configure data generators for realistic synthetic data creation using multiple approaches.</p>
+
+          <p><strong>Database Entity Editor</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/database/data_table_editor.png`} alt="Data Table Editor" />
+          </p>
+          <p><em>Double-click any table to access the entity editor for configuring attributes and data generators</em></p>
+
+          <h3 id="fakerjs-generator">Faker.js Generator</h3>
+          <p>Generate realistic synthetic data using Faker.js methods for names, addresses, dates, and more.</p>
+
+          <p><strong>Faker Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/database/faker.png`} alt="Data Generator: Faker" />
+          </p>
+          <p><em>Interface for selecting Faker.js methods and configuring realistic data generation</em></p>
+
+          <CodeBlock>{`# Example: Faker.js configuration
+name: last_name
+type: string
+generator:
+  type: faker
+  method: person.lastName`}</CodeBlock>
+
+          <h3 id="distribution-generator">Distribution Generator</h3>
+          <p>Create statistically accurate data using mathematical distributions for numerical values.</p>
+
+          <p><strong>Distribution Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/database/distribution_generator.png`} alt="Distribution Generator" />
+          </p>
+          <p><em>Configure statistical distributions (UNIF, NORM, EXPO) for numerical data generation</em></p>
+
+          <CodeBlock>{`# Example: Statistical distribution
+generator:
+  type: distribution
+  formula: UNIF(1, 100)  # NORM, EXPO, DISC`}</CodeBlock>
+
+          <h3 id="sql-formula-generator">SQL Formula Generator</h3>
+          <p>Generate relationship-aware data using SQL expressions for complex temporal and relational constraints.</p>
+
+          <p><strong>SQL Formula Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/database/sql_formula_expression.png`} alt="SQL Formula Generator" />
+          </p>
+          <p><em>Create complex formulas using SQL queries and date arithmetic for dependent data</em></p>
+
+          <CodeBlock>{`# Example: SQL formula with date arithmetic
+generator:
+  type: formula
+  expression: MIN(SELECT created_at FROM Order WHERE customer_id = @id) + DAYS(30)`}</CodeBlock>
+
+          <h2 id="special-tables-and-columns">Special Tables and Columns</h2>
+
+          <h3 id="table-types">Table Types</h3>
+          <ul>
+            <li><strong>entity</strong>: Primary business objects (Customer, Order)</li>
+            <li><strong>event</strong>: Event tracking tables</li>
+            <li><strong>resource</strong>: Resource pools (Staff, Equipment)</li>
+            <li><strong>inventory</strong>: Item inventory management</li>
+            <li><strong>bridging</strong>: Many-to-many relationships</li>
+          </ul>
+
+          <h3 id="column-types">Column Types</h3>
+          <ul>
+            <li><strong>event_type</strong>: Event classification column</li>
+            <li><strong>entity_type</strong>: Entity classification column</li>
+            <li><strong>resource_type</strong>: Resource classification column</li>
+            <li><strong>entity_id</strong>: Links to entity tables (fk)</li>
+            <li><strong>event_id</strong>: Event identifier (fk)</li>
+            <li><strong>resource_id</strong>: Resource identifier (fk)</li>
+            <li><strong>inv_req</strong>: Inventory requirement specification</li>
+            <li><strong>inv_qty</strong>: Inventory quantity tracking</li>
+          </ul>
+
+          <h2 id="simulation-configuration">Simulation Configuration</h2>
+          <p>Configure simulation parameters, termination conditions, and resource constraints for your discrete event simulation.</p>
+
+          <p><strong>Simulation Dashboard Overview</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/simulation_dashboard.png`} alt="Simulation Dashboard" />
+          </p>
+          <p><em>Main simulation interface showing flow design, configuration panels, and control buttons</em></p>
+
+          <h3 id="termination-conditions">Termination Conditions</h3>
+          <p>Define when your simulation should stop. Access termination settings via the Simulation Settings button in the floating toolbar.</p>
+
+          <p><strong>Simulation Settings Access</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/simulation_setting_in_toolbar.png`} alt="Simulation Setting Button" />
+          </p>
+          <p><em>Location of the Simulation Settings button in the floating toolbar</em></p>
+
+          <p><strong>Termination Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/simulation_setting.png`} alt="Simulation Setting" />
+          </p>
+          <p><em>Configure time-based, entity count, or combined termination conditions</em></p>
+
+          <p><strong>Termination Types:</strong></p>
+          <ul>
+            <li><strong>Time-based</strong>: <code>TIME(200)</code> - Run for 200 time units</li>
+            <li><strong>Entity count</strong>: <code>ENTITIES(Order, 100)</code> - Stop when Order table reaches 100 entities</li>
+            <li><strong>Combined conditions</strong>:
+              <ul>
+                <li><code>TIME(720) OR ENTITIES(Order, 1000)</code> - Stop at either condition</li>
+                <li><code>TIME(480) AND ENTITIES(Ticket, 200)</code> - Stop when both conditions are met</li>
+              </ul>
+            </li>
+          </ul>
+
+          <h3 id="resource-configuration">Resource Configuration</h3>
+          <p>Define capacity constraints for shared resources (staff, equipment, etc.) that entities compete for during simulation.</p>
+
+          <p><strong>Resource Management Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/resource_editor.png`} alt="Resource Editor" />
+          </p>
+          <p><em>Main resource configuration panel showing available resource types and capacity settings</em></p>
+
+          <p><strong>Resource Configuration Modal</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/resource_editor_modal.png`} alt="Resource Editor Modal" />
+          </p>
+          <p><em>Resource setup interface for configuring capacity limits by resource type</em></p>
+
+          <CodeBlock>{`# Example: Staff resource configuration
+resources:
+  Staff:
+    "Tech Support": 2    # 2 tech support staff available
+    Developer: 1         # 1 developer available  
+    Manager: 1           # 1 manager available`}</CodeBlock>
+
+          <p><strong>Resource Features:</strong></p>
+          <ul>
+            <li><strong>Fixed capacity</strong>: Set maximum available units per resource type</li>
+            <li><strong>FIFO allocation</strong>: Resources allocated first-come, first-served</li>
+            <li><strong>Automatic release</strong>: Resources freed when entity completes or reaches Release step</li>
+            <li><strong>Blocking behavior</strong>: Entities wait when required resources are unavailable</li>
+          </ul>
+
+          <h3 id="entity-configuration">Entity Configuration</h3>
+          <p>Define inventory requirements and resource consumption for different entity types during simulation.</p>
+
+          <p><strong>Entity Management Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/entity_editor.png`} alt="Entity Editor" />
+          </p>
+          <p><em>Entity configuration panel showing available entity types and inventory requirement settings</em></p>
+
+          <p><strong>Entity Configuration Modal</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/entity_editor_modal.png`} alt="Entity Editor Modal" />
+          </p>
+          <p><em>Detailed entity setup interface for configuring inventory consumption requirements</em></p>
+
+          <CodeBlock>{`# Example: Entity inventory requirements
+entities:
+  Order:
+    inventory_requirements:
+      - item: Book          # Inventory item name
+        quantity: 1         # Quantity consumed per entity
+      - item: Packaging
+        quantity: 1
+  
+  BulkOrder:
+    inventory_requirements:
+      - item: Book
+        quantity: 5         # Bulk orders consume more inventory`}</CodeBlock>
+
+          <p><strong>Entity Features:</strong></p>
+          <ul>
+            <li><strong>Inventory consumption</strong>: Automatic deduction from inventory tables</li>
+            <li><strong>Multi-item requirements</strong>: Entities can consume multiple inventory types</li>
+            <li><strong>Quantity control</strong>: Specify exact consumption amounts per entity</li>
+            <li><strong>Blocking behavior</strong>: Entity creation blocked if insufficient inventory available</li>
+          </ul>
+
+          <h2 id="simulation-steps">Simulation Steps</h2>
+          <p>Configure workflow steps by double-clicking on flow nodes to open their respective editors.</p>
+
+          <h3 id="create">Create</h3>
+          <p>Generate entities with configurable arrival patterns to initiate simulation flows.</p>
+
+          <p><strong>Create Step Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/create_module.png`} alt="Create Editor" />
+          </p>
+          <p><em>Configure entity generation, arrival rates, and maximum entity limits</em></p>
+
+          <CodeBlock>{`# Example: Create step configuration
+step_type: create
+create_config:
+  entity_table: Order
+  interarrival_time:
+    formula: EXPO(2)`}</CodeBlock>
+
+          <h3 id="event">Event</h3>
+          <p>Process entities with configurable duration and optional resource requirements.</p>
+
+          <p><strong>Event Step Configuration Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/event_module.png`} alt="Event Editor" />
+          </p>
+          <p><em>Configure processing duration, resource requirements, and capacity constraints</em></p>
+
+          <CodeBlock>{`# Example: Event step configuration
+step_type: event
+event_config:
+  duration:
+    formula: NORM(1, 0.1)
+  resource_requirements:
+    - resource: Staff
+      count: 1`}</CodeBlock>
+
+          <h3 id="assign">Assign</h3>
+          <p>Assign new attributes or update database tables during simulation with support for dynamic values.</p>
+
+          <p><strong>Attribute Assignment Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/assign_module.png`} alt="Assign Module" />
+          </p>
+          <p><em>Configure attribute assignments with static values or dynamic templates</em></p>
+
+          <p><strong>SQL Update Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/assign_sql_backorder.png`} alt="Assign SQL Example" />
+          </p>
+          <p><em>Execute SQL UPDATE statements to modify any table in the database</em></p>
+
+          <p><strong>Assignment Types:</strong></p>
+          <ul>
+            <li><strong>Attribute assignment</strong>: Set entity attributes with custom names and values</li>
+            <li><strong>SQL updates</strong>: Execute UPDATE statements to modify any table in the database</li>
+            <li><strong>Dynamic values</strong>: Use templates like <code>{`{{current_time}}`}</code> or <code>{`{{entity_id}}`}</code> for runtime values</li>
+          </ul>
+
+          <CodeBlock>{`# Example: Mixed assignment types
+step_type: assign
+assign_config:
+  assignments:
+    - assignment_type: attribute
+      attribute_name: status
+      value: processed
+    - assignment_type: attribute
+      attribute_name: completion_time
+      value: "{{current_time}}"`}</CodeBlock>
+
+          <h3 id="decide">Decide</h3>
+          <p>Route entities using 4 decision types for probability-based or conditional branching.</p>
+
+          <p><strong>Decision Types:</strong></p>
+          <ul>
+            <li><code>2way-chance</code> - Two-path probability routing (70% approve, 30% reject)</li>
+            <li><code>2way-condition</code> - Two-path based on attribute values (if quality_score &gt;= 8)</li>
+            <li><code>nway-chance</code> - Multiple paths with explicit probabilities (60%/30%/10%)</li>
+            <li><code>nway-condition</code> - Multiple paths based on different attribute conditions</li>
+          </ul>
+
+          <p><strong>Attribute Condition Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/decision_module_condition.png`} alt="Decision Module Modal" />
+          </p>
+          <p><em>Configure attribute-based conditions comparing entity attributes with specified values</em></p>
+
+          <p><strong>SQL Query Condition Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/decision_sql_result,png.png`} alt="Decision Module SQL" />
+          </p>
+          <p><em>Configure SQL-based conditions for complex database queries (e.g., inventory checks)</em></p>
+
+          <p><strong>Conditional Decision Features:</strong></p>
+          <ul>
+            <li><strong>Attribute conditions</strong>: Compare entity attributes (<code>status == "complete"</code>)</li>
+            <li><strong>SQL query conditions</strong>: Compare against database results for complex logic</li>
+            <li><strong>Supported operators</strong>: <code>==</code>, <code>!=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>&lt;</code>, <code>&lt;=</code></li>
+          </ul>
+
+          <CodeBlock>{`# Example: Probability-based decision
+step_type: decide
+decide_config:
+  decision_type: 2way-chance
+  outcomes:
+    - outcome_id: approve
+      next_step_id: process_approval
+      conditions:
+        - if: Probability
+          is: ==
+          value: 0.8
+    - outcome_id: reject
+      next_step_id: handle_rejection
+      conditions: []  # else case`}</CodeBlock>
+
+          <h3 id="release">Release</h3>
+          <p>Dispose entities and automatically free all allocated resources to complete the simulation flow.</p>
+
+          <CodeBlock>{`# Example: Release step configuration
+step_type: release
+# No additional configuration required
+# Automatically releases all resources and completes entity journey`}</CodeBlock>
+
+          <h2 id="result-viewer">Result Viewer</h2>
+          <p>Review generated database tables and analyze simulation results with integrated data navigation.</p>
+
+          <p><strong>Results Analysis Interface</strong></p>
+          <p>
+            <img src={`${PUBLIC_URL}/doc/simulation/result_viewer.png`} alt="Results Interface" />
+          </p>
+          <p><em>Navigate between database tables using the project sidebar and analyze simulation outcomes</em></p>
+
+          <hr />
         </div>
       </div>
     </div>
   );
-};
+});
 
 export default GuideOverlay;
