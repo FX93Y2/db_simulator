@@ -77,7 +77,10 @@ function startBackendWithExecutable(appPaths) {
   // Check if the executable exists
   if (!fs.existsSync(backendExePath)) {
     console.error(`Backend executable not found at: ${backendExePath}`);
-    
+    console.error(`Current working directory: ${process.cwd()}`);
+    console.error(`Resource path: ${process.resourcesPath}`);
+    console.error(`Is packaged: ${app.isPackaged}`);
+
     // Try alternative paths if not found
     const alternativePaths = [
       path.join(process.resourcesPath, 'app.asar.unpacked', 'python', 'dist', 'db_simulator_api', exeName),
@@ -207,13 +210,34 @@ function setupBackendProcessHandlers() {
   
   backendProcess.on('error', (err) => {
     console.error(`Failed to start backend process: ${err.message}`);
+    console.error(`Error code: ${err.code}`);
+    console.error(`Error stack: ${err.stack}`);
     if (err.code === 'ENOENT') {
       console.error('Backend executable or Python not found.');
+      console.error('This usually means the PyInstaller build failed or the executable is not in the expected location.');
+    }
+    // Notify the main window about backend failure
+    const { getMainWindow } = require('./window');
+    const mainWindow = getMainWindow();
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('backend-error', {
+        message: err.message,
+        code: err.code
+      });
     }
   });
   
   backendProcess.on('close', (code) => {
     console.log(`Backend process exited with code ${code}`);
+    if (code !== 0 && code !== null) {
+      console.error(`Backend process exited unexpectedly with code ${code}`);
+      // Notify the main window about backend closure
+      const { getMainWindow } = require('./window');
+      const mainWindow = getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('backend-closed', { code });
+      }
+    }
     backendProcess = null;
     isBackendReady = false;
   });

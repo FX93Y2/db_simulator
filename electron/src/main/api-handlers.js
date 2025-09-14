@@ -273,13 +273,42 @@ async function makeApiRequest(method, endpoint, data = null) {
     return response.data;
   } catch (error) {
     console.error(`API ${method} request to ${endpoint} failed:`, error.message);
-    if (error.response) {
-      return { 
-        success: false, 
-        error: error.response.data.error || 'API request failed' 
+
+    // Check if backend is not running
+    if (error.code === 'ECONNREFUSED') {
+      console.error('Backend API is not running. Please ensure the Python backend is started.');
+      return {
+        success: false,
+        error: 'Backend API is not available. The application backend may not be running.',
+        errorCode: 'BACKEND_UNAVAILABLE'
       };
     }
-    return { success: false, error: error.message || 'API request failed' };
+
+    // Check for network errors
+    if (error.code === 'ENETUNREACH' || error.code === 'ETIMEDOUT') {
+      return {
+        success: false,
+        error: 'Network error: Unable to reach the backend API',
+        errorCode: 'NETWORK_ERROR'
+      };
+    }
+
+    // Handle HTTP response errors
+    if (error.response) {
+      return {
+        success: false,
+        error: error.response.data?.error || `API request failed with status ${error.response.status}`,
+        errorCode: 'API_ERROR',
+        statusCode: error.response.status
+      };
+    }
+
+    // Generic error
+    return {
+      success: false,
+      error: error.message || 'API request failed',
+      errorCode: 'UNKNOWN_ERROR'
+    };
   }
 }
 
