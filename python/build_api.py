@@ -44,12 +44,52 @@ def cleanup_test_data(current_dir):
 
     print("Test data cleanup completed.")
 
+def validate_build_dependencies(current_dir):
+    """Validate that all required dependencies and files exist before building"""
+    print("Validating build dependencies...")
+
+    missing_items = []
+
+    # Check for JavaScript bundle
+    bundle_path = current_dir / "src" / "generator" / "data" / "faker_js" / "bundle.js"
+    if not bundle_path.exists():
+        missing_items.append(f"Faker.js bundle: {bundle_path}")
+
+    # Check for py-mini-racer
+    try:
+        __import__('py_mini_racer')
+        print("[OK] py-mini-racer dependency found")
+    except ImportError:
+        missing_items.append("py-mini-racer Python package")
+
+    # Check for other critical dependencies
+    critical_deps = ['flask', 'sqlalchemy', 'numpy', 'pandas', 'simpy', 'faker']
+    for dep in critical_deps:
+        try:
+            __import__(dep)
+            print(f"[OK] {dep} dependency found")
+        except ImportError:
+            missing_items.append(f"{dep} Python package")
+
+    if missing_items:
+        print("\n[ERROR] Build validation failed! Missing dependencies:")
+        for item in missing_items:
+            print(f"  - {item}")
+
+        if bundle_path.parents[0].exists():
+            print(f"\nNote: To generate the Faker.js bundle, run:")
+            print(f"  cd electron && node build-faker-bundle.js")
+
+        raise RuntimeError("Build validation failed - missing required dependencies")
+
+    print("[SUCCESS] All build dependencies validated successfully")
+
 def build_api():
     print("Building API executable with PyInstaller...")
 
     # Ensure PyInstaller is installed
     try:
-        import PyInstaller # type: ignore
+        __import__('PyInstaller')
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
@@ -59,7 +99,10 @@ def build_api():
 
     # Clean up test data before building
     cleanup_test_data(current_dir)
-    
+
+    # Validate all build dependencies
+    validate_build_dependencies(current_dir)
+
     try:
         # First approach: Try with a spec file
         build_with_spec_file(current_dir)
@@ -74,10 +117,7 @@ def build_api():
 def build_with_spec_file(current_dir):
     # Create a spec file for the API - Fix path formatting for Windows
     main_path = current_dir / "main.py"
-    path_str = str(main_path).replace("\\", "\\\\")  # Double escape backslashes for Windows paths
-    pathex_str = str(current_dir).replace("\\", "\\\\")
-    config_storage_path = str(current_dir / "config_storage").replace("\\", "\\\\")
-    
+
     spec_content = f"""
 # -*- mode: python ; coding: utf-8 -*-
 
@@ -89,8 +129,14 @@ a = Analysis(
     binaries=[],
     datas=[
         (r'{current_dir / "config_storage"}', 'config_storage'),
+        (r'{current_dir / "src" / "generator" / "data" / "faker_js" / "bundle.js"}', 'src/generator/data/faker_js'),
     ],
-    hiddenimports=['flask', 'flask_cors', 'sqlalchemy', 'pandas', 'numpy', 'simpy', 'psycopg2', 'faker'],
+    hiddenimports=[
+        'flask', 'flask_cors', 'sqlalchemy', 'pandas', 'numpy', 'simpy', 'psycopg2', 'faker',
+        'py_mini_racer', 'py_mini_racer.py_mini_racer',
+        'mini_racer', 'ctypes', 'ctypes.util',
+        'json', 'os', 'sys', 'logging'
+    ],
     hookspath=[],
     hooksconfig={{}},
     runtime_hooks=[],
@@ -161,6 +207,7 @@ def build_with_direct_command(current_dir):
         "--name=db_simulator_api",
         "--clean",
         f"--add-data={current_dir / 'config_storage'}{separator}config_storage",
+        f"--add-data={current_dir / 'src' / 'generator' / 'data' / 'faker_js' / 'bundle.js'}{separator}src/generator/data/faker_js",
         "--hidden-import=flask",
         "--hidden-import=flask_cors",
         "--hidden-import=sqlalchemy",
@@ -169,6 +216,11 @@ def build_with_direct_command(current_dir):
         "--hidden-import=simpy",
         "--hidden-import=psycopg2",
         "--hidden-import=faker",
+        "--hidden-import=py_mini_racer",
+        "--hidden-import=py_mini_racer.py_mini_racer",
+        "--hidden-import=mini_racer",
+        "--hidden-import=ctypes",
+        "--hidden-import=ctypes.util",
         str(main_script)
     ]
 

@@ -6,6 +6,7 @@ and executes Faker.js methods for data generation.
 """
 
 import os
+import sys
 import logging
 from typing import Any, Optional
 from py_mini_racer import MiniRacer
@@ -27,10 +28,13 @@ class FakerJSEngine:
             self.ctx = MiniRacer()
             
             # Load the Faker.js bundle
-            bundle_path = os.path.join(
-                os.path.dirname(__file__),
-                'bundle.js'
-            )
+            # Handle both development and PyInstaller frozen environments
+            if getattr(sys, 'frozen', False):
+                # Running in PyInstaller bundle
+                bundle_path = os.path.join(sys._MEIPASS, 'src', 'generator', 'data', 'faker_js', 'bundle.js')
+            else:
+                # Running in development
+                bundle_path = os.path.join(os.path.dirname(__file__), 'bundle.js')
             
             if not os.path.exists(bundle_path):
                 raise FileNotFoundError(

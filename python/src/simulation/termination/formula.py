@@ -176,24 +176,26 @@ class TerminationFormulaParser:
         formula = re.sub(r'\s+', ' ', formula.strip())
         
         # Token patterns - order matters! More specific patterns first
+        # Note: Using re.IGNORECASE flag instead of inline (?i) to avoid regex compilation issues
         token_patterns = [
             r'\(',                      # Left parenthesis
-            r'\)',                      # Right parenthesis  
+            r'\)',                      # Right parenthesis
             r',',                       # Comma
-            r'(?i)\bAND\b',             # AND operator (word boundary to avoid matching parts of identifiers)
-            r'(?i)\bOR\b',              # OR operator (word boundary to avoid matching parts of identifiers)
-            r'(?i)\bTIME\b',            # TIME function (word boundary)
-            r'(?i)\bENTITIES\b',        # ENTITIES function (word boundary)
-            r'(?i)\bEVENTS\b',          # EVENTS function (word boundary)
+            r'\bAND\b',                 # AND operator (word boundary to avoid matching parts of identifiers)
+            r'\bOR\b',                  # OR operator (word boundary to avoid matching parts of identifiers)
+            r'\bTIME\b',                # TIME function (word boundary)
+            r'\bENTITIES\b',            # ENTITIES function (word boundary)
+            r'\bEVENTS\b',              # EVENTS function (word boundary)
             r'\*',                      # Asterisk (for all entities)
             r'[A-Za-z_][A-Za-z0-9_]*',  # Identifiers (table names, preserve case)
             r'\d+\.?\d*',               # Numbers (int or float)
         ]
-        
+
         pattern = '|'.join(f'({p})' for p in token_patterns)
+        compiled_pattern = re.compile(pattern, re.IGNORECASE)
         tokens = []
-        
-        for match in re.finditer(pattern, formula):
+
+        for match in compiled_pattern.finditer(formula):
             token = match.group().strip()
             if token:
                 # Normalize keywords to uppercase while preserving case for identifiers
