@@ -5,6 +5,10 @@ venv/
 *.log
 *.db
 *.sqlite
+# Test data and configurations
+python/config_storage/configs.db
+output/
+python/tests/test_config/output/
 .DS_Store
 .DS_Store?
 ._*

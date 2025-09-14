@@ -61,6 +61,16 @@ jobs:
           pip install pyinstaller
         shell: bash
 
+      - name: Clean test data before build
+        run: |
+          # Remove any test configuration databases
+          rm -f python/config_storage/configs.db
+          # Remove test output directories
+          rm -rf output/
+          rm -rf python/tests/test_config/output/
+          echo "Test data cleanup completed"
+        shell: bash
+
       - name: Build Python executable
         run: |
           cd python

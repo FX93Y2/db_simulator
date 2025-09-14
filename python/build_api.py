@@ -19,18 +19,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+def cleanup_test_data(current_dir):
+    """Remove test data and configurations before building for distribution"""
+    print("Cleaning up test data before building...")
+
+    # Clean config storage database
+    config_db_path = current_dir / "config_storage" / "configs.db"
+    if config_db_path.exists():
+        print(f"Removing test configuration database: {config_db_path}")
+        config_db_path.unlink()
+
+    # Clean any test output directories in the project root
+    project_root = current_dir.parent
+    output_dir = project_root / "output"
+    if output_dir.exists():
+        print(f"Removing test simulation outputs: {output_dir}")
+        shutil.rmtree(output_dir, ignore_errors=True)
+
+    # Clean any test databases in test directories
+    test_config_output = current_dir / "tests" / "test_config" / "output"
+    if test_config_output.exists():
+        print(f"Removing test config outputs: {test_config_output}")
+        shutil.rmtree(test_config_output, ignore_errors=True)
+
+    print("Test data cleanup completed.")
+
 def build_api():
     print("Building API executable with PyInstaller...")
-    
+
     # Ensure PyInstaller is installed
     try:
         import PyInstaller # type: ignore
     except ImportError:
         print("Installing PyInstaller...")
         subprocess.check_call([sys.executable, "-m", "pip", "install", "pyinstaller"])
-    
+
     # Get the current directory
     current_dir = Path(__file__).parent.absolute()
+
+    # Clean up test data before building
+    cleanup_test_data(current_dir)
     
     try:
         # First approach: Try with a spec file
