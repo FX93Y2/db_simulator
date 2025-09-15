@@ -80,7 +80,8 @@
       "src/theme-loader.js",
       "main.js",
       "preload.js",
-      "index.html"
+      "index.html",
+      "public/doc/**/*"
     ],
     "extraResources": [
       {
