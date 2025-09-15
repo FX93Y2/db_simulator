@@ -55,12 +55,24 @@ def validate_build_dependencies(current_dir):
     if not bundle_path.exists():
         missing_items.append(f"Faker.js bundle: {bundle_path}")
 
-    # Check for py-mini-racer
+    # Check for py-mini-racer and locate native DLL
     try:
-        __import__('py_mini_racer')
+        import py_mini_racer  # noqa: F401
         print("[OK] py-mini-racer dependency found")
     except ImportError:
         missing_items.append("py-mini-racer Python package")
+
+    mini_racer_dll = None
+    try:
+        import py_mini_racer
+        dll_candidate = Path(py_mini_racer.__file__).parent / ('mini_racer.dll' if os.name == 'nt' else 'mini_racer.so')
+        if dll_candidate.exists():
+            mini_racer_dll = dll_candidate
+            print(f"[OK] mini_racer native found: {mini_racer_dll}")
+        else:
+            missing_items.append(f"mini_racer native library not found next to package: {dll_candidate}")
+    except Exception as e:
+        missing_items.append(f"Unable to locate mini_racer native library: {e}")
 
     # Check for other critical dependencies
     critical_deps = ['flask', 'sqlalchemy', 'numpy', 'pandas', 'simpy', 'faker']
@@ -82,6 +94,11 @@ def validate_build_dependencies(current_dir):
 
         raise RuntimeError("Build validation failed - missing required dependencies")
 
+    # Return important resolved paths
+    return {
+        'mini_racer_dll': mini_racer_dll
+    }
+
     print("[SUCCESS] All build dependencies validated successfully")
 
 def build_api():
@@ -101,22 +118,28 @@ def build_api():
     cleanup_test_data(current_dir)
 
     # Validate all build dependencies
-    validate_build_dependencies(current_dir)
+    deps = validate_build_dependencies(current_dir)
 
     try:
         # First approach: Try with a spec file
-        build_with_spec_file(current_dir)
+        build_with_spec_file(current_dir, deps.get('mini_racer_dll'))
     except Exception as e:
         print(f"Error using spec file approach: {e}")
         print("Falling back to direct PyInstaller command...")
-        build_with_direct_command(current_dir)
+        build_with_direct_command(current_dir, deps.get('mini_racer_dll'))
     
     print("API executable built successfully!")
     return str(current_dir / "dist" / "db_simulator_api")
 
-def build_with_spec_file(current_dir):
+def build_with_spec_file(current_dir, mini_racer_dll: Path | None = None):
     # Create a spec file for the API - Fix path formatting for Windows
     main_path = current_dir / "main.py"
+
+    # Prepare optional mini_racer data line
+    mini_racer_data_line = ""
+    if mini_racer_dll:
+        # Place DLL/SO in _internal to match runtime lookup
+        mini_racer_data_line = f"        (r'{mini_racer_dll}', '_internal'),\n"
 
     spec_content = f"""
 # -*- mode: python ; coding: utf-8 -*-
@@ -130,7 +153,7 @@ a = Analysis(
     datas=[
         (r'{current_dir / "config_storage"}', 'config_storage'),
         (r'{current_dir / "src" / "generator" / "data" / "faker_js" / "bundle.js"}', 'src/generator/data/faker_js'),
-    ],
+{mini_racer_data_line}    ],
     hiddenimports=[
         'flask', 'flask_cors', 'sqlalchemy', 'pandas', 'numpy', 'simpy', 'psycopg2', 'faker',
         'py_mini_racer', 'py_mini_racer.py_mini_racer',
@@ -192,7 +215,7 @@ coll = COLLECT(
         str(current_dir / "db_simulator_api.spec")
     ], cwd=current_dir)
 
-def build_with_direct_command(current_dir):
+def build_with_direct_command(current_dir, mini_racer_dll: Path | None = None):
     """Build using direct PyInstaller command without a spec file"""
     logger.info("Building with direct PyInstaller command...")
     main_script = current_dir / "main.py"
@@ -208,6 +231,12 @@ def build_with_direct_command(current_dir):
         "--clean",
         f"--add-data={current_dir / 'config_storage'}{separator}config_storage",
         f"--add-data={current_dir / 'src' / 'generator' / 'data' / 'faker_js' / 'bundle.js'}{separator}src/generator/data/faker_js",
+    ]
+    # Add mini_racer DLL/SO into _internal where runtime expects it
+    if mini_racer_dll:
+        cmd.append(f"--add-binary={mini_racer_dll}{separator}_internal")
+    # Hidden imports
+    cmd += [
         "--hidden-import=flask",
         "--hidden-import=flask_cors",
         "--hidden-import=sqlalchemy",

@@ -16,11 +16,24 @@ from config_storage.config_db import ConfigManager
 # Import the Flask app factory from refactored API server
 from api.server import create_app
 
-# Configure logging
+# Configure logging (console)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Optional file logging if Electron passes a log file path
+_log_file = os.environ.get('DB_SIMULATOR_LOG_FILE')
+if _log_file:
+    try:
+        fh = logging.FileHandler(_log_file, encoding='utf-8')
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root_logger = logging.getLogger()
+        root_logger.addHandler(fh)
+        root_logger.info('File logging enabled at %s', _log_file)
+    except Exception as _e:
+        logging.getLogger(__name__).warning('Failed to enable file logging: %s', _e)
 logger = logging.getLogger(__name__)
 
 # Initialize the Flask app using the modular structure

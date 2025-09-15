@@ -83,16 +83,17 @@ class FakerJSEngine:
             # Properly escape the method string to handle quotes
             escaped_method = method.replace("'", "\\'").replace('"', '\\"')
             result = self.ctx.eval(f"generateFake('{escaped_method}')")
-            
+
             # Check if result is an error message
             if isinstance(result, str) and result.startswith("Unsupported Faker Method:"):
-                logger.warning(f"Unsupported Faker method: {method}")
-                return f"Unsupported Faker Method: {method}"
+                # Log full returned message for diagnostics (often contains root cause)
+                logger.warning(f"Faker.js engine reported: {result}")
+                return result
             
             return result
             
         except Exception as e:
-            error_msg = f"Unsupported Faker Method: {method}"
+            error_msg = f"Unsupported Faker Method: {method} ({e})"
             logger.error(f"Error generating fake data for {method}: {e}")
             return error_msg
     

@@ -103,17 +103,104 @@ function startBackendWithExecutable(appPaths) {
     '--config-db', appPaths.configDb,
     '--packaged', app.isPackaged ? 'true' : 'false'
   ];
+
+  // Ensure MiniRacer ICU dependency exists in backend _internal folder
+  try {
+    const internalDir = path.join(process.resourcesPath, 'python', 'dist', 'db_simulator_api', '_internal');
+    const icuTarget = path.join(internalDir, 'icudtl.dat');
+    if (!fs.existsSync(icuTarget)) {
+      const icuCandidates = [
+        path.resolve(process.resourcesPath, '..', 'icudtl.dat'),
+        path.join(process.resourcesPath, 'icudtl.dat')
+      ];
+      const icuSource = icuCandidates.find(p => fs.existsSync(p));
+      if (icuSource) {
+        try {
+          fs.copyFileSync(icuSource, icuTarget);
+          console.log(`Copied ICU data file to backend: ${icuTarget}`);
+        } catch (copyErr) {
+          console.warn('Failed to copy ICU data file for backend:', copyErr.message);
+        }
+      } else {
+        console.warn('ICU data file (icudtl.dat) not found in Electron bundle; MiniRacer may fail.');
+      }
+    }
+  } catch (prepErr) {
+    console.warn('Error preparing MiniRacer ICU dependency:', prepErr.message);
+  }
+
+  // Ensure V8 snapshot files exist for MiniRacer
+  try {
+    const internalDir = path.join(process.resourcesPath, 'python', 'dist', 'db_simulator_api', '_internal');
+    const files = ['snapshot_blob.bin', 'v8_context_snapshot.bin'];
+    for (const fname of files) {
+      const target = path.join(internalDir, fname);
+      if (!fs.existsSync(target)) {
+        const candidates = [
+          path.resolve(process.resourcesPath, '..', fname),
+          path.join(process.resourcesPath, fname)
+        ];
+        const src = candidates.find(p => fs.existsSync(p));
+        if (src) {
+          try {
+            fs.copyFileSync(src, target);
+            console.log(`Copied V8 file to backend: ${target}`);
+          } catch (e) {
+            console.warn(`Failed to copy ${fname} to backend:`, e.message);
+          }
+        } else {
+          console.warn(`${fname} not found in Electron bundle; MiniRacer may fail.`);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Error preparing V8 snapshot files for backend:', e.message);
+  }
   
+  // Prepare log file for backend stdout/stderr
+  const logsDir = path.join(appPaths.output, 'logs');
+  try {
+    if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+  } catch (e) {
+    console.warn('Unable to create logs directory:', e.message);
+  }
+  const logFilePath = path.join(logsDir, 'backend.log');
+  let logStream = null;
+  try {
+    logStream = fs.createWriteStream(logFilePath, { flags: 'a' });
+    const banner = `\n==== Backend start ${new Date().toISOString()} ====${app.isPackaged ? ' [packaged]' : ''}\n`;
+    logStream.write(banner);
+  } catch (e) {
+    console.warn('Unable to open backend log file:', e.message);
+  }
+
   // Start the backend process
   console.log(`Spawning backend process: ${backendExePath} ${args.join(' ')}`);
   backendProcess = spawn(backendExePath, args, {
     stdio: 'pipe',
     env: {
       ...process.env,
-      PYTHONUNBUFFERED: '1'  // Keep this for any internal Python components
+      PYTHONUNBUFFERED: '1', // Unbuffered stdout/stderr for realtime logs
+      DB_SIMULATOR_LOG_FILE: logFilePath
     }
   });
-  
+
+  // Pipe backend stdout/stderr to file and console
+  if (backendProcess.stdout) {
+    backendProcess.stdout.on('data', (chunk) => {
+      const text = chunk.toString();
+      if (logStream) logStream.write(text);
+      process.stdout.write(`[backend] ${text}`);
+    });
+  }
+  if (backendProcess.stderr) {
+    backendProcess.stderr.on('data', (chunk) => {
+      const text = chunk.toString();
+      if (logStream) logStream.write(text);
+      process.stderr.write(`[backend:err] ${text}`);
+    });
+  }
+
   setupBackendProcessHandlers();
 }
 
@@ -240,6 +327,7 @@ function setupBackendProcessHandlers() {
     }
     backendProcess = null;
     isBackendReady = false;
+    try { if (logStream) logStream.end(`\n==== Backend stop ${new Date().toISOString()} (code ${code}) ====`); } catch {}
   });
   
   // Wait for backend to start

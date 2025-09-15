@@ -16,11 +16,26 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 from api.routes import register_routes
 from api.middleware.error_handlers import register_error_handlers
 
-# Configure logging
+# Configure logging (console by default)
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
+
+# Optional file logging if specified via environment
+_log_file = os.environ.get('DB_SIMULATOR_LOG_FILE')
+if _log_file:
+    try:
+        fh = logging.FileHandler(_log_file, encoding='utf-8')
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+        root_logger = logging.getLogger()
+        # Avoid duplicate handlers if already added
+        if not any(isinstance(h, logging.FileHandler) and getattr(h, 'baseFilename', None) == fh.baseFilename for h in root_logger.handlers):
+            root_logger.addHandler(fh)
+            root_logger.info('File logging enabled at %s', _log_file)
+    except Exception as _e:
+        logging.getLogger(__name__).warning('Failed to enable file logging: %s', _e)
 logger = logging.getLogger(__name__)
 
 def create_app():

@@ -85,6 +85,32 @@ try {
     
     // Create a marker file to indicate we should use the PyInstaller executable
     fs.writeFileSync(useExecutableMarker, 'This file indicates that PyInstaller succeeded and we should use the executable.', 'utf8');
+
+    // Ensure py-mini-racer native library and data files are present at runtime location
+    try {
+      const sitePkgDir = path.resolve(path.join(pythonDir, '..', 'venv', 'Lib', 'site-packages', 'py_mini_racer'));
+      const internalDir = path.join(exeDestPath, '_internal');
+      if (!fs.existsSync(internalDir)) {
+        fs.mkdirSync(internalDir, { recursive: true });
+      }
+
+      const filesToCopy = [
+        { src: path.join(sitePkgDir, process.platform === 'win32' ? 'mini_racer.dll' : 'mini_racer.so'), dst: path.join(internalDir, process.platform === 'win32' ? 'mini_racer.dll' : 'mini_racer.so'), label: 'MiniRacer native library' },
+        { src: path.join(sitePkgDir, 'icudtl.dat'), dst: path.join(internalDir, 'icudtl.dat'), label: 'ICU data file' },
+        { src: path.join(sitePkgDir, 'snapshot_blob.bin'), dst: path.join(internalDir, 'snapshot_blob.bin'), label: 'V8 snapshot blob' }
+      ];
+
+      for (const f of filesToCopy) {
+        if (fs.existsSync(f.src)) {
+          fs.copyFileSync(f.src, f.dst);
+          console.log(`Copied ${f.label} to ${f.dst}`);
+        } else {
+          console.warn(`${f.label} not found at ${f.src}.`);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to copy MiniRacer native library:', err.message);
+    }
   } else {
     throw new Error('PyInstaller completed but executable not found');
   }
