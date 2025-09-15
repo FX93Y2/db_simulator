@@ -55,7 +55,7 @@ def validate_build_dependencies(current_dir):
     if not bundle_path.exists():
         missing_items.append(f"Faker.js bundle: {bundle_path}")
 
-    # Check for py-mini-racer and locate native DLL
+    # Check for py-mini-racer and locate native binary (.pyd/.dll/.so)
     try:
         import py_mini_racer  # noqa: F401
         print("[OK] py-mini-racer dependency found")
@@ -64,15 +64,42 @@ def validate_build_dependencies(current_dir):
 
     mini_racer_dll = None
     try:
-        import py_mini_racer
-        dll_candidate = Path(py_mini_racer.__file__).parent / ('mini_racer.dll' if os.name == 'nt' else 'mini_racer.so')
-        if dll_candidate.exists():
-            mini_racer_dll = dll_candidate
+        import glob
+        import py_mini_racer as _pmr
+
+        pkg_dir = Path(_pmr.__file__).parent
+        # Cross-platform candidate patterns: Windows (.pyd/.dll), Linux/macOS (.so)
+        if os.name == 'nt':
+            patterns = [
+                str(pkg_dir / 'mini_racer.dll'),
+                str(pkg_dir / 'mini_racer*.pyd'),
+                str(pkg_dir / 'py_mini_racer*.pyd'),
+            ]
+        else:
+            # On Linux/macOS wheels the file is usually ABI-tagged, e.g. mini_racer.cpython-312-x86_64-linux-gnu.so
+            patterns = [
+                str(pkg_dir / 'mini_racer*.so'),
+                str(pkg_dir / 'py_mini_racer*.so'),
+                str(pkg_dir / 'mini_racer*.dylib'),
+            ]
+
+        found = []
+        for pat in patterns:
+            found.extend(glob.glob(pat))
+
+        if found:
+            # Prefer 'mini_racer*' over 'py_mini_racer*' if both exist
+            found_sorted = sorted(found, key=lambda p: (not Path(p).name.startswith('mini_racer'), p))
+            mini_racer_dll = Path(found_sorted[0])
             print(f"[OK] mini_racer native found: {mini_racer_dll}")
         else:
-            missing_items.append(f"mini_racer native library not found next to package: {dll_candidate}")
+            # Don't hard fail the build here; emit a clear warning and continue.
+            # PyInstaller hidden imports often capture the extension automatically.
+            print(f"[WARN] mini_racer native library not found in {pkg_dir}.\n"
+                  f"       Looked for patterns: {', '.join(patterns)}")
+            mini_racer_dll = None
     except Exception as e:
-        missing_items.append(f"Unable to locate mini_racer native library: {e}")
+        print(f"[WARN] Unable to locate mini_racer native library: {e}")
 
     # Check for other critical dependencies
     critical_deps = ['flask', 'sqlalchemy', 'numpy', 'pandas', 'simpy', 'faker']
@@ -95,11 +122,10 @@ def validate_build_dependencies(current_dir):
         raise RuntimeError("Build validation failed - missing required dependencies")
 
     # Return important resolved paths
+    print("[SUCCESS] Build dependencies validated")
     return {
         'mini_racer_dll': mini_racer_dll
     }
-
-    print("[SUCCESS] All build dependencies validated successfully")
 
 def build_api():
     print("Building API executable with PyInstaller...")
