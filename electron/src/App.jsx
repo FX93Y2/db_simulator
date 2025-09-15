@@ -55,6 +55,20 @@ const App = () => {
     return () => clearTimeout(timer);
   }, []);
 
+  // Ensure the app can always close via system close button
+  // If no page-level unsaved-changes handler is active, close immediately.
+  useEffect(() => {
+    if (!window.api?.onAppCloseRequested) return;
+    const cleanup = window.api.onAppCloseRequested(() => {
+      const hasUnsaved = window.__unsavedChangesState?.hasUnsavedChanges;
+      if (!hasUnsaved) {
+        window.api?.closeApp?.();
+      }
+      // If there are unsaved changes, ProjectPage listener will handle the modal
+    });
+    return cleanup;
+  }, []);
+
   // Function to toggle theme
   const toggleTheme = () => {
     setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
