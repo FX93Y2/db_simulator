@@ -1,13 +1,25 @@
 // Toast Notification Styles
 .toast-notification {
+  // Override Bootstrap toast CSS variables locally for this component
+  // Ensures no border artifacts and consistent rounded corners
+  --bs-toast-bg: var(--theme-card-bg);
+  --bs-toast-color: var(--theme-text);
+  --bs-toast-border-color: transparent;
+  --bs-toast-header-border-color: transparent;
+  --bs-toast-border-width: 0;
+  --bs-toast-border-radius: var(--border-radius-toast);
+
   min-width: 300px;
   max-width: 400px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border: 1px solid var(--theme-border);
+  border: none !important;
+  background-color: var(--theme-card-bg);
+  border-radius: var(--border-radius-toast);
+  overflow: hidden; // ensure rounded corners clip header/body
   margin-bottom: 10px;
   
   .toast-header {
-    border-bottom: 1px solid var(--theme-border);
+    border-bottom: none !important;
     padding: 8px 12px;
     display: flex;
     align-items: center;
