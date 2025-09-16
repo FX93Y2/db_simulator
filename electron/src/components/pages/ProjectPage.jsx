@@ -218,31 +218,42 @@ const ProjectPage = ({ theme }) => {
   const handleSaveAll = useCallback(async () => {
     try {
       const savePromises = [];
-      
-      // Save database config if it has changes
+      const configsToSave = [];
+
+      // Check for database config changes
       const hasDbChanges = dbConfigContent !== lastSavedDbConfig;
       if (hasDbChanges) {
+        configsToSave.push('Database');
         savePromises.push(
           saveProjectDbConfig(projectId, { content: dbConfigContent })
             .then(() => setLastSavedDbConfig(dbConfigContent))
         );
       }
-      
-      // Save simulation config if it has changes
+
+      // Check for simulation config changes
       const hasSimChanges = simConfigContent !== lastSavedSimConfig;
       if (hasSimChanges) {
+        configsToSave.push('Simulation');
         savePromises.push(
           saveProjectSimConfig(projectId, { content: simConfigContent })
             .then(() => setLastSavedSimConfig(simConfigContent))
         );
       }
-      
+
       // Wait for all saves to complete
       if (savePromises.length > 0) {
         await Promise.all(savePromises);
-        showSuccess('All changes saved successfully');
+
+        // Provide specific feedback about what was saved
+        if (configsToSave.length === 2) {
+          showSuccess('Both Database and Simulation configurations saved successfully');
+        } else {
+          showSuccess(`${configsToSave[0]} configuration saved successfully`);
+        }
+      } else {
+        showSuccess('No changes to save');
       }
-      
+
       return Promise.resolve();
     } catch (error) {
       console.error('Error saving configurations:', error);
@@ -628,6 +639,7 @@ const ProjectPage = ({ theme }) => {
               runningSimulation={runningSimulation}
               onConfigChange={handleDbConfigChange}
               onSaveSuccess={handleDbConfigSaveSuccess}
+              onSaveAll={handleSaveAll}
             />
           ) : (
             <SimConfigEditor
@@ -641,6 +653,7 @@ const ProjectPage = ({ theme }) => {
               dbConfigContent={dbConfigContent}
               onConfigChange={handleSimConfigChange}
               onSaveSuccess={handleSimConfigSaveSuccess}
+              onSaveAll={handleSaveAll}
             />
           )}
         </div>

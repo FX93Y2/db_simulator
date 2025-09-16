@@ -34,15 +34,16 @@ import {
   useUIActions
 } from '../../stores/simulationConfigStore';
 
-const SimConfigEditor = ({ 
-  projectId, 
-  isProjectTab, 
-  theme, 
-  currentTab, 
-  onTabChange, 
-  dbConfigContent, 
-  onConfigChange, 
-  onSaveSuccess 
+const SimConfigEditor = ({
+  projectId,
+  isProjectTab,
+  theme,
+  currentTab,
+  onTabChange,
+  dbConfigContent,
+  onConfigChange,
+  onSaveSuccess,
+  onSaveAll = null
 }) => {
   const { configId } = useParams();
   const { showError } = useToastContext();
@@ -273,8 +274,11 @@ const SimConfigEditor = ({
   // Save handler
   const handleSave = useCallback(async () => {
     console.log('💾 SimConfigEditor: Save requested');
-    
-    if (projectId && isProjectTab) {
+
+    if (projectId && isProjectTab && onSaveAll) {
+      // Use unified save function for project tabs when available
+      onSaveAll();
+    } else if (projectId && isProjectTab) {
       // Save directly for project tabs
       const result = await saveConfig();
       if (result.success && onSaveSuccess) {
@@ -284,7 +288,7 @@ const SimConfigEditor = ({
       // Show save modal for standalone configs
       setShowSaveModal(true);
     }
-  }, [projectId, isProjectTab, saveConfig, onSaveSuccess]);
+  }, [projectId, isProjectTab, saveConfig, onSaveSuccess, onSaveAll]);
 
 
 
@@ -324,6 +328,7 @@ const SimConfigEditor = ({
           yamlContent={yamlContent}
           isLoading={isLoading}
           fileInputRef={yamlOperations.fileInputRef}
+          saveAll={isProjectTab && !!onSaveAll}
         />
       }
       yamlContent={yamlContent}

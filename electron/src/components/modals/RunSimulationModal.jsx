@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Button, Modal } from 'react-bootstrap';
 import useRunSimulation from '../../hooks/shared/useRunSimulation';
 
@@ -19,8 +19,16 @@ const RunSimulationModal = ({
     runResult,
     runError,
     handleRunSimulation,
-    handleCloseModal
+    handleCloseModal,
+    refreshDbConfig
   } = useRunSimulation(projectId);
+
+  // Refresh database configuration when the modal is shown
+  useEffect(() => {
+    if (show) {
+      refreshDbConfig();
+    }
+  }, [show, refreshDbConfig]);
 
   const handleClose = () => {
     handleCloseModal();

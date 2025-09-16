@@ -13,7 +13,8 @@ const EditorHeader = ({
   onSave,
   yamlContent,
   isLoading,
-  fileInputRef
+  fileInputRef,
+  saveAll = false
 }) => {
   return (
     <div className="grid-yaml-header">
@@ -58,7 +59,7 @@ const EditorHeader = ({
             className="yaml-action-btn"
             onClick={onSave}
             disabled={isLoading}
-            title="Save Configuration"
+            title={saveAll ? "Save All Configurations" : "Save Configuration"}
           >
             <FiSave />
           </button>

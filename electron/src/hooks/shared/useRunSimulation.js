@@ -7,7 +7,7 @@ import { useToastContext } from '../../contexts/ToastContext';
  * Custom hook for managing run simulation functionality
  * Handles database config loading, simulation execution, and state management
  */
-const useRunSimulation = (projectId) => {
+const useRunSimulation = (projectId, refreshTrigger = null) => {
   const { showError } = useToastContext();
   const { runSimulation } = useConfigActions(projectId);
 
@@ -19,28 +19,29 @@ const useRunSimulation = (projectId) => {
   const [runResult, setRunResult] = useState(null);
   const [runError, setRunError] = useState(null);
 
-  // Load project database config when component mounts or projectId changes
-  useEffect(() => {
-    const loadProjectDbConfig = async () => {
-      if (!projectId) return;
-      
-      try {
-        const result = await getProjectDbConfig(projectId);
-        console.log('Project DB config result:', result);
-        
-        if (result.success && result.config) {
-          setProjectDbConfig(result.config);
-        } else {
-          setProjectDbConfig(null);
-        }
-      } catch (error) {
-        console.error('Failed to load project database config:', error);
+  // Function to load project database config
+  const loadProjectDbConfig = useCallback(async () => {
+    if (!projectId) return;
+
+    try {
+      const result = await getProjectDbConfig(projectId);
+      console.log('Project DB config result:', result);
+
+      if (result.success && result.config) {
+        setProjectDbConfig(result.config);
+      } else {
         setProjectDbConfig(null);
       }
-    };
-    
-    loadProjectDbConfig();
+    } catch (error) {
+      console.error('Failed to load project database config:', error);
+      setProjectDbConfig(null);
+    }
   }, [projectId]);
+
+  // Load project database config when component mounts, projectId changes, or refresh is triggered
+  useEffect(() => {
+    loadProjectDbConfig();
+  }, [loadProjectDbConfig, refreshTrigger]);
 
   // Get database config ID for simulation
   const dbConfigId = projectDbConfig?.id;
@@ -95,10 +96,11 @@ const useRunSimulation = (projectId) => {
     isRunning,
     runResult,
     runError,
-    
+
     // Actions
     handleRunSimulation,
-    handleCloseModal
+    handleCloseModal,
+    refreshDbConfig: loadProjectDbConfig
   };
 };
 

@@ -31,14 +31,15 @@ import {
  * Refactored DbConfigEditor - significantly reduced from 626 lines to ~200 lines
  * Uses shared components and hooks to eliminate code duplication
  */
-const DbConfigEditor = ({ 
-  projectId, 
-  isProjectTab = false, 
-  theme, 
-  currentTab, 
-  onTabChange, 
-  onConfigChange, 
-  onSaveSuccess 
+const DbConfigEditor = ({
+  projectId,
+  isProjectTab = false,
+  theme,
+  currentTab,
+  onTabChange,
+  onConfigChange,
+  onSaveSuccess,
+  onSaveAll = null
 }) => {
   const { configId } = useParams();
   const { showSuccess, showError } = useToastContext();
@@ -141,7 +142,10 @@ const DbConfigEditor = ({
   };
 
   const handleSave = () => {
-    if (projectId && isProjectTab) {
+    if (projectId && isProjectTab && onSaveAll) {
+      // Use unified save function for project tabs when available
+      onSaveAll();
+    } else if (projectId && isProjectTab) {
       handleSaveConfig();
     } else {
       setShowSaveModal(true);
@@ -202,6 +206,7 @@ const DbConfigEditor = ({
           yamlContent={yamlContent}
           isLoading={isLoading}
           fileInputRef={yamlOperations.fileInputRef}
+          saveAll={isProjectTab && !!onSaveAll}
         />
       }
       yamlContent={yamlContent}
