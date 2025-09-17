@@ -5,7 +5,7 @@ import { useToastContext } from '../../contexts/ToastContext';
  * Custom hook for common YAML operations (import/export/file handling)
  * Consolidates duplicated code from DbConfigEditor and SimConfigEditor
  */
-const useYamlOperations = ({ yamlContent, onImport, filename = 'config' }) => {
+const useYamlOperations = ({ yamlContent, onImport, filename = 'config', saveConfig = null, isProjectTab = false, projectId = null, configType = 'simulation' }) => {
   const fileInputRef = useRef(null);
   const { showSuccess, showError, showWarning } = useToastContext();
 
@@ -26,7 +26,37 @@ const useYamlOperations = ({ yamlContent, onImport, filename = 'config' }) => {
         if (!result.success) {
           showError(`Import failed: ${result.message}`);
         } else {
-          showSuccess(result.message);
+          // Auto-save after successful import for project tabs
+          if (isProjectTab && saveConfig) {
+            try {
+              let saveResult;
+
+              if (configType === 'database') {
+                // Database config save requires configData parameter
+                const configData = {
+                  name: `${filename} Configuration`,
+                  config_type: 'database',
+                  content: content,
+                  description: '',
+                  project_id: projectId
+                };
+                saveResult = await saveConfig(configData);
+              } else {
+                // Simulation config save doesn't take parameters
+                saveResult = await saveConfig();
+              }
+
+              if (saveResult.success) {
+                showSuccess('Configuration imported and saved successfully');
+              } else {
+                showWarning(`Configuration imported but save failed: ${saveResult.message || 'Unknown error'}`);
+              }
+            } catch (saveError) {
+              showWarning(`Configuration imported but save failed: ${saveError.message}`);
+            }
+          } else {
+            showSuccess(result.message);
+          }
         }
       }
     } catch (error) {
@@ -35,7 +65,7 @@ const useYamlOperations = ({ yamlContent, onImport, filename = 'config' }) => {
       // Reset file input
       event.target.value = '';
     }
-  }, [onImport, showError, showSuccess]);
+  }, [onImport, showError, showSuccess, showWarning, isProjectTab, saveConfig, projectId, configType, filename]);
 
   // Handle file export
   const handleExport = useCallback(() => {

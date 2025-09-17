@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { Button, Modal } from 'react-bootstrap';
-import YamlEditor from '../shared/YamlEditor';
 import ModularEventFlow from '../simulation/ModularEventFlow';
 import SimulationResourceEditor from '../simulation/simulation_data_editors/SimulationResourceEditor';
 import SimulationEntityEditor from '../simulation/simulation_data_editors/SimulationEntityEditor';
@@ -86,7 +85,11 @@ const SimConfigEditor = ({
   const yamlOperations = useYamlOperations({
     yamlContent,
     onImport: importYaml,
-    filename: 'simulation-config'
+    filename: 'simulation-config',
+    saveConfig,
+    isProjectTab,
+    projectId,
+    configType: 'simulation'
   });
   
   useKeyboardShortcuts({ undo, redo, canUndo, canRedo });

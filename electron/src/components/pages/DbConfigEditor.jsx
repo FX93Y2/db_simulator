@@ -90,7 +90,11 @@ const DbConfigEditor = ({
   const yamlOperations = useYamlOperations({
     yamlContent,
     onImport: importEntityYaml,
-    filename: 'database-config'
+    filename: 'database-config',
+    saveConfig: saveDatabaseConfig,
+    isProjectTab,
+    projectId,
+    configType: 'database'
   });
   
   useKeyboardShortcuts({ undo, redo, canUndo, canRedo });
