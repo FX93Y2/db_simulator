@@ -503,6 +503,7 @@ const SimConfigEditor = ({
         <Modal.Body>
           <SimulationSettingsEditor
             projectId={projectId}
+            onClose={() => setShowSimulationModal(false)}
           />
         </Modal.Body>
       </Modal>

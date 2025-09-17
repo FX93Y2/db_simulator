@@ -7,7 +7,7 @@ import {
 } from '../../../stores/simulationConfigStore';
 import { SharedHelpPanel } from '../../shared/help';
 
-const SimulationSettingsEditor = ({ projectId }) => {
+const SimulationSettingsEditor = ({ projectId, onClose }) => {
   // Store hooks  
   const hasUnsaved = useHasUnsavedSimulation(projectId);
   const {
@@ -33,6 +33,10 @@ const SimulationSettingsEditor = ({ projectId }) => {
     const result = applySimulationChanges();
     if (result.success) {
       console.log('[SimulationSettingsEditor] Changes applied successfully');
+      // Close the modal after successful apply
+      if (onClose) {
+        onClose();
+      }
     }
   };
 
