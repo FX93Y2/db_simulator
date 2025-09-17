@@ -145,10 +145,12 @@
   }
   
   .project-results-list {
-    background-color: rgba(0,0,0,0.1);
-    .theme-dark & {
-      background-color: rgba(0,0,0,0.2);
-    }
+    // Unify with sidebar background (VS Code explorer-like)
+    background-color: var(--theme-sidebar-bg);
+    // Remove outer border/indent so the guide aligns under the chevron
+    border-left: none;
+    margin-left: 0;
+    
     
     .no-results {
       padding: 10px 15px;
@@ -157,14 +159,24 @@
       font-style: italic;
       text-align: center;
     }
-    
+
+    // Ensure consistent chevron column for alignment
+    .project-result-item {
+      .project-item-expand-icon {
+        width: 16px;
+        display: inline-flex;
+        justify-content: center;
+        margin-right: 8px;
+      }
+    }
+
     .project-result-item {
       // Reduce left indentation so hover starts nearer the edge
       padding: 8px 10px 8px 20px;
       display: flex;
       align-items: center;
       cursor: pointer;
-      border-top: 1px solid rgba(0,0,0,0.05);
+      border-top: 1px solid var(--theme-border);
       color: var(--theme-sidebar-text);
       
       &:hover {
@@ -216,10 +228,12 @@
     
     .database-explorer-container {
       .database-tables-list {
-        background-color: rgba(0,0,0,0.15);
-        .theme-dark & {
-          background-color: rgba(0,0,0,0.25);
-        }
+        // Keep nested tree background unified with sidebar
+        background-color: var(--theme-sidebar-bg);
+        // Align vertical guide under the result chevron (approx center)
+        // Result row left padding is 20px, chevron is ~16px wide => ~28px center
+        border-left: 1px solid var(--theme-border);
+        margin-left: 28px;
         
         .no-tables {
           // Match reduced indentation for empty state
@@ -230,8 +244,8 @@
         }
         
         .database-table-item {
-          // Reduce indentation so hover background has no large leading gap
-          padding: 6px 10px 6px 32px;
+          // Slightly increased indentation for clearer hierarchy
+          padding: 6px 10px 6px 30px;
           display: flex;
           align-items: center;
           cursor: pointer;
@@ -240,6 +254,14 @@
           
           &:hover {
             background-color: var(--theme-hover-bg);
+          }
+          
+          &.active {
+            background-color: var(--theme-selected-bg);
+            font-weight: 500;
+          }
+          &.active:hover {
+            background-color: var(--theme-selected-bg);
           }
           
           .table-item-icon {
