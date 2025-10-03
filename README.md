@@ -11,7 +11,7 @@ Generate realistic relational databases and run discrete‑event simulations for
 ## Install (Release)
 
 - Download the latest version in release
-- For MacOS: Run: xattr -cr "/Applications/DB Simulator.app" in terminal before opening the app for the first time
+- For MacOS: Run: `xattr -cr "/Applications/DB Simulator.app"` in terminal before opening the app for the first time
 
 ## Dev Install
 
