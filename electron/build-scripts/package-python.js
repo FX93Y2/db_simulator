@@ -19,7 +19,7 @@ const venvDir = path.join(pythonDir, 'venv');
 if (!fs.existsSync(venvDir)) {
   console.log('Creating Python virtual environment...');
   try {
-    execSync('python3.11 -m venv venv', {
+    execSync('python -m venv venv', {
       cwd: pythonDir,
       stdio: 'inherit'
     });
