@@ -210,9 +210,9 @@ function startBackendWithExecutable(appPaths) {
  */
 function startBackendWithPython(appPaths) {
   console.log('Starting backend with Python directly...');
-  
+
   // Determine correct Python path for packaged app
-  let pythonExePath = 'python'; // First try system Python
+  let pythonExePath = process.platform === 'darwin' ? 'python3' : 'python'; // Use python3 on macOS, python elsewhere
   let pythonScriptPath = app.isPackaged
     ? path.join(process.resourcesPath, 'python', 'main.py')
     : path.join(__dirname, '..', '..', '..', 'python', 'main.py');
