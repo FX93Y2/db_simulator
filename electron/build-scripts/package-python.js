@@ -14,13 +14,13 @@ console.log('Preparing Python environment for packaging...');
 const pythonDir = path.resolve(__dirname, '../../python');
 const requirementsFile = path.join(pythonDir, 'requirements.txt');
 
-// Use the project root venv instead of creating one in python/
-const venvDir = path.join(pythonDir, '..', 'venv');
+// Use the venv in python/ directory
+const venvDir = path.join(pythonDir, 'venv');
 if (!fs.existsSync(venvDir)) {
   console.log('Creating Python virtual environment...');
   try {
-    execSync('python -m venv venv', { 
-      cwd: path.join(pythonDir, '..'),
+    execSync('python -m venv venv', {
+      cwd: pythonDir,
       stdio: 'inherit'
     });
     console.log('Virtual environment created successfully.');
@@ -88,7 +88,7 @@ try {
 
     // Ensure py-mini-racer native library and data files are present at runtime location
     try {
-      const sitePkgDir = path.resolve(path.join(pythonDir, '..', 'venv', 'Lib', 'site-packages', 'py_mini_racer'));
+      const sitePkgDir = path.resolve(path.join(pythonDir, 'venv', 'lib', 'python3.11', 'site-packages', 'py_mini_racer'));
       const internalDir = path.join(exeDestPath, '_internal');
       if (!fs.existsSync(internalDir)) {
         fs.mkdirSync(internalDir, { recursive: true });
