@@ -38,8 +38,8 @@ const AttributeTable = ({
 
   // Helper function to get generator display text
   const getGeneratorDisplayText = (attribute) => {
-    if (!attribute.generator) return 'No Generator';
-    
+    if (!attribute.generator) return 'None';
+
     switch (attribute.generator.type) {
       case 'faker':
         return `Faker: ${attribute.generator.method || 'name'}`;
@@ -51,6 +51,8 @@ const AttributeTable = ({
         return `FK: ${attribute.generator.subtype || 'one_to_many'}`;
       case 'formula':
         return `Formula: ${attribute.generator.expression ? 'expression' : 'empty'}`;
+      case 'none':
+        return 'None';
       default:
         return 'Custom';
     }
@@ -171,7 +173,7 @@ const AttributeTable = ({
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
     // Only exclude system-managed fields that are auto-generated
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'inventory_id', 'event_type', 'inv_req'];
+    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
@@ -202,6 +204,13 @@ const AttributeTable = ({
     
     // Reset generator fields when type changes
     if (field === 'type') {
+      if (value === 'none') {
+        // Remove generator completely for manual/SQL population
+        delete updatedAttributes[selectedAttributeIndex].generator;
+        onAttributesChange(updatedAttributes);
+        return;
+      }
+
       switch (value) {
         case 'faker':
           updatedGenerator.method = '';
@@ -236,7 +245,7 @@ const AttributeTable = ({
           break;
       }
     }
-    
+
     updatedAttributes[selectedAttributeIndex].generator = updatedGenerator;
     onAttributesChange(updatedAttributes);
   };
@@ -289,7 +298,15 @@ const AttributeTable = ({
             onExpressionChange={(expression) => handleGeneratorChange('expression', expression)}
           />
         );
-        
+
+      case 'none':
+      case undefined:
+        return (
+          <Form.Text className="text-muted">
+            This column will not be generated. Populate it manually via SQL assign steps during simulation.
+          </Form.Text>
+        );
+
       default:
         return null;
     }
@@ -378,7 +395,7 @@ const AttributeTable = ({
                           </div>
                           <div className="grid-cell">
                             <div className="options-cell">
-                              {shouldHaveGenerator(attribute.type) && attribute.generator && (
+                              {shouldHaveGenerator(attribute.type) && (
                                 <Button
                                   variant="outline-secondary"
                                   size="sm"
@@ -391,7 +408,7 @@ const AttributeTable = ({
                                 </Button>
                               )}
                               {(attribute.type === 'fk' || attribute.type === 'event_id' ||
-                                attribute.type === 'entity_id' || attribute.type === 'resource_id' || attribute.type === 'inventory_id') && (
+                                attribute.type === 'entity_id' || attribute.type === 'resource_id') && (
                                 <Form.Control
                                   type="text"
                                   size="sm"
@@ -462,10 +479,11 @@ const AttributeTable = ({
                   <Form.Group>
                     <Form.Label>Generator Type</Form.Label>
                     <Form.Select
-                      value={selectedAttribute.generator?.type || 'faker'}
+                      value={selectedAttribute.generator?.type || 'none'}
                       onChange={(e) => handleGeneratorChange('type', e.target.value)}
                       disabled={selectedAttribute.type === 'fk' || selectedAttribute.type === 'resource_type'}
                     >
+                      <option value="none">None</option>
                       <option value="faker">Faker</option>
                       <option value="template">Template</option>
                       <option value="distribution">Distribution</option>

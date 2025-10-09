@@ -261,7 +261,7 @@ export const createEntityActions = (set, get) => ({
     canonicalEntities.forEach(entity => {
       if (entity.attributes) {
         entity.attributes.forEach(attr => {
-          if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' || attr.type === 'inventory_id') && attr.ref) {
+          if ((attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
             const [targetEntity] = attr.ref.split('.');
             // Only create edge if target entity exists in canonical entities
             if (canonicalEntities.find(e => e.name === targetEntity)) {

@@ -34,17 +34,12 @@ const TypeSelector = ({
       varchar: { display: 'Varchar', template: 'varchar(255)' },
       char: { display: 'Char', template: 'char(1)' }
     },
-    'Semantic Types': {
-      inv_qty: { display: 'Inventory Qty', template: 'inv_qty(10,2)' },
-      inv_req: { display: 'Inventory Req', template: 'inv_req' }
-    },
     'System Types': {
       pk: { display: 'Primary Key', template: 'pk' },
       fk: { display: 'Foreign Key', template: 'fk' },
       event_id: { display: 'Event ID (FK)', template: 'event_id' },
       entity_id: { display: 'Entity ID (FK)', template: 'entity_id' },
       resource_id: { display: 'Resource ID (FK)', template: 'resource_id' },
-      inventory_id: { display: 'Inventory ID (FK)', template: 'inventory_id' },
       event_type: { display: 'Event Type', template: 'event_type' },
       resource_type: { display: 'Resource Type', template: 'resource_type' }
     }

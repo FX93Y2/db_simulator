@@ -3,7 +3,7 @@ import yaml from 'yaml';
 
 /**
  * Custom hook to extract bridge tables from database configuration
- * Returns entity names that have type: 'bridge' for use in inventory requirements
+ * Returns entity names that have type: 'bridge'
  */
 const useBridgeTables = (dbConfigContent) => {
   const [bridgeTables, setBridgeTables] = useState([]);

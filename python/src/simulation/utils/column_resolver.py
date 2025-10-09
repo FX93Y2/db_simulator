@@ -59,51 +59,7 @@ class ColumnResolver:
                 f"Every table must have exactly one primary key column defined."
             )
         return pk
-        
-    def get_inventory_quantity_column(self, table_name: str) -> str:
-        """
-        Get inventory quantity/stock column for inventory table.
-        
-        Args:
-            table_name: Name of the inventory table
-            
-        Returns:
-            Name of the inventory quantity column
-            
-        Raises:
-            ValueError: If no column with type='inv_qty' is found
-        """
-        col = self.get_column_by_type(table_name, 'inv_qty')
-        if not col:
-            raise ValueError(
-                f"Inventory table '{table_name}' has no column with type='inv_qty'. "
-                f"Inventory tables must have a column marking the stock/quantity level."
-            )
-        return col
-    
-    def get_entity_invreq_column(self, table_name: str) -> str:
-        """
-        Get entity inventory requirement column in bridge table.
-        
-        This column stores the quantity needed per inventory item (from unit_quantity formula).
-        
-        Args:
-            table_name: Name of the bridge table
-            
-        Returns:
-            Name of the inventory requirement column
-            
-        Raises:
-            ValueError: If no column with type='inv_req' is found
-        """
-        col = self.get_column_by_type(table_name, 'inv_req')
-        if not col:
-            raise ValueError(
-                f"Bridge table '{table_name}' has no column with type='inv_req'. "
-                f"Bridge tables must have a column storing inventory requirements (unit_quantity values)."
-            )
-        return col
-        
+
     def get_entity_fk_column(self, table_name: str) -> str:
         """
         Get entity foreign key column in a table.
@@ -122,27 +78,6 @@ class ColumnResolver:
             raise ValueError(
                 f"Table '{table_name}' has no column with type='entity_id'. "
                 f"Tables referencing entities must have an entity FK column defined."
-            )
-        return col
-        
-    def get_inventory_fk_column(self, table_name: str) -> str:
-        """
-        Get inventory foreign key column in a table.
-        
-        Args:
-            table_name: Name of the table
-            
-        Returns:
-            Name of the inventory FK column
-            
-        Raises:
-            ValueError: If no column with type='inventory_id' is found
-        """
-        col = self.get_column_by_type(table_name, 'inventory_id')
-        if not col:
-            raise ValueError(
-                f"Table '{table_name}' has no column with type='inventory_id'. "
-                f"Tables referencing inventory must have an inventory FK column defined."
             )
         return col
 
@@ -235,7 +170,7 @@ class ColumnResolver:
             )
             
         # Search for column with matching type
-        # Support parameterized types like inv_qty(10,2) by matching base type
+        # Support parameterized types like decimal(10,2) by matching base type
         for attr in table.attributes:
             attr_type = attr.type
             base_type = attr_type.split('(')[0] if isinstance(attr_type, str) and '(' in attr_type else attr_type

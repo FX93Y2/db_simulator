@@ -68,7 +68,7 @@ const GuideOverlay = React.memo(({ visible, onClose, activeSection }) => {
           </p>
           <p><em>Main interface showing table creation, relationships, and schema management</em></p>
 
-          <p>Define table types (entity, event, resource, inventory, bridging) and configure column properties for your simulation database.</p>
+          <p>Define table types (entity, event, resource, bridging) and configure column properties for your simulation database.</p>
 
           <h2 id="data-generation-methods">Data Generation Methods</h2>
           <p>Configure data generators for realistic synthetic data creation using multiple approaches.</p>
@@ -130,8 +130,7 @@ generator:
             <li><strong>entity</strong>: Primary business objects (Customer, Order)</li>
             <li><strong>event</strong>: Event tracking tables</li>
             <li><strong>resource</strong>: Resource pools (Staff, Equipment)</li>
-            <li><strong>inventory</strong>: Item inventory management</li>
-            <li><strong>bridging</strong>: Many-to-many relationships</li>
+            <li><strong>bridge</strong>: Many-to-many relationships</li>
           </ul>
 
           <h3 id="column-types">Column Types</h3>
@@ -142,8 +141,6 @@ generator:
             <li><strong>entity_id</strong>: Links to entity tables (fk)</li>
             <li><strong>event_id</strong>: Event identifier (fk)</li>
             <li><strong>resource_id</strong>: Resource identifier (fk)</li>
-            <li><strong>inv_req</strong>: Inventory requirement specification</li>
-            <li><strong>inv_qty</strong>: Inventory quantity tracking</li>
           </ul>
 
           <h2 id="simulation-configuration">Simulation Configuration</h2>
@@ -213,41 +210,13 @@ resources:
           </ul>
 
           <h3 id="entity-configuration">Entity Configuration</h3>
-          <p>Define inventory requirements and resource consumption for different entity types during simulation.</p>
+          <p>Define resource consumption and entity attributes for different entity types during simulation.</p>
 
           <p><strong>Entity Management Interface</strong></p>
           <p>
             <img src={`${PUBLIC_URL}/doc/simulation/entity_editor.png`} alt="Entity Editor" />
           </p>
-          <p><em>Entity configuration panel showing available entity types and inventory requirement settings</em></p>
-
-          <p><strong>Entity Configuration Modal</strong></p>
-          <p>
-            <img src={`${PUBLIC_URL}/doc/simulation/entity_editor_modal.png`} alt="Entity Editor Modal" />
-          </p>
-          <p><em>Detailed entity setup interface for configuring inventory consumption requirements</em></p>
-
-          <CodeBlock>{`# Example: Entity inventory requirements
-entities:
-  Order:
-    inventory_requirements:
-      - item: Book          # Inventory item name
-        quantity: 1         # Quantity consumed per entity
-      - item: Packaging
-        quantity: 1
-  
-  BulkOrder:
-    inventory_requirements:
-      - item: Book
-        quantity: 5         # Bulk orders consume more inventory`}</CodeBlock>
-
-          <p><strong>Entity Features:</strong></p>
-          <ul>
-            <li><strong>Inventory consumption</strong>: Automatic deduction from inventory tables</li>
-            <li><strong>Multi-item requirements</strong>: Entities can consume multiple inventory types</li>
-            <li><strong>Quantity control</strong>: Specify exact consumption amounts per entity</li>
-            <li><strong>Blocking behavior</strong>: Entity creation blocked if insufficient inventory available</li>
-          </ul>
+          <p><em>Entity configuration panel showing available entity types</em></p>
 
           <h2 id="simulation-steps">Simulation Steps</h2>
           <p>Configure workflow steps by double-clicking on flow nodes to open their respective editors.</p>
@@ -340,7 +309,7 @@ assign_config:
           <p>
             <img src={`${PUBLIC_URL}/doc/simulation/decision_sql_result,png.png`} alt="Decision Module SQL" />
           </p>
-          <p><em>Configure SQL-based conditions for complex database queries (e.g., inventory checks)</em></p>
+          <p><em>Configure SQL-based conditions for complex database queries</em></p>
 
           <p><strong>Conditional Decision Features:</strong></p>
           <ul>

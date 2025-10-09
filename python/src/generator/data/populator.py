@@ -128,10 +128,10 @@ class DataPopulator:
                 elif attr.is_foreign_key:
                     logger.error(f"Missing generator for foreign key '{attr.name}' in table '{entity.name}'. Assigning None.")
                     row_data[attr.name] = None
-                # Default value for other attributes without generator - Log warning
+                # Default value for other attributes without generator - Set to NULL for manual/SQL population
                 else:
-                    logger.warning(f"Missing generator for attribute '{attr.name}' in table '{entity.name}'. Using placeholder.")
-                    row_data[attr.name] = f"MissingGenerator_{attr.name}_{i}"
+                    logger.debug(f"No generator for attribute '{attr.name}' in table '{entity.name}'. Setting to NULL for manual population.")
+                    row_data[attr.name] = None
             
             # Create and add row
             # Ensure row_data doesn't contain keys not present in the model if assigning None to FKs caused issues

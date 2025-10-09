@@ -14,10 +14,10 @@ export const sortAttributes = (attributes) => {
   
   return attributesWithIndex.sort((a, b) => {
     // Primary key gets highest priority (0)
-    const aPriority = a.type === 'pk' ? 0 : 
-                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id' || a.type === 'inventory_id') ? 1 : 2;
-    const bPriority = b.type === 'pk' ? 0 : 
-                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id' || b.type === 'inventory_id') ? 1 : 2;
+    const aPriority = a.type === 'pk' ? 0 :
+                     (a.type === 'fk' || a.type === 'event_id' || a.type === 'entity_id' || a.type === 'resource_id') ? 1 : 2;
+    const bPriority = b.type === 'pk' ? 0 :
+                     (b.type === 'fk' || b.type === 'event_id' || b.type === 'entity_id' || b.type === 'resource_id') ? 1 : 2;
     
     if (aPriority !== bPriority) {
       return aPriority - bPriority;
@@ -43,8 +43,6 @@ const EntityNode = ({ data, theme }) => {
         return 'event-type';
       case 'resource':
         return 'resource-type';
-      case 'inventory':
-        return 'inventory-type';
       default:
         return '';
     }
@@ -92,13 +90,13 @@ const EntityNode = ({ data, theme }) => {
             <div
               key={index}
               className={`entity-table__row ${attr.type === 'pk' ? 'primary-key' : ''} ${
-                attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' || attr.type === 'inventory_id' ? 'foreign-key' : ''
+                attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' ? 'foreign-key' : ''
               }`}
               title={attr.ref ? `References: ${attr.ref}` : ''}
             >
               <span className="entity-table__attribute-name">
                 {(attr.type === 'pk') && <FiKey className="key-icon" />}
-                {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id' || attr.type === 'inventory_id') && <FiLink className="key-icon" />}
+                {(attr.type === 'fk' || attr.type === 'event_id' || attr.type === 'entity_id' || attr.type === 'resource_id') && <FiLink className="key-icon" />}
                 {attr.name}
               </span>
               <span className="entity-table__attribute-type">

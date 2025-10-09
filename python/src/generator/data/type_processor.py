@@ -43,19 +43,7 @@ def process_value_for_type(value: Any, attr_type: str) -> Any:
                 # Convert back to float for SQLite compatibility
                 return float(rounded_decimal)
             return value
-            
-        elif base_type in ['inv_qty', 'inv_req']:
-            # Parameterized semantic types - treat as decimal
-            precision = int(params[0]) if len(params) > 0 else 10
-            scale = int(params[1]) if len(params) > 1 else 2
-            
-            if isinstance(value, (int, float)):
-                decimal_value = Decimal(str(value))
-                format_str = f"0.{'0' * scale}"
-                rounded_decimal = decimal_value.quantize(Decimal(format_str), rounding=ROUND_HALF_UP)
-                return float(rounded_decimal)
-            return value
-            
+
         elif base_type in ['varchar', 'char']:
             # Truncate string to specified length if necessary
             length = int(params[0]) if len(params) > 0 else 255
@@ -66,10 +54,8 @@ def process_value_for_type(value: Any, attr_type: str) -> Any:
     # Handle non-parameterized types
     base_type = attr_type.lower()
     
-    if base_type in ['integer', 'int', 'bigint', 'smallint', 'tinyint', 
-                     'inv_qty', 'inv_req']:
+    if base_type in ['integer', 'int', 'bigint', 'smallint', 'tinyint']:
         # Convert to integer, rounding if necessary
-        # Semantic types default to integer for whole units/requirements
         if isinstance(value, float):
             return int(round(value))
         elif isinstance(value, str) and value.replace('.', '').replace('-', '').isdigit():

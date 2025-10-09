@@ -74,16 +74,13 @@ class DatabaseConfig:
 VALID_COLUMN_TYPES = {
     # Primary key
     'pk',
-    
+
     # Foreign keys
     'entity_id',       # FK to entity table
-    'inventory_id',    # FK to inventory table
     'event_id',        # FK to event table
     'resource_id',     # FK to resource table
-    
+
     # Semantic column types (support parameterized versions)
-    'inv_qty',            # Stock/quantity in inventory table (defaults to INTEGER)
-    'inv_req',            # Inventory requirement in bridge table (defaults to INTEGER)
     'event_type',         # Event type identifier
     'resource_type',      # Resource type identifier (for resource tables)
     
@@ -101,7 +98,6 @@ VALID_COLUMN_TYPES = {
 # Required column types by table type
 REQUIRED_TYPES_BY_TABLE = {
     'entity': ['pk'],
-    'inventory': ['pk'],
     'bridge': ['pk'],
     'event': ['pk', 'entity_id', 'event_type'],
     'resource': ['pk'],
@@ -128,13 +124,6 @@ def validate_entity_config(entity: Entity) -> None:
                 f"in attribute '{attr.name}'. Valid base types: {sorted(VALID_COLUMN_TYPES)}"
             )
         
-        # inv_req must NOT be parameterized; quantities are defined by simulation unit_quantity
-        if base_type == 'inv_req' and '(' in attr.type:
-            raise ValueError(
-                f"Entity '{entity.name}' attribute '{attr.name}' uses parameterized '{attr.type}'. "
-                f"'inv_req' does not support parameters. Use 'inv_req' without (p,s); "
-                f"required amounts come from simulation 'unit_quantity'."
-            )
     
     # Check for required primary key
     pk_attrs = [attr for attr in entity.attributes if attr.type == 'pk']
@@ -147,7 +136,7 @@ def validate_entity_config(entity: Entity) -> None:
     # Check table-specific requirements
     if entity.type in REQUIRED_TYPES_BY_TABLE:
         required_types = REQUIRED_TYPES_BY_TABLE[entity.type]
-        # Extract base types to handle parameterized types like inv_qty(10,2)
+        # Extract base types to handle parameterized types like decimal(10,2)
         found_base_types = {attr.type.split('(')[0] if '(' in attr.type else attr.type for attr in entity.attributes}
         missing_types = set(required_types) - found_base_types
         

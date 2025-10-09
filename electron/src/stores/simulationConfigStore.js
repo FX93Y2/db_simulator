@@ -295,13 +295,7 @@ export const useSimulationActions = (projectId) => {
     updateResourceCapacity: state.updateResourceCapacity,
     getResourceCapacity: state.getResourceCapacity,
     clearAllResources: state.clearAllResources,
-    removeResource: state.removeResource,
-    updateInventoryRequirements: state.updateInventoryRequirements,
-    getInventoryRequirements: state.getInventoryRequirements,
-    hasInventoryRequirements: state.hasInventoryRequirements,
-    removeInventoryRequirements: state.removeInventoryRequirements,
-    getAllInventoryRequirements: state.getAllInventoryRequirements,
-    clearAllInventoryRequirements: state.clearAllInventoryRequirements
+    removeResource: state.removeResource
   }));
 };
 

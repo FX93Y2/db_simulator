@@ -25,16 +25,6 @@ class ResourceRequirement:
     capacity_per_resource: int = 1  # Capacity needed per resource
 
 @dataclass
-class InventoryRequirement:
-    """Configuration for inventory requirements for entity creation"""
-    entity_table: str
-    inventory_table: str
-    bridge_table: str  # Many-to-many relationship table
-    selection_strategy: str = "random"  # Selection strategy for inventory items
-    quantity: Union[int, DistributionConfig] = 1  # Number of different items to select
-    unit_quantity: Union[int, DistributionConfig] = 1  # Quantity per selected item
-
-@dataclass
 class CapacityRule:
     """Defines capacity assignment rules for specific resource types"""
     resource_type: str
@@ -158,7 +148,6 @@ class EventSimulation:
     work_shifts: Optional[WorkShifts] = None
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
-    entities: Optional[List[InventoryRequirement]] = field(default_factory=list)
 
 def find_table_by_type(db_config: DatabaseConfig, table_type: str) -> Optional[str]:
     """
@@ -453,26 +442,11 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 )
         
         # Parse entities configuration (at top level, not inside event_simulation)
-        entities = []
-        if 'entities' in config_dict:
-            for entity_dict in config_dict['entities']:
-                inventory_req = entity_dict.get('inventory_requirements')
-                if inventory_req:
-                    entities.append(InventoryRequirement(
-                        entity_table=entity_dict.get('entity_table', ''),
-                        inventory_table=inventory_req.get('inventory_table', ''),
-                        bridge_table=inventory_req.get('bridge_table', ''),
-                        selection_strategy=inventory_req.get('selection_strategy', 'random'),
-                        quantity=inventory_req.get('quantity', 1),
-                        unit_quantity=inventory_req.get('unit_quantity', 1)
-                    ))
-        
         event_simulation = EventSimulation(
             table_specification=table_spec,
             work_shifts=work_shifts,
             event_flows=event_flows,
-            resource_capacities=resource_capacities,
-            entities=entities
+            resource_capacities=resource_capacities
         )
     
     # Parse base time unit
@@ -709,26 +683,11 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                 )
         
         # Parse entities configuration (at top level, not inside event_simulation)
-        entities = []
-        if 'entities' in config_dict:
-            for entity_dict in config_dict['entities']:
-                inventory_req = entity_dict.get('inventory_requirements')
-                if inventory_req:
-                    entities.append(InventoryRequirement(
-                        entity_table=entity_dict.get('entity_table', ''),
-                        inventory_table=inventory_req.get('inventory_table', ''),
-                        bridge_table=inventory_req.get('bridge_table', ''),
-                        selection_strategy=inventory_req.get('selection_strategy', 'random'),
-                        quantity=inventory_req.get('quantity', 1),
-                        unit_quantity=inventory_req.get('unit_quantity', 1)
-                    ))
-        
         event_simulation = EventSimulation(
             table_specification=table_spec,
             work_shifts=work_shifts,
             event_flows=event_flows,
-            resource_capacities=resource_capacities,
-            entities=entities
+            resource_capacities=resource_capacities
         )
     
     # Parse base time unit
