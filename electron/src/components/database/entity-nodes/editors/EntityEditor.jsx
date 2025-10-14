@@ -109,11 +109,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   const handleAddAttribute = () => {
     const newAttribute = {
       name: `attribute_${attributes.length + 1}`,
-      type: 'string',
-      generator: {
-        type: 'faker',
-        method: 'name'
-      }
+      type: 'string'
+      // No generator - defaults to "None" for manual/SQL population
     };
     setAttributes([...attributes, newAttribute]);
   };
