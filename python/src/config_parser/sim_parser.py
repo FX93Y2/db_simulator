@@ -23,6 +23,7 @@ class ResourceRequirement:
     value: str  # Corresponds to the value in the resource_type column
     count: int  # Number of resources required
     capacity_per_resource: int = 1  # Capacity needed per resource
+    queue: Optional[str] = None  # Optional reference to queue by name
 
 @dataclass
 class CapacityRule:
@@ -68,6 +69,28 @@ class WorkShifts:
     enabled: bool
     shift_patterns: List[ShiftPattern]
     resource_shifts: List[ResourceShift]
+
+
+# Queue configuration dataclasses (Arena-style)
+@dataclass
+class QueueDefinition:
+    """Arena-style queue definition for resource allocation points"""
+    name: str                          # Unique queue identifier
+    type: str                          # FIFO | LIFO | LowAttribute | HighAttribute
+    attribute: Optional[str] = None    # Attribute name for priority queuing
+
+    def __post_init__(self):
+        """Validate queue configuration"""
+        valid_types = ['FIFO', 'LIFO', 'LowAttribute', 'HighAttribute']
+        if self.type not in valid_types:
+            raise ValueError(
+                f"Queue type must be one of {valid_types}, got '{self.type}'"
+            )
+
+        if self.type in ['LowAttribute', 'HighAttribute'] and not self.attribute:
+            raise ValueError(
+                f"Queue type '{self.type}' requires 'attribute' field"
+            )
 
 
 # New event flow dataclasses
@@ -145,6 +168,7 @@ class TerminatingConditions:
 @dataclass
 class EventSimulation:
     table_specification: TableSpecification
+    queues: List[QueueDefinition] = field(default_factory=list)  # Arena-style queue definitions
     work_shifts: Optional[WorkShifts] = None
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
@@ -291,7 +315,18 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                 logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
         
         # Entity arrival is now handled by Create step modules in event flows
-        
+
+        # Parse queue definitions (Arena-style)
+        queues = []
+        if 'queues' in event_dict:
+            for queue_dict in event_dict['queues']:
+                queues.append(QueueDefinition(
+                    name=queue_dict.get('name', ''),
+                    type=queue_dict.get('type', 'FIFO'),
+                    attribute=queue_dict.get('attribute')
+                ))
+            logger.info(f"Parsed {len(queues)} queue definitions")
+
         # Parse work shifts configuration
         work_shifts = None
         if 'work_shifts' in event_dict:
@@ -342,7 +377,8 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                                 resource_table=req_dict.get('resource_table', ''),
                                 value=req_dict.get('value', ''),
                                 count=req_dict.get('count', 1),
-                                capacity_per_resource=req_dict.get('capacity_per_resource', 1)
+                                capacity_per_resource=req_dict.get('capacity_per_resource', 1),
+                                queue=req_dict.get('queue')  # Optional queue reference
                             ))
                         
                         event_config = EventStepConfig(
@@ -444,6 +480,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         # Parse entities configuration (at top level, not inside event_simulation)
         event_simulation = EventSimulation(
             table_specification=table_spec,
+            queues=queues,  # Include parsed queue definitions
             work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
@@ -533,7 +570,18 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         
         # Parse the rest of the event simulation configuration
         # Entity arrival is now handled by Create step modules in event flows
-        
+
+        # Parse queue definitions (Arena-style)
+        queues = []
+        if 'queues' in event_dict:
+            for queue_dict in event_dict['queues']:
+                queues.append(QueueDefinition(
+                    name=queue_dict.get('name', ''),
+                    type=queue_dict.get('type', 'FIFO'),
+                    attribute=queue_dict.get('attribute')
+                ))
+            logger.info(f"Parsed {len(queues)} queue definitions")
+
         work_shifts = None
         if 'work_shifts' in event_dict:
             shifts_dict = event_dict['work_shifts']
@@ -583,7 +631,8 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                                 resource_table=req_dict.get('resource_table', ''),
                                 value=req_dict.get('value', ''),
                                 count=req_dict.get('count', 1),
-                                capacity_per_resource=req_dict.get('capacity_per_resource', 1)
+                                capacity_per_resource=req_dict.get('capacity_per_resource', 1),
+                                queue=req_dict.get('queue')  # Optional queue reference
                             ))
                         
                         event_config = EventStepConfig(
@@ -685,6 +734,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         # Parse entities configuration (at top level, not inside event_simulation)
         event_simulation = EventSimulation(
             table_specification=table_spec,
+            queues=queues,  # Include parsed queue definitions
             work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
