@@ -13,6 +13,9 @@ import simpy
 from typing import Dict, Optional, Any, List
 from dataclasses import dataclass
 from collections import deque
+from datetime import datetime, timedelta
+from sqlalchemy import create_engine, MetaData, Table, Column, Integer, String, Float, DateTime, insert
+from sqlalchemy.pool import NullPool
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +41,8 @@ class QueueManager:
     - HighAttribute: Priority queue where higher attribute values get higher priority
     """
 
-    def __init__(self, env: simpy.Environment, queue_definitions: List, db_config=None):
+    def __init__(self, env: simpy.Environment, queue_definitions: List, db_config=None,
+                 db_path: str = None, start_date: datetime = None):
         """
         Initialize the queue manager.
 
@@ -46,18 +50,71 @@ class QueueManager:
             env: SimPy environment
             queue_definitions: List of QueueDefinition objects from configuration
             db_config: Optional database configuration for validation
+            db_path: Optional database path for activity logging
+            start_date: Optional simulation start date for datetime calculations
         """
         self.env = env
         self.db_config = db_config
+        self.db_path = db_path
+        self.start_date = start_date or datetime.now()
         self.queues = {}  # queue_name -> queue object (deque, list, or PriorityStore)
         self.queue_configs = {}  # queue_name -> QueueDefinition
         self.queue_stats = {}  # queue_name -> statistics dict
+
+        # Database logging setup (optional)
+        self.engine = None
+        self.metadata = None
+        self.queue_activity_table = None
+
+        if self.db_path:
+            self._initialize_database_logging()
 
         # Create queues from definitions
         for queue_def in queue_definitions:
             self._create_queue(queue_def)
 
         logger.info(f"QueueManager initialized with {len(self.queues)} queues")
+
+    def _initialize_database_logging(self):
+        """
+        Initialize database connection and create queue activity tracking table.
+
+        Creates sim_queue_activity table to log all queue entry/exit events.
+        """
+        try:
+            # Create SQLAlchemy engine with WAL mode
+            self.engine = create_engine(
+                f"sqlite:///{self.db_path}?journal_mode=WAL",
+                poolclass=NullPool,
+                connect_args={"check_same_thread": False}
+            )
+
+            self.metadata = MetaData()
+
+            # Define queue activity tracking table
+            self.queue_activity_table = Table(
+                'sim_queue_activity', self.metadata,
+                Column('id', Integer, primary_key=True),
+                Column('queue_name', String, nullable=False),
+                Column('entity_id', Integer, nullable=False),
+                Column('entity_table', String, nullable=False),
+                Column('action', String, nullable=False),  # 'entry' or 'exit'
+                Column('simulation_time', Float, nullable=False),  # Time in minutes
+                Column('simulation_datetime', DateTime, nullable=False),  # Actual datetime
+                Column('priority', Float, nullable=True),  # Priority value (for priority queues)
+                Column('queue_length_before', Integer, nullable=False),
+                Column('queue_length_after', Integer, nullable=False),
+                Column('wait_time', Float, nullable=True)  # Wait time in minutes (exit only)
+            )
+
+            # Create table
+            self.metadata.create_all(self.engine)
+            logger.debug(f"Created sim_queue_activity table in {self.db_path}")
+
+        except Exception as e:
+            logger.error(f"Error initializing queue database logging: {e}")
+            self.engine = None
+            self.queue_activity_table = None
 
     def _create_queue(self, queue_def):
         """
@@ -94,6 +151,47 @@ class QueueManager:
             'max_length': 0,
             'wait_times': []  # Track all wait times for detailed statistics
         }
+
+    def _log_queue_activity(self, queue_name: str, entity_id: int, entity_table: str,
+                            action: str, priority: Optional[float] = None,
+                            queue_length_before: int = 0, queue_length_after: int = 0,
+                            wait_time: Optional[float] = None):
+        """
+        Log queue activity to database (if enabled).
+
+        Args:
+            queue_name: Name of the queue
+            entity_id: Entity ID
+            entity_table: Entity table name
+            action: 'entry' or 'exit'
+            priority: Priority value (for priority queues)
+            queue_length_before: Queue length before this action
+            queue_length_after: Queue length after this action
+            wait_time: Wait time in minutes (for exit actions only)
+        """
+        if not self.engine or self.queue_activity_table is None:
+            return  # Database logging not enabled
+
+        try:
+            simulation_datetime = self.start_date + timedelta(minutes=self.env.now)
+
+            with self.engine.connect() as conn:
+                stmt = insert(self.queue_activity_table).values(
+                    queue_name=queue_name,
+                    entity_id=entity_id,
+                    entity_table=entity_table,
+                    action=action,
+                    simulation_time=self.env.now,
+                    simulation_datetime=simulation_datetime,
+                    priority=priority,
+                    queue_length_before=queue_length_before,
+                    queue_length_after=queue_length_after,
+                    wait_time=wait_time
+                )
+                conn.execute(stmt)
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"Error logging queue activity: {e}")
 
     def get_queue_length(self, queue_name: str) -> int:
         """
@@ -132,6 +230,9 @@ class QueueManager:
             logger.warning(f"Queue '{queue_name}' not found - entity {entity_id} will use implicit queueing")
             return
 
+        # Get queue length BEFORE adding entity
+        queue_length_before = self.get_queue_length(queue_name)
+
         entry = QueueEntry(
             entity_id=entity_id,
             entity_table=entity_table,
@@ -158,15 +259,28 @@ class QueueManager:
             entry.priority = -float(attr_value)  # Negate for max-heap behavior
             queue.put((entry.priority, entry))
 
+        # Get queue length AFTER adding entity
+        queue_length_after = self.get_queue_length(queue_name)
+
         # Update statistics
         stats = self.queue_stats[queue_name]
         stats['total_entries'] += 1
-        current_length = self.get_queue_length(queue_name)
-        stats['max_length'] = max(stats['max_length'], current_length)
+        stats['max_length'] = max(stats['max_length'], queue_length_after)
+
+        # Log to database
+        self._log_queue_activity(
+            queue_name=queue_name,
+            entity_id=entity_id,
+            entity_table=entity_table,
+            action='entry',
+            priority=entry.priority if queue_def.type in ['LowAttribute', 'HighAttribute'] else None,
+            queue_length_before=queue_length_before,
+            queue_length_after=queue_length_after
+        )
 
         logger.debug(
             f"Entity {entity_id} entered queue '{queue_name}' "
-            f"(length: {current_length}, priority: {entry.priority if queue_def.type in ['LowAttribute', 'HighAttribute'] else 'N/A'})"
+            f"(length: {queue_length_after}, priority: {entry.priority if queue_def.type in ['LowAttribute', 'HighAttribute'] else 'N/A'})"
         )
 
     def dequeue(self, queue_name: str) -> Optional[QueueEntry]:
@@ -187,6 +301,9 @@ class QueueManager:
         queue = self.queues[queue_name]
         entry = None
 
+        # Get queue length BEFORE removing entity
+        queue_length_before = self.get_queue_length(queue_name)
+
         try:
             if queue_def.type == 'FIFO':
                 if queue:
@@ -204,6 +321,9 @@ class QueueManager:
             return None
 
         if entry:
+            # Get queue length AFTER removing entity
+            queue_length_after = self.get_queue_length(queue_name)
+
             # Calculate wait time and update statistics
             wait_time = self.env.now - entry.entry_time
             stats = self.queue_stats[queue_name]
@@ -212,9 +332,21 @@ class QueueManager:
             stats['max_wait_time'] = max(stats['max_wait_time'], wait_time)
             stats['wait_times'].append(wait_time)
 
+            # Log to database
+            self._log_queue_activity(
+                queue_name=queue_name,
+                entity_id=entry.entity_id,
+                entity_table=entry.entity_table,
+                action='exit',
+                priority=entry.priority if queue_def.type in ['LowAttribute', 'HighAttribute'] else None,
+                queue_length_before=queue_length_before,
+                queue_length_after=queue_length_after,
+                wait_time=wait_time
+            )
+
             logger.debug(
                 f"Entity {entry.entity_id} exited queue '{queue_name}' "
-                f"(wait time: {wait_time:.2f} {self.env.now.__class__.__name__})"
+                f"(wait time: {wait_time:.2f} minutes)"
             )
 
         return entry

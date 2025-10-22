@@ -133,11 +133,13 @@ class SimulatorInitializer:
             hasattr(self.config.event_simulation, 'queues')):
             queue_definitions = self.config.event_simulation.queues or []
 
-        # Create QueueManager (even if no queues defined, for consistency)
+        # Create QueueManager with database logging enabled
         self.queue_manager = QueueManager(
             self.env,
             queue_definitions,
-            self.db_config
+            self.db_config,
+            db_path=self.db_path,
+            start_date=self.config.start_date
         )
 
         if queue_definitions:

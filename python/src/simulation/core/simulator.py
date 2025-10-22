@@ -160,7 +160,8 @@ class EventSimulator:
             self.initializer.engine,
             self.initializer.entity_manager.event_tracker if hasattr(self.initializer.entity_manager, 'event_tracker') else None,
             self.initializer.entity_attribute_manager,
-            self.initializer.resource_manager
+            self.initializer.resource_manager,
+            self.initializer.queue_manager if hasattr(self.initializer, 'queue_manager') else None
         )
     
     # Delegation methods for backward compatibility and processor access

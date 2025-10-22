@@ -31,27 +31,34 @@ class DatabaseCleanup:
         """
         self.db_path = db_path
     
-    def cleanup_database_connections(self, engine, event_tracker, entity_attribute_manager, resource_manager):
+    def cleanup_database_connections(self, engine, event_tracker, entity_attribute_manager, resource_manager, queue_manager=None):
         """
         Clean up all database connections to prevent EBUSY errors on Windows.
         This method is called in a finally block to ensure cleanup happens even if simulation fails.
-        
+
         Args:
             engine: Main SQLAlchemy engine
             event_tracker: Event tracker instance
             entity_attribute_manager: Entity attribute manager instance
             resource_manager: Resource manager instance
+            queue_manager: Queue manager instance (optional)
         """
         try:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
             logger.info(f"[{timestamp}] [PYTHON] Starting simulator cleanup to prevent EBUSY errors for: {self.db_path}")
-            
-            # Dispose EventTracker engine first
+
+            # Dispose QueueManager engine first (if exists)
+            if queue_manager and hasattr(queue_manager, 'engine') and queue_manager.engine:
+                logger.info(f"[{timestamp}] [PYTHON] Disposing QueueManager engine for: {self.db_path}")
+                queue_manager.engine.dispose()
+                logger.info(f"[{timestamp}] [PYTHON] QueueManager engine disposed for: {self.db_path}")
+
+            # Dispose EventTracker engine
             if hasattr(event_tracker, 'dispose') and event_tracker:
                 logger.info(f"[{timestamp}] [PYTHON] Disposing EventTracker engine for: {self.db_path}")
                 event_tracker.dispose()
                 logger.info(f"[{timestamp}] [PYTHON] EventTracker engine disposed for: {self.db_path}")
-            
+
             # Dispose main simulator engine
             if hasattr(engine, 'dispose') and engine:
                 logger.info(f"[{timestamp}] [PYTHON] Disposing main simulator engine for: {self.db_path}")
