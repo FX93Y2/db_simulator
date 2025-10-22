@@ -25,20 +25,23 @@ logger = logging.getLogger(__name__)
 class EventStepProcessor(StepProcessor):
     """
     Processor for event-type steps in the simulation flow.
-    
+
     Handles resource allocation, event duration, database event creation,
     and resource release upon completion.
     """
-    
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
-        """Initialize EventStepProcessor with ColumnResolver support."""
+
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None, queue_manager=None):
+        """Initialize EventStepProcessor with ColumnResolver and QueueManager support."""
         super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
-        
+
         # Initialize column resolver for strict column resolution
         db_config = getattr(entity_manager, 'db_config', None)
         if not db_config:
             raise ValueError("db_config is required for EventStepProcessor - cannot use hardcoded column names")
         self.column_resolver = ColumnResolver(db_config)
+
+        # Store queue manager reference for queue-aware resource allocation
+        self.queue_manager = queue_manager
     
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle event steps."""
@@ -97,17 +100,37 @@ class EventStepProcessor(StepProcessor):
                 if event_id is None:
                     self.logger.error(f"Failed to create event for step {step.step_id}")
                     return None
-                
+
+                # Retrieve entity attributes for queue priority calculation (if needed)
+                entity_attributes = self._get_entity_attributes(session, entity_table, entity_id)
+
                 # Allocate resources if required
                 if event_config.resource_requirements:
                     requirements_list = self._convert_resource_requirements(
                         event_config.resource_requirements
                     )
-                    
+
                     try:
-                        yield self.env.process(
-                            self.resource_manager.allocate_resources(event_id, requirements_list, event_table)
-                        )
+                        # Check if any requirement uses a queue
+                        uses_queue = any(req.get('queue') for req in requirements_list)
+
+                        if uses_queue and self.queue_manager:
+                            # Queue-aware resource allocation
+                            yield self.env.process(
+                                self.resource_manager.allocate_resources(
+                                    event_id, requirements_list, event_table,
+                                    entity_id=entity_id,
+                                    entity_table=entity_table,
+                                    entity_attributes=entity_attributes,
+                                    queue_manager=self.queue_manager
+                                )
+                            )
+                        else:
+                            # Standard resource allocation (backward compatible)
+                            yield self.env.process(
+                                self.resource_manager.allocate_resources(event_id, requirements_list, event_table)
+                            )
+
                         self.logger.debug(f"Resources allocated for event {event_id}")
                     except Exception as e:
                         self.logger.warning(f"Resource allocation failed for event {event_id}: {e}")
@@ -257,15 +280,48 @@ class EventStepProcessor(StepProcessor):
             self.logger.warning(f"Error generating event attributes: {str(e)}")
             self.logger.debug(f"Full traceback:\n{traceback.format_exc()}")
     
+    def _get_entity_attributes(self, session, entity_table: str, entity_id: int) -> dict:
+        """
+        Retrieve all attributes for an entity from the database.
+
+        Args:
+            session: Database session
+            entity_table: Name of the entity table
+            entity_id: Entity ID
+
+        Returns:
+            Dictionary of entity attributes
+        """
+        try:
+            # Get primary key column name
+            pk_column = self.column_resolver.get_primary_key(entity_table)
+
+            # Query entity attributes
+            sql_query = text(f'SELECT * FROM "{entity_table}" WHERE "{pk_column}" = :entity_id')
+            result = session.execute(sql_query, {'entity_id': entity_id}).fetchone()
+
+            if result:
+                return dict(result._mapping)
+            else:
+                self.logger.warning(f"Entity {entity_id} not found in table {entity_table}")
+                return {}
+        except Exception as e:
+            self.logger.error(f"Error retrieving entity attributes: {e}")
+            return {}
+
     def _convert_resource_requirements(self, requirements) -> list:
         """Convert resource requirements to the format expected by resource manager."""
         requirements_list = []
         for req in requirements:
-            requirements_list.append({
+            req_dict = {
                 'resource_table': req.resource_table,
                 'value': req.value,
                 'count': req.count
-            })
+            }
+            # Include queue reference if specified
+            if hasattr(req, 'queue') and req.queue:
+                req_dict['queue'] = req.queue
+            requirements_list.append(req_dict)
         return requirements_list
     
     def _calculate_event_duration(self, event_config) -> float:

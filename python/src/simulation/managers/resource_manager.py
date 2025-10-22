@@ -209,27 +209,37 @@ class ResourceManager:
         logger.warning("Could not find resource type column, using 'role' as default")
         return 'role' if 'role' in column_names else None
     
-    def allocate_resources(self, event_id: int, requirements: List[Dict[str, Any]], event_table: str = None):
+    def allocate_resources(self, event_id: int, requirements: List[Dict[str, Any]], event_table: str = None,
+                          entity_id: int = None, entity_table: str = None, entity_attributes: Dict[str, Any] = None,
+                          queue_manager = None):
         """
-        Allocate resources for an event based on requirements
-        
+        Allocate resources for an event based on requirements.
+
+        Supports both standard resource allocation (using FilterStore directly) and
+        queue-aware allocation (using QueueManager for queue disciplines).
+
         Args:
             event_id: ID of the event requesting resources
             requirements: List of resource requirements
             event_table: Name of the event table (used for unique allocation keys)
-            
+            entity_id: Entity ID (required for queue-aware allocation)
+            entity_table: Entity table name (required for queue-aware allocation)
+            entity_attributes: Entity attributes dict (required for priority queues)
+            queue_manager: QueueManager instance (required for queue-aware allocation)
+
         Yields:
             When all required resources are allocated
         """
         allocated_resources = []
         allocation_start_time = self.env.now
-        
+
         try:
             for req in requirements:
                 resource_table = req.get('resource_table')
                 resource_value = req.get('value')
                 count = req.get('count', 1)
-                
+                queue_name = req.get('queue')  # Optional queue reference
+
                 # Handle dynamic count with formula
                 if isinstance(count, dict) and 'formula' in count:
                     from ...distributions import generate_from_distribution
@@ -240,33 +250,53 @@ class ResourceManager:
                     count = int(round(generate_from_distribution(count)))
                 else:
                     count = int(count)
-                
+
                 if count <= 0:
                     continue
-                
-                logger.debug(f"Event {event_id} requesting {count} resources of type {resource_table}.{resource_value}")
-                
+
+                logger.debug(f"Event {event_id} requesting {count} resources of type {resource_table}.{resource_value}" +
+                           (f" using queue '{queue_name}'" if queue_name else ""))
+
+                # Queue-aware resource allocation
+                if queue_name and queue_manager:
+                    # Enqueue entity before waiting for resources
+                    queue_manager.enqueue(
+                        queue_name=queue_name,
+                        entity_id=entity_id,
+                        entity_table=entity_table,
+                        entity_attributes=entity_attributes or {}
+                    )
+                    logger.debug(f"Entity {entity_id} enqueued in '{queue_name}', waiting for resources")
+
                 # Request resources from the FilterStore
                 for i in range(count):
                     # Define filter function for this resource type
                     def resource_filter(r, table=resource_table, value=resource_value):
                         return r.table == table and r.type == value
-                    
-                    # Get a resource matching the criteria
+
+                    # Wait for resource to become available
                     resource = yield self.resource_store.get(resource_filter)
+
+                    # If using queue, dequeue entity when resource becomes available
+                    if queue_name and queue_manager and i == 0:  # Dequeue only once per requirement
+                        dequeued_entry = queue_manager.dequeue(queue_name)
+                        if dequeued_entry:
+                            logger.debug(f"Entity {dequeued_entry.entity_id} dequeued from '{queue_name}' "
+                                       f"(waited {self.env.now - dequeued_entry.entry_time:.2f} time units)")
+
                     allocated_resources.append(resource)
-                    
+
                     # Track allocation
                     resource_key = f"{resource.table}_{resource.id}"
                     self.resource_utilization[resource_key]['allocation_count'] += 1
                     self.resource_utilization[resource_key]['last_allocated'] = allocation_start_time
-                    
+
                     logger.debug(f"Allocated resource {resource_key} (type: {resource.type}) to event {event_id}")
-            
+
             # Store the allocation for this event using a composite key to handle ID collisions
             allocation_key = f"{event_table}_{event_id}" if event_table else str(event_id)
             self.event_allocations[allocation_key] = allocated_resources
-            
+
             # Record allocation in history
             self.allocation_history.append({
                 'event_id': event_id,
@@ -274,9 +304,9 @@ class ResourceManager:
                 'resources': [(r.table, r.id, r.type) for r in allocated_resources],
                 'action': 'allocate'
             })
-            
+
             logger.debug(f"Successfully allocated {len(allocated_resources)} resources to event {event_id}")
-            
+
         except simpy.Interrupt:
             # If interrupted, release any resources we managed to allocate
             logger.warning(f"Resource allocation interrupted for event {event_id}")

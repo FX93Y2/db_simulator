@@ -26,10 +26,10 @@ class StepProcessorFactory:
     step processing requests to the appropriate processor based on step type.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None, simulator=None):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None, simulator=None, queue_manager=None):
         """
         Initialize the step processor factory.
-        
+
         Args:
             env: SimPy environment
             engine: SQLAlchemy engine
@@ -38,6 +38,8 @@ class StepProcessorFactory:
             event_tracker: Event tracker instance
             config: Simulation configuration
             entity_attribute_manager: Entity attribute manager instance (optional)
+            simulator: Simulator instance (optional)
+            queue_manager: Queue manager instance (optional)
         """
         self.env = env
         self.engine = engine
@@ -47,11 +49,12 @@ class StepProcessorFactory:
         self.config = config
         self.entity_attribute_manager = entity_attribute_manager
         self.simulator = simulator
+        self.queue_manager = queue_manager
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        
-        # Initialize all processors with simulator reference
+
+        # Initialize all processors with simulator and queue_manager references
         self.processors: List[StepProcessor] = [
-            EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            EventStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator, queue_manager),
             DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
             ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
             AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),

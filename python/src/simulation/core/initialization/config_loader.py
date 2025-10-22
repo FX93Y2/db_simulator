@@ -18,6 +18,7 @@ from ...termination.formula import TerminationFormulaParser, TerminationFormulaE
 from ...managers.resource_manager import ResourceManager
 from ...managers.entity_manager import EntityManager
 from ...managers.entity_attribute_manager import EntityAttributeManager
+from ...managers.queue_manager import QueueManager
 from ...processors import StepProcessorFactory
 
 logger = logging.getLogger(__name__)
@@ -50,6 +51,7 @@ class SimulatorInitializer:
         self.resource_manager = None
         self.entity_manager = None
         self.entity_attribute_manager = None
+        self.queue_manager = None
         self.step_processor_factory = None
         
         # Tracking components
@@ -102,7 +104,7 @@ class SimulatorInitializer:
         """
         self.termination_parser = TerminationFormulaParser()
         self.termination_evaluator = TerminationFormulaEvaluator()
-        
+
         if self.config.terminating_conditions:
             try:
                 formula = self.config.terminating_conditions.formula
@@ -115,50 +117,81 @@ class SimulatorInitializer:
         else:
             # No termination conditions - use very long time
             self.termination_condition = self.termination_parser.parse("TIME(999999)")
+
+    def initialize_queue_manager(self):
+        """
+        Initialize the queue manager with queue definitions from configuration.
+
+        Queues are optional - if no queues are defined, QueueManager will be created
+        with an empty queue list and resource allocation will use default behavior.
+        """
+        queue_definitions = []
+
+        # Extract queue definitions from event_simulation config
+        if (hasattr(self.config, 'event_simulation') and
+            self.config.event_simulation and
+            hasattr(self.config.event_simulation, 'queues')):
+            queue_definitions = self.config.event_simulation.queues or []
+
+        # Create QueueManager (even if no queues defined, for consistency)
+        self.queue_manager = QueueManager(
+            self.env,
+            queue_definitions,
+            self.db_config
+        )
+
+        if queue_definitions:
+            logger.info(f"Initialized QueueManager with {len(queue_definitions)} queue(s)")
+        else:
+            logger.debug("Initialized QueueManager with no queues (using default resource allocation)")
     
     def initialize_managers(self, flow_event_trackers: Dict):
         """
         Initialize all manager components.
-        
+
         Args:
             flow_event_trackers: Dictionary of flow-specific event trackers
         """
+        # Initialize queue manager first (needed by resource manager)
+        self.initialize_queue_manager()
+
         # Initialize resource manager
         self.resource_manager = ResourceManager(
             self.env, self.engine, self.db_path, self.db_config
         )
-        
+
         # Initialize entity manager (using first flow's tracker for backward compatibility)
         event_tracker = next(iter(flow_event_trackers.values())) if flow_event_trackers else None
         self.entity_manager = EntityManager(
             self.env, self.engine, self.db_path, self.config, self.db_config, event_tracker
         )
-        
+
         # Initialize entity attribute manager for Arena-style assign functionality
         self.entity_attribute_manager = EntityAttributeManager(self.entity_manager)
-        
+
         logger.debug("Initialized all manager components")
     
     def initialize_step_processor_factory(self, simulator_ref):
         """
         Initialize the step processor factory.
-        
+
         Args:
             simulator_ref: Reference to the main simulator instance
         """
         # Get the default event tracker for backward compatibility
         event_tracker = self.entity_manager.event_tracker if hasattr(self.entity_manager, 'event_tracker') else None
-        
+
         self.step_processor_factory = StepProcessorFactory(
             self.env, self.engine, self.resource_manager, self.entity_manager,
-            event_tracker, self.config, self.entity_attribute_manager, simulator_ref
+            event_tracker, self.config, self.entity_attribute_manager, simulator_ref,
+            self.queue_manager  # Pass queue_manager to factory
         )
         logger.debug("Initialized step processor factory")
     
     def get_initialization_state(self) -> Dict[str, Any]:
         """
         Get the current state of all initialized components.
-        
+
         Returns:
             Dictionary containing all initialized components
         """
@@ -168,6 +201,7 @@ class SimulatorInitializer:
             'resource_manager': self.resource_manager,
             'entity_manager': self.entity_manager,
             'entity_attribute_manager': self.entity_attribute_manager,
+            'queue_manager': self.queue_manager,
             'step_processor_factory': self.step_processor_factory,
             'processed_events': self.processed_events,
             'entities_processed': self.entities_processed,

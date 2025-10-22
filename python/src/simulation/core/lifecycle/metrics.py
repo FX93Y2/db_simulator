@@ -56,11 +56,16 @@ class MetricsCollector:
             if hasattr(self.initializer, 'resource_manager') and self.initializer.resource_manager:
                 resource_stats = self.initializer.resource_manager.get_utilization_stats()
             
-            # Get entity attribute statistics  
+            # Get entity attribute statistics
             attribute_stats = {}
             if hasattr(self.initializer, 'entity_attribute_manager') and self.initializer.entity_attribute_manager:
                 attribute_stats = self.initializer.entity_attribute_manager.get_statistics()
-            
+
+            # Get queue statistics
+            queue_stats = {}
+            if hasattr(self.initializer, 'queue_manager') and self.initializer.queue_manager:
+                queue_stats = self.initializer.queue_manager.get_statistics()
+
             # Get entity count
             entity_count = 0
             if hasattr(self.initializer, 'entity_manager') and self.initializer.entity_manager:
@@ -77,6 +82,7 @@ class MetricsCollector:
                 'processed_events': self.initializer.processed_events,
                 'resource_utilization': resource_stats,
                 'entity_attributes': attribute_stats,
+                'queue_statistics': queue_stats,  # Add queue statistics
                 # Legacy field for backward compatibility
                 'duration_days': getattr(self.config, 'duration_days', None)
             }
@@ -113,7 +119,7 @@ class MetricsCollector:
     def get_entity_statistics(self) -> Dict[str, Any]:
         """
         Get current entity attribute statistics.
-        
+
         Returns:
             Dictionary containing entity attribute statistics
         """
@@ -124,7 +130,22 @@ class MetricsCollector:
         except Exception as e:
             logger.error(f"Error getting entity statistics: {e}")
             return {}
-    
+
+    def get_queue_statistics(self) -> Dict[str, Any]:
+        """
+        Get current queue statistics.
+
+        Returns:
+            Dictionary containing queue statistics
+        """
+        try:
+            if hasattr(self.initializer, 'queue_manager') and self.initializer.queue_manager:
+                return self.initializer.queue_manager.get_statistics()
+            return {}
+        except Exception as e:
+            logger.error(f"Error getting queue statistics: {e}")
+            return {}
+
     def log_simulation_progress(self):
         """Log current simulation progress."""
         try:
