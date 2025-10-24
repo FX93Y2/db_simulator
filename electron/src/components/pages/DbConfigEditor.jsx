@@ -9,6 +9,7 @@ import EditorLayout from '../shared/EditorLayout';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
 import useYamlOperations from '../../hooks/shared/useYamlOperations';
+import useExportAllConfigs from '../../hooks/shared/useExportAllConfigs';
 import useKeyboardShortcuts from '../../hooks/shared/useKeyboardShortcuts';
 import useConfigurationLoader from '../../hooks/shared/useConfigurationLoader';
 import { getDbToolbarItems } from '../../config/toolbars/dbToolbarConfig';
@@ -26,6 +27,9 @@ import {
   useSelectionMode,
   useEntityUIActions
 } from '../../stores/databaseConfigStore';
+
+// Simulation store imports (for Export All feature)
+import { useYamlContent as useSimulationYamlContent } from '../../stores/simulationConfigStore';
 
 /**
  * Refactored DbConfigEditor - significantly reduced from 626 lines to ~200 lines
@@ -46,6 +50,7 @@ const DbConfigEditor = ({
   
   // Store state subscriptions
   const yamlContent = useDatabaseYamlContent(projectId);
+  const simYamlContent = useSimulationYamlContent(projectId);
   const isLoading = useDatabaseIsLoading(projectId);
   const error = useDatabaseError(projectId);
   const name = useDatabaseName(projectId);
@@ -96,7 +101,13 @@ const DbConfigEditor = ({
     projectId,
     configType: 'database'
   });
-  
+
+  const { handleExportAll } = useExportAllConfigs({
+    projectName: name || 'project',
+    dbYamlContent: yamlContent,
+    simYamlContent: simYamlContent
+  });
+
   useKeyboardShortcuts({ undo, redo, canUndo, canRedo });
   
   useConfigurationLoader({
@@ -206,6 +217,7 @@ const DbConfigEditor = ({
           onTabChange={onTabChange}
           onImport={yamlOperations.handleImport}
           onExport={yamlOperations.handleExport}
+          onExportAll={handleExportAll}
           onSave={handleSave}
           yamlContent={yamlContent}
           isLoading={isLoading}

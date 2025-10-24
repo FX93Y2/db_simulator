@@ -12,6 +12,7 @@ import EditorLayout from '../shared/EditorLayout';
 import { useToastContext } from '../../contexts/ToastContext';
 import useResizableGrid from '../../hooks/shared/useResizableGrid';
 import useYamlOperations from '../../hooks/shared/useYamlOperations';
+import useExportAllConfigs from '../../hooks/shared/useExportAllConfigs';
 import useKeyboardShortcuts from '../../hooks/shared/useKeyboardShortcuts';
 import useConfigurationLoader from '../../hooks/shared/useConfigurationLoader';
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
@@ -20,6 +21,7 @@ import RunSimulationModal from '../modals/RunSimulationModal';
 
 // New store imports
 import {
+  useSimulationConfigStore,
   useYamlContent,
   useParsedSchema,
   useCanonicalSteps,
@@ -32,6 +34,9 @@ import {
   useSimulationActions,
   useUIActions
 } from '../../stores/simulationConfigStore';
+
+// Database store imports (for Export All feature)
+import { useDatabaseYamlContent } from '../../stores/databaseConfigStore';
 
 const SimConfigEditor = ({
   projectId,
@@ -58,6 +63,7 @@ const SimConfigEditor = ({
 
   // Store state subscriptions
   const yamlContent = useYamlContent(projectId);
+  const dbYamlContent = useDatabaseYamlContent(projectId);
   const parsedSchema = useParsedSchema(projectId);
   const canonicalSteps = useCanonicalSteps(projectId);
   const isLoading = useIsLoading(projectId);
@@ -81,6 +87,9 @@ const SimConfigEditor = ({
   const [showEntityModal, setShowEntityModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
 
+  // Get project/config name from store for export filename
+  const configName = useSimulationConfigStore(projectId)(state => state.name);
+
   // Custom hooks for shared functionality
   const yamlOperations = useYamlOperations({
     yamlContent,
@@ -91,7 +100,13 @@ const SimConfigEditor = ({
     projectId,
     configType: 'simulation'
   });
-  
+
+  const { handleExportAll } = useExportAllConfigs({
+    projectName: configName || 'project',
+    dbYamlContent: dbYamlContent,
+    simYamlContent: yamlContent
+  });
+
   useKeyboardShortcuts({ undo, redo, canUndo, canRedo });
   
   useConfigurationLoader({
@@ -327,6 +342,7 @@ const SimConfigEditor = ({
           onTabChange={onTabChange}
           onImport={yamlOperations.handleImport}
           onExport={yamlOperations.handleExport}
+          onExportAll={handleExportAll}
           onSave={handleSave}
           yamlContent={yamlContent}
           isLoading={isLoading}

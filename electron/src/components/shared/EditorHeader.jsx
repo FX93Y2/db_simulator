@@ -1,5 +1,5 @@
 import React from 'react';
-import { FiDatabase, FiSettings, FiUpload, FiDownload, FiSave } from 'react-icons/fi';
+import { FiDatabase, FiSettings, FiUpload, FiDownload, FiSave, FiPackage } from 'react-icons/fi';
 
 /**
  * Shared EditorHeader component for both DbConfigEditor and SimConfigEditor
@@ -10,6 +10,7 @@ const EditorHeader = ({
   onTabChange,
   onImport,
   onExport,
+  onExportAll,
   onSave,
   yamlContent,
   isLoading,
@@ -55,6 +56,16 @@ const EditorHeader = ({
           >
             <FiUpload />
           </button>
+          {onExportAll && (
+            <button
+              className="yaml-action-btn"
+              onClick={onExportAll}
+              disabled={isLoading}
+              title="Export Both Configs as ZIP"
+            >
+              <FiPackage />
+            </button>
+          )}
           <button
             className="yaml-action-btn"
             onClick={onSave}
