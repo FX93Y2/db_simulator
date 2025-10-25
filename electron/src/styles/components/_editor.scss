@@ -111,7 +111,10 @@
       .vscode-tabs {
         display: flex;
         align-items: stretch;
-        
+        flex-shrink: 1;        // Allow tabs container to shrink
+        min-width: 0;          // Allow flex shrinking below content size
+        overflow: hidden;      // Hide overflow
+
         .tab-item {
           height: 100%;
           display: flex;
@@ -123,24 +126,29 @@
           border: none !important; // Override any Bootstrap borders
           border-radius: 0;
           transition: background-color 0.15s ease;
-          
+          flex-shrink: 1;        // Individual tabs can shrink
+          min-width: 80px;       // Minimum width per tab
+          overflow: hidden;      // Hide overflow text
+          text-overflow: ellipsis; // Show ... for long text
+          white-space: nowrap;   // Prevent text wrapping
+
           // Inactive tab - matches navbar (black) color
           background-color: var(--theme-navbar-bg) !important;
           color: var(--theme-muted-text) !important;
-          
+
           // Active tab - matches YAML editor background (seamless connection)
           &.active {
             background-color: var(--theme-yaml-editor-bg) !important;
             color: var(--theme-text) !important;
             border-bottom: none !important;
           }
-          
+
           // Hover effect for inactive tabs - use #282828 (same as YAML editor)
           &:not(.active):hover {
             background-color: var(--theme-yaml-editor-bg) !important;
             color: var(--theme-text) !important;
           }
-          
+
           // Icon spacing
           .tab-icon {
             margin-right: 8px;
@@ -157,7 +165,8 @@
         gap: 4px;
         padding-right: 1rem; // Space from right edge
         flex-shrink: 0; // Don't allow buttons to shrink
-        
+        min-width: fit-content; // Ensure buttons always fit
+
         .yaml-action-btn {
           width: 34px; // 28px * 1.2 = 33.6, rounded to 34px
           height: 34px;
@@ -172,19 +181,31 @@
           transition: all 0.15s ease;
           padding: 0;
           font-size: 1.05rem; // 0.875rem * 1.2 = 1.05rem
-          
+
           &:hover:not(:disabled) {
             background-color: var(--theme-hover-bg);
             color: var(--theme-text);
           }
-          
+
           &:active:not(:disabled) {
             background-color: var(--theme-active-bg);
           }
-          
+
           &:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+          }
+        }
+
+        // Responsive: Make buttons more compact on narrow screens
+        @media (max-width: 768px) {
+          gap: 2px;
+          padding-right: 0.5rem;
+
+          .yaml-action-btn {
+            width: 28px;   // Reduce from 34px
+            height: 28px;
+            font-size: 0.9rem; // Reduce icon size
           }
         }
       }
