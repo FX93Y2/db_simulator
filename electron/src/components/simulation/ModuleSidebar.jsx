@@ -4,7 +4,7 @@ import { ReactComponent as CircleSVG } from '../../assets/svg/circle.svg';
 import { ReactComponent as RectangleSVG } from '../../assets/svg/rectangle.svg';
 import { ReactComponent as DiamondSVG } from '../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../assets/svg/pentagon.svg';
-import { LuGauge, LuChevronDown, LuFolders } from 'react-icons/lu';
+import { LuGauge, LuChevronDown, LuFolders, LuListOrdered } from 'react-icons/lu';
 import { useDragState } from '../../contexts/DndContext';
 
 
@@ -219,6 +219,12 @@ const ModuleSidebar = ({
           label: 'Entity',
           description: 'Entity configuration',
           icon: LuFolders
+        },
+        {
+          type: 'queue',
+          label: 'Queue',
+          description: 'Queue management configuration',
+          icon: LuListOrdered
         }
       ]
     }

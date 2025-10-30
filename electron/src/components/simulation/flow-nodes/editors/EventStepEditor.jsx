@@ -12,6 +12,7 @@ const EventStepEditor = ({
   onAddResourceRequirement,
   onRemoveResourceRequirement,
   resourceDefinitions,
+  queueDefinitions = [],
   nameValidation = { valid: true, error: null }
 }) => {
   // Convert old distribution format to formula if needed
@@ -93,6 +94,7 @@ const EventStepEditor = ({
           <div className="step-editor-grid-header resource-requirements">
             <div className="grid-header-cell">Resource Table</div>
             <div className="grid-header-cell">Resource Type</div>
+            <div className="grid-header-cell">Queue (optional)</div>
             <div className="grid-header-cell">Count</div>
             <div className="grid-header-cell"></div>
           </div>
@@ -104,6 +106,19 @@ const EventStepEditor = ({
             const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable] 
               ? resourceDefinitions[selectedResourceTable].resourceTypes 
               : [];
+            const queueOptions = Array.isArray(queueDefinitions) ? queueDefinitions : [];
+            const hasQueues = queueOptions.length > 0;
+            const formatQueueLabel = (queue) => {
+              if (!queue) return '';
+              const baseLabel = queue.name || '';
+              if (!queue.type) {
+                return baseLabel;
+              }
+              if (queue.attribute) {
+                return `${baseLabel} (${queue.type} • ${queue.attribute})`;
+              }
+              return `${baseLabel} (${queue.type})`;
+            };
 
             return (
               <div key={index} className="step-editor-grid-row resource-requirements">
@@ -165,6 +180,28 @@ const EventStepEditor = ({
                       size="sm"
                       style={{ width: '100%' }}
                     />
+                  )}
+                </div>
+
+                <div className="grid-cell">
+                  {hasQueues ? (
+                    <Form.Select
+                      value={req.queue || ''}
+                      onChange={(e) => onResourceRequirementChange(index, 'queue', e.target.value)}
+                      size="sm"
+                      style={{ width: '100%' }}
+                    >
+                      <option value="">No queue (default order)</option>
+                      {queueOptions.map((queue) => (
+                        <option key={queue.name} value={queue.name}>
+                          {formatQueueLabel(queue)}
+                        </option>
+                      ))}
+                    </Form.Select>
+                  ) : (
+                    <span className="cell-content muted-text small">
+                      No queues defined
+                    </span>
                   )}
                 </div>
 

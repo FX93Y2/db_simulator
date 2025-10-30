@@ -4,6 +4,7 @@ import { Button, Modal } from 'react-bootstrap';
 import ModularEventFlow from '../simulation/ModularEventFlow';
 import SimulationResourceEditor from '../simulation/simulation_data_editors/SimulationResourceEditor';
 import SimulationEntityEditor from '../simulation/simulation_data_editors/SimulationEntityEditor';
+import SimulationQueueEditor from '../simulation/simulation_data_editors/SimulationQueueEditor';
 import SimulationSettingsEditor from '../simulation/simulation_data_editors/SimulationSettingsEditor';
 import FloatingToolbar from '../shared/FloatingToolbar';
 import SimConfigYamlPanel from '../simulation/SimConfigYamlPanel';
@@ -85,6 +86,7 @@ const SimConfigEditor = ({
   const [showRunModal, setShowRunModal] = useState(false);
   const [showResourceModal, setShowResourceModal] = useState(false);
   const [showEntityModal, setShowEntityModal] = useState(false);
+  const [showQueueModal, setShowQueueModal] = useState(false);
   const [showSimulationModal, setShowSimulationModal] = useState(false);
 
   // Get project/config name from store for export filename
@@ -316,6 +318,8 @@ const SimConfigEditor = ({
       setShowResourceModal(true);
     } else if (configType === 'entity') {
       setShowEntityModal(true);
+    } else if (configType === 'queue') {
+      setShowQueueModal(true);
     }
   }, []);
 
@@ -502,6 +506,46 @@ const SimConfigEditor = ({
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowEntityModal(false)}>
             Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
+
+      {/* Queue Configuration Modal */}
+      <Modal
+        show={showQueueModal}
+        onHide={() => setShowQueueModal(false)}
+        size="lg"
+        centered
+        enforceFocus={false}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            Queue Configuration
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <SimulationQueueEditor
+            projectId={projectId}
+          />
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowQueueModal(false)}>
+            Close
+          </Button>
+          <Button
+            variant="primary"
+            onClick={async () => {
+              try {
+                // Sync queues to YAML first, then save configuration
+                syncSimulationToYaml();
+                await saveConfig();
+                setShowQueueModal(false);
+              } catch (error) {
+                showError('Failed to save queue configuration');
+              }
+            }}
+          >
+            Save
           </Button>
         </Modal.Footer>
       </Modal>

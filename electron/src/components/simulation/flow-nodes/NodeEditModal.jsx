@@ -16,7 +16,7 @@ const convertOldDistributionToFormula = (distribution) => {
   return convertDistributionToFormula(distribution);
 };
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, entityTables = [], eventTables = [] }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [] }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -259,7 +259,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     setResourceRequirements([...resourceRequirements, {
       resource_table: defaultResourceTable,
       value: defaultResourceType,
-      count: 1
+      count: 1,
+      queue: ''
     }]);
   };
 
@@ -455,9 +456,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       duration.time_unit = formData.duration_time_unit;
     }
     
+    const sanitizedRequirements = resourceRequirements.map((req) => {
+      const requirement = { ...req };
+
+      if (requirement.queue) {
+        const trimmedQueue = requirement.queue.trim();
+        if (trimmedQueue) {
+          requirement.queue = trimmedQueue;
+        } else {
+          delete requirement.queue;
+        }
+      } else {
+        delete requirement.queue;
+      }
+
+      return requirement;
+    });
+
     return {
       duration,
-      resource_requirements: resourceRequirements
+      resource_requirements: sanitizedRequirements
     };
   };
 
@@ -600,6 +618,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onAddResourceRequirement={addResourceRequirement}
             onRemoveResourceRequirement={removeResourceRequirement}
             resourceDefinitions={resourceDefinitions}
+            queueDefinitions={queueDefinitions}
             nameValidation={nameValidation}
           />
         );

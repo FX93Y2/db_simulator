@@ -468,45 +468,55 @@ export const createYamlActions = (set, get) => ({
    */
   generateYaml: () => {
     const { canonicalSteps, flowSchema, simulationData } = get();
-    
+
     try {
       if (canonicalSteps.length === 0) {
         // Return minimal structure with empty event_flows when no modules exist
         const emptySchema = {
           simulation: simulationData,
           event_simulation: {
-            event_flows: []
+            event_flows: [],
+            // Include queues if they exist
+            ...(simulationData.queues && simulationData.queues.length > 0 && { queues: simulationData.queues })
           }
         };
-        
+
         return yaml.stringify(emptySchema);
       }
-      
+
       // Generate flows dynamically based on Create modules
       const generatedFlows = get().generateEventFlowsFromSteps(canonicalSteps);
-      
+
       if (!flowSchema?.event_simulation?.event_flows?.[0]) {
         // Create new structure with dynamically generated flows
         const defaultSchema = {
           simulation: simulationData,
           event_simulation: {
-            event_flows: generatedFlows
+            event_flows: generatedFlows,
+            // Include queues if they exist
+            ...(simulationData.queues && simulationData.queues.length > 0 && { queues: simulationData.queues })
           }
         };
-        
+
         return yaml.stringify(defaultSchema);
       }
-      
+
       // Update existing schema with dynamically generated flows and simulation data
       const updatedSchema = {
         ...flowSchema,
         simulation: simulationData, // Always use current simulation data from store
         event_simulation: {
           ...flowSchema.event_simulation,
-          event_flows: generatedFlows
+          event_flows: generatedFlows,
+          // Include queues if they exist, otherwise preserve existing queues
+          ...(simulationData.queues && simulationData.queues.length > 0
+            ? { queues: simulationData.queues }
+            : flowSchema.event_simulation.queues
+              ? { queues: flowSchema.event_simulation.queues }
+              : {})
         }
       };
-      
+
       return yaml.stringify(updatedSchema);
     } catch (error) {
       console.error('[YamlActions] YAML generation failed:', error);

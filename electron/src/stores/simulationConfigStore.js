@@ -295,7 +295,14 @@ export const useSimulationActions = (projectId) => {
     updateResourceCapacity: state.updateResourceCapacity,
     getResourceCapacity: state.getResourceCapacity,
     clearAllResources: state.clearAllResources,
-    removeResource: state.removeResource
+    removeResource: state.removeResource,
+    // Queue management actions
+    addQueue: state.addQueue,
+    updateQueue: state.updateQueue,
+    removeQueue: state.removeQueue,
+    getQueues: state.getQueues,
+    getQueue: state.getQueue,
+    clearAllQueues: state.clearAllQueues
   }));
 };
 

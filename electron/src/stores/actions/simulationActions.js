@@ -73,28 +73,30 @@ export const createSimulationActions = (set, get) => ({
    * @param {Object} parsedSchema - Parsed YAML object
    */
   loadSimulationFromYaml: (parsedSchema) => {
-    
+
     if (!parsedSchema?.simulation) {
       return;
     }
 
     set((state) => {
-      // Update simulation data from YAML - preserve complete simulation object including resources and entities
+      // Update simulation data from YAML - preserve complete simulation object including resources, entities, and queues
       state.simulationData = {
         base_time_unit: parsedSchema.simulation.base_time_unit || 'hours',
         terminating_conditions: parsedSchema.simulation.terminating_conditions || 'TIME(720)',
-        start_date: parsedSchema.simulation.start_date || '2024-01-01', 
+        start_date: parsedSchema.simulation.start_date || '2024-01-01',
         random_seed: parsedSchema.simulation.random_seed || 42,
         // Preserve resources array if it exists
         ...(parsedSchema.simulation.resources && { resources: parsedSchema.simulation.resources }),
         // Preserve entities array if it exists
-        ...(parsedSchema.simulation.entities && { entities: parsedSchema.simulation.entities })
+        ...(parsedSchema.simulation.entities && { entities: parsedSchema.simulation.entities }),
+        // Preserve queues array if it exists in event_simulation
+        ...(parsedSchema.event_simulation?.queues && { queues: parsedSchema.event_simulation.queues })
       };
-      
+
       // Clear any pending changes since we're loading from source
       state.pendingSimulationChanges = {};
       state.hasUnsavedSimulation = false;
-      
+
     });
   },
 
@@ -234,5 +236,138 @@ export const createSimulationActions = (set, get) => ({
     });
 
     return { success: true, message: `Resource ${resourceTable} removed` };
+  },
+
+  // ===== QUEUE MANAGEMENT ACTIONS =====
+
+  /**
+   * Add a new queue definition
+   * @param {string} name - Queue name (must be unique)
+   * @param {string} type - Queue type (FIFO, LIFO, LowAttribute, HighAttribute)
+   * @param {string} attribute - Attribute name (required for LowAttribute/HighAttribute)
+   * @returns {Object} - Result object with success status
+   */
+  addQueue: (name, type, attribute = null) => {
+    const { simulationData } = get();
+
+    // Validate queue name uniqueness
+    if (simulationData.queues?.some(q => q.name === name)) {
+      return { success: false, message: `Queue '${name}' already exists` };
+    }
+
+    // Validate attribute requirement for priority queues
+    if ((type === 'LowAttribute' || type === 'HighAttribute') && !attribute) {
+      return { success: false, message: `Queue type '${type}' requires an attribute` };
+    }
+
+    set((state) => {
+      // Ensure queues array exists in simulationData
+      if (!state.simulationData.queues) {
+        state.simulationData.queues = [];
+      }
+
+      // Create queue definition
+      const queueDef = { name, type };
+      if (attribute) {
+        queueDef.attribute = attribute;
+      }
+
+      // Add queue
+      state.simulationData.queues.push(queueDef);
+    });
+
+    return { success: true, message: `Queue '${name}' added successfully` };
+  },
+
+  /**
+   * Update an existing queue definition
+   * @param {string} oldName - Current queue name
+   * @param {string} newName - New queue name
+   * @param {string} type - Queue type
+   * @param {string} attribute - Attribute name (for priority queues)
+   * @returns {Object} - Result object with success status
+   */
+  updateQueue: (oldName, newName, type, attribute = null) => {
+    const { simulationData } = get();
+
+    // Validate queue exists
+    const queueIndex = simulationData.queues?.findIndex(q => q.name === oldName);
+    if (queueIndex === -1 || queueIndex === undefined) {
+      return { success: false, message: `Queue '${oldName}' not found` };
+    }
+
+    // Validate new name uniqueness (if name changed)
+    if (oldName !== newName && simulationData.queues?.some(q => q.name === newName)) {
+      return { success: false, message: `Queue '${newName}' already exists` };
+    }
+
+    // Validate attribute requirement for priority queues
+    if ((type === 'LowAttribute' || type === 'HighAttribute') && !attribute) {
+      return { success: false, message: `Queue type '${type}' requires an attribute` };
+    }
+
+    set((state) => {
+      const queue = state.simulationData.queues[queueIndex];
+      queue.name = newName;
+      queue.type = type;
+
+      // Update or remove attribute based on queue type
+      if (attribute && (type === 'LowAttribute' || type === 'HighAttribute')) {
+        queue.attribute = attribute;
+      } else {
+        delete queue.attribute;
+      }
+    });
+
+    return { success: true, message: `Queue '${oldName}' updated successfully` };
+  },
+
+  /**
+   * Remove a queue definition
+   * @param {string} name - Queue name to remove
+   * @returns {Object} - Result object with success status
+   */
+  removeQueue: (name) => {
+    set((state) => {
+      if (state.simulationData.queues) {
+        state.simulationData.queues = state.simulationData.queues.filter(
+          q => q.name !== name
+        );
+      }
+    });
+
+    return { success: true, message: `Queue '${name}' removed` };
+  },
+
+  /**
+   * Get all queue definitions
+   * @returns {Array} - Array of queue definitions
+   */
+  getQueues: () => {
+    const { simulationData } = get();
+    return simulationData.queues || [];
+  },
+
+  /**
+   * Get a specific queue by name
+   * @param {string} name - Queue name
+   * @returns {Object|null} - Queue definition or null if not found
+   */
+  getQueue: (name) => {
+    const { simulationData } = get();
+    return simulationData.queues?.find(q => q.name === name) || null;
+  },
+
+  /**
+   * Clear all queues from simulation data
+   */
+  clearAllQueues: () => {
+    set((state) => {
+      if (state.simulationData.queues) {
+        state.simulationData.queues = [];
+      }
+    });
+
+    return { success: true, message: 'All queues cleared' };
   }
 });

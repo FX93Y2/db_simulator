@@ -20,7 +20,8 @@ import {
   useCanvasActions,
   useUIActions,
   useSimulationClipboard,
-  useSimulationContextMenu
+  useSimulationContextMenu,
+  useSimulationData
 } from '../../stores/simulationConfigStore';
 
 // Shared hooks (keep these)
@@ -84,6 +85,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
+
+  // Queue definitions are stored with the project simulation data
+  const simulationData = useSimulationData(projectId);
+  const queueDefinitions = simulationData?.queues || [];
   
   // Use the custom hooks to get entity and event tables from database config
   const entityTables = useEntityTables(dbConfigContent);
@@ -538,6 +543,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         theme={theme}
         parsedSchema={getStoreState().parsedSchema}
         resourceDefinitions={resourceDefinitions}
+        queueDefinitions={queueDefinitions}
         entityTables={entityTables}
         eventTables={eventTables}
       />
