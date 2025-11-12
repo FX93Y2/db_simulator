@@ -240,9 +240,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   // Resource requirement handlers
   const handleResourceRequirementChange = (index, field, value) => {
-    const updated = [...resourceRequirements];
-    updated[index] = { ...updated[index], [field]: value };
-    setResourceRequirements(updated);
+    setResourceRequirements((prevRequirements) => {
+      const updatedRequirements = [...prevRequirements];
+      updatedRequirements[index] = {
+        ...updatedRequirements[index],
+        [field]: value
+      };
+      return updatedRequirements;
+    });
   };
 
   const addResourceRequirement = () => {
