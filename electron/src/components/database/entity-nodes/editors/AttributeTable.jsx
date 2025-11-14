@@ -201,6 +201,11 @@ const AttributeTable = ({
     }));
     
     const updatedGenerator = { ...updatedAttributes[selectedAttributeIndex].generator, [field]: value };
+
+    // Ensure legacy distribution payloads are cleared once a formula is set
+    if (field === 'formula' && 'distribution' in updatedGenerator) {
+      delete updatedGenerator.distribution;
+    }
     
     // Reset generator fields when type changes
     if (field === 'type') {

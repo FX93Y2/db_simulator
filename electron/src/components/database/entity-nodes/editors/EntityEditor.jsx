@@ -198,11 +198,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           type: 'resource_type',
           generator: {
             type: 'distribution',
-            distribution: {
-              type: 'choice',
-              values: ['Type1', 'Type2', 'Type3'],
-              weights: [0.4, 0.3, 0.3]
-            }
+            formula: "DISC(0.4, 'Type1', 0.3, 'Type2', 0.3, 'Type3')"
           }
         });
       }
