@@ -236,6 +236,25 @@
   }
 }
 
+/* Trigger Node (Manual input / trapezoid) */
+.trigger-step-node {
+  width: 140px;
+  height: 80px;
+  position: relative;
+}
+
+.trigger-shape {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover .node-svg {
+    transform: scale(1.02);
+    filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
+  }
+}
+
 /* Selection States */
 .custom-node.selected .node-svg {
   path, rect, ellipse {

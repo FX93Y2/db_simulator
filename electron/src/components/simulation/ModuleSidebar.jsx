@@ -4,6 +4,7 @@ import { ReactComponent as CircleSVG } from '../../assets/svg/circle.svg';
 import { ReactComponent as RectangleSVG } from '../../assets/svg/rectangle.svg';
 import { ReactComponent as DiamondSVG } from '../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../assets/svg/pentagon.svg';
+import { ReactComponent as TriggerSVG } from '../../assets/svg/trigger.svg';
 import { LuGauge, LuChevronDown, LuFolders, LuListOrdered } from 'react-icons/lu';
 import { useDragState } from '../../contexts/DndContext';
 
@@ -192,6 +193,13 @@ const ModuleSidebar = ({
           label: 'Assign',
           description: 'Set attributes',
           icon: PentagonSVG,
+          iconType: 'shape'
+        },
+        {
+          type: 'trigger',
+          label: 'Trigger',
+          description: 'Generate related data',
+          icon: TriggerSVG,
           iconType: 'shape'
         },
         {

@@ -263,7 +263,8 @@ export const createCanvasActions = (set, get) => ({
                         step.step_type === 'decide' ? 'decide' :
                         step.step_type === 'assign' ? 'assign' :
                         step.step_type === 'release' ? 'release' :
-                        step.step_type === 'create' ? 'create' : 'process';
+                        step.step_type === 'create' ? 'create' :
+                        step.step_type === 'trigger' ? 'trigger' : 'process';
         
         // Position priority: PositionService -> step.position -> calculated default
         // PositionService has the most recent user-dragged position

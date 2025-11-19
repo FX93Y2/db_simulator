@@ -389,6 +389,13 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
           max_entities: "n/a"
         };
         break;
+      case 'trigger':
+        newStep.trigger_config = {
+          target_table: "",
+          count: 1,
+          fk_column: ""
+        };
+        break;
       default:
         console.warn('Unknown module type:', moduleType);
         return;

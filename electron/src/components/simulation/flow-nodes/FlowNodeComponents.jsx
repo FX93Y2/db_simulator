@@ -5,6 +5,7 @@ import { ReactComponent as CircleSVG } from '../../../assets/svg/circle.svg';
 import { ReactComponent as RectangleSVG } from '../../../assets/svg/rectangle.svg';
 import { ReactComponent as DiamondSVG } from '../../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../../assets/svg/pentagon.svg';
+import { ReactComponent as TriggerSVG } from '../../../assets/svg/trigger.svg';
 
 // Process (Event) Node Component - Rectangle with step_id visible
 export const ProcessNode = ({ data, selected }) => {
@@ -208,7 +209,7 @@ export const ReleaseNode = ({ data, selected }) => {
 // Create Node Component - Circle with plus symbol, tooltip for step_id
 export const CreateNode = ({ data, selected }) => {
   return (
-    <div 
+    <div
       className={`custom-node create-step-node ${selected ? 'selected' : ''}`}
       title={data.stepConfig?.step_id || "Create"} // Tooltip
     >
@@ -223,6 +224,25 @@ export const CreateNode = ({ data, selected }) => {
   );
 };
 
+// Trigger Node Component - Trapezoid (manual input shape) with step_id visible
+export const TriggerNode = ({ data, selected }) => {
+  return (
+    <div
+      className={`custom-node trigger-step-node ${selected ? 'selected' : ''}`}
+      title={data.stepConfig?.step_id || "Trigger"}
+    >
+      <Handle type="target" position={Position.Left} />
+      <div className="trigger-shape">
+        <TriggerSVG className="node-svg" />
+        <div className="node-content-overlay">
+          <div className="node-label">{data.stepConfig?.step_id || "Trigger"}</div>
+        </div>
+      </div>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+};
+
 // Node types definition
 export const nodeTypes = {
   process: ProcessNode,
@@ -230,4 +250,5 @@ export const nodeTypes = {
   assign: AssignNode,
   release: ReleaseNode,
   create: CreateNode,
+  trigger: TriggerNode,
 };

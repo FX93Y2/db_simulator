@@ -8,6 +8,7 @@ import DecideStepEditor from './editors/DecideStepEditor';
 import AssignStepEditor from './editors/AssignStepEditor';
 import ReleaseStepEditor from './editors/ReleaseStepEditor';
 import CreateStepEditor from './editors/CreateStepEditor';
+import TriggerStepEditor from './editors/TriggerStepEditor';
 import { convertDistributionToFormula } from '../../shared/distribution';
 
 // Helper function to convert old distribution format to formula
@@ -65,6 +66,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       initializeReleaseForm(stepConfig);
     } else if (stepConfig.step_type === 'create') {
       initializeCreateForm(stepConfig, nodeData);
+    } else if (stepConfig.step_type === 'trigger') {
+      initializeTriggerForm(stepConfig);
     }
   };
 
@@ -198,13 +201,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeCreateForm = (stepConfig, nodeData) => {
     const createConfig = stepConfig.create_config || {};
     const interarrivalTime = createConfig.interarrival_time || {};
-    
+
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
-    
+
     // Get event table from stepConfig (legacy field is migrated during YAML parse/import)
     const savedEventTable = stepConfig._eventTable || '';
-    
+
     setFormData({
       name: stepName,
       entity_table: createConfig.entity_table || '',
@@ -212,6 +215,21 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
       interarrival_time_unit: interarrivalTime.time_unit || undefined,
       max_entities: createConfig.max_entities || 'n/a',
+      next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
+    });
+  };
+
+  const initializeTriggerForm = (stepConfig) => {
+    const triggerConfig = stepConfig.trigger_config || {};
+
+    // Use step_id as the display name
+    const stepName = stepConfig.step_id || '';
+
+    setFormData({
+      name: stepName,
+      target_table: triggerConfig.target_table || '',
+      count: triggerConfig.count !== undefined ? triggerConfig.count : 1,
+      fk_column: triggerConfig.fk_column || '',
       next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
     });
   };
@@ -450,6 +468,9 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
       // Store event_table in stepConfig for YAML generation (not in create_config)
       updatedStepConfig._eventTable = formData.event_table || '';
+    } else if (stepType === 'trigger') {
+      updatedStepConfig.trigger_config = buildTriggerStepConfig();
+      updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
     }
 
     return updatedStepConfig;
@@ -568,12 +589,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     if (formData.interarrival_time_unit) {
       interarrivalTime.time_unit = formData.interarrival_time_unit;
     }
-    
+
     return {
       entity_table: formData.entity_table || '',
       interarrival_time: interarrivalTime,
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
+  };
+
+  const buildTriggerStepConfig = () => {
+    const triggerConfig = {
+      target_table: formData.target_table || '',
+      count: formData.count
+    };
+
+    // Only include fk_column if it's not empty
+    if (formData.fk_column && formData.fk_column.trim() !== '') {
+      triggerConfig.fk_column = formData.fk_column.trim();
+    }
+
+    return triggerConfig;
   };
 
   const generateStepId = (stepType, formData) => {
@@ -677,7 +712,18 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             nameValidation={nameValidation}
           />
         );
-      
+
+      case 'trigger':
+        return (
+          <TriggerStepEditor
+            formData={formData}
+            onFormDataChange={handleFormDataChange}
+            availableSteps={availableSteps}
+            availableEntityTables={entityTables}
+            nameValidation={nameValidation}
+          />
+        );
+
       default:
         return null;
     }
@@ -690,9 +736,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       case 'release':
         return undefined; // Default modal size for single input field
       case 'create':
-        return 'md'; // Medium size for create and decide steps
+      case 'trigger':
+        return 'md'; // Medium size for create and trigger steps
       case 'assign':
-        return 'lg'; // Large size for assign step to accommodate attribute table  
+        return 'lg'; // Large size for assign step to accommodate attribute table
       case 'event':
       case 'decide':
         return 'lg'; // Keep large for complex editors with tables

@@ -6,6 +6,7 @@ to create records in related tables with foreign key relationships to entities.
 """
 
 import logging
+import numbers
 from typing import Any, Generator, Optional, TYPE_CHECKING, Dict, List
 from sqlalchemy import text, inspect
 
@@ -186,21 +187,47 @@ class TriggerStepProcessor(StepProcessor):
         Returns:
             Integer count value
         """
-        if isinstance(count, int):
-            return count
+        resolved_value: Optional[float] = None
 
-        if isinstance(count, str):
-            # Parse and evaluate distribution formula
+        # Accept direct numeric types
+        if isinstance(count, numbers.Number):
+            resolved_value = float(count)
+
+        elif isinstance(count, str):
+            stripped = count.strip()
+            if not stripped:
+                raise ValueError("Trigger count cannot be empty")
+
+            # Try integer first to preserve whole-number strings ("3") as-is
             try:
-                from ....distributions import generate_from_distribution
-                result = generate_from_distribution(count)
-                # Ensure result is integer
-                return int(result)
-            except Exception as e:
-                self.logger.error(f"Error evaluating count formula '{count}': {e}")
-                raise
+                resolved_value = float(int(stripped))
+            except ValueError:
+                # Then try parsing as float (handles "3.0")
+                try:
+                    resolved_value = float(stripped)
+                except ValueError:
+                    # Fall back to treating the string as a formula
+                    try:
+                        from ....distributions import generate_from_distribution
+                        result = generate_from_distribution(stripped)
+                    except Exception as e:
+                        self.logger.error(f"Error evaluating count formula '{count}': {e}")
+                        raise
 
-        raise ValueError(f"Invalid count type: {type(count)}")
+                    if not isinstance(result, numbers.Number):
+                        raise ValueError(
+                            f"Count formula '{count}' did not return a numeric value"
+                        )
+                    resolved_value = float(result)
+
+        if resolved_value is None:
+            raise ValueError(f"Invalid count type: {type(count)}")
+
+        resolved_int = int(round(resolved_value))
+        if resolved_int < 0:
+            raise ValueError("Trigger count must be non-negative")
+
+        return resolved_int
 
     def _detect_fk_column(self, trigger_config: 'TriggerConfig', entity_table: str) -> Optional[str]:
         """

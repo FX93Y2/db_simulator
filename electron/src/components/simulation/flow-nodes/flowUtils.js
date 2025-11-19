@@ -65,6 +65,7 @@ export const buildNodesFromFlow = (flow, layoutMap, theme, currentPositions = {}
     if (step.step_type === 'assign') nodeType = 'assign';
     if (step.step_type === 'release') nodeType = 'release';
     if (step.step_type === 'create') nodeType = 'create';
+    if (step.step_type === 'trigger') nodeType = 'trigger';
 
     const node = {
       id: step.step_id,
@@ -141,8 +142,9 @@ export const validateStep = (step) => {
     errors.push('Step ID is required');
   }
   
-  if (!step.step_type || !['event', 'decide', 'assign', 'release'].includes(step.step_type)) {
-    errors.push('Valid step type is required (event, decide, assign, release)');
+  const supportedTypes = ['event', 'decide', 'assign', 'release', 'create', 'trigger'];
+  if (!step.step_type || !supportedTypes.includes(step.step_type)) {
+    errors.push(`Valid step type is required (${supportedTypes.join(', ')})`);
   }
   
   // Validate step-specific configurations
@@ -163,8 +165,25 @@ export const validateStep = (step) => {
         errors.push('At least one assignment is required');
       }
       break;
+    case 'create':
+      if (!step.create_config?.entity_table) {
+        errors.push('Create module requires an entity table');
+      }
+      break;
     case 'release':
       // Release steps don't require additional validation
+      break;
+    case 'trigger':
+      if (!step.trigger_config) {
+        errors.push('Trigger configuration is required');
+      } else {
+        if (!step.trigger_config.target_table) {
+          errors.push('Trigger target table is required');
+        }
+        if (step.trigger_config.count === undefined || step.trigger_config.count === null) {
+          errors.push('Trigger count is required');
+        }
+      }
       break;
   }
   
