@@ -186,7 +186,8 @@ class SimulatorInitializer:
         self.step_processor_factory = StepProcessorFactory(
             self.env, self.engine, self.resource_manager, self.entity_manager,
             event_tracker, self.config, self.entity_attribute_manager, simulator_ref,
-            self.queue_manager  # Pass queue_manager to factory
+            self.queue_manager,  # Pass queue_manager to factory
+            self.db_config  # Pass db_config for trigger processor
         )
         logger.debug("Initialized step processor factory")
     

@@ -14,6 +14,7 @@ from .decide.processor import DecideStepProcessor
 from .release.processor import ReleaseStepProcessor
 from .assign.processor import AssignStepProcessor
 from .create.processor import CreateStepProcessor
+from .trigger.processor import TriggerStepProcessor
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class StepProcessorFactory:
     step processing requests to the appropriate processor based on step type.
     """
     
-    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None, simulator=None, queue_manager=None):
+    def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, entity_attribute_manager=None, simulator=None, queue_manager=None, db_config=None):
         """
         Initialize the step processor factory.
 
@@ -40,6 +41,7 @@ class StepProcessorFactory:
             entity_attribute_manager: Entity attribute manager instance (optional)
             simulator: Simulator instance (optional)
             queue_manager: Queue manager instance (optional)
+            db_config: Database configuration instance (optional, required for trigger processor)
         """
         self.env = env
         self.engine = engine
@@ -50,6 +52,7 @@ class StepProcessorFactory:
         self.entity_attribute_manager = entity_attribute_manager
         self.simulator = simulator
         self.queue_manager = queue_manager
+        self.db_config = db_config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
 
         # Initialize all processors with simulator and queue_manager references
@@ -58,16 +61,20 @@ class StepProcessorFactory:
             DecideStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
             ReleaseStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
             AssignStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
-            CreateStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
+            CreateStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator),
+            TriggerStepProcessor(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
         ]
         
         # Configure processors that need entity attribute manager
         self._configure_attribute_dependent_processors()
-        
+
+        # Configure processors that need database config
+        self._configure_db_config_dependent_processors()
+
         # Create lookup cache for faster processor retrieval
         self._processor_cache: Dict[str, StepProcessor] = {}
         self._build_processor_cache()
-        
+
         self.logger.info(f"Initialized step processor factory with {len(self.processors)} processors")
     
     def _configure_attribute_dependent_processors(self):
@@ -89,7 +96,19 @@ class StepProcessorFactory:
                 processor.set_assignment_handler_factory(assignment_handler_factory)
         
         self.logger.info("Configured attribute-dependent processors")
-    
+
+    def _configure_db_config_dependent_processors(self):
+        """Configure processors that depend on database config."""
+        if self.db_config is None:
+            return
+
+        # Configure trigger processor with database config
+        for processor in self.processors:
+            if isinstance(processor, TriggerStepProcessor):
+                processor.set_db_config(self.db_config)
+
+        self.logger.info("Configured database config-dependent processors")
+
     def _build_processor_cache(self):
         """Build cache mapping step types to processors."""
         self._processor_cache.clear()
@@ -107,21 +126,21 @@ class StepProcessorFactory:
     def _get_supported_types(self, processor: StepProcessor) -> List[str]:
         """
         Get list of step types supported by a processor.
-        
+
         Args:
             processor: Processor to check
-            
+
         Returns:
             List of supported step types
         """
         # Standard step types to check
-        standard_types = ["event", "decide", "release", "assign", "create"]
+        standard_types = ["event", "decide", "release", "assign", "create", "trigger"]
         supported = []
-        
+
         for step_type in standard_types:
             if processor.can_handle(step_type):
                 supported.append(step_type)
-        
+
         return supported
     
     def get_processor(self, step_type: str) -> Optional[StepProcessor]:

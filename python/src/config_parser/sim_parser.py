@@ -128,6 +128,13 @@ class AssignConfig:
     assignments: List[AssignmentOperation] = field(default_factory=list)
 
 @dataclass
+class TriggerConfig:
+    """Configuration for Trigger step modules (generate related table data during simulation)"""
+    target_table: str  # Table to generate data for
+    count: Union[int, str]  # Fixed count or distribution formula (e.g., "UNIF(3,5)")
+    fk_column: Optional[str] = None  # Optional explicit FK column name
+
+@dataclass
 class CreateConfig:
     """Configuration for Create step modules (Arena-style entity creation)"""
     entity_table: str
@@ -143,11 +150,12 @@ class EventStepConfig:
 @dataclass
 class Step:
     step_id: str
-    step_type: str  # 'event', 'decide', 'release', 'assign', 'create'
+    step_type: str  # 'event', 'decide', 'release', 'assign', 'create', 'trigger'
     event_config: Optional[EventStepConfig] = None
     decide_config: Optional[DecideConfig] = None
     assign_config: Optional[AssignConfig] = None
     create_config: Optional[CreateConfig] = None
+    trigger_config: Optional[TriggerConfig] = None
     next_steps: List[str] = field(default_factory=list)
 
 @dataclass
@@ -437,7 +445,17 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                             max_entities=create_dict.get('max_entities'),
                             entities_per_arrival=create_dict.get('entities_per_arrival')
                         )
-                    
+
+                    # Parse trigger config if present
+                    trigger_config = None
+                    if 'trigger_config' in step_dict:
+                        trigger_dict = step_dict['trigger_config']
+                        trigger_config = TriggerConfig(
+                            target_table=trigger_dict.get('target_table', ''),
+                            count=trigger_dict.get('count', 1),
+                            fk_column=trigger_dict.get('fk_column')
+                        )
+
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
@@ -445,6 +463,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         decide_config=decide_config,
                         assign_config=assign_config,
                         create_config=create_config,
+                        trigger_config=trigger_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
@@ -691,7 +710,17 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                             max_entities=create_dict.get('max_entities'),
                             entities_per_arrival=create_dict.get('entities_per_arrival')
                         )
-                    
+
+                    # Parse trigger config if present
+                    trigger_config = None
+                    if 'trigger_config' in step_dict:
+                        trigger_dict = step_dict['trigger_config']
+                        trigger_config = TriggerConfig(
+                            target_table=trigger_dict.get('target_table', ''),
+                            count=trigger_dict.get('count', 1),
+                            fk_column=trigger_dict.get('fk_column')
+                        )
+
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
@@ -699,6 +728,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         decide_config=decide_config,
                         assign_config=assign_config,
                         create_config=create_config,
+                        trigger_config=trigger_config,
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
