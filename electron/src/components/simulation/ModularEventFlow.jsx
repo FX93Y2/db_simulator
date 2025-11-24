@@ -28,6 +28,7 @@ import {
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
 import useEventTables from '../../hooks/shared/useEventTables';
+import useRelatedEntityTables from '../../hooks/shared/useRelatedEntityTables';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
@@ -93,6 +94,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   // Use the custom hooks to get entity and event tables from database config
   const entityTables = useEntityTables(dbConfigContent);
   const eventTables = useEventTables(dbConfigContent);
+  const relatedEntityTables = useRelatedEntityTables(dbConfigContent);
 
   // Get project-specific store state when needed (non-reactive)
   const getStoreState = () => useSimulationConfigStore(projectId).getState();
@@ -553,6 +555,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         queueDefinitions={queueDefinitions}
         entityTables={entityTables}
         eventTables={eventTables}
+        relatedEntityTables={relatedEntityTables}
       />
       <CanvasContextMenu
         visible={contextMenu.visible}

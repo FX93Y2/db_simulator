@@ -304,14 +304,6 @@ const AttributeTable = ({
           />
         );
 
-      case 'none':
-      case undefined:
-        return (
-          <Form.Text className="text-muted">
-            This column will not be generated. Populate it manually via SQL assign steps during simulation.
-          </Form.Text>
-        );
-
       default:
         return null;
     }

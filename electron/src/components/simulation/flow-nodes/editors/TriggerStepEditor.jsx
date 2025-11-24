@@ -6,7 +6,7 @@ const TriggerStepEditor = ({
   formData,
   onFormDataChange,
   availableSteps,
-  availableEntityTables = [], // Entity tables from database config
+  availableTargetTables = [], // Related tables sourced from database config
   nameValidation = { valid: true, error: null }
 }) => {
   return (
@@ -28,14 +28,14 @@ const TriggerStepEditor = ({
               <Form.Label>
                 Target Table <span className="text-danger">*</span>
               </Form.Label>
-              {availableEntityTables.length > 0 ? (
+              {availableTargetTables.length > 0 ? (
                 <Form.Select
                   value={formData.target_table || ''}
                   onChange={(e) => onFormDataChange({ target_table: e.target.value })}
                   required
                 >
                   <option value="">Select target table...</option>
-                  {availableEntityTables.map((table) => (
+                  {availableTargetTables.map((table) => (
                     <option key={table} value={table}>{table}</option>
                   ))}
                 </Form.Select>

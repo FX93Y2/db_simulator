@@ -17,7 +17,7 @@ const convertOldDistributionToFormula = (distribution) => {
   return convertDistributionToFormula(distribution);
 };
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [] }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [], relatedEntityTables = {} }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -54,6 +54,34 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       initializeFormData(node.data.stepConfig);
     }
   }, [show, node, parsedSchema]);
+
+  const currentStepId = node?.data?.stepConfig?.step_id;
+
+  const flowEntityTable = React.useMemo(() => {
+    if (!currentStepId || !parsedSchema?.event_simulation?.event_flows) {
+      return null;
+    }
+
+    for (const flow of parsedSchema.event_simulation.event_flows) {
+      if (!flow?.steps) continue;
+      const containsStep = flow.steps.some(step => step.step_id === currentStepId);
+      if (!containsStep) continue;
+
+      const createStep = flow.steps.find(
+        step => step.step_type === 'create' && step.create_config?.entity_table
+      );
+      if (createStep?.create_config?.entity_table) {
+        return createStep.create_config.entity_table;
+      }
+    }
+
+    return null;
+  }, [currentStepId, parsedSchema]);
+
+  const availableTargetTables = React.useMemo(() => {
+    if (!flowEntityTable) return [];
+    return relatedEntityTables?.[flowEntityTable] || [];
+  }, [flowEntityTable, relatedEntityTables]);
 
   const initializeFormData = (stepConfig, nodeData = node) => {
     if (stepConfig.step_type === 'event') {
@@ -719,7 +747,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             formData={formData}
             onFormDataChange={handleFormDataChange}
             availableSteps={availableSteps}
-            availableEntityTables={entityTables}
+            availableTargetTables={availableTargetTables}
             nameValidation={nameValidation}
           />
         );
