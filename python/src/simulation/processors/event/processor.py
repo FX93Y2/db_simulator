@@ -150,7 +150,7 @@ class EventStepProcessor(StepProcessor):
                 
                 # Increment events processed counter for termination tracking
                 if self.simulator:
-                    self.simulator.increment_events_processed()
+                    self.simulator.initializer.processed_events += 1
                 
                 # Record event processing
                 self._record_event_processing(

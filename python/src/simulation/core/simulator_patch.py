@@ -1,5 +1,5 @@
 """
-Patch for simulator to handle graceful shutdown and resource cleanup
+Patch for simulator to handle shutdown and resource cleanup
 """
 
 import logging
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 class SimulatorShutdownMixin:
     """
-    Mixin to add graceful shutdown capabilities to the simulator
+    Mixin to add shutdown capabilities to the simulator
     """
     
     def __init__(self):

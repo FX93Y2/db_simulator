@@ -40,7 +40,7 @@ class TimeCondition(TerminationCondition):
     
     def evaluate(self, simulator) -> Tuple[bool, str]:
         from ...utils.time_units import TimeUnitConverter
-        current_time = TimeUnitConverter.from_minutes(simulator.env.now, simulator.config.base_time_unit)
+        current_time = TimeUnitConverter.from_minutes(simulator.initializer.env.now, simulator.config.base_time_unit)
         if current_time >= self.value:
             return True, f"max_time_reached ({current_time:.2f} {simulator.config.base_time_unit})"
         return False, ""
@@ -55,11 +55,19 @@ class EntitiesCondition(TerminationCondition):
     def evaluate(self, simulator) -> Tuple[bool, str]:
         if self.table_name and self.table_name != '*':
             # Count entities in specific table
-            entity_count = simulator._count_entities_in_table(self.table_name)
+            try:
+                from sqlalchemy import text
+                with simulator.initializer.engine.connect() as conn:
+                    sql_query = text(f'SELECT COUNT(*) FROM "{self.table_name}"')
+                    result = conn.execute(sql_query).fetchone()
+                    entity_count = result[0] if result else 0
+            except Exception as e:
+                logger.error(f"Error counting entities in table '{self.table_name}': {e}")
+                return False, ""
             condition_desc = f"{self.table_name} entities"
         else:
             # Count all entities
-            entity_count = simulator.entities_processed
+            entity_count = simulator.initializer.entities_processed
             condition_desc = "total entities"
         
         if entity_count >= self.value:
@@ -77,10 +85,10 @@ class EventsCondition(TerminationCondition):
         if self.table_name:
             # For now, we only support total events
             # Future enhancement: count events in specific table
-            event_count = simulator.processed_events
+            event_count = simulator.initializer.processed_events
             condition_desc = f"{self.table_name} events"
         else:
-            event_count = simulator.processed_events
+            event_count = simulator.initializer.processed_events
             condition_desc = "total events"
         
         if event_count >= self.value:

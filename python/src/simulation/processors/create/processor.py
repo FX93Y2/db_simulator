@@ -151,8 +151,8 @@ class CreateStepProcessor(StepProcessor):
                 return
             
             # Check termination conditions
-            if self.simulator:
-                should_terminate, reason = self.simulator._check_termination_conditions()
+            if self.simulator and self.simulator.termination_monitor:
+                should_terminate, reason = self.simulator.termination_monitor._check_termination_conditions()
                 if should_terminate:
                     logger.info(f"Create module {step.step_id} stopping - {reason}")
                     return
@@ -173,7 +173,7 @@ class CreateStepProcessor(StepProcessor):
                 if created_entity_id:
                     # Increment entities processed counter for termination tracking
                     if self.simulator:
-                        self.simulator.increment_entities_processed()
+                        self.simulator.initializer.entities_processed += 1
                     
                     # Route entity to first next step
                     first_next_step = step.next_steps[0]
