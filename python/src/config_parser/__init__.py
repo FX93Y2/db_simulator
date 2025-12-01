@@ -25,9 +25,6 @@ from .sim_parser import (
     EntityArrival,
     EventSimulation,
     ResourceRequirement,
-    WorkShifts,
-    ShiftPattern,
-    ResourceShift,
     TableSpecification,
     # New event flows components
     Condition,
@@ -128,9 +125,6 @@ __all__ = [
     'EntityArrival',
     'EventSimulation',
     'ResourceRequirement',
-    'WorkShifts',
-    'ShiftPattern',
-    'ResourceShift',
     'TableSpecification',
     # New event flows components
     'Condition',

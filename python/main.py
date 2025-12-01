@@ -1,6 +1,5 @@
 """
-Main entry point for DB Simulator Python backend.
-Provides APIs for Electron frontend integration.
+Main entry point for both API and CLI
 """
 
 import argparse
@@ -9,7 +8,7 @@ import sys
 import os
 
 # Import components from refactored structure
-from src.generator import generate_database, generate_database_for_simulation, generate_database_with_formula_support
+from src.generator import generate_database, generate_database_with_formula_support
 from src.simulation.core.runner import run_simulation, run_simulation_from_config_dir
 from config_storage.config_db import ConfigManager
 

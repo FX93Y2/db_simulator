@@ -18,7 +18,6 @@ class Generator:
     formula: Optional[str] = None        # Formula string support (e.g., "UNIF(3, 10)")
     expression: Optional[str] = None     # Expression string for formula type generators
     values: Optional[List] = None
-    weights: Optional[List[float]] = None
     subtype: Optional[str] = None  # Added for foreign_key generator support
 
 @dataclass
@@ -183,7 +182,6 @@ def parse_db_config(file_path: Union[str, Path]) -> DatabaseConfig:
                     formula=gen_dict.get('formula'),  # Support for formula field
                     expression=gen_dict.get('expression'),  # Support for expression field
                     values=gen_dict.get('values'),
-                    weights=gen_dict.get('weights'),
                     subtype=gen_dict.get('subtype')  # Support for foreign_key generator subtype
                 )
             
@@ -259,7 +257,6 @@ def parse_db_config_from_string(content: str) -> DatabaseConfig:
                     formula=gen_dict.get('formula'),
                     expression=gen_dict.get('expression'), 
                     values=gen_dict.get('values'),
-                    weights=gen_dict.get('weights'),
                     subtype=gen_dict.get('subtype')
                 )
             
