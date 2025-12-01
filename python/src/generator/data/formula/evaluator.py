@@ -39,7 +39,7 @@ class FormulaEvaluator:
             
             # Evaluate based on expression type
             result = None
-            if parsed.expression_type == 'sql':
+            if parsed.expression_type == 'sql' or substituted_expr.strip().upper().startswith("SELECT"):
                 result = self._evaluate_sql_expression(substituted_expr, parsed)
             elif parsed.expression_type == 'table_reference':
                 result = self._evaluate_table_reference(substituted_expr, parsed)

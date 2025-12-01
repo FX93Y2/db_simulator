@@ -61,7 +61,11 @@ class FormulaParser:
         variables = self._extract_variables(expression)
         
         # Determine expression type and convert to SQL if needed
-        if self.sql_pattern.search(expression):
+        expr_upper = expression.upper().lstrip()
+        if expr_upper.startswith("SELECT") or " SELECT " in expr_upper:
+            expression_type = 'sql'
+            sql_query = expression
+        elif self.sql_pattern.search(expression):
             expression_type = 'sql'
             sql_query = expression
         elif self.table_ref_pattern.search(expression):
