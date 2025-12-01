@@ -16,52 +16,6 @@ from .simulator import EventSimulator
 
 logger = logging.getLogger(__name__)
 
-def run_simulation(sim_config_path_or_content: Union[str, Path], 
-                   db_config_path_or_content: Union[str, Path], 
-                   db_path: Union[str, Path]) -> Dict[str, Any]:
-    """
-    Run a simulation based on configuration
-    
-    Args:
-        sim_config_path_or_content: Path to the simulation configuration file or YAML content string
-        db_config_path_or_content: Path to the database configuration file or YAML content string.
-        db_path: Path to the SQLite database
-        
-    Returns:
-        Dictionary with simulation results
-    """
-    # Parse simulation configuration
-    sim_config = None
-    # Parse database configuration first
-    db_config = None
-    if isinstance(db_config_path_or_content, (str, Path)) and os.path.exists(db_config_path_or_content) and os.path.isfile(db_config_path_or_content):
-        logger.info(f"Parsing database config file: {db_config_path_or_content}")
-        db_config = parse_db_config(db_config_path_or_content)
-    elif isinstance(db_config_path_or_content, str):
-        logger.info("Parsing database config from content string")
-        db_config = parse_db_config_from_string(db_config_path_or_content)
-    else:
-        raise ValueError("Invalid db_config_path_or_content provided.")
-        
-    # Parse simulation configuration with database config
-    sim_config = None
-    if isinstance(sim_config_path_or_content, (str, Path)) and os.path.exists(sim_config_path_or_content) and os.path.isfile(sim_config_path_or_content):
-        logger.info(f"Parsing simulation config file: {sim_config_path_or_content}")
-        sim_config = parse_sim_config(sim_config_path_or_content, db_config)
-    elif isinstance(sim_config_path_or_content, str):
-        logger.info("Parsing simulation config from content string")
-        sim_config = parse_sim_config_from_string(sim_config_path_or_content, db_config)
-    else:
-        raise ValueError("Invalid sim_config_path_or_content provided.")
-    
-    # Create and run simulator
-    logger.info("Initializing EventSimulator...")
-    simulator = EventSimulator(config=sim_config, db_config=db_config, db_path=db_path)
-    results = simulator.run()
-    
-    logger.info(f"Simulation completed: {results}")
-    return results
-
 def ensure_simulation_tables(sim_config, db_path: Union[str, Path], db_config=None):
     """
     Ensure that the necessary tables for simulation exist in the database
@@ -176,7 +130,7 @@ def run_simulation(sim_config_path_or_content: Union[str, Path],
                    db_config_path_or_content: Union[str, Path],
                    db_path: Union[str, Path]) -> Dict[str, Any]:
     """
-    Run a simulation based on configuration
+    Run a simulation based on configuration, ensuring required tables exist.
     
     Args:
         sim_config_path_or_content: Path to the simulation configuration file or YAML content string
