@@ -1,12 +1,4 @@
-"""
-Refactored simulation engine for DB Simulator.
-
-This module implements the event-based simulation functionality 
-using SimPy to model resource allocation and scheduling.
-
-This refactored version uses a modular architecture with separate
-modules for initialization, execution, and lifecycle management.
-"""
+"""SimPy-based simulator that runs configured flows and resources."""
 
 import logging
 from typing import Dict, Any
@@ -21,27 +13,20 @@ logger = logging.getLogger(__name__)
 
 class EventSimulator:
     """
-    Event-based simulator for processing entities through a sequence of events
+    SimPy simulator that runs flows, allocates resources, and gathers metrics.
     
-    The simulator uses SimPy to model the discrete event simulation, where:
-    - Entities (e.g., Projects, Patients) arrive according to a configured pattern
-    - Events (e.g., Deliverables, Treatments) are processed in primary key order
-    - Resources (e.g., Consultants, Doctors) are allocated to complete events
-    
-    This refactored version delegates responsibilities to specialized modules:
-    - Initialization: SimulatorInitializer, FlowEventTrackerSetup, ResourceInitializer
-    - Execution: FlowManager, StepExecutor, EntityRouter
-    - Lifecycle: TerminationMonitor, DatabaseCleanup, MetricsCollector
+    Delegates setup to initializer/tracker/resource helpers, executes via FlowManager,
+    and wraps termination/metrics/cleanup.
     """
-    
+
     def __init__(self, config: SimulationConfig, db_config: DatabaseConfig, db_path: str):
         """
-        Initialize the simulator
+        Wire up configs and build all subcomponents.
         
         Args:
-            config: Simulation configuration
-            db_config: Database configuration (for generators)
-            db_path: Path to the SQLite database
+            config: Parsed simulation config.
+            db_config: Parsed database config.
+            db_path: Path to the SQLite database.
         """
         self.config = config
         self.db_config = db_config
@@ -63,7 +48,7 @@ class EventSimulator:
         self._initialize_all_components()
     
     def _initialize_all_components(self):
-        """Initialize all simulation components using the modular architecture."""
+        """Set up env, DB engine, managers, processors, trackers, and lifecycle hooks."""
         # Initialize core SimPy environment and database
         self.initializer.initialize_environment()
         self.initializer.initialize_database_engine()
@@ -102,10 +87,10 @@ class EventSimulator:
     
     def run(self) -> Dict[str, Any]:
         """
-        Run the simulation
+        Run the simulation and return final metrics/results.
         
         Returns:
-            Dictionary with simulation results
+            Dict with termination reason and collected metrics.
         """
         try:
             # Set random seed again to ensure consistency
@@ -143,7 +128,7 @@ class EventSimulator:
             self._cleanup_database_connections()
     
     def _cleanup_remaining_resources(self):
-        """Clean up any remaining allocated resources."""
+        """Release any resources still allocated."""
         if hasattr(self.initializer.resource_manager, 'event_allocations'):
             remaining_allocations = list(self.initializer.resource_manager.event_allocations.keys())
             if remaining_allocations:
@@ -155,7 +140,7 @@ class EventSimulator:
                         logger.debug(f"Error releasing resources for event {event_id}: {e}")
     
     def _cleanup_database_connections(self):
-        """Clean up all database connections using the cleanup handler."""
+        """Dispose DB connections/engines via cleanup handler."""
         self.cleanup_handler.cleanup_database_connections(
             self.initializer.engine,
             self.initializer.entity_manager.event_tracker if hasattr(self.initializer.entity_manager, 'event_tracker') else None,

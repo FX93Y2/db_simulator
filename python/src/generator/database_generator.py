@@ -1,8 +1,6 @@
 """
-Database generator using SQLAlchemy
-
-Creates database tables and relationships based on configuration,
-and populates them with synthetic data.
+Database generator using SQLAlchemy.
+Builds tables/relationships from config and fills them with synthetic data.
 """
 
 import os
@@ -25,18 +23,10 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseGenerator:
-    def __init__(self, config: DatabaseConfig, output_dir: str = "output", 
-                 dynamic_entity_tables: Optional[List[str]] = None, 
+    def __init__(self, config: DatabaseConfig, output_dir: str = "output",
+                 dynamic_entity_tables: Optional[List[str]] = None,
                  sim_config: Optional[SimulationConfig] = None):
-        """
-        Initialize database generator
-        
-        Args:
-            config: Database configuration
-            output_dir: Directory to store generated database
-            dynamic_entity_tables: List of tables to skip during population
-            sim_config: Simulation configuration for attribute analysis
-        """
+        """Initialize generator with configs and destination."""
         self.config = config
         self.sim_config = sim_config
         self.output_dir = output_dir
@@ -53,21 +43,13 @@ class DatabaseGenerator:
         os.makedirs(output_dir, exist_ok=True)
     
     def generate(self, db_name: Optional[str] = None) -> str:
-        """
-        Generate database based on configuration
-        
-        Args:
-            db_name: Name of the database file (without path or extension)
-            
-        Returns:
-            Path to the generated database file (absolute path)
-        """
-        # Generate database name if not provided
+        """Create database file and populate it."""
+        # Pick a name if not provided
         if not db_name:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             db_name = f"generated_db_{timestamp}"
         
-        # Ensure output directory exists with detailed logging
+        # Ensure output directory exists
         try:
             os.makedirs(self.output_dir, exist_ok=True)
             logger.info(f"Ensured output directory exists: {self.output_dir}")
@@ -83,7 +65,7 @@ class DatabaseGenerator:
             self.output_dir = alt_dir
             os.makedirs(self.output_dir, exist_ok=True)
         
-        # Create database file path (ensure it's absolute)
+        # Build absolute db path
         if os.path.isabs(self.output_dir):
             db_path = os.path.join(self.output_dir, f"{db_name}.db")
         else:
@@ -91,7 +73,7 @@ class DatabaseGenerator:
         
         logger.info(f"Generating database at absolute path: {db_path}")
         
-        # Delete the file if it already exists to ensure we start fresh
+        # Start from a clean file
         if not safe_delete_sqlite_file(db_path):
             logger.warning(f"Could not delete existing database file, continuing anyway: {db_path}")
         
@@ -101,7 +83,7 @@ class DatabaseGenerator:
         
         # Analyze simulation config for flow-specific attributes
         flow_attributes = self.simulation_analyzer.analyze_simulation_attributes()
-        # Also compute union-by-entity attribute names for generation-time nulling
+        # Attributes set during flows stay NULL at generation time
         entity_assigned_attrs = self.simulation_analyzer.get_entity_attribute_names_map(flow_attributes)
         
         # Create tables
@@ -124,7 +106,7 @@ class DatabaseGenerator:
         self.session.commit()
         self.session.close()
         
-        # Ensure database engine is properly closed for safe file operations
+        # Dispose engine for safe file operations
         ensure_database_closed(self.engine)
         
         # Verify the database file exists and is not empty
@@ -133,12 +115,7 @@ class DatabaseGenerator:
         return db_path
     
     def _verify_database(self, db_path: str):
-        """
-        Verify the database file was created successfully
-        
-        Args:
-            db_path: Path to the database file
-        """
+        """Basic existence/table check for the generated DB."""
         if not os.path.exists(db_path):
             logger.error(f"Database file was not created at expected path: {db_path}")
             

@@ -1,9 +1,4 @@
-"""
-Termination monitoring logic for the simulation engine.
-
-This module handles the monitoring of termination conditions and
-graceful shutdown of the simulation when conditions are met.
-"""
+"""Monitor termination conditions and stop the simulation when met."""
 
 import logging
 from typing import Tuple, Optional, TYPE_CHECKING
@@ -16,22 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 class TerminationMonitor:
-    """
-    Monitors termination conditions and manages simulation shutdown.
-    
-    This class runs as a separate SimPy process to continuously monitor
-    termination conditions and gracefully shut down the simulation when
-    conditions are met.
-    """
-    
+    """SimPy process that watches termination conditions and stops the run."""
+
     def __init__(self, env: simpy.Environment, initializer: 'SimulatorInitializer', simulator_ref):
         """
-        Initialize the termination monitor.
-        
         Args:
-            env: SimPy environment
-            initializer: Simulator initializer containing termination system
-            simulator_ref: Reference to main simulator for condition checking
+            env: SimPy environment.
+            initializer: Simulator initializer containing termination system.
+            simulator_ref: Reference to main simulator for condition checking.
         """
         self.env = env
         self.initializer = initializer
@@ -41,17 +28,15 @@ class TerminationMonitor:
     def start_monitoring(self):
         """
         Start the termination monitoring process.
-        
+
         Returns:
-            SimPy process for termination monitoring
+            SimPy process for termination monitoring.
         """
         return self.env.process(self._monitor_termination_conditions())
     
     def _monitor_termination_conditions(self):
         """
         Monitor termination conditions and stop simulation when any condition is met.
-        
-        This runs as a SimPy process and checks termination conditions periodically.
         """
         # Check every simulated minute
         check_interval = 1.0
@@ -82,7 +67,7 @@ class TerminationMonitor:
         Check if termination condition is met using formula evaluator.
         
         Returns:
-            Tuple of (should_terminate, reason)
+            Tuple of (should_terminate, reason).
         """
         if not self.initializer.termination_condition:
             return False, None
@@ -104,6 +89,6 @@ class TerminationMonitor:
         Get the reason for termination.
         
         Returns:
-            Termination reason string or None if not terminated
+            Termination reason string or None if not terminated.
         """
         return self.termination_reason

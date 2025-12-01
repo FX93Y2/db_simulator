@@ -4,7 +4,6 @@ Formula expression parser.
 Parses formula expressions like:
 - MIN(SELECT created_at FROM Ticket WHERE submitter_id = @id)
 - MAX(Ticket[submitter_id == @id].created_at) - DAYS(30)
-- COUNT(Orders WHERE customer_id = @id) * 10
 """
 
 import re
@@ -141,11 +140,6 @@ class FormulaParser:
     def _convert_table_reference_to_sql(self, expression: str) -> str:
         """
         Convert table reference syntax to SQL.
-        
-        Example:
-        MIN(Ticket[submitter_id == @id].created_at) - DAYS(30)
-        becomes:
-        MIN(SELECT created_at FROM Ticket WHERE submitter_id = @id) - DAYS(30)
         """
         # Find table reference patterns
         def replace_table_ref(match):

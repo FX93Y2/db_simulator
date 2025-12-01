@@ -1,8 +1,5 @@
 """
-Execution module for simulation engine.
-
-This module handles the execution and flow control logic for the simulation engine,
-including flow management, step execution, and entity routing.
+Execution module for simulation engine
 """
 
 from .flow_manager import FlowManager

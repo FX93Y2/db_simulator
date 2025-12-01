@@ -1,8 +1,5 @@
 """
 Entity routing logic for the simulation engine.
-
-This module handles the routing of entities through simulation flows,
-including initial routing from create modules and step-to-step routing.
 """
 
 import logging

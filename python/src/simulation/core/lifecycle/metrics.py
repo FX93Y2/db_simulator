@@ -1,9 +1,4 @@
-"""
-Metrics collection and results generation for the simulation engine.
-
-This module handles the collection of simulation metrics and
-generation of final results for the simulation run.
-"""
+"""Collect simulation metrics and prepare final results."""
 
 import logging
 from typing import Dict, Any, Optional, TYPE_CHECKING
@@ -17,21 +12,14 @@ logger = logging.getLogger(__name__)
 
 
 class MetricsCollector:
-    """
-    Collects simulation metrics and generates results.
-    
-    This class handles the collection of various simulation metrics
-    including resource utilization, entity statistics, and timing data.
-    """
-    
+    """Collects resource/entity/queue stats and timing/termination info."""
+
     def __init__(self, config: 'SimulationConfig', env, initializer):
         """
-        Initialize the metrics collector.
-        
         Args:
-            config: Simulation configuration
-            env: SimPy environment
-            initializer: Simulator initializer with tracking data
+            config: Simulation configuration.
+            env: SimPy environment.
+            initializer: Simulator initializer with tracking data.
         """
         self.config = config
         self.env = env
@@ -42,10 +30,10 @@ class MetricsCollector:
         Collect final simulation results and metrics.
         
         Args:
-            termination_reason: Reason for simulation termination
+            termination_reason: Reason for simulation termination.
             
         Returns:
-            Dictionary containing all simulation results
+            Dictionary containing all simulation results.
         """
         try:
             # Import here to avoid circular imports
@@ -106,7 +94,7 @@ class MetricsCollector:
         Get current resource utilization statistics.
         
         Returns:
-            Dictionary containing resource utilization data
+            Dictionary containing resource utilization data.
         """
         try:
             if hasattr(self.initializer, 'resource_manager') and self.initializer.resource_manager:
@@ -121,7 +109,7 @@ class MetricsCollector:
         Get current entity attribute statistics.
 
         Returns:
-            Dictionary containing entity attribute statistics
+            Dictionary containing entity attribute statistics.
         """
         try:
             if hasattr(self.initializer, 'entity_attribute_manager') and self.initializer.entity_attribute_manager:
@@ -136,7 +124,7 @@ class MetricsCollector:
         Get current queue statistics.
 
         Returns:
-            Dictionary containing queue statistics
+            Dictionary containing queue statistics.
         """
         try:
             if hasattr(self.initializer, 'queue_manager') and self.initializer.queue_manager:

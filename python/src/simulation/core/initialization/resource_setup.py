@@ -1,9 +1,4 @@
-"""
-Resource initialization logic for the simulation engine.
-
-This module handles the setup and initialization of resources
-for the simulation engine.
-"""
+"""Set up simulation resources via the resource manager."""
 
 import logging
 from typing import Dict, Any
@@ -14,20 +9,13 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceInitializer:
-    """
-    Handles resource initialization for the simulation.
-    
-    This class manages the setup of resources and resource-related
-    components for the simulation engine.
-    """
-    
+    """Sets up resources and exposes basic status."""
+
     def __init__(self, resource_manager, config: SimulationConfig):
         """
-        Initialize the resource initializer.
-        
         Args:
-            resource_manager: Resource manager instance
-            config: Simulation configuration
+            resource_manager: Resource manager instance.
+            config: Simulation configuration.
         """
         self.resource_manager = resource_manager
         self.config = config
@@ -51,7 +39,7 @@ class ResourceInitializer:
         Get the current status of all resources.
         
         Returns:
-            Dictionary containing resource status information
+            Dictionary containing resource status information.
         """
         try:
             return self.resource_manager.get_utilization_stats()

@@ -1,9 +1,4 @@
-"""
-Flow-specific EventTracker setup logic.
-
-This module handles the initialization of flow-specific EventTracker instances
-for each event flow in the simulation configuration.
-"""
+"""Create EventTrackers per flow for resource/event logging."""
 
 import logging
 from typing import Dict, Optional
@@ -15,21 +10,14 @@ logger = logging.getLogger(__name__)
 
 
 class FlowEventTrackerSetup:
-    """
-    Handles the setup of flow-specific EventTracker instances.
-    
-    This class was extracted from the main EventSimulator to centralize
-    the complex logic for creating and managing flow-specific trackers.
-    """
-    
+    """Creates flow-scoped EventTrackers."""
+
     def __init__(self, db_path: str, config: SimulationConfig, db_config: DatabaseConfig):
         """
-        Initialize the tracker setup handler.
-        
         Args:
-            db_path: Database path
-            config: Simulation configuration
-            db_config: Database configuration
+            db_path: Database path.
+            config: Simulation configuration.
+            db_config: Database configuration.
         """
         self.db_path = db_path
         self.config = config
@@ -37,10 +25,10 @@ class FlowEventTrackerSetup:
     
     def initialize_flow_event_trackers(self) -> Dict[str, EventTracker]:
         """
-        Initialize flow-specific EventTracker instances for each flow.
-        
+        Build EventTrackers per flow if possible.
+
         Returns:
-            Dictionary mapping flow_id to EventTracker instance
+            Map flow_id -> EventTracker.
         """
         flow_trackers = {}
         
@@ -89,9 +77,9 @@ class FlowEventTrackerSetup:
     def _get_resource_table_name(self) -> Optional[str]:
         """
         Get the resource table name from configuration.
-        
+
         Returns:
-            Resource table name or None if not found
+            Resource table name or None if not found.
         """
         if self.config.event_simulation.table_specification:
             return self.config.event_simulation.table_specification.resource_table
@@ -104,10 +92,10 @@ class FlowEventTrackerSetup:
     
     def _get_flows_from_config(self):
         """
-        Get flows from configuration, handling both new and legacy structures.
-        
+        Get flows from configuration (new and legacy structures).
+
         Returns:
-            List of flows
+            List of flows.
         """
         return (self.config.event_simulation.event_flows.flows 
                 if hasattr(self.config.event_simulation.event_flows, 'flows') 
@@ -118,11 +106,11 @@ class FlowEventTrackerSetup:
         Find the bridge table configuration for a specific event table.
         
         Args:
-            event_table_name: Name of the event table for this flow
-            resource_table_name: Name of the resource table (shared)
+            event_table_name: Name of the event table for this flow.
+            resource_table_name: Name of the resource table (shared).
             
         Returns:
-            Bridge table configuration dict or None if not found
+            Bridge table configuration dict or None if not found.
         """
         if not self.db_config:
             return None

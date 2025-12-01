@@ -15,35 +15,16 @@ logger = logging.getLogger(__name__)
 def generate_fake_data(method: str, size: Optional[int] = None) -> Any:
     """
     Generate fake data using Faker.js via PyMiniRacer.
-    
-    This function provides access to the full Faker.js library including:
-    - person.fullName(), person.firstName(), person.lastName()
-    - internet.email(), internet.userName(), internet.url()
-    - company.name(), company.catchPhrase()
-    - book.title(), book.author(), book.genre()
-    - music.album(), music.artist(), music.songName()
-    - location.city(), location.country()
-    - And 500+ more methods
-    
+    This function provides access to the full Faker.js library
     Args:
         method: Faker.js method path (e.g., "book.title", "person.fullName")
         size: Optional size for generating arrays of data
         
     Returns:
-        Generated fake data (single value or list if size specified)
+        Generated fake data
         
-    Examples:
-        >>> generate_fake_data("book.title")
-        'The Great Gatsby'
-        
-        >>> generate_fake_data("person.fullName", size=3)
-        ['John Doe', 'Jane Smith', 'Bob Johnson']
-        
-        >>> generate_fake_data("internet.email")
-        'john.doe@example.com'
-        
-        >>> generate_fake_data("company.name")
-        'Acme Corporation'
+    Refer to Faker.js' official API documentation for syntax
+    https://fakerjs.dev/api/
     """
     try:
         engine = get_faker_engine()

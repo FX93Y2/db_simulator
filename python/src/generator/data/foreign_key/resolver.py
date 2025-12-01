@@ -2,9 +2,7 @@
 Foreign key relationship handling for database generation.
 
 This module provides utilities for selecting foreign key values using formula-based 
-distributions. The key concept is that formulas work with POSITIONAL INDICES into 
-the parent ID list, not the actual ID values themselves.
-
+distributions.
 ## Formula Interpretation:
 
 Formulas like UNIF(1, 20) mean "select uniformly from the 1st through 20th parent records",
@@ -14,7 +12,7 @@ NOT "select parent records with IDs between 1 and 20".
 
 ### Example: UUID String IDs
 ```python
-# Parent table has UUIDs: ['abc-123', 'def-456', 'ghi-789', ...]
+# Parent table has UUIDs: ['abc-123', 'def-456'...]
 # Formula: UNIF(1, 5)
 # Result: Selects from positions 1-5 → first 5 UUIDs
 
@@ -38,31 +36,6 @@ class ForeignKeyResolver:
         pass
     
     def select_parent_id(self, parent_ids: List[Any], formula: Optional[str] = None) -> Any:
-        """
-        Select a parent ID based on a distribution formula.
-        
-        IMPORTANT: This method uses INDEX-BASED MAPPING, not direct ID selection!
-        This is a FEATURE that allows foreign keys to work with ANY primary key type.
-        
-        How it works:
-        - UNIF(1, N) means "uniformly select from position 1 to position N in the parent table"
-        - Position 1 maps to parent_ids[0], position N maps to parent_ids[N-1]
-        - This works regardless of what the actual ID values are
-        
-        Examples:
-            Sequential IDs [1, 2, 3, 4, 5]:
-            UNIF(1, 5) -> positions 1-5 -> selects from all 5 IDs
-                
-            UUID IDs ['abc-123', 'def-456', 'ghi-789']:
-                UNIF(1, 3) -> positions 1-3 -> selects from all 3 IDs
-        
-        Args:
-            parent_ids: List of available parent IDs (can be any type)
-            formula: Distribution formula (e.g., "UNIF(1, 40)" for positions 1-40)
-            
-        Returns:
-            Selected parent ID from the list
-        """
         if not parent_ids:
             return None
             
@@ -72,15 +45,9 @@ class ForeignKeyResolver:
         
         try:
             from ....distributions import generate_from_distribution
-            
-            # Check formula type for appropriate handling
             formula_upper = formula.upper().strip()
             
-            if formula_upper.startswith('UNIF('):
-                # IMPORTANT: INDEX-BASED MAPPING
-                # The formula specifies POSITIONS (1-based), not actual ID values
-                # This allows us to work with any primary key type
-                
+            if formula_upper.startswith('UNIF('):    
                 # Generate position value (1-based, inclusive)
                 value = generate_from_distribution(formula)
                 
@@ -96,12 +63,9 @@ class ForeignKeyResolver:
                     # Return the ID at this position
                     return parent_ids[index_0based]
                 else:
-                    # If somehow not numeric, fall back to random
                     return random.choice(parent_ids)
                     
             elif formula_upper.startswith('DISC('):
-                # For discrete distributions, the formula should specify actual parent IDs as values
-                # e.g., DISC(0.7, 1, 0.3, 2) where 1 and 2 are actual parent IDs
                 value = generate_from_distribution(formula)
                 
                 # Check if the generated value is in our parent_ids list
@@ -113,11 +77,9 @@ class ForeignKeyResolver:
                     return random.choice(parent_ids)
             
             else:
-                # For other distribution types (NORM, POIS, etc.), map to indices
                 value = generate_from_distribution(formula)
                 
                 if isinstance(value, (int, float)):
-                    # Map numeric value to index using modulo to ensure valid range
                     index = int(abs(value)) % len(parent_ids)
                     return parent_ids[index]
                 else:

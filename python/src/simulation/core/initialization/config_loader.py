@@ -1,9 +1,4 @@
-"""
-Configuration initialization logic for the simulation engine.
-
-This module handles the initialization of simulation configuration, 
-database connections, and core simulation components.
-"""
+"""Set up simulation env, DB engine, managers, and termination system."""
 
 import logging
 import random
@@ -25,21 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 class SimulatorInitializer:
-    """
-    Handles the initialization of simulation components.
-    
-    This class centralizes all initialization logic that was previously
-    scattered throughout the main EventSimulator class.
-    """
-    
+    """Builds all core simulation components."""
+
     def __init__(self, config: SimulationConfig, db_config: DatabaseConfig, db_path: str):
         """
-        Initialize the simulator components.
+        Store configs/paths and prepare holders for components.
         
         Args:
-            config: Simulation configuration
-            db_config: Database configuration (for generators)
-            db_path: Path to the SQLite database
+            config: Parsed simulation config.
+            db_config: Parsed database config.
+            db_path: Path to the SQLite database.
         """
         self.config = config
         self.db_config = db_config
@@ -66,10 +56,10 @@ class SimulatorInitializer:
     
     def initialize_environment(self) -> simpy.Environment:
         """
-        Initialize the SimPy environment.
+        Create SimPy env.
         
         Returns:
-            SimPy environment instance
+            SimPy environment instance.
         """
         self.env = simpy.Environment()
         logger.debug("Initialized SimPy environment")
@@ -77,13 +67,11 @@ class SimulatorInitializer:
     
     def initialize_database_engine(self):
         """
-        Initialize the SQLAlchemy database engine.
+        Create SQLAlchemy engine (WAL + NullPool for SQLite).
         
         Returns:
-            SQLAlchemy engine instance
+            SQLAlchemy engine.
         """
-        # Use NullPool to avoid connection pool issues with SQLite
-        # and enable WAL journal mode for better concurrency
         self.engine = create_engine(
             f"sqlite:///{self.db_path}?journal_mode=WAL",
             poolclass=NullPool
@@ -92,16 +80,14 @@ class SimulatorInitializer:
         return self.engine
     
     def initialize_random_seed(self):
-        """Initialize random seed if provided in configuration."""
+        """Set random seeds if config provides one."""
         if self.config.random_seed is not None:
             random.seed(self.config.random_seed)
             np.random.seed(self.config.random_seed)
             logger.debug(f"Set random seed to: {self.config.random_seed}")
     
     def initialize_termination_system(self):
-        """
-        Initialize the termination condition system.
-        """
+        """Parse termination formula or fall back to long-running default."""
         self.termination_parser = TerminationFormulaParser()
         self.termination_evaluator = TerminationFormulaEvaluator()
 
@@ -119,12 +105,7 @@ class SimulatorInitializer:
             self.termination_condition = self.termination_parser.parse("TIME(999999)")
 
     def initialize_queue_manager(self):
-        """
-        Initialize the queue manager with queue definitions from configuration.
-
-        Queues are optional - if no queues are defined, QueueManager will be created
-        with an empty queue list and resource allocation will use default behavior.
-        """
+        """Build queue manager (queues optional)."""
         queue_definitions = []
 
         # Extract queue definitions from event_simulation config
@@ -149,10 +130,10 @@ class SimulatorInitializer:
     
     def initialize_managers(self, flow_event_trackers: Dict):
         """
-        Initialize all manager components.
-
+        Instantiate managers (queue, resource, entity, attributes).
+        
         Args:
-            flow_event_trackers: Dictionary of flow-specific event trackers
+            flow_event_trackers: Flow-specific trackers to hand to managers.
         """
         # Initialize queue manager first (needed by resource manager)
         self.initialize_queue_manager()
@@ -175,10 +156,10 @@ class SimulatorInitializer:
     
     def initialize_step_processor_factory(self, simulator_ref):
         """
-        Initialize the step processor factory.
-
+        Create step processor factory.
+        
         Args:
-            simulator_ref: Reference to the main simulator instance
+            simulator_ref: Reference to main simulator for callbacks.
         """
         # Get the default event tracker for backward compatibility
         event_tracker = self.entity_manager.event_tracker if hasattr(self.entity_manager, 'event_tracker') else None

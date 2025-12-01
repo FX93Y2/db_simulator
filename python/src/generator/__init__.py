@@ -77,7 +77,7 @@ def _generate_database_internal(config_path_or_content, output_dir, db_name, pro
     else:
         logger.info(f"Using provided database name: {db_name}")
 
-    # Strip .db extension if present
+    # Strip .db extension if used
     if db_name.endswith('.db'):
         db_name = db_name[:-3]
         logger.info(f"Removed .db extension from database name: {db_name}")

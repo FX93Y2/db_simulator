@@ -1,9 +1,4 @@
-"""
-Flow management and entry point handling for the simulation engine.
-
-This module manages the flow entry points, entity creation processes,
-and flow-based execution logic.
-"""
+"""Manage flow entry points and start entity creation processes."""
 
 import logging
 from typing import List, Dict, Optional, TYPE_CHECKING
@@ -16,24 +11,17 @@ logger = logging.getLogger(__name__)
 
 
 class FlowManager:
-    """
-    Manages flow entry points and flow-based execution.
-    
-    This class handles the identification and startup of entry point modules
-    (like Create modules) and manages the overall flow execution.
-    """
+    """Finds flow entry points (Create) and starts their processes."""
     
     def __init__(self, env: simpy.Environment, config: 'SimulationConfig', 
                  step_processor_factory, flow_event_trackers: Dict, entity_manager):
         """
-        Initialize the flow manager.
-        
         Args:
-            env: SimPy environment
-            config: Simulation configuration
-            step_processor_factory: Factory for step processors
-            flow_event_trackers: Dictionary of flow-specific event trackers
-            entity_manager: Entity manager instance
+            env: SimPy environment.
+            config: Simulation configuration.
+            step_processor_factory: Factory for step processors.
+            flow_event_trackers: Flow-specific trackers.
+            entity_manager: Entity manager instance.
         """
         self.env = env
         self.config = config
@@ -43,10 +31,7 @@ class FlowManager:
     
     def start_create_modules(self):
         """
-        Start all entry point modules found in event flows.
-        
-        This method automatically detects entry point modules (Create, Batch, etc.)
-        and starts them as concurrent SimPy processes to generate entities dynamically.
+        Find Create steps in flows and start them as SimPy processes.
         """
         event_sim = self.config.event_simulation
         if not event_sim or not event_sim.event_flows or not event_sim.event_flows.flows:
@@ -87,17 +72,13 @@ class FlowManager:
     
     def _find_flow_entry_points(self, flow: 'EventFlow') -> List[str]:
         """
-        Find entry point steps for a flow based on step types.
-        
-        Entry point steps are those that can start entity processing:
-        - 'create': Create modules that generate entities
-        - 'batch': Future batch arrival modules (not yet implemented)
+        Find steps that can start entity processing (currently create/batch).
         
         Args:
-            flow: Event flow to analyze
+            flow: Event flow to analyze.
             
         Returns:
-            List of step IDs that are entry points
+            List of step IDs that are entry points.
         """
         entry_points = []
         entry_point_types = ['create', 'batch']  # Extensible for future module types
@@ -114,8 +95,8 @@ class FlowManager:
         Run a Create module as a SimPy process.
         
         Args:
-            create_step: The Create step configuration
-            flow: The event flow containing this Create step
+            create_step: The Create step configuration.
+            flow: The event flow containing this Create step.
         """
         try:
             # Get flow-specific tables
@@ -155,14 +136,12 @@ class FlowManager:
         """
         Callback method for Create processors to route entities to their initial steps.
         
-        This method integrates with the simulator's main processing system.
-        
         Args:
-            entity_id: ID of the created entity
-            initial_step_id: ID of the initial step to route to  
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
+            entity_id: ID of the created entity.
+            initial_step_id: ID of the initial step to route to.
+            flow: Event flow configuration.
+            entity_table: Name of the entity table.
+            event_table: Name of the event table.
         """
         try:
             # Find the initial step in the flow

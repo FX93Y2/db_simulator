@@ -1,8 +1,5 @@
 """
 Template-based data generation for database entities.
-
-This module provides template string processing with variable substitution
-and support for special functions like random selection from lists.
 """
 
 import re
@@ -24,16 +21,6 @@ def generate_from_template(template: str, context: Dict[str, Any], size: Optiona
         
     Returns:
         Generated data from template
-        
-    Examples:
-        # Basic variable substitution
-        generate_from_template("user_{id}", {"id": 123})  # Returns "user_123"
-        
-        # Random selection from list
-        generate_from_template("priority_{random_high,medium,low}", {})  # Returns e.g. "priority_medium"
-        
-        # Array generation
-        generate_from_template("item_{id}", {"id": 1}, size=3)  # Returns ["item_1", "item_1", "item_1"]
     """
     if size is not None:
         return [generate_from_template(template, context) for _ in range(size)]

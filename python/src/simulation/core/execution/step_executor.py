@@ -1,9 +1,4 @@
-"""
-Step execution logic for the simulation engine.
-
-This module handles the execution of individual steps in event flows,
-including step processing and flow continuation.
-"""
+"""Execute individual steps in flows and route to the next step."""
 
 import logging
 from typing import Dict, Optional, TYPE_CHECKING
@@ -16,21 +11,14 @@ logger = logging.getLogger(__name__)
 
 
 class StepExecutor:
-    """
-    Handles the execution of individual simulation steps.
-    
-    This class manages step processing using the step processor factory
-    and coordinates flow continuation between steps.
-    """
+    """Runs a step via processors and continues flow routing."""
     
     def __init__(self, env: simpy.Environment, step_processor_factory, flow_event_trackers: Dict):
         """
-        Initialize the step executor.
-        
         Args:
-            env: SimPy environment
-            step_processor_factory: Factory for step processors
-            flow_event_trackers: Dictionary of flow-specific event trackers
+            env: SimPy environment.
+            step_processor_factory: Factory for step processors.
+            flow_event_trackers: Flow-specific event trackers.
         """
         self.env = env
         self.step_processor_factory = step_processor_factory
@@ -39,14 +27,14 @@ class StepExecutor:
     def process_step(self, entity_id: int, step_id: str, flow: 'EventFlow', 
                     entity_table: str, event_table: str):
         """
-        Process a step in the event flow using modular step processors.
-        
+        Process a step using processors, then route to next if provided.
+
         Args:
-            entity_id: Entity ID
-            step_id: Current step ID
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_table: Name of the event table
+            entity_id: Entity ID.
+            step_id: Current step ID.
+            flow: Event flow configuration.
+            entity_table: Name of the entity table.
+            event_table: Name of the event table.
         """
         step = self._find_step_by_id(step_id, flow)
         if not step:
@@ -81,11 +69,11 @@ class StepExecutor:
         Find a step by its ID within a flow
         
         Args:
-            step_id: Step ID to find
-            flow: Event flow to search in
+            step_id: Step ID to find.
+            flow: Event flow to search in.
             
         Returns:
-            Step object or None if not found
+            Step object or None if not found.
         """
         for step in flow.steps:
             if step.step_id == step_id:

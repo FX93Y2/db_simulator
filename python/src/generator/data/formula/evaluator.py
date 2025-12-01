@@ -1,8 +1,6 @@
 """
 Formula expression evaluator.
-
-Evaluates parsed formula expressions by executing SQL queries
-and performing calculations with the results.
+Runs parsed formulas using SQL and basic arithmetic/date helpers.
 """
 
 import re
@@ -22,26 +20,11 @@ class FormulaEvaluator:
     """Evaluates formula expressions against a database."""
     
     def __init__(self, session: Session):
-        """
-        Initialize the evaluator with a database session.
-        
-        Args:
-            session: SQLAlchemy session for database queries
-        """
+        """Create evaluator with a SQLAlchemy session."""
         self.session = session
         self.parser = FormulaParser()
     
     def evaluate(self, expression: str, context: Dict[str, Any]) -> Any:
-        """
-        Evaluate a formula expression with the given context.
-        
-        Args:
-            expression: The formula expression to evaluate
-            context: Dictionary containing variable values (e.g., {'id': 123})
-            
-        Returns:
-            The result of evaluating the expression
-        """
         logger.debug(f"FORMULA EVAL: Starting evaluation of: {expression}")
         logger.debug(f"FORMULA EVAL: Context: {context}")
         
@@ -71,16 +54,7 @@ class FormulaEvaluator:
             return None
     
     def _substitute_variables(self, expression: str, context: Dict[str, Any]) -> str:
-        """
-        Substitute variables like @id with actual values.
-        
-        Args:
-            expression: Expression containing variables
-            context: Dictionary with variable values
-            
-        Returns:
-            Expression with variables substituted
-        """
+        """Replace @vars in the expression with values from context."""
         def replace_var(match):
             var_name = match.group(1)
             if var_name in context:
@@ -99,16 +73,7 @@ class FormulaEvaluator:
         return var_pattern.sub(replace_var, expression)
     
     def _evaluate_sql_expression(self, expression: str, parsed: ParsedExpression) -> Any:
-        """
-        Evaluate a SQL-based expression.
-        
-        Args:
-            expression: SQL expression to evaluate
-            parsed: Parsed expression metadata
-            
-        Returns:
-            Query result
-        """
+        """Run a SQL-based expression after substitutions."""
         logger.debug(f"FORMULA EVAL: SQL expression input: {expression}")
         
         # Handle complex expressions with date arithmetic
@@ -142,17 +107,7 @@ class FormulaEvaluator:
             return None
     
     def _evaluate_table_reference(self, expression: str, parsed: ParsedExpression) -> Any:
-        """
-        Evaluate a table reference expression.
-        
-        Args:
-            expression: Table reference expression
-            parsed: Parsed expression metadata
-            
-        Returns:
-            Evaluation result
-        """
-        # Convert table reference to SQL and evaluate
+        """Convert table reference to SQL and evaluate."""
         if parsed.sql_query:
             return self._evaluate_sql_expression(parsed.sql_query, parsed)
         else:
@@ -160,16 +115,7 @@ class FormulaEvaluator:
             return None
     
     def _evaluate_arithmetic_expression(self, expression: str, parsed: ParsedExpression) -> Any:
-        """
-        Evaluate a simple arithmetic expression.
-        
-        Args:
-            expression: Arithmetic expression
-            parsed: Parsed expression metadata
-            
-        Returns:
-            Calculation result
-        """
+        """Handle plain arithmetic with date/random helpers."""
         # Handle date functions
         expression = self._process_date_functions(expression)
         
@@ -189,15 +135,7 @@ class FormulaEvaluator:
             return None
     
     def _evaluate_date_arithmetic_expression(self, expression: str) -> Optional[datetime]:
-        """
-        Evaluate expressions that involve date arithmetic.
-        
-        Args:
-            expression: Expression with date arithmetic (e.g., "subquery - DAYS(30)")
-            
-        Returns:
-            Calculated datetime or None if failed
-        """
+        """Handle expressions like 'subquery - DAYS(30)'."""
         try:
             # Use regex to properly parse DAYS() function calls
             

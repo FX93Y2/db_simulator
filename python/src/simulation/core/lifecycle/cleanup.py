@@ -1,9 +1,4 @@
-"""
-Database cleanup and resource management for the simulation engine.
-
-This module handles the cleanup of database connections, resource allocations,
-and other system resources to prevent EBUSY errors and resource leaks.
-"""
+"""Cleanup of DB connections and resources to avoid locks/leaks."""
 
 import logging
 import time
@@ -14,20 +9,12 @@ logger = logging.getLogger(__name__)
 
 
 class DatabaseCleanup:
-    """
-    Handles cleanup of database connections and system resources.
-    
-    This class manages the proper cleanup of SQLAlchemy engines,
-    SQLite connections, and other system resources to prevent
-    EBUSY errors on Windows and resource leaks.
-    """
-    
+    """Dispose engines/connections and release resources safely."""
+
     def __init__(self, db_path: str):
         """
-        Initialize the cleanup handler.
-        
         Args:
-            db_path: Path to the SQLite database
+            db_path: Path to the SQLite database.
         """
         self.db_path = db_path
     
@@ -37,11 +24,11 @@ class DatabaseCleanup:
         This method is called in a finally block to ensure cleanup happens even if simulation fails.
 
         Args:
-            engine: Main SQLAlchemy engine
-            event_tracker: Event tracker instance
-            entity_attribute_manager: Entity attribute manager instance
-            resource_manager: Resource manager instance
-            queue_manager: Queue manager instance (optional)
+            engine: Main SQLAlchemy engine.
+            event_tracker: Event tracker instance.
+            entity_attribute_manager: Entity attribute manager instance.
+            resource_manager: Resource manager instance.
+            queue_manager: Queue manager instance (optional).
         """
         try:
             timestamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
@@ -87,7 +74,7 @@ class DatabaseCleanup:
         Force SQLite to close all connections and cleanup WAL files.
         
         Args:
-            timestamp: Current timestamp for logging
+            timestamp: Current timestamp for logging.
         """
         try:
             logger.info(f"[{timestamp}] [PYTHON] Opening connection for WAL checkpoint: {self.db_path}")
@@ -112,8 +99,8 @@ class DatabaseCleanup:
         Clean up any remaining allocated resources.
         
         Args:
-            resource_manager: Resource manager instance
-            timestamp: Current timestamp for logging
+            resource_manager: Resource manager instance.
+            timestamp: Current timestamp for logging.
         """
         if hasattr(resource_manager, 'event_allocations') and resource_manager.event_allocations:
             remaining_allocations = list(resource_manager.event_allocations.keys())
