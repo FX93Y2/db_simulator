@@ -11,14 +11,6 @@ import logging
 from typing import Any, Optional
 from py_mini_racer import MiniRacer
 
-# Map legacy/unsupported method names to supported faker.js calls
-ALIAS_MAP = {
-    # Older configs used commerce.isbn; modern faker.js exposes string.numeric
-    "commerce.isbn": "string.numeric(13)",
-    "commerce.isbn13": "string.numeric(13)",
-    "commerce.isbn10": "string.numeric(10)",
-}
-
 logger = logging.getLogger(__name__)
 
 
@@ -87,18 +79,15 @@ class FakerJSEngine:
             'john.doe@example.com'
         """
         try:
-            # Handle legacy/alias method names
-            method_to_use = ALIAS_MAP.get(method, method)
-
             # Use the generateFake helper function from the bundle
             # Properly escape the method string to handle quotes
-            escaped_method = method_to_use.replace("'", "\\'").replace('"', '\\"')
+            escaped_method = method.replace("'", "\\'").replace('"', '\\"')
             result = self.ctx.eval(f"generateFake('{escaped_method}')")
 
             # Check if result is an error message
             if isinstance(result, str) and result.startswith("Unsupported Faker Method:"):
                 # Log full returned message for diagnostics (often contains root cause)
-                logger.warning(f"Faker.js engine reported: {result} (requested: {method})")
+                logger.warning(f"Faker.js engine reported: {result}")
                 return result
             
             return result

@@ -64,6 +64,13 @@ class ResourceShift:
     resource_type: str
     shift_pattern: Union[str, List[str]]  # Name of shift pattern or list of names
 
+@dataclass
+class WorkShifts:
+    enabled: bool
+    shift_patterns: List[ShiftPattern]
+    resource_shifts: List[ResourceShift]
+
+
 # Queue configuration dataclasses (Arena-style)
 @dataclass
 class QueueDefinition:
@@ -170,6 +177,7 @@ class TerminatingConditions:
 class EventSimulation:
     table_specification: TableSpecification
     queues: List[QueueDefinition] = field(default_factory=list)  # Arena-style queue definitions
+    work_shifts: Optional[WorkShifts] = None
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
 
@@ -326,6 +334,36 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                     attribute=queue_dict.get('attribute')
                 ))
             logger.info(f"Parsed {len(queues)} queue definitions")
+
+        # Parse work shifts configuration
+        work_shifts = None
+        if 'work_shifts' in event_dict:
+            shifts_dict = event_dict['work_shifts']
+            
+            # Parse shift patterns
+            shift_patterns = []
+            for pattern_dict in shifts_dict.get('shift_patterns', []):
+                shift_patterns.append(ShiftPattern(
+                    name=pattern_dict.get('name', ''),
+                    days=pattern_dict.get('days', []),
+                    start_time=pattern_dict.get('start_time', '09:00'),
+                    end_time=pattern_dict.get('end_time', '17:00')
+                ))
+            
+            # Parse resource shifts
+            resource_shifts = []
+            for shift_dict in shifts_dict.get('resource_shifts', []):
+                resource_shifts.append(ResourceShift(
+                    resource_type=shift_dict.get('resource_type', ''),
+                    shift_pattern=shift_dict.get('shift_pattern') or shift_dict.get('shift_patterns', [])
+                ))
+            
+            work_shifts = WorkShifts(
+                enabled=shifts_dict.get('enabled', False),
+                shift_patterns=shift_patterns,
+                resource_shifts=resource_shifts
+            )
+        
         
         # Parse event flows configuration
         event_flows = None
@@ -462,6 +500,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         event_simulation = EventSimulation(
             table_specification=table_spec,
             queues=queues,  # Include parsed queue definitions
+            work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
         )
@@ -561,6 +600,35 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                     attribute=queue_dict.get('attribute')
                 ))
             logger.info(f"Parsed {len(queues)} queue definitions")
+
+        work_shifts = None
+        if 'work_shifts' in event_dict:
+            shifts_dict = event_dict['work_shifts']
+            
+            # Parse shift patterns
+            shift_patterns = []
+            for pattern_dict in shifts_dict.get('shift_patterns', []):
+                shift_patterns.append(ShiftPattern(
+                    name=pattern_dict.get('name', ''),
+                    days=pattern_dict.get('days', []),
+                    start_time=pattern_dict.get('start_time', '09:00'),
+                    end_time=pattern_dict.get('end_time', '17:00')
+                ))
+            
+            # Parse resource shifts
+            resource_shifts = []
+            for shift_dict in shifts_dict.get('resource_shifts', []):
+                resource_shifts.append(ResourceShift(
+                    resource_type=shift_dict.get('resource_type', ''),
+                    shift_pattern=shift_dict.get('shift_pattern') or shift_dict.get('shift_patterns', [])
+                ))
+            
+            work_shifts = WorkShifts(
+                enabled=shifts_dict.get('enabled', False),
+                shift_patterns=shift_patterns,
+                resource_shifts=resource_shifts
+            )
+        
         
         # Parse event flows configuration
         event_flows = None
@@ -697,6 +765,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         event_simulation = EventSimulation(
             table_specification=table_spec,
             queues=queues,  # Include parsed queue definitions
+            work_shifts=work_shifts,
             event_flows=event_flows,
             resource_capacities=resource_capacities
         )
