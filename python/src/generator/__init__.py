@@ -10,6 +10,7 @@ from pathlib import Path
 
 from .database_generator import DatabaseGenerator
 from ..config_parser import parse_db_config, parse_sim_config, parse_db_config_from_string, parse_sim_config_from_string
+from ..utils.path_resolver import resolve_output_dir
 
 # Create logger
 logger = logging.getLogger(__name__)
@@ -63,82 +64,7 @@ def generate_database(config_path_or_content, output_dir='output', db_name=None,
     # Log current working directory
     logger.info(f"Current working directory: {os.getcwd()}")
     
-    # Check if output directory is specified in environment
-    if 'DB_SIMULATOR_OUTPUT_DIR' in os.environ:
-        base_output_dir = os.environ['DB_SIMULATOR_OUTPUT_DIR']
-        logger.info(f"Using output directory from environment: {base_output_dir}")
-        
-        # If project_id is provided, create a project-specific subdirectory
-        if project_id:
-            output_dir = os.path.join(base_output_dir, project_id)
-            logger.info(f"Using project-specific output directory: {output_dir}")
-        else:
-            output_dir = base_output_dir
-    else:
-        # Fall back to the original logic for development mode
-        if not os.path.isabs(output_dir):
-            # Check if we're in a project environment
-            # Try to find the project root (look for directories like 'python' and 'electron' as siblings)
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_dir = os.path.dirname(os.path.dirname(os.path.dirname(current_dir)))
-            
-            # Look for project structure indicators
-            if os.path.isdir(os.path.join(project_dir, 'python')) and \
-               os.path.isdir(os.path.join(project_dir, 'electron')):
-                # Found project root, use it as base for output
-                output_dir = os.path.join(project_dir, output_dir)
-                logger.info(f"Using project root-based output directory: {output_dir}")
-            else:
-                # Can't find project root, use absolute path of current directory
-                output_dir = os.path.abspath(output_dir)
-                logger.info(f"Using absolute output directory: {output_dir}")
-    
-    # If project_id is provided but not yet in path, add it to the output path
-    if project_id and not output_dir.endswith(project_id):
-        project_path = os.path.join(output_dir, project_id)
-        logger.info(f"Adding project_id to path: {project_path}")
-        output_dir = project_path
-    
-    # Create output directory if it doesn't exist
-    try:
-        os.makedirs(output_dir, exist_ok=True)
-        logger.info(f"Created/verified output directory: {output_dir}")
-        
-        # Check if directory is writable
-        if os.access(output_dir, os.W_OK):
-            logger.info(f"Output directory is writable: {output_dir}")
-        else:
-            logger.warning(f"Output directory is NOT writable: {output_dir}")
-            
-            # Try to use a temporary directory as fallback
-            import tempfile
-            temp_dir = tempfile.gettempdir()
-            fallback_dir = os.path.join(temp_dir, 'db_simulator', 'output')
-            if project_id:
-                fallback_dir = os.path.join(fallback_dir, project_id)
-                
-            logger.info(f"Trying fallback directory: {fallback_dir}")
-            os.makedirs(fallback_dir, exist_ok=True)
-            
-            if os.access(fallback_dir, os.W_OK):
-                logger.info(f"Using fallback directory: {fallback_dir}")
-                output_dir = fallback_dir
-            else:
-                logger.error(f"Fallback directory is also not writable: {fallback_dir}")
-    except Exception as e:
-        logger.error(f"Error creating output directory {output_dir}: {e}")
-        
-        # Try a fallback to temp directory
-        import tempfile
-        temp_dir = os.path.join(tempfile.gettempdir(), 'db_simulator', 'output')
-        if project_id:
-            temp_dir = os.path.join(temp_dir, project_id)
-        
-        logger.info(f"Using temporary directory as fallback: {temp_dir}")
-        os.makedirs(temp_dir, exist_ok=True)
-        output_dir = temp_dir
-    
-    logger.info(f"Final output directory: {output_dir}")
+    output_dir = resolve_output_dir(output_dir, project_id)
     
     # Generate a database name if not provided
     if not db_name:

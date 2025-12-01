@@ -17,6 +17,7 @@ from config_storage.config_db import ConfigManager
 from src.generator import generate_database
 from src.simulation.core.runner import run_simulation
 from src.utils.file_operations import safe_delete_sqlite_file
+from src.utils.path_resolver import resolve_output_dir
 from ..utils.response_helpers import (
     success_response, error_response, not_found_response, validation_error_response,
     handle_exception, require_json_fields, log_api_request
@@ -159,30 +160,8 @@ def force_cleanup():
         return handle_exception(e, "forced cleanup", logger)
 
 def _determine_output_directory():
-    """Determine the appropriate output directory."""
-    # Check if we're in packaged mode (environment variable set by Electron)
-    is_packaged = os.environ.get('DB_SIMULATOR_PACKAGED', 'false').lower() == 'true'
-    logger.info(f"Running in {'packaged' if is_packaged else 'development'} mode")
-    
-    # Get environment output directory if specified
-    output_base_dir = os.environ.get('DB_SIMULATOR_OUTPUT_DIR', None)
-    
-    if output_base_dir:
-        logger.info(f"Using output directory from environment: {output_base_dir}")
-        output_dir = output_base_dir
-    else:
-        # Default to project root 'output' directory
-        # Go up from python/api/routes/simulation.py to project root
-        # simulation.py -> routes/ -> api/ -> python/ -> project_root/
-        project_root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
-        output_dir = os.path.join(project_root, "output")
-        logger.info(f"Using default output directory at project root: {output_dir}")
-    
-    # Create base output directory
-    os.makedirs(output_dir, exist_ok=True)
-    logger.info(f"Created or verified base output directory: {output_dir}")
-    
-    return output_dir
+    """Determine the appropriate output directory using shared resolver."""
+    return resolve_output_dir()
 
 def _cleanup_existing_database(output_dir, project_id, db_name, db_config):
     """Clean up existing database file before generation."""
