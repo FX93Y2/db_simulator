@@ -17,7 +17,7 @@ const convertOldDistributionToFormula = (distribution) => {
   return convertDistributionToFormula(distribution);
 };
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [], relatedEntityTables = {} }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [], relatedEntityTables = {}, entityAttributesMap = {} }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -28,7 +28,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   // Use the step helpers hook
   const {
     getAvailableStepNames,
-    getAvailableAttributes,
     validateStepId
   } = useStepHelpers(parsedSchema);
 
@@ -97,6 +96,53 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepConfig.step_type === 'trigger') {
       initializeTriggerForm(stepConfig);
     }
+  };
+
+  const getFlowForNode = () => {
+    if (!parsedSchema?.event_simulation?.event_flows || !node) return null;
+    return parsedSchema.event_simulation.event_flows.find(flow =>
+      flow?.steps?.some(step => step.step_id === node.id)
+    ) || null;
+  };
+
+  const getEntityTableForFlow = (flow) => {
+    if (!flow) return '';
+    const createStep = flow.steps?.find(
+      s => s.step_type === 'create' && s.create_config?.entity_table
+    );
+    if (createStep?.create_config?.entity_table) {
+      return createStep.create_config.entity_table;
+    }
+    const tableSpec = parsedSchema?.event_simulation?.table_specification;
+    return tableSpec?.entity_table || '';
+  };
+
+  const getAvailableAttributesForCurrentFlow = () => {
+    const attrs = new Set();
+    const flow = getFlowForNode();
+    const entityTable = getEntityTableForFlow(flow);
+    const entityAttrs = entityAttributesMap[entityTable];
+    if (Array.isArray(entityAttrs)) {
+      entityAttrs.forEach(name => attrs.add(name));
+    } else {
+      const entities = parsedSchema?.database_schema?.entities || parsedSchema?.db_config?.entities || [];
+      const entity = entities.find(e => e.name === entityTable);
+      if (entity?.attributes) {
+        entity.attributes.forEach(attr => {
+          if (attr.name) attrs.add(attr.name);
+        });
+      }
+    }
+    flow?.steps?.forEach(step => {
+      if (step.step_type === 'assign' && step.assign_config?.assignments) {
+        step.assign_config.assignments.forEach(assignment => {
+          if (assignment.attribute_name) {
+            attrs.add(assignment.attribute_name);
+          }
+        });
+      }
+    });
+    return Array.from(attrs).sort();
   };
 
   const initializeEventForm = (stepConfig) => {
@@ -673,7 +719,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
     const stepType = node.data.stepConfig?.step_type;
     const availableSteps = getAvailableStepNames();
-    const availableAttributes = getAvailableAttributes();
+    const availableAttributes = getAvailableAttributesForCurrentFlow();
 
     switch (stepType) {
       case 'event':

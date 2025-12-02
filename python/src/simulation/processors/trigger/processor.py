@@ -279,6 +279,8 @@ class TriggerStepProcessor(StepProcessor):
         """
         # Import here to avoid circular imports
         from ....generator.data.attribute_generator import generate_attribute_value
+        from ....generator.data.formula.evaluator import FormulaEvaluator
+        from sqlalchemy.orm import sessionmaker
         from datetime import datetime
 
         # Find target entity config
@@ -292,7 +294,9 @@ class TriggerStepProcessor(StepProcessor):
 
         generated_ids = []
 
-        with self.engine.connect() as conn:
+        Session = sessionmaker(bind=self.engine)
+        with self.engine.connect() as conn, Session(bind=conn) as session:
+            formula_evaluator = FormulaEvaluator(session)
             for i in range(count):
                 # Generate attribute values
                 row_data = {}
@@ -308,7 +312,15 @@ class TriggerStepProcessor(StepProcessor):
                         continue
 
                     # Generate value using configured generator
-                    if attr.generator:
+                    if attr.generator and getattr(attr.generator, "type", None) == "formula":
+                        try:
+                            context = {fk_column: entity_id}
+                            value = formula_evaluator.evaluate(attr.generator.expression, context)
+                            row_data[attr.name] = value
+                        except Exception as e:
+                            self.logger.warning(f"Error evaluating formula for {attr.name}: {e}")
+                            row_data[attr.name] = None
+                    elif attr.generator:
                         try:
                             # Convert attribute to dict format for generate_attribute_value
                             attr_dict = {
@@ -317,7 +329,8 @@ class TriggerStepProcessor(StepProcessor):
                                     'type': attr.generator.type,
                                     'method': attr.generator.method,
                                     'template': attr.generator.template,
-                                    'formula': attr.generator.formula
+                                    'formula': attr.generator.formula,
+                                    'expression': getattr(attr.generator, 'expression', None)
                                 }
                             }
                             value = generate_attribute_value(attr_dict, i)

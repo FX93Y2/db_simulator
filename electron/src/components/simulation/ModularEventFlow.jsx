@@ -29,6 +29,7 @@ import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
 import useEventTables from '../../hooks/shared/useEventTables';
 import useRelatedEntityTables from '../../hooks/shared/useRelatedEntityTables';
+import yaml from 'yaml';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
@@ -95,6 +96,25 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const entityTables = useEntityTables(dbConfigContent);
   const eventTables = useEventTables(dbConfigContent);
   const relatedEntityTables = useRelatedEntityTables(dbConfigContent);
+  const entityAttributesMap = React.useMemo(() => {
+    if (!dbConfigContent) return {};
+    try {
+      const parsed = yaml.parse(dbConfigContent);
+      const map = {};
+      (parsed?.entities || []).forEach(entity => {
+        if (entity?.name && Array.isArray(entity.attributes)) {
+          map[entity.name] = entity.attributes
+            .map(a => a.name)
+            .filter(Boolean)
+            .sort();
+        }
+      });
+      return map;
+    } catch (e) {
+      console.error('[ModularEventFlow] Failed to parse db config for attributes:', e);
+      return {};
+    }
+  }, [dbConfigContent]);
 
   // Get project-specific store state when needed (non-reactive)
   const getStoreState = () => useSimulationConfigStore(projectId).getState();
@@ -556,6 +576,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         entityTables={entityTables}
         eventTables={eventTables}
         relatedEntityTables={relatedEntityTables}
+        entityAttributesMap={entityAttributesMap}
       />
       <CanvasContextMenu
         visible={contextMenu.visible}

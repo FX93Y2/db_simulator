@@ -61,12 +61,25 @@ export const useStepHelpers = (parsedSchema) => {
     return allStepNames;
   };
 
-  // Get all available attributes from assign modules for condition dropdowns
+  // Get all available attributes for condition dropdowns (entity table + assign-derived)
   const getAvailableAttributes = () => {
     if (!parsedSchema?.event_simulation?.event_flows) return [];
     const attributes = new Set();
-    
-    // Find all assign steps from all flows and extract their attribute names
+
+    // Attributes from the simulation entity table if present in parsed schema
+    const tableSpec = parsedSchema.event_simulation.table_specification;
+    const dbEntities = parsedSchema.database_schema?.entities || parsedSchema.db_config?.entities || [];
+    const entityTableName = tableSpec?.entity_table;
+    if (entityTableName && dbEntities.length > 0) {
+      const entity = dbEntities.find(e => e.name === entityTableName);
+      if (entity?.attributes) {
+        entity.attributes.forEach(attr => {
+          if (attr.name) attributes.add(attr.name);
+        });
+      }
+    }
+
+    // Also include attributes referenced in assign steps (legacy behavior)
     parsedSchema.event_simulation.event_flows.forEach(flow => {
       flow?.steps?.forEach(step => {
         if (step.step_type === 'assign' && step.assign_config?.assignments) {
@@ -78,7 +91,7 @@ export const useStepHelpers = (parsedSchema) => {
         }
       });
     });
-    
+
     return Array.from(attributes).sort();
   };
 
