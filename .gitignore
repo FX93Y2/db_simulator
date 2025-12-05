@@ -6,9 +6,6 @@ venv/
 *.db
 *.sqlite
 # Test data and configurations
-python/config_storage/configs.db
-output/
-python/tests/test_config/output/
 .DS_Store
 .DS_Store?
 ._*
@@ -25,9 +22,7 @@ htmlcov/
 .cache
 coverage.xml
 *.cover
-instruction.txt
-backup/
-tests/
+
 # Node.js
 node_modules/
 npm-debug.log
@@ -41,21 +36,9 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-.cursor/
-.claude/
 
 # PyInstaller generated files
 python/USE_EXECUTABLE
 python/USE_COPIED_ENV
 python/db_simulator_api.spec
-
-# Rules
-AGENTS.md
-ELECTRON.md
-CLAUDE.md
-GEMINI.md
-projectplan/
-projectstructure.md
-db_simulation.md
-.png
 
