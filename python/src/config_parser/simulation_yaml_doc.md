@@ -18,7 +18,6 @@ Authoritative outline of required/optional sections and fields for the simulatio
 ## event_simulation
 - `table_specification` (optional, derived from DB config if omitted):
   - `entity_table` (optional)
-  - `event_table` (optional)
   - `resource_table` (optional)
 - `queues` (optional, list):
   - `name` (required)
@@ -36,7 +35,7 @@ Authoritative outline of required/optional sections and fields for the simulatio
   - `capacity_rules` (optional, list): `resource_type`, `capacity` (int or distribution spec)
 - `event_flows` (required when simulating, list):
   - `flow_id` (required)
-  - `event_table` (required)
+  - `event_flow` (optional label; defaults to `flow_id`)
   - `steps` (required, ordered list of step objects)
 
 ## Step Common Fields

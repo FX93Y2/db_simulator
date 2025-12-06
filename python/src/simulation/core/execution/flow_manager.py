@@ -102,7 +102,7 @@ class FlowManager:
             # Get flow-specific tables/labels
             entity_table = create_step.create_config.entity_table
             event_flow = getattr(flow, 'event_flow', None) or flow.flow_id
-            _, _, resource_table = self.entity_manager.get_table_names()  # Still need resource table
+            self.entity_manager.get_table_names()  # Ensure tables are available from config
             
             logger.debug(f"Create module {create_step.step_id} using flow-specific tables: entity={entity_table}, flow={event_flow}, flow_id={flow.flow_id}")
             

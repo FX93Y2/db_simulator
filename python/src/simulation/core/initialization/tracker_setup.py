@@ -48,12 +48,6 @@ class FlowEventTrackerSetup:
         
         for flow in flows:
             flow_id = flow.flow_id
-            event_table_name = flow.event_table
-
-            # If the event table is not defined in db_config, treat it as absent
-            if event_table_name and not self._event_table_in_db_config(event_table_name):
-                logger.debug(f"Flow {flow_id}: event_table '{event_table_name}' not found in db_config; ignoring.")
-                event_table_name = None
             
             # Find bridge table for this flow's event table
             bridge_table_config = self._find_bridge_table_for_flow(
@@ -76,9 +70,9 @@ class FlowEventTrackerSetup:
                     db_config=self.db_config
                 )
                 flow_trackers[flow_id] = event_tracker
-                logger.debug(f"Created EventTracker for flow {flow_id}: event_table={event_table_name}, bridge_table={bridge_table_config['name']}")
+                logger.debug(f"Created EventTracker for flow {flow_id}: bridge_table={bridge_table_config['name']}")
             else:
-                logger.warning(f"Could not find bridge table for flow {flow_id} (event_table={event_table_name}). Resource tracking may not work.")
+                logger.warning(f"Could not find bridge table for flow {flow_id}. Resource tracking may be limited.")
         
         logger.debug(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
         return flow_trackers
@@ -140,21 +134,15 @@ class FlowEventTrackerSetup:
                     event_type_attr = attr
             
             # If we found both attributes, this is the bridge table for this flow
-            if entity_fk_attr and resource_fk_attr:
-                return {
-                    'name': entity.name,
-                    'entity_fk_column': entity_fk_attr.name,
-                    'resource_fk_column': resource_fk_attr.name,
-                    'event_type_column': event_type_attr.name if event_type_attr else None
-                }
+                if entity_fk_attr and resource_fk_attr:
+                    return {
+                        'name': entity.name,
+                        'entity_fk_column': entity_fk_attr.name,
+                        'resource_fk_column': resource_fk_attr.name,
+                        'event_type_column': event_type_attr.name if event_type_attr else None
+                    }
         
         return None
-
-    def _event_table_in_db_config(self, event_table_name: str) -> bool:
-        """Check if an event table is defined in the database config."""
-        if not self.db_config:
-            return False
-        return any(e.type == 'event' and e.name == event_table_name for e in self.db_config.entities)
 
     def _get_entity_table_name(self) -> Optional[str]:
         """

@@ -37,7 +37,6 @@ from .sim_parser import (
     EventFlow,
     EventFlowsConfig,
     parse_sim_config,
-    find_event_type_column,
     find_resource_type_column
 )
 
@@ -138,6 +137,5 @@ __all__ = [
     'EventFlowsConfig',
     'parse_sim_config',
     'parse_sim_config_from_string',
-    'find_event_type_column',
     'find_resource_type_column',
 ]

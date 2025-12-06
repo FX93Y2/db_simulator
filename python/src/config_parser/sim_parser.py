@@ -46,7 +46,6 @@ class ResourceCapacityConfig:
 @dataclass
 class TableSpecification:
     entity_table: str
-    event_table: Optional[str] = None
     resource_table: str = ''
 
 @dataclass
@@ -145,7 +144,6 @@ class Step:
 @dataclass
 class EventFlow:
     flow_id: str
-    event_table: Optional[str] = None  # Flow-specific event table (optional, legacy)
     event_flow: Optional[str] = None   # Flow label for tracking/logging
     steps: List[Step] = field(default_factory=list)
 
@@ -200,32 +198,6 @@ class SimulationConfig:
         # Validate base time unit
         if not validate_base_time_unit(self.base_time_unit):
             raise ValueError(f"Invalid base_time_unit '{self.base_time_unit}'. Must be one of: seconds, minutes, hours, days")
-
-
-def find_event_type_column(db_config: DatabaseConfig, event_table: str) -> Optional[str]:
-    """
-    Find the event_type column in the event table.
-    
-    Args:
-        db_config: The database configuration
-        event_table: Name of the event table
-        
-    Returns:
-        Name of the event_type column or None if not found
-    """
-    event_entity = next((e for e in db_config.entities if e.name == event_table), None)
-    
-    if not event_entity:
-        logger.warning(f"Could not find event table '{event_table}' in database config")
-        return None
-    
-    # Find column with type 'event_type'
-    event_type_col = next((attr.name for attr in event_entity.attributes if attr.type == 'event_type'), None)
-    
-    if not event_type_col:
-        logger.warning(f"Event table '{event_table}' has no column with type 'event_type'")
-    
-    return event_type_col
 
 def find_resource_type_column(db_config: DatabaseConfig, resource_table: str) -> Optional[str]:
     """
@@ -287,26 +259,24 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         if 'table_specification' in event_dict:
             # Use the table specification from the simulation config
             table_dict = event_dict['table_specification']
+            if 'event_table' in table_dict:
+                logger.warning("event_table is deprecated; use event_flow labels in event_flows instead.")
             table_spec = TableSpecification(
                 entity_table=table_dict.get('entity_table', ''),
-                event_table=table_dict.get('event_table') or None,
                 resource_table=table_dict.get('resource_table', '')
             )
         elif db_config:
             # Derive table specification from database config based on table types
             entity_table = find_table_by_type(db_config, 'entity')
-            event_table = find_table_by_type(db_config, 'event')
             resource_table = find_table_by_type(db_config, 'resource')
             
-            if entity_table or resource_table or event_table:
+            if entity_table or resource_table:
                 table_spec = TableSpecification(
                     entity_table=entity_table or '',
-                    event_table=event_table or None,
                     resource_table=resource_table or ''
                 )
                 logger.info(
-                    f"Derived table specification from database config: entity={entity_table}, "
-                    f"event={event_table}, resource={resource_table}"
+                    f"Derived table specification from database config: entity={entity_table}, resource={resource_table}"
                 )
         
         # Entity arrival is now handled by Create step modules in event flows
@@ -424,10 +394,11 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                     ))
                 
                 flow_id = flow_dict.get('flow_id', '')
+                if flow_dict.get('event_table'):
+                    logger.warning(f"event_table is deprecated; using value for flow '{flow_id}' as event_flow")
                 event_flow_label = flow_dict.get('event_flow') or flow_dict.get('event_table') or flow_id
                 flows.append(EventFlow(
                     flow_id=flow_id,
-                    event_table=flow_dict.get('event_table') or None,
                     event_flow=event_flow_label,
                     steps=steps
                 ))
@@ -459,7 +430,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
         event_simulation = EventSimulation(
             table_specification=table_spec,
             queues=queues,  # Include parsed queue definitions
-                        event_flows=event_flows,
+            event_flows=event_flows,
             resource_capacities=resource_capacities
         )
     
@@ -526,26 +497,24 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         if 'table_specification' in event_dict:
             # Use the table specification from the simulation config
             table_dict = event_dict['table_specification']
+            if 'event_table' in table_dict:
+                logger.warning("event_table is deprecated; use event_flow labels in event_flows instead.")
             table_spec = TableSpecification(
                 entity_table=table_dict.get('entity_table', ''),
-                event_table=table_dict.get('event_table') or None,
                 resource_table=table_dict.get('resource_table', '')
             )
         elif db_config:
             # Derive table specification from database config based on table types
             entity_table = find_table_by_type(db_config, 'entity')
-            event_table = find_table_by_type(db_config, 'event')
             resource_table = find_table_by_type(db_config, 'resource')
             
-            if entity_table or resource_table or event_table:
+            if entity_table or resource_table:
                 table_spec = TableSpecification(
                     entity_table=entity_table or '',
-                    event_table=event_table or None,
                     resource_table=resource_table or ''
                 )
                 logger.info(
-                    f"Derived table specification from database config: entity={entity_table}, "
-                    f"event={event_table}, resource={resource_table}"
+                    f"Derived table specification from database config: entity={entity_table}, resource={resource_table}"
                 )
         
         # Parse the rest of the event simulation configuration
@@ -664,10 +633,11 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                     ))
                 
                 flow_id = flow_dict.get('flow_id', '')
+                if flow_dict.get('event_table'):
+                    logger.warning(f"event_table is deprecated; using value for flow '{flow_id}' as event_flow")
                 event_flow_label = flow_dict.get('event_flow') or flow_dict.get('event_table') or flow_id
                 flows.append(EventFlow(
                     flow_id=flow_id,
-                    event_table=flow_dict.get('event_table') or None,
                     event_flow=event_flow_label,
                     steps=steps
                 ))
@@ -699,7 +669,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
         event_simulation = EventSimulation(
             table_specification=table_spec,
             queues=queues,  # Include parsed queue definitions
-                        event_flows=event_flows,
+            event_flows=event_flows,
             resource_capacities=resource_capacities
         )
     

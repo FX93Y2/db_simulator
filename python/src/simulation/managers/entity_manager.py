@@ -9,10 +9,8 @@ import random
 from datetime import timedelta
 from typing import Dict, List, Tuple, Any, Optional
 import dataclasses
-from sqlalchemy import create_engine, inspect, text, insert
-from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy import text
 from sqlalchemy.orm import Session
-from sqlalchemy.pool import NullPool
 
 from ...config_parser import SimulationConfig, DatabaseConfig
 from ...config_parser import Entity as DbEntity
@@ -203,201 +201,17 @@ class EntityManager:
                 
         return None
     
-    def get_table_names(self):
+    def get_table_names(self) -> Tuple[Optional[str], Optional[str]]:
         """Get entity and resource table names from config or db config."""
-        event_sim = self.config.event_simulation
+        event_sim = getattr(self.config, 'event_simulation', None)
         if not event_sim:
-            return None, None, None
-            
-        # Try to get table names from simulation config
+            return None, None
+
         if event_sim.table_specification:
-            entity_table = event_sim.table_specification.entity_table
-            resource_table = event_sim.table_specification.resource_table
-        else:
-            # Try to derive from database config based on table types
-            entity_table = self.get_table_by_type('entity')
-            resource_table = self.get_table_by_type('resource')
-            
-        # Event tables are no longer required; return None for backward tuple compatibility
-        return entity_table, None, resource_table
-    
-    
-    def generate_entities(self, process_entity_events_callback):
-        """
-        Generate entities based on arrival pattern and create them in the database
-        
-        Args:
-            process_entity_events_callback: Callback function to process entity events
-        """
-        event_sim = self.config.event_simulation
-        if not event_sim or not event_sim.entity_arrival:
-            return
-            
-        entity_table, _, resource_table = self.get_table_names()
-        if not entity_table:
-            logger.error("Missing entity table name. Cannot generate entities.")
-            return
-            
-        arrival_config = event_sim.entity_arrival
-        
-        # Get the maximum number of entities to generate
-        max_entities = arrival_config.max_entities
-        max_entities_check = max_entities != 'n/a' and max_entities is not None
-        
-        # Generate entities until max_entities is reached or simulation ends
-        while not max_entities_check or self.entity_count < max_entities:
-            # Generate interarrival time
-            interarrival_minutes = generate_from_distribution(
-                arrival_config.interarrival_time.get('distribution', {})
-            ) * 24 * 60  # Convert days to minutes
-            
-            # Wait for the next entity arrival
-            yield self.env.timeout(interarrival_minutes)
-            
-            # Create a process-specific engine for this entity creation
-            process_engine = create_engine(
-                f"sqlite:///{self.db_path}?journal_mode=WAL",
-                poolclass=NullPool,
-                connect_args={"check_same_thread": False}
-            )
-            
-            try:
-                with Session(process_engine) as session:
-                    # Create a new entity in the database
-                    entity_id = self.create_entity(session, entity_table)
-                    
-                    if entity_id:
-                        # Find the relationship column
-                        relationship_columns = self.find_relationship_columns(session, entity_table, event_table)
-                        if not relationship_columns:
-                            logger.error(f"No relationship column found between {entity_table} and {event_table}")
-                            return
-                        
-                        relationship_column = relationship_columns[0]
-                        
-                        # Events will be created dynamically by the event flows architecture
-                        event_ids = []  # No initial events needed for event flows
-                        
-                        # Commit the changes
-                        session.commit()
-                        
-                        # Entity arrival time is now automatically tracked via created_at column
-                        
-                        # Process the entity's events
-                        self.env.process(process_entity_events_callback(entity_id - 1))  # Adjust for 0-based indexing
-                        
-                        self.entity_count += 1
-                        logger.info(f"Created entity {entity_id} with {len(event_ids)} events at time {self.env.now}")
-                        
-                        # Check if we've reached the maximum number of entities
-                        if max_entities_check and self.entity_count >= max_entities:
-                            break
-            except Exception as e:
-                logger.error(f"Error creating entity: {str(e)}")
-            finally:
-                # Always dispose of the process-specific engine
-                process_engine.dispose()
-    
-    def find_relationship_columns(self, session, entity_table: str, event_table: str) -> List[str]:
-        """
-        Find foreign key columns in the event table that reference the entity table
-        
-        Args:
-            session: SQLAlchemy session
-            entity_table: Name of the entity table
-            event_table: Name of the event table
-            
-        Returns:
-            List of foreign key column names
-        """
-        if not event_table:
-            logger.debug("No event table provided; skipping relationship column detection.")
-            return []
-        try:
-            # Try to find foreign key relationships using the SQLAlchemy Inspector
-            inspector = inspect(session.get_bind())
-            relationship_columns = []
-            if not inspector.has_table(event_table):
-                logger.debug(f"Event table '{event_table}' not found; skipping relationship lookup.")
-                return []
-            
-            try:
-                # Get the primary key columns of the entity table
-                pk_constraint = inspector.get_pk_constraint(entity_table)
-                logger.debug(f"PK constraint for {entity_table}: {pk_constraint}")
-                
-                # The structure of pk_constraint can vary, handle different formats
-                pk_columns = []
-                if isinstance(pk_constraint, dict) and 'constrained_columns' in pk_constraint:
-                    if isinstance(pk_constraint['constrained_columns'], list):
-                        pk_columns = pk_constraint['constrained_columns']
-                
-                # If we couldn't get primary keys from get_pk_constraint, try another approach
-                if not pk_columns:
-                    # Get columns and find those marked as primary key
-                    columns = inspector.get_columns(entity_table)
-                    for col in columns:
-                        if col.get('primary_key', False):
-                            pk_columns.append(col['name'])
-                
-                logger.debug(f"Primary key columns for {entity_table}: {pk_columns}")
-                
-                # If we still don't have primary keys, assume 'id' is the primary key
-                if not pk_columns:
-                    pk_columns = ['id']
-                
-                # Get foreign keys in the event table
-                fks = inspector.get_foreign_keys(event_table)
-                logger.debug(f"Foreign keys for {event_table}: {fks}")
-                
-                # Find foreign keys that reference the entity table
-                for fk in fks:
-                    if fk.get('referred_table') == entity_table and fk.get('constrained_columns'):
-                        relationship_columns.append(fk['constrained_columns'][0])
-            except Exception as e:
-                logger.error(f"Error finding relationship using inspector: {str(e)}", exc_info=True)
-            
-            # If we didn't find a FK, try to look for columns with name pattern
-            if not relationship_columns:
-                # Try common naming patterns like entity_id, entityId, etc.
-                table_name_singular = entity_table.rstrip('s')  # Remove trailing 's' if any
-                common_patterns = [
-                    f"{entity_table}_id",
-                    f"{entity_table}Id",
-                    f"{table_name_singular}_id",
-                    f"{table_name_singular}Id"
-                ]
-                
-                try:
-                    event_columns = [col['name'] for col in inspector.get_columns(event_table)]
-                    logger.debug(f"Columns in {event_table}: {event_columns}")
-                    
-                    for pattern in common_patterns:
-                        if pattern in event_columns:
-                            relationship_columns.append(pattern)
-                            break
-                except NoSuchTableError:
-                    logger.warning(f"Event table '{event_table}' not found; skipping relationship column pattern search.")
-                except Exception as e:
-                    logger.error(f"Error checking column patterns: {str(e)}", exc_info=True)
-            
-            # If we still don't have a relationship column, raise an error or return empty
-            if not relationship_columns:
-                logger.error(f"Could not automatically determine relationship column between {entity_table} and {event_table}. "
-                             f"Ensure a column named like '{entity_table}_id' exists in {event_table}, or configure explicitly.")
-                # Depending on desired behavior, either raise an error or return empty list
-                # raise ValueError(f"Could not find relationship column for {entity_table} -> {event_table}")
-                return [] # Returning empty list for now
-            
-            return relationship_columns
-            
-        except NoSuchTableError:
-            logger.warning(f"Event table '{event_table}' not found; skipping relationship lookup.")
-            return []
-        except Exception as e:
-            logger.error(f"Error finding relationship columns: {str(e)}", exc_info=True)
-            return [] # Returning empty list for now
-    
+            return event_sim.table_specification.entity_table, event_sim.table_specification.resource_table
+
+        return self.get_table_by_type('entity'), self.get_table_by_type('resource')
+
     def create_entity(self, session, entity_table: str) -> int:
         """
         Create a new entity in the database, populating attributes based on generators.
@@ -512,16 +326,3 @@ class EntityManager:
         except Exception as e:
             logger.error(f"Error creating entity in {entity_table}: {str(e)}", exc_info=True)
             return None
-    
-    
-    def find_event_type_column(self, session, event_table: str) -> Optional[str]:
-        """ Find the column used for event types in the event table using ColumnResolver """
-        if not event_table:
-            logger.debug("No event table provided; skipping event type column resolution.")
-            return None
-        try:
-            # Use ColumnResolver to get the event_type column
-            return self.column_resolver.get_event_type_column(event_table)
-        except Exception as e:
-            logger.error(f"Error finding event type column in {event_table}: {str(e)}", exc_info=True)
-            raise ValueError(f"Table '{event_table}' must have a column with type='event_type' defined in db_config")

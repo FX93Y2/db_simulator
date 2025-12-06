@@ -8,7 +8,6 @@ const CreateStepEditor = ({
   onFormDataChange,
   availableSteps,
   availableEntityTables = [], // Entity tables from database config
-  availableEventTables = [], // Event tables from database config
   nameValidation = { valid: true, error: null }
 }) => {
   // Get current formula value
@@ -61,31 +60,17 @@ const CreateStepEditor = ({
           </Col>
           
           <Col md={6}>
-            {/* Event Table Selection */}
+            {/* Event Flow Label */}
             <Form.Group className="mb-3">
-              <Form.Label>Event Table</Form.Label>
-              {availableEventTables.length > 0 ? (
-                <Form.Select
-                  value={formData.event_table || ''}
-                  onChange={(e) => onFormDataChange({ event_table: e.target.value })}
-                  required
-                >
-                  <option value="">Select event table...</option>
-                  {availableEventTables.map((table) => (
-                    <option key={table} value={table}>{table}</option>
-                  ))}
-                </Form.Select>
-              ) : (
-                <Form.Control
-                  type="text"
-                  value={formData.event_table || ''}
-                  onChange={(e) => onFormDataChange({ event_table: e.target.value })}
-                  placeholder="Enter event table name"
-                  required
-                />
-              )}
+              <Form.Label>Event Flow</Form.Label>
+              <Form.Control
+                type="text"
+                value={formData.event_flow || ''}
+                onChange={(e) => onFormDataChange({ event_flow: e.target.value })}
+                placeholder="Optional label for this flow (defaults to flow id)"
+              />
               <Form.Text className="text-muted">
-                Event table for tracking flow events
+                Flow label used for tracking and resource allocation keys
               </Form.Text>
             </Form.Group>
           </Col>

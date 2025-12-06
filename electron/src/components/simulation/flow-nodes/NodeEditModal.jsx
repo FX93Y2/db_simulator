@@ -17,7 +17,7 @@ const convertOldDistributionToFormula = (distribution) => {
   return convertDistributionToFormula(distribution);
 };
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], eventTables = [], relatedEntityTables = {}, entityAttributesMap = {} }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], relatedEntityTables = {}, entityAttributesMap = {} }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -279,13 +279,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
 
-    // Get event table from stepConfig (legacy field is migrated during YAML parse/import)
-    const savedEventTable = stepConfig._eventTable || '';
+    // Get event flow label from stepConfig (legacy field is migrated during YAML parse/import)
+    const savedEventFlow = stepConfig._eventFlow || '';
 
     setFormData({
       name: stepName,
       entity_table: createConfig.entity_table || '',
-      event_table: savedEventTable,
+      event_flow: savedEventFlow,
       interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
       interarrival_time_unit: interarrivalTime.time_unit || undefined,
       max_entities: createConfig.max_entities || 'n/a',
@@ -540,8 +540,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
       updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
-      // Store event_table in stepConfig for YAML generation (not in create_config)
-      updatedStepConfig._eventTable = formData.event_table || '';
+      // Store event_flow in stepConfig for YAML generation (not in create_config)
+      updatedStepConfig._eventFlow = formData.event_flow || '';
     } else if (stepType === 'trigger') {
       updatedStepConfig.trigger_config = buildTriggerStepConfig();
       updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
@@ -782,7 +782,6 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             onFormDataChange={handleFormDataChange}
             availableSteps={availableSteps}
             availableEntityTables={entityTables}
-            availableEventTables={eventTables}
             nameValidation={nameValidation}
           />
         );

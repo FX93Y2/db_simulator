@@ -18,12 +18,16 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   // Initialize form when entity changes
   useEffect(() => {
     // Only reset form data when entity actually changes (new entity opened), not during auto-updates
+    const normalizedType = entity?.type === 'event' ? 'entity' : entity?.type;
     if (entity && (!lastEntityName || entity.name !== lastEntityName)) {
       setLastEntityName(entity.name);
       setName(entity.name || '');
-      setEntityType(entity.type || '');
+      setEntityType(normalizedType || '');
       setRows(entity.rows || 'n/a');
-      setAttributes(entity.attributes || []);
+      const attrs = normalizedType === 'entity' && entity.type === 'event'
+        ? (entity.attributes || []).filter(attr => attr.type !== 'event_type')
+        : (entity.attributes || []);
+      setAttributes(attrs);
       setValidationErrors([]);
     } else if (!entity && lastEntityName !== null) {
       // Reset form for new entity only if coming from an existing entity
@@ -41,12 +45,16 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   // Reset form data only when modal opens, not during editing
   useEffect(() => {
+    const normalizedType = entity?.type === 'event' ? 'entity' : entity?.type;
     if (show && entity && (!lastEntityName || entity.name !== lastEntityName)) {
       // Only reset when opening modal with a different entity
       setName(entity.name || '');
-      setEntityType(entity.type || '');
+      setEntityType(normalizedType || '');
       setRows(entity.rows || 'n/a');
-      setAttributes(entity.attributes || []);
+      const attrs = normalizedType === 'entity' && entity.type === 'event'
+        ? (entity.attributes || []).filter(attr => attr.type !== 'event_type')
+        : (entity.attributes || []);
+      setAttributes(attrs);
       setValidationErrors([]);
     } else if (show && !entity) {
       // Reset for new entity when modal opens
@@ -150,7 +158,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     setEntityType(newType);
     
     // Auto-set rows for dynamic table types
-    if (newType === 'bridging' || newType === 'entity' || newType === 'event') {
+    if (newType === 'bridging' || newType === 'entity') {
       setRows('n/a');
     }
     
@@ -179,15 +187,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       updatedAttributes = updatedAttributes.filter(
         attr => attr.name !== 'created_at'
       );
-    }
-
-    // Handle event table event_type column
-    if (newType === 'event') {
-      if (!updatedAttributes.some(attr => attr.type === 'event_type')) {
-        updatedAttributes.push({ name: 'event_type', type: 'event_type' });
-      }
-    } else if (entityType === 'event') {
-      updatedAttributes = updatedAttributes.filter(attr => attr.type !== 'event_type');
     }
 
     // Handle resource table resource_type column
@@ -331,7 +330,6 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       >
                         <option value="">Default</option>
                         <option value="entity">Entity</option>
-                        <option value="event">Event</option>
                         <option value="resource">Resource</option>
                         <option value="bridge">Bridge</option>
                       </Form.Select>
@@ -357,7 +355,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       }}
                       placeholder="Number of rows"
                     />
-                  ) : entityType === 'bridge' || entityType === 'entity' || entityType === 'event' ? (
+                  ) : entityType === 'bridge' || entityType === 'entity' ? (
                     <Form.Select
                       value={rows}
                       onChange={(e) => handleRowsChange(e.target.value)}
@@ -386,8 +384,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
                       ? 'Enter desired number of resources'
                       : entityType === 'bridging'
                       ? 'Bridging table rows will be dynamic'
-                      : entityType === 'entity' || entityType === 'event'
-                      ? 'Entity/Event table rows will be dynamic'
+                      : entityType === 'entity'
+                      ? 'Entity table rows will be dynamic'
                       : 'Define number of rows here'
                     }
                   </Form.Text>

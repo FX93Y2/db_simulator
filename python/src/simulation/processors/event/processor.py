@@ -8,8 +8,7 @@ duration processing, and event creation in the database.
 import logging
 from datetime import timedelta
 from typing import Any, Generator, Optional
-from sqlalchemy import create_engine, insert, text
-from sqlalchemy.exc import NoSuchTableError
+from sqlalchemy import create_engine, insert
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
@@ -101,7 +100,7 @@ class EventStepProcessor(StepProcessor):
                 event_id = self._next_synthetic_event_id(step)
 
             # Retrieve entity attributes for queue priority calculation (if needed)
-            entity_attributes = self._get_entity_attributes(session, entity_table, entity_id)
+            entity_attributes = {}
             session.close()
             session = None
 
@@ -208,40 +207,6 @@ class EventStepProcessor(StepProcessor):
             f"Using synthetic event id {synthetic_id} for step {step.step_id} (flow={event_flow})"
         )
         return synthetic_id
-    
-    def _generate_event_attributes(self, session, row_data: dict, event_table: str, 
-                                  event_id: int, relationship_column: str, event_type_column: str):
-        """Event attribute generation skipped (event tables removed)."""
-        return
-    
-    def _get_entity_attributes(self, session, entity_table: str, entity_id: int) -> dict:
-        """
-        Retrieve all attributes for an entity from the database.
-
-        Args:
-            session: Database session
-            entity_table: Name of the entity table
-            entity_id: Entity ID
-
-        Returns:
-            Dictionary of entity attributes
-        """
-        try:
-            # Get primary key column name
-            pk_column = self.column_resolver.get_primary_key(entity_table)
-
-            # Query entity attributes
-            sql_query = text(f'SELECT * FROM "{entity_table}" WHERE "{pk_column}" = :entity_id')
-            result = session.execute(sql_query, {'entity_id': entity_id}).fetchone()
-
-            if result:
-                return dict(result._mapping)
-            else:
-                self.logger.warning(f"Entity {entity_id} not found in table {entity_table}")
-                return {}
-        except Exception as e:
-            self.logger.error(f"Error retrieving entity attributes: {e}")
-            return {}
 
     def _convert_resource_requirements(self, requirements) -> list:
         """Convert resource requirements to the format expected by resource manager."""

@@ -27,7 +27,6 @@ import {
 // Shared hooks (keep these)
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
-import useEventTables from '../../hooks/shared/useEventTables';
 import useRelatedEntityTables from '../../hooks/shared/useRelatedEntityTables';
 import yaml from 'yaml';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
@@ -94,7 +93,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   
   // Use the custom hooks to get entity and event tables from database config
   const entityTables = useEntityTables(dbConfigContent);
-  const eventTables = useEventTables(dbConfigContent);
   const relatedEntityTables = useRelatedEntityTables(dbConfigContent);
   const entityAttributesMap = React.useMemo(() => {
     if (!dbConfigContent) return {};
@@ -574,7 +572,6 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         resourceDefinitions={resourceDefinitions}
         queueDefinitions={queueDefinitions}
         entityTables={entityTables}
-        eventTables={eventTables}
         relatedEntityTables={relatedEntityTables}
         entityAttributesMap={entityAttributesMap}
       />
