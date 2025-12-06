@@ -10,6 +10,7 @@ from datetime import timedelta
 from typing import Dict, List, Tuple, Any, Optional
 import dataclasses
 from sqlalchemy import create_engine, inspect, text, insert
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
@@ -310,10 +311,16 @@ class EntityManager:
         Returns:
             List of foreign key column names
         """
+        if not event_table:
+            logger.debug("No event table provided; skipping relationship column detection.")
+            return []
         try:
             # Try to find foreign key relationships using the SQLAlchemy Inspector
             inspector = inspect(session.get_bind())
             relationship_columns = []
+            if not inspector.has_table(event_table):
+                logger.debug(f"Event table '{event_table}' not found; skipping relationship lookup.")
+                return []
             
             try:
                 # Get the primary key columns of the entity table
@@ -370,6 +377,8 @@ class EntityManager:
                         if pattern in event_columns:
                             relationship_columns.append(pattern)
                             break
+                except NoSuchTableError:
+                    logger.warning(f"Event table '{event_table}' not found; skipping relationship column pattern search.")
                 except Exception as e:
                     logger.error(f"Error checking column patterns: {str(e)}", exc_info=True)
             
@@ -383,9 +392,11 @@ class EntityManager:
             
             return relationship_columns
             
+        except NoSuchTableError:
+            logger.warning(f"Event table '{event_table}' not found; skipping relationship lookup.")
+            return []
         except Exception as e:
             logger.error(f"Error finding relationship columns: {str(e)}", exc_info=True)
-            # raise # Re-raise the exception or return empty list
             return [] # Returning empty list for now
     
     def create_entity(self, session, entity_table: str) -> int:
@@ -506,6 +517,9 @@ class EntityManager:
     
     def find_event_type_column(self, session, event_table: str) -> Optional[str]:
         """ Find the column used for event types in the event table using ColumnResolver """
+        if not event_table:
+            logger.debug("No event table provided; skipping event type column resolution.")
+            return None
         try:
             # Use ColumnResolver to get the event_type column
             return self.column_resolver.get_event_type_column(event_table)

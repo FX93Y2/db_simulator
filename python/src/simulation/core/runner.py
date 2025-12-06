@@ -46,8 +46,12 @@ def ensure_simulation_tables(sim_config, db_path: Union[str, Path], db_config=No
                 event_table = entity.name
     
     # Check if we have the necessary table names
-    if not entity_table or not event_table:
-        logger.error("Could not determine entity or event table names. Cannot ensure simulation tables.")
+    if not entity_table:
+        logger.error("Could not determine entity table name. Cannot ensure simulation tables.")
+        return
+
+    if not event_table:
+        logger.info("No event table specified; skipping event table provisioning.")
         return
     
     # Connect to the database

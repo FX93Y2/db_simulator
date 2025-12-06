@@ -209,7 +209,7 @@ class ResourceManager:
         logger.warning("Could not find resource type column, using 'role' as default")
         return 'role' if 'role' in column_names else None
     
-    def allocate_resources(self, event_id: int, requirements: List[Dict[str, Any]], event_table: str = None,
+    def allocate_resources(self, event_id: int, requirements: List[Dict[str, Any]], event_flow: str = None,
                           entity_id: int = None, entity_table: str = None, entity_attributes: Dict[str, Any] = None,
                           queue_manager = None):
         """
@@ -220,8 +220,8 @@ class ResourceManager:
 
         Args:
             event_id: ID of the event requesting resources
+            event_flow: Name/identifier of the event flow (used for unique allocation keys)
             requirements: List of resource requirements
-            event_table: Name of the event table (used for unique allocation keys)
             entity_id: Entity ID (required for queue-aware allocation)
             entity_table: Entity table name (required for queue-aware allocation)
             entity_attributes: Entity attributes dict (required for priority queues)
@@ -294,7 +294,7 @@ class ResourceManager:
                     logger.debug(f"Allocated resource {resource_key} (type: {resource.type}) to event {event_id}")
 
             # Store the allocation for this event using a composite key to handle ID collisions
-            allocation_key = f"{event_table}_{event_id}" if event_table else str(event_id)
+            allocation_key = f"{event_flow}_{event_id}" if event_flow else str(event_id)
             self.event_allocations[allocation_key] = allocated_resources
 
             # Record allocation in history
@@ -314,18 +314,26 @@ class ResourceManager:
                 self.resource_store.put(resource)
             raise
     
-    def release_resources(self, event_id: int, event_table: str = None):
+    def release_resources(self, event_id: int, event_flow: str = None):
         """
         Release all resources allocated to an event
         
         Args:
             event_id: ID of the event releasing resources
-            event_table: Name of the event table (used for unique allocation keys)
+            event_flow: Name/identifier of the event flow (used for unique allocation keys)
         """
-        allocation_key = f"{event_table}_{event_id}" if event_table else str(event_id)
-        
-        if allocation_key not in self.event_allocations:
-            logger.warning(f"No resources found for event {event_id} (table: {event_table}) to release")
+        primary_key = f"{event_flow}_{event_id}" if event_flow else str(event_id)
+        allocation_key = primary_key if primary_key in self.event_allocations else None
+
+        if not allocation_key:
+            # Fallback: look for any allocation matching this event_id (for legacy callers)
+            for key in list(self.event_allocations.keys()):
+                if key == str(event_id) or key.endswith(f"_{event_id}"):
+                    allocation_key = key
+                    break
+
+        if not allocation_key:
+            logger.warning(f"No resources found for event {event_id} (flow: {event_flow}) to release")
             return
         
         resources = self.event_allocations[allocation_key]

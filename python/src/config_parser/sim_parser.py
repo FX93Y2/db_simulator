@@ -46,8 +46,8 @@ class ResourceCapacityConfig:
 @dataclass
 class TableSpecification:
     entity_table: str
-    event_table: str
-    resource_table: str
+    event_table: Optional[str] = None
+    resource_table: str = ''
 
 @dataclass
 class EntityArrival:
@@ -145,7 +145,8 @@ class Step:
 @dataclass
 class EventFlow:
     flow_id: str
-    event_table: str  # Flow-specific event table
+    event_table: Optional[str] = None  # Flow-specific event table (optional, legacy)
+    event_flow: Optional[str] = None   # Flow label for tracking/logging
     steps: List[Step] = field(default_factory=list)
 
 @dataclass
@@ -159,7 +160,7 @@ class TerminatingConditions:
 
 @dataclass
 class EventSimulation:
-    table_specification: TableSpecification
+    table_specification: Optional[TableSpecification] = None
     queues: List[QueueDefinition] = field(default_factory=list)  # Arena-style queue definitions
     event_flows: Optional[EventFlowsConfig] = None
     resource_capacities: Optional[Dict[str, ResourceCapacityConfig]] = None
@@ -288,7 +289,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
             table_dict = event_dict['table_specification']
             table_spec = TableSpecification(
                 entity_table=table_dict.get('entity_table', ''),
-                event_table=table_dict.get('event_table', ''),
+                event_table=table_dict.get('event_table') or None,
                 resource_table=table_dict.get('resource_table', '')
             )
         elif db_config:
@@ -297,13 +298,16 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
             event_table = find_table_by_type(db_config, 'event')
             resource_table = find_table_by_type(db_config, 'resource')
             
-            if entity_table and event_table and resource_table:
+            if entity_table or resource_table or event_table:
                 table_spec = TableSpecification(
-                    entity_table=entity_table,
-                    event_table=event_table,
-                    resource_table=resource_table
+                    entity_table=entity_table or '',
+                    event_table=event_table or None,
+                    resource_table=resource_table or ''
                 )
-                logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
+                logger.info(
+                    f"Derived table specification from database config: entity={entity_table}, "
+                    f"event={event_table}, resource={resource_table}"
+                )
         
         # Entity arrival is now handled by Create step modules in event flows
 
@@ -419,9 +423,12 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
+                flow_id = flow_dict.get('flow_id', '')
+                event_flow_label = flow_dict.get('event_flow') or flow_dict.get('event_table') or flow_id
                 flows.append(EventFlow(
-                    flow_id=flow_dict.get('flow_id', ''),
-                    event_table=flow_dict.get('event_table', ''),
+                    flow_id=flow_id,
+                    event_table=flow_dict.get('event_table') or None,
+                    event_flow=event_flow_label,
                     steps=steps
                 ))
             
@@ -521,7 +528,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
             table_dict = event_dict['table_specification']
             table_spec = TableSpecification(
                 entity_table=table_dict.get('entity_table', ''),
-                event_table=table_dict.get('event_table', ''),
+                event_table=table_dict.get('event_table') or None,
                 resource_table=table_dict.get('resource_table', '')
             )
         elif db_config:
@@ -530,13 +537,16 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
             event_table = find_table_by_type(db_config, 'event')
             resource_table = find_table_by_type(db_config, 'resource')
             
-            if entity_table and event_table and resource_table:
+            if entity_table or resource_table or event_table:
                 table_spec = TableSpecification(
-                    entity_table=entity_table,
-                    event_table=event_table,
-                    resource_table=resource_table
+                    entity_table=entity_table or '',
+                    event_table=event_table or None,
+                    resource_table=resource_table or ''
                 )
-                logger.info(f"Derived table specification from database config: entity={entity_table}, event={event_table}, resource={resource_table}")
+                logger.info(
+                    f"Derived table specification from database config: entity={entity_table}, "
+                    f"event={event_table}, resource={resource_table}"
+                )
         
         # Parse the rest of the event simulation configuration
         # Entity arrival is now handled by Create step modules in event flows
@@ -653,9 +663,12 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         next_steps=step_dict.get('next_steps', [])
                     ))
                 
+                flow_id = flow_dict.get('flow_id', '')
+                event_flow_label = flow_dict.get('event_flow') or flow_dict.get('event_table') or flow_id
                 flows.append(EventFlow(
-                    flow_id=flow_dict.get('flow_id', ''),
-                    event_table=flow_dict.get('event_table', ''),
+                    flow_id=flow_id,
+                    event_table=flow_dict.get('event_table') or None,
+                    event_flow=event_flow_label,
                     steps=steps
                 ))
             

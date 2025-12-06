@@ -4,8 +4,9 @@ Event tracker for recording simulation events in the database
 
 import logging
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from sqlalchemy import create_engine, Table, Column, Integer, String, DateTime, Float, MetaData, insert, text, ForeignKey
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.pool import NullPool
 from ..utils.column_resolver import ColumnResolver
 
@@ -26,6 +27,7 @@ class EventTracker:
     def __init__(self, db_path: str, start_date: Optional[datetime] = None,
                  event_table_name: Optional[str] = None,
                  resource_table_name: Optional[str] = None,
+                 entity_table_name: Optional[str] = None,
                  bridge_table_config: Optional[Dict[str, Any]] = None,
                  db_config=None):
         """
@@ -36,18 +38,25 @@ class EventTracker:
             start_date: Simulation start date
             event_table_name: Name of the main event table (e.g., 'Deliverable')
             resource_table_name: Name of the main resource table (e.g., 'Consultant')
+            entity_table_name: Name of the main entity table (e.g., 'Ticket')
             bridge_table_config: Optional configuration for the bridge table with keys:
                 - name: Name of the bridge table
                 - event_fk_column: Name of the column referencing the event table
+                - entity_fk_column: Name of the column referencing the entity table
                 - resource_fk_column: Name of the column referencing the resource table
         """
         self.db_path = db_path
         self.event_table_name = event_table_name
         self.resource_table_name = resource_table_name
+        self.entity_table_name = entity_table_name
         self.bridge_table_name = None
         self.bridge_table = None # Will hold the SQLAlchemy Table object
         self.event_fk_column = None
+        self.entity_fk_column = None
         self.resource_fk_column = None
+        self.bridge_mode = None
+        self.bridge_columns = set()
+        self.event_type_column = 'event_type'
         
         # Use NullPool to avoid connection pool issues with SQLite
         # and enable WAL journal mode for better concurrency
@@ -68,9 +77,11 @@ class EventTracker:
         if bridge_table_config:
             self.bridge_table_name = bridge_table_config.get('name')
             self.event_fk_column = bridge_table_config.get('event_fk_column')
+            self.entity_fk_column = bridge_table_config.get('entity_fk_column')
             self.resource_fk_column = bridge_table_config.get('resource_fk_column')
+            self.event_type_column = bridge_table_config.get('event_type_column') or self.event_type_column
             logger.info(f"EventTracker configured with custom bridge table: {self.bridge_table_name} "
-                        f"(event_fk: {self.event_fk_column}, resource_fk: {self.resource_fk_column})")
+                        f"(event_fk: {self.event_fk_column}, entity_fk: {self.entity_fk_column}, resource_fk: {self.resource_fk_column})")
         # Otherwise determine dynamic bridge table name and columns
         elif self.event_table_name and self.resource_table_name:
             self.bridge_table_name = f"{self.event_table_name}_{self.resource_table_name}"
@@ -92,7 +103,7 @@ class EventTracker:
         self.event_processing = Table(
             'sim_event_processing', self.metadata,
             Column('id', Integer, primary_key=True),
-            Column('event_table', String, nullable=False),
+            Column('event_flow', String, nullable=False),
             Column('event_id', Integer, nullable=False),
             Column('entity_id', Integer, nullable=False),
             Column('start_time', Float, nullable=False),  # Simulation time in minutes
@@ -106,6 +117,7 @@ class EventTracker:
         self.resource_allocations = Table(
             'sim_resource_allocations', self.metadata,
             Column('id', Integer, primary_key=True),
+            Column('event_flow', String, nullable=False),
             Column('event_id', Integer, nullable=False),
             Column('resource_table', String, nullable=False),
             Column('resource_id', Integer, nullable=False),
@@ -123,27 +135,56 @@ class EventTracker:
             if self.resource_table_name:
                 Table(self.resource_table_name, self.metadata, autoload_with=self.engine)
                 logger.debug(f"Reflected table {self.resource_table_name} into metadata.")
+        except NoSuchTableError as e:
+            logger.warning(f"Event/resource table not found during reflection: {e}. Bridge table FK constraints might be skipped.")
         except Exception as e:
             logger.error(f"Error reflecting event/resource tables: {e}. Bridge table FK constraints might fail.")
         
-        # Dynamic event-resource bridging table (if names provided)
-        if self.bridge_table_name and self.event_fk_column and self.resource_fk_column:
-            self.bridge_table = Table(
-                self.bridge_table_name, self.metadata,
-                Column('id', Integer, primary_key=True),
-                # Use dynamic column names and attempt to add FK constraints
-                # Note: FK constraints might fail if target tables don't exist yet during init.
-                # Consider creating tables sequentially or adding constraints later if issues arise.
-                # Resolve primary key columns for FK constraints
-                Column(self.event_fk_column, Integer, 
-                      ForeignKey(f"{self.event_table_name}.{self._get_pk_column(self.event_table_name)}"), 
-                      nullable=False), 
-                Column(self.resource_fk_column, Integer, 
-                      ForeignKey(f"{self.resource_table_name}.{self._get_pk_column(self.resource_table_name)}"), 
-                      nullable=False),
-                Column('start_date', DateTime, nullable=False),
-                Column('end_date', DateTime, nullable=True) # Allow NULL for ongoing allocations
-            )
+        # Dynamic event/resource or entity/resource bridge table (if names provided)
+        if self.bridge_table_name and self.resource_fk_column and (self.event_fk_column or self.entity_fk_column):
+            try:
+                # Prefer reflecting the existing schema first
+                self.bridge_table = Table(self.bridge_table_name, self.metadata, autoload_with=self.engine)
+                self.bridge_columns = {col.name for col in self.bridge_table.columns}
+                if self.event_fk_column:
+                    self.bridge_mode = 'event'
+                elif self.entity_fk_column:
+                    self.bridge_mode = 'entity'
+                if self.event_type_column and self.event_type_column not in self.bridge_columns and 'event_type' in self.bridge_columns:
+                    self.event_type_column = 'event_type'
+            except Exception:
+                # Fallback: create a lightweight bridge table with minimal constraints
+                columns: List[Column[Any]] = [Column('id', Integer, primary_key=True)]
+                if self.event_fk_column:
+                    event_fk_arg = None
+                    if self.event_table_name:
+                        event_fk_arg = ForeignKey(f"{self.event_table_name}.{self._get_pk_column(self.event_table_name)}")
+                    event_column_args = [self.event_fk_column, Integer]
+                    if event_fk_arg:
+                        event_column_args.append(event_fk_arg)
+                    columns.append(Column(*event_column_args, nullable=False))
+                    self.bridge_mode = 'event'
+                if self.entity_fk_column:
+                    entity_fk_arg = None
+                    if self.entity_table_name:
+                        entity_fk_arg = ForeignKey(f"{self.entity_table_name}.{self._get_pk_column(self.entity_table_name)}")
+                    entity_column_args = [self.entity_fk_column, Integer]
+                    if entity_fk_arg:
+                        entity_column_args.append(entity_fk_arg)
+                    columns.append(Column(*entity_column_args, nullable=False))
+                    self.bridge_mode = self.bridge_mode or 'entity'
+                resource_fk_arg = None
+                if self.resource_table_name:
+                    resource_fk_arg = ForeignKey(f"{self.resource_table_name}.{self._get_pk_column(self.resource_table_name)}")
+                resource_column_args = [self.resource_fk_column, Integer]
+                if resource_fk_arg:
+                    resource_column_args.append(resource_fk_arg)
+                columns.append(Column(*resource_column_args, nullable=False))
+                columns.append(Column('event_type', String, nullable=True))
+                columns.append(Column('start_date', DateTime, nullable=True))
+                columns.append(Column('end_date', DateTime, nullable=True))
+                self.bridge_table = Table(self.bridge_table_name, self.metadata, *columns)
+                self.bridge_columns = {col.name for col in columns if hasattr(col, 'name')}
         
         # Create all tables defined in this metadata (sim tracking + bridge if defined)
         try:
@@ -154,13 +195,13 @@ class EventTracker:
     
     # Entity arrivals are now tracked automatically via created_at column in entity tables
     
-    def record_event_processing(self, event_table: str, event_id: int, entity_id: int, 
+    def record_event_processing(self, event_flow: str, event_id: int, entity_id: int, 
                                start_time: float, end_time: float):
         """
         Record event processing
         
         Args:
-            event_table: Name of the event table
+            event_flow: Name of the event flow
             event_id: Event ID
             entity_id: Entity ID
             start_time: Start time in minutes
@@ -172,7 +213,7 @@ class EventTracker:
         
         with self.engine.connect() as conn:
             stmt = insert(self.event_processing).values(
-                event_table=event_table,
+                event_flow=event_flow,
                 event_id=event_id,
                 entity_id=entity_id,
                 start_time=start_time,
@@ -184,7 +225,9 @@ class EventTracker:
             conn.execute(stmt)
             conn.commit()
     
-    def record_resource_allocation(self, event_id, resource_table, resource_id, allocation_time, release_time=None):
+    def record_resource_allocation(self, event_flow, event_id, resource_table, resource_id,
+                                  allocation_time, release_time=None,
+                                  entity_id: Optional[int] = None, event_type: Optional[str] = None):
         """Record the allocation of a resource to an event."""
         try:
             allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
@@ -192,6 +235,7 @@ class EventTracker:
 
             with self.engine.connect() as conn:
                 stmt = insert(self.resource_allocations).values(
+                    event_flow=event_flow,
                     event_id=event_id,
                     resource_table=resource_table,
                     resource_id=resource_id,
@@ -205,13 +249,25 @@ class EventTracker:
                 # Populate the dynamic bridge table if it exists and the resource table matches
                 if self.bridge_table is not None and resource_table == self.resource_table_name:
                     logger.debug(f"Recording allocation in bridge table {self.bridge_table_name}")
-                    # Use dynamic column names
+                    if self.bridge_mode == 'entity' and self.entity_fk_column and entity_id is None:
+                        logger.warning("Bridge logging skipped because entity_id was not provided for entity/resource bridge.")
+                        conn.commit()
+                        return
                     bridge_data = {
-                        self.event_fk_column: event_id,
                         self.resource_fk_column: resource_id,
                         'start_date': allocation_datetime,
                         'end_date': release_datetime
                     }
+
+                    if self.bridge_mode == 'event' and self.event_fk_column:
+                        bridge_data[self.event_fk_column] = event_id
+                        if event_type and self.event_type_column in self.bridge_columns:
+                            bridge_data[self.event_type_column] = event_type
+                    elif self.bridge_mode == 'entity' and self.entity_fk_column:
+                        bridge_data[self.entity_fk_column] = entity_id
+                        if event_type and self.event_type_column in self.bridge_columns:
+                            bridge_data[self.event_type_column] = event_type
+
                     stmt = insert(self.bridge_table).values(**bridge_data)
                     conn.execute(stmt)
                 

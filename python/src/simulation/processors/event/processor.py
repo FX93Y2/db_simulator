@@ -9,6 +9,7 @@ import logging
 from datetime import timedelta
 from typing import Any, Generator, Optional
 from sqlalchemy import create_engine, insert, text
+from sqlalchemy.exc import NoSuchTableError
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
@@ -42,6 +43,8 @@ class EventStepProcessor(StepProcessor):
 
         # Store queue manager reference for queue-aware resource allocation
         self.queue_manager = queue_manager
+        # Synthetic ID generator for runs without an event table
+        self.synthetic_event_counter = 0
     
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle event steps."""
@@ -82,6 +85,7 @@ class EventStepProcessor(StepProcessor):
         self.log_step_start(entity_id, step)
         
         event_config = step.event_config
+        event_flow_label = getattr(flow, 'event_flow', None) or getattr(flow, 'flow_id', None) or event_table
         
         # Create a process-specific engine for isolation
         process_engine = create_engine(
@@ -90,86 +94,101 @@ class EventStepProcessor(StepProcessor):
             connect_args={"check_same_thread": False}
         )
         
+        session = None
         try:
-            with Session(process_engine) as session:
-                # Create event in database
-                event_id = self._create_event_for_step(
-                    session, entity_id, step, entity_table, event_table
+            session = Session(process_engine)
+            # Create event in database (or synthetic placeholder when event table is absent)
+            event_id = self._create_event_for_step(
+                session, entity_id, step, entity_table, event_table
+            )
+            
+            if event_id is None:
+                self.logger.warning(
+                    f"Falling back to synthetic event id for step {step.step_id} (entity {entity_id})"
                 )
-                
-                if event_id is None:
-                    self.logger.error(f"Failed to create event for step {step.step_id}")
+                event_id = self._next_synthetic_event_id(step)
+
+            # Retrieve entity attributes for queue priority calculation (if needed)
+            entity_attributes = self._get_entity_attributes(session, entity_table, entity_id)
+            session.close()
+            session = None
+
+            # Allocate resources if required
+            if event_config.resource_requirements:
+                requirements_list = self._convert_resource_requirements(
+                    event_config.resource_requirements
+                )
+
+                try:
+                    # Check if any requirement uses a queue
+                    uses_queue = any(req.get('queue') for req in requirements_list)
+
+                    if uses_queue and self.queue_manager:
+                        # Queue-aware resource allocation
+                        yield self.env.process(
+                            self.resource_manager.allocate_resources(
+                                event_id, requirements_list, event_flow_label,
+                                entity_id=entity_id,
+                                entity_table=entity_table,
+                                entity_attributes=entity_attributes,
+                                queue_manager=self.queue_manager
+                            )
+                        )
+                    else:
+                        # Standard resource allocation (backward compatible)
+                        yield self.env.process(
+                            self.resource_manager.allocate_resources(event_id, requirements_list, event_flow_label)
+                        )
+
+                    self.logger.debug(f"Resources allocated for event {event_id}")
+                except Exception as e:
+                    self.logger.warning(f"Resource allocation failed for event {event_id}: {e}")
                     return None
-
-                # Retrieve entity attributes for queue priority calculation (if needed)
-                entity_attributes = self._get_entity_attributes(session, entity_table, entity_id)
-
-                # Allocate resources if required
-                if event_config.resource_requirements:
-                    requirements_list = self._convert_resource_requirements(
-                        event_config.resource_requirements
-                    )
-
-                    try:
-                        # Check if any requirement uses a queue
-                        uses_queue = any(req.get('queue') for req in requirements_list)
-
-                        if uses_queue and self.queue_manager:
-                            # Queue-aware resource allocation
-                            yield self.env.process(
-                                self.resource_manager.allocate_resources(
-                                    event_id, requirements_list, event_table,
-                                    entity_id=entity_id,
-                                    entity_table=entity_table,
-                                    entity_attributes=entity_attributes,
-                                    queue_manager=self.queue_manager
-                                )
-                            )
-                        else:
-                            # Standard resource allocation (backward compatible)
-                            yield self.env.process(
-                                self.resource_manager.allocate_resources(event_id, requirements_list, event_table)
-                            )
-
-                        self.logger.debug(f"Resources allocated for event {event_id}")
-                    except Exception as e:
-                        self.logger.warning(f"Resource allocation failed for event {event_id}: {e}")
-                        return None
+            
+            # Process event duration
+            duration_minutes = self._calculate_event_duration(event_config)
+            start_time = self.env.now
+            
+            # Wait for the event duration
+            yield self.env.timeout(duration_minutes)
+            
+            end_time = self.env.now
+            
+            # Record resource allocations in the tracker
+            self._record_resource_allocations(
+                event_id,
+                start_time,
+                end_time,
+                event_flow_label,
+                active_event_tracker,
+                entity_id=entity_id,
+                event_type=step.step_id
+            )
+            
+            # Increment events processed counter for termination tracking
+            if self.simulator:
+                self.simulator.initializer.processed_events += 1
+            
+            # Record event processing
+            self._record_event_processing(
+                process_engine, event_flow_label, event_id, entity_id,
+                start_time, end_time, duration_minutes, active_event_tracker
+            )
                 
-                # Process event duration
-                duration_minutes = self._calculate_event_duration(event_config)
-                start_time = self.env.now
-                
-                # Wait for the event duration
-                yield self.env.timeout(duration_minutes)
-                
-                end_time = self.env.now
-                
-                # Record resource allocations in the tracker
-                self._record_resource_allocations(event_id, start_time, end_time, event_table, active_event_tracker)
-                
-                # Increment events processed counter for termination tracking
-                if self.simulator:
-                    self.simulator.initializer.processed_events += 1
-                
-                # Record event processing
-                self._record_event_processing(
-                    process_engine, event_table, event_id, entity_id,
-                    start_time, end_time, duration_minutes, active_event_tracker
-                )
-                
-                # Release resources
-                self.resource_manager.release_resources(event_id, event_table)
-                
-                self.logger.debug(
-                    f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} "
-                    f"in {duration_minutes/60:.2f} hours"
-                )
-                
+            # Release resources
+            self.resource_manager.release_resources(event_id, event_flow_label)
+            
+            self.logger.debug(
+                f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} "
+                f"in {duration_minutes/60:.2f} hours"
+            )
+            
         except Exception as e:
             self.logger.error(f"Error processing event step {step.step_id}: {str(e)}", exc_info=True)
             return None
         finally:
+            if session:
+                session.close()
             process_engine.dispose()
         
         # Determine next step
@@ -178,7 +197,7 @@ class EventStepProcessor(StepProcessor):
         return next_step_id
     
     def _create_event_for_step(self, session, entity_id: int, step: 'Step', 
-                              entity_table: str, event_table: str) -> Optional[int]:
+                              entity_table: str, event_table: Optional[str]) -> Optional[int]:
         """
         Create an event record in the database for this step.
         
@@ -192,14 +211,20 @@ class EventStepProcessor(StepProcessor):
         Returns:
             Created event ID or None if failed
         """
+        if not event_table:
+            synthetic_id = self._next_synthetic_event_id(step)
+            self.logger.debug(
+                f"No event table provided; using synthetic event id {synthetic_id} for step {step.step_id}"
+            )
+            return synthetic_id
         try:
             # Find relationship column
             relationship_columns = self.entity_manager.find_relationship_columns(
                 session, entity_table, event_table
             )
             if not relationship_columns:
-                self.logger.error(f"No relationship column found between {entity_table} and {event_table}")
-                return None
+                self.logger.warning(f"No relationship column found between {entity_table} and {event_table}")
+                return self._next_synthetic_event_id(step)
             
             relationship_column = relationship_columns[0]
             
@@ -237,6 +262,11 @@ class EventStepProcessor(StepProcessor):
             self.logger.debug(f"Created event {next_id} of type '{step.step_id}' for entity {entity_id}")
             return next_id
             
+        except NoSuchTableError:
+            self.logger.warning(
+                f"Event table '{event_table}' not found; using synthetic event id for step {step.step_id}"
+            )
+            return self._next_synthetic_event_id(step)
         except Exception as e:
             self.logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
             return None
@@ -337,7 +367,7 @@ class EventStepProcessor(StepProcessor):
             self.logger.warning(f"Error calculating event duration: {str(e)}, using default")
             return 60.0  # Default 1 hour
     
-    def _record_event_processing(self, engine, event_table: str, event_id: int, 
+    def _record_event_processing(self, engine, event_flow: Optional[str], event_id: int, 
                                 entity_id: int, start_time: float, end_time: float, 
                                 duration_minutes: float, event_tracker=None):
         """Record event processing in the event tracker."""
@@ -353,11 +383,13 @@ class EventStepProcessor(StepProcessor):
                 start_datetime = self.config.start_date + timedelta(minutes=start_time)
                 end_datetime = self.config.start_date + timedelta(minutes=end_time)
             
+            event_flow_label = self._get_event_flow_label(event_flow)
+
             # Record in event tracker if available
             if active_event_tracker:
                 with engine.connect() as conn:
                     stmt = insert(active_event_tracker.event_processing).values(
-                        event_table=event_table,
+                        event_flow=event_flow_label,
                         event_id=event_id,
                         entity_id=entity_id,
                         start_time=start_time,
@@ -372,23 +404,42 @@ class EventStepProcessor(StepProcessor):
         except Exception as e:
             self.logger.warning(f"Error recording event processing: {str(e)}")
     
-    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_table: str, event_tracker=None):
+    def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_flow: str,
+                                     event_tracker=None, entity_id: Optional[int] = None, event_type: Optional[str] = None):
         """Record resource allocations in the event tracker."""
         try:
             active_event_tracker = event_tracker or self.event_tracker
             # Use composite key to handle ID collisions between event tables
-            allocation_key = f"{event_table}_{event_id}" if event_table else str(event_id)
+            allocation_key = f"{event_flow}_{event_id}" if event_flow else str(event_id)
             if active_event_tracker and allocation_key in self.resource_manager.event_allocations:
                 allocated_resources = self.resource_manager.event_allocations[allocation_key]
                 for resource in allocated_resources:
                     # Record in the event tracker
                     active_event_tracker.record_resource_allocation(
+                        event_flow=event_flow or self._get_event_flow_label(None),
                         event_id=event_id,
                         resource_table=resource.table,
                         resource_id=resource.id,
                         allocation_time=start_time,
-                        release_time=end_time
+                        release_time=end_time,
+                        entity_id=entity_id,
+                        event_type=event_type
                     )
                 self.logger.debug(f"Recorded {len(allocated_resources)} resource allocations for event {event_id}")
         except Exception as e:
             self.logger.warning(f"Error recording resource allocations for event {event_id}: {str(e)}")
+
+    def _next_synthetic_event_id(self, step: 'Step') -> int:
+        """Generate a synthetic event ID when no event table is available."""
+        self.synthetic_event_counter += 1
+        return self.synthetic_event_counter
+
+    def _get_event_flow_label(self, event_flow: Optional[str]) -> str:
+        """Provide a non-empty label for logging when no event flow is provided."""
+        if event_flow:
+            return event_flow
+        try:
+            fallback_entity_table = self.entity_manager.get_table_by_type('entity')
+            return fallback_entity_table or 'event'
+        except Exception:
+            return 'event'

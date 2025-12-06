@@ -88,6 +88,27 @@ class TableBuilder:
                     logger.debug(f"Added column: {entity.name}.{attr_name} ({attr_type.__name__})")
             else:
                 logger.debug(f"No flow-specific attributes found for entity table '{entity.name}'")
+
+        # Add default lifecycle columns for bridge tables that link entities and resources
+        if entity.type == 'bridge':
+            attr_names = {attr.name for attr in entity.attributes}
+            attr_types = {attr.type for attr in entity.attributes}
+            has_entity_fk = any(attr.type == 'entity_id' for attr in entity.attributes)
+            has_resource_fk = any(attr.type == 'resource_id' for attr in entity.attributes)
+
+            if has_entity_fk and has_resource_fk:
+                # Ensure an event type marker exists
+                if 'event_type' not in attr_names and 'event_type' not in attr_types:
+                    attrs['event_type'] = Column(String, nullable=True)
+                    logger.debug(f"Added default event_type column to bridge table '{entity.name}'")
+
+                # Ensure lifecycle timestamps exist
+                if 'start_date' not in attr_names:
+                    attrs['start_date'] = Column(DateTime, nullable=True)
+                    logger.debug(f"Added default start_date column to bridge table '{entity.name}'")
+                if 'end_date' not in attr_names:
+                    attrs['end_date'] = Column(DateTime, nullable=True)
+                    logger.debug(f"Added default end_date column to bridge table '{entity.name}'")
         
         # Create model class
         model_class = type(entity.name, (self.Base,), attrs)
