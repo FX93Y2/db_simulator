@@ -57,13 +57,12 @@ class FlowEventTrackerSetup:
             
             # Find bridge table for this flow's event table
             bridge_table_config = self._find_bridge_table_for_flow(
-                event_table_name,
                 resource_table_name,
                 entity_table_name
             )
 
-            if not event_table_name and not bridge_table_config:
-                logger.warning(f"Flow {flow_id} has no event_table and no matching bridge table. Skipping EventTracker creation.")
+            if not bridge_table_config:
+                logger.warning(f"Flow {flow_id} has no matching bridge table. Skipping EventTracker creation.")
                 continue
             
             if bridge_table_config:
@@ -71,7 +70,6 @@ class FlowEventTrackerSetup:
                 event_tracker = EventTracker(
                     self.db_path,
                     self.config.start_date,
-                    event_table_name=event_table_name,
                     resource_table_name=resource_table_name,
                     entity_table_name=entity_table_name,
                     bridge_table_config=bridge_table_config,
@@ -112,12 +110,11 @@ class FlowEventTrackerSetup:
                 if hasattr(self.config.event_simulation.event_flows, 'flows') 
                 else self.config.event_simulation.event_flows)
     
-    def _find_bridge_table_for_flow(self, event_table_name: str, resource_table_name: str, entity_table_name: Optional[str]) -> Optional[Dict]:
+    def _find_bridge_table_for_flow(self, resource_table_name: str, entity_table_name: Optional[str]) -> Optional[Dict]:
         """
         Find the bridge table configuration for a specific event table.
         
         Args:
-            event_table_name: Name of the event table for this flow.
             resource_table_name: Name of the resource table (shared).
             entity_table_name: Name of the entity table.
             
@@ -127,18 +124,15 @@ class FlowEventTrackerSetup:
         if not self.db_config:
             return None
         
-        # Find a bridge table entity that has event_id or entity_id and resource_id type attributes
+        # Find a bridge table entity that has entity_id and resource_id type attributes
         for entity in self.db_config.entities:
-            event_fk_attr = None
             entity_fk_attr = None
             resource_fk_attr = None
             event_type_attr = None
             
-            # Check if this entity has attributes with type 'event_id'/'entity_id' and 'resource_id'
+            # Check if this entity has attributes with type 'entity_id' and 'resource_id'
             for attr in entity.attributes:
-                if attr.type == 'event_id' and attr.ref and attr.ref.startswith(f"{event_table_name}."):
-                    event_fk_attr = attr
-                elif entity_table_name and attr.type == 'entity_id' and attr.ref and attr.ref.startswith(f"{entity_table_name}."):
+                if entity_table_name and attr.type == 'entity_id' and attr.ref and attr.ref.startswith(f"{entity_table_name}."):
                     entity_fk_attr = attr
                 elif attr.type == 'resource_id' and attr.ref and attr.ref.startswith(f"{resource_table_name}."):
                     resource_fk_attr = attr
@@ -146,13 +140,6 @@ class FlowEventTrackerSetup:
                     event_type_attr = attr
             
             # If we found both attributes, this is the bridge table for this flow
-            if event_fk_attr and resource_fk_attr:
-                return {
-                    'name': entity.name,
-                    'event_fk_column': event_fk_attr.name,
-                    'resource_fk_column': resource_fk_attr.name,
-                    'event_type_column': event_type_attr.name if event_type_attr else None
-                }
             if entity_fk_attr and resource_fk_attr:
                 return {
                     'name': entity.name,

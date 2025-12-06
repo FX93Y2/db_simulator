@@ -204,7 +204,7 @@ class EntityManager:
         return None
     
     def get_table_names(self):
-        """Get entity, event, and resource table names from config or db config."""
+        """Get entity and resource table names from config or db config."""
         event_sim = self.config.event_simulation
         if not event_sim:
             return None, None, None
@@ -212,15 +212,14 @@ class EntityManager:
         # Try to get table names from simulation config
         if event_sim.table_specification:
             entity_table = event_sim.table_specification.entity_table
-            event_table = event_sim.table_specification.event_table
             resource_table = event_sim.table_specification.resource_table
         else:
             # Try to derive from database config based on table types
             entity_table = self.get_table_by_type('entity')
-            event_table = self.get_table_by_type('event')
             resource_table = self.get_table_by_type('resource')
             
-        return entity_table, event_table, resource_table
+        # Event tables are no longer required; return None for backward tuple compatibility
+        return entity_table, None, resource_table
     
     
     def generate_entities(self, process_entity_events_callback):
@@ -234,7 +233,7 @@ class EntityManager:
         if not event_sim or not event_sim.entity_arrival:
             return
             
-        entity_table, event_table, resource_table = self.get_table_names()
+        entity_table, _, resource_table = self.get_table_names()
         if not entity_table:
             logger.error("Missing entity table name. Cannot generate entities.")
             return

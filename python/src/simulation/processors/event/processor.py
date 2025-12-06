@@ -16,9 +16,7 @@ from sqlalchemy.pool import NullPool
 from ..base import StepProcessor
 from ..utils import extract_distribution_config, extract_distribution_config_with_time_unit
 from ....distributions import generate_from_distribution
-from ....generator.data.attribute_generator import generate_attribute_value
 from ....utils.time_units import TimeUnitConverter
-from ...utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +32,6 @@ class EventStepProcessor(StepProcessor):
     def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None, queue_manager=None):
         """Initialize EventStepProcessor with ColumnResolver and QueueManager support."""
         super().__init__(env, engine, resource_manager, entity_manager, event_tracker, config, simulator)
-
-        # Initialize column resolver for strict column resolution
-        db_config = getattr(entity_manager, 'db_config', None)
-        if not db_config:
-            raise ValueError("db_config is required for EventStepProcessor - cannot use hardcoded column names")
-        self.column_resolver = ColumnResolver(db_config)
 
         # Store queue manager reference for queue-aware resource allocation
         self.queue_manager = queue_manager
@@ -219,42 +211,8 @@ class EventStepProcessor(StepProcessor):
     
     def _generate_event_attributes(self, session, row_data: dict, event_table: str, 
                                   event_id: int, relationship_column: str, event_type_column: str):
-        """Generate additional attributes for the event record."""
-        try:
-            event_entity_config = self.entity_manager.get_entity_config(event_table)
-            if not event_entity_config:
-                return
-            
-            import dataclasses
-            
-            for attr in event_entity_config.attributes:
-                # Skip already set attributes
-                if (attr.is_primary_key or 
-                    attr.name == relationship_column or 
-                    attr.name == event_type_column or
-                    attr.name in row_data):
-                    continue
-                
-                # Skip foreign keys for now
-                if attr.is_foreign_key:
-                    continue
-                
-                if attr.generator:
-                    # Skip simulation_event type generators
-                    if attr.generator.type == 'simulation_event':
-                        continue
-                    
-                    gen_dict = dataclasses.asdict(attr.generator)
-                    attr_config_dict = {
-                        'name': attr.name,
-                        'generator': gen_dict
-                    }
-                    row_data[attr.name] = generate_attribute_value(attr_config_dict, event_id - 1)
-                    
-        except Exception as e:
-            import traceback
-            self.logger.warning(f"Error generating event attributes: {str(e)}")
-            self.logger.debug(f"Full traceback:\n{traceback.format_exc()}")
+        """Event attribute generation skipped (event tables removed)."""
+        return
     
     def _get_entity_attributes(self, session, entity_table: str, entity_id: int) -> dict:
         """
