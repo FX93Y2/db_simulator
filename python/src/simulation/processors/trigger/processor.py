@@ -7,6 +7,7 @@ to create records in related tables with foreign key relationships to entities.
 
 import logging
 import numbers
+from datetime import timedelta
 from typing import Any, Generator, Optional, TYPE_CHECKING, Dict, List
 from sqlalchemy import text, inspect
 
@@ -145,18 +146,29 @@ class TriggerStepProcessor(StepProcessor):
             count = self._resolve_count(trigger_config.count)
             self.logger.debug(f"Trigger step {step.step_id}: generating {count} records for {trigger_config.target_table}")
 
+            target_entity = self._get_target_entity(trigger_config.target_table)
+
             # Detect FK column
-            fk_column = self._detect_fk_column(trigger_config, entity_table)
+            fk_column = self._detect_fk_column(trigger_config, entity_table, target_entity)
             if not fk_column:
                 self.logger.error(f"Could not determine FK column for trigger step {step.step_id}")
                 return None
+
+            # Resolve timestamp columns and values
+            timestamp_column, sim_time_column, event_timestamp, sim_minutes = self._resolve_timestamp_fields(
+                trigger_config, target_entity, step.step_id
+            )
 
             # Generate records
             generated_ids = self._generate_records(
                 target_table=trigger_config.target_table,
                 count=count,
                 entity_id=entity_id,
-                fk_column=fk_column
+                fk_column=fk_column,
+                timestamp_column=timestamp_column,
+                sim_time_column=sim_time_column,
+                event_timestamp=event_timestamp,
+                sim_minutes=sim_minutes
             )
 
             self.logger.info(
@@ -229,7 +241,13 @@ class TriggerStepProcessor(StepProcessor):
 
         return resolved_int
 
-    def _detect_fk_column(self, trigger_config: 'TriggerConfig', entity_table: str) -> Optional[str]:
+    def _get_target_entity(self, target_table: str) -> Optional['Entity']:
+        """Fetch target entity config from db_config."""
+        if not self.db_config:
+            return None
+        return next((e for e in self.db_config.entities if e.name == target_table), None)
+
+    def _detect_fk_column(self, trigger_config: 'TriggerConfig', entity_table: str, target_entity: Optional['Entity']) -> Optional[str]:
         """
         Detect the foreign key column linking target table to entity table.
 
@@ -245,11 +263,6 @@ class TriggerStepProcessor(StepProcessor):
             return trigger_config.fk_column
 
         # Auto-detect from database config
-        target_entity = next(
-            (e for e in self.db_config.entities if e.name == trigger_config.target_table),
-            None
-        )
-
         if not target_entity:
             return None
 
@@ -264,7 +277,64 @@ class TriggerStepProcessor(StepProcessor):
         )
         return None
 
-    def _generate_records(self, target_table: str, count: int, entity_id: int, fk_column: str) -> List[int]:
+    def _resolve_timestamp_fields(
+        self,
+        trigger_config: 'TriggerConfig',
+        target_entity: Optional['Entity'],
+        step_id: str
+    ):
+        """
+        Determine timestamp-related columns and values for generated rows.
+        Raises if start_date is missing when a timestamp column is requested.
+        """
+        if not target_entity:
+            return None, None, None, None
+
+        attributes_by_name = {attr.name: attr for attr in target_entity.attributes}
+
+        # Determine timestamp column (explicit or default 'created_at')
+        timestamp_column = trigger_config.timestamp_column
+        if not timestamp_column and 'created_at' in attributes_by_name:
+            ts_attr = attributes_by_name['created_at']
+            if getattr(ts_attr, 'type', None) in ('datetime', 'timestamp'):
+                timestamp_column = 'created_at'
+
+        if timestamp_column and timestamp_column not in attributes_by_name:
+            self.logger.warning(
+                f"Trigger step {step_id}: timestamp_column '{timestamp_column}' not found in {target_entity.name}; skipping timestamp injection."
+            )
+            timestamp_column = None
+
+        # Determine sim time column
+        sim_time_column = trigger_config.sim_time_column
+        if sim_time_column and sim_time_column not in attributes_by_name:
+            self.logger.warning(
+                f"Trigger step {step_id}: sim_time_column '{sim_time_column}' not found in {target_entity.name}; skipping sim time injection."
+            )
+            sim_time_column = None
+
+        event_timestamp = None
+        if timestamp_column:
+            if not self.config or not getattr(self.config, 'start_date', None):
+                raise ValueError(
+                    f"Trigger step {step_id} requires simulation start_date to populate timestamp_column '{timestamp_column}'"
+                )
+            event_timestamp = self.config.start_date + timedelta(minutes=self.env.now)
+
+        sim_minutes = self.env.now if sim_time_column else None
+        return timestamp_column, sim_time_column, event_timestamp, sim_minutes
+
+    def _generate_records(
+        self,
+        target_table: str,
+        count: int,
+        entity_id: int,
+        fk_column: str,
+        timestamp_column: Optional[str],
+        sim_time_column: Optional[str],
+        event_timestamp,
+        sim_minutes: Optional[float]
+    ) -> List[int]:
         """
         Generate records in target table.
 
@@ -273,6 +343,10 @@ class TriggerStepProcessor(StepProcessor):
             count: Number of records to generate
             entity_id: Entity ID to link to (FK value)
             fk_column: FK column name
+            timestamp_column: Optional column to stamp with simulation datetime
+            sim_time_column: Optional column to store simulation time in minutes
+            event_timestamp: Simulation datetime to insert when timestamp_column is set
+            sim_minutes: Simulation time in minutes when sim_time_column is set
 
         Returns:
             List of generated record IDs
@@ -284,10 +358,7 @@ class TriggerStepProcessor(StepProcessor):
         from datetime import datetime
 
         # Find target entity config
-        target_entity = next(
-            (e for e in self.db_config.entities if e.name == target_table),
-            None
-        )
+        target_entity = self._get_target_entity(target_table)
 
         if not target_entity:
             raise ValueError(f"Target entity '{target_table}' not found in database config")
@@ -309,6 +380,16 @@ class TriggerStepProcessor(StepProcessor):
                     # Handle FK column - use entity_id
                     if attr.name == fk_column:
                         row_data[attr.name] = entity_id
+                        continue
+
+                    # Handle timestamp column (simulation datetime)
+                    if timestamp_column and attr.name == timestamp_column:
+                        row_data[attr.name] = event_timestamp
+                        continue
+
+                    # Handle simulation time column (minutes)
+                    if sim_time_column and attr.name == sim_time_column:
+                        row_data[attr.name] = sim_minutes
                         continue
 
                     # Generate value using configured generator

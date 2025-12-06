@@ -77,6 +77,8 @@ Authoritative outline of required/optional sections and fields for the simulatio
   - `target_table` (required): table to generate records for
   - `count` (required): integer or distribution formula string
   - `fk_column` (optional): explicit FK column for linking to the current entity
+  - `timestamp_column` (optional): datetime column to stamp with simulation datetime (requires `start_date`)
+  - `sim_time_column` (optional): numeric column to store simulation time in minutes
 
 ## Distribution Spec (used by duration/interarrival/capacity, etc.)
 - Allowed formats:

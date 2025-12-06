@@ -116,6 +116,8 @@ class TriggerConfig:
     target_table: str  # Table to generate data for
     count: Union[int, str]  # Fixed count or distribution formula (e.g., "UNIF(3,5)")
     fk_column: Optional[str] = None  # Optional explicit FK column name
+    timestamp_column: Optional[str] = None  # Optional column to stamp trigger datetime
+    sim_time_column: Optional[str] = None  # Optional column to store simulation time (minutes)
 
 @dataclass
 class CreateConfig:
@@ -379,7 +381,9 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         trigger_config = TriggerConfig(
                             target_table=trigger_dict.get('target_table', ''),
                             count=trigger_dict.get('count', 1),
-                            fk_column=trigger_dict.get('fk_column')
+                            fk_column=trigger_dict.get('fk_column'),
+                            timestamp_column=trigger_dict.get('timestamp_column'),
+                            sim_time_column=trigger_dict.get('sim_time_column')
                         )
 
                     steps.append(Step(
@@ -618,7 +622,9 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         trigger_config = TriggerConfig(
                             target_table=trigger_dict.get('target_table', ''),
                             count=trigger_dict.get('count', 1),
-                            fk_column=trigger_dict.get('fk_column')
+                            fk_column=trigger_dict.get('fk_column'),
+                            timestamp_column=trigger_dict.get('timestamp_column'),
+                            sim_time_column=trigger_dict.get('sim_time_column')
                         )
 
                     steps.append(Step(
