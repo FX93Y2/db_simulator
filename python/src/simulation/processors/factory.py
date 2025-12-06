@@ -166,7 +166,7 @@ class StepProcessorFactory:
         return None
     
     def process_step(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                    entity_table: str, event_table: str, flow_event_tracker=None):
+                    entity_table: str, event_flow: str, flow_event_tracker=None):
         """
         Process a step using the appropriate processor.
         
@@ -175,7 +175,7 @@ class StepProcessorFactory:
             step: Step configuration
             flow: Event flow configuration
             entity_table: Name of entity table
-            event_table: Name of event table
+            event_flow: Event flow identifier/label
             flow_event_tracker: Flow-specific EventTracker (optional, uses default if not provided)
             
         Returns:
@@ -189,7 +189,7 @@ class StepProcessorFactory:
         event_tracker = flow_event_tracker or processor.event_tracker
         
         self.logger.debug(f"Processing {step.step_type} step '{step.step_id}' for entity {entity_id} using EventTracker for flow {flow.flow_id}")
-        return processor.process(entity_id, step, flow, entity_table, event_table, event_tracker)
+        return processor.process(entity_id, step, flow, entity_table, event_flow, event_tracker)
     
     def add_processor(self, processor: StepProcessor):
         """

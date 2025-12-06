@@ -58,7 +58,7 @@ class EventStepProcessor(StepProcessor):
                 step.event_config is not None)
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_flow: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process an event step with resource allocation and duration.
         
@@ -67,7 +67,7 @@ class EventStepProcessor(StepProcessor):
             step: Event step configuration
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label of the event flow
             
         Yields:
             SimPy events during processing
@@ -85,7 +85,7 @@ class EventStepProcessor(StepProcessor):
         self.log_step_start(entity_id, step)
         
         event_config = step.event_config
-        event_flow_label = getattr(flow, 'event_flow', None) or getattr(flow, 'flow_id', None) or event_table
+        event_flow_label = event_flow or getattr(flow, 'event_flow', None) or getattr(flow, 'flow_id', None)
         
         # Create a process-specific engine for isolation
         process_engine = create_engine(
@@ -99,7 +99,7 @@ class EventStepProcessor(StepProcessor):
             session = Session(process_engine)
             # Create event in database (or synthetic placeholder when event table is absent)
             event_id = self._create_event_for_step(
-                session, entity_id, step, entity_table, event_table
+                session, entity_id, step, entity_table, event_flow_label
             )
             
             if event_id is None:
@@ -197,7 +197,7 @@ class EventStepProcessor(StepProcessor):
         return next_step_id
     
     def _create_event_for_step(self, session, entity_id: int, step: 'Step', 
-                              entity_table: str, event_table: Optional[str]) -> Optional[int]:
+                              entity_table: str, event_flow: Optional[str]) -> Optional[int]:
         """
         Create an event record in the database for this step.
         
@@ -206,70 +206,16 @@ class EventStepProcessor(StepProcessor):
             entity_id: Entity ID
             step: Step configuration
             entity_table: Name of entity table
-            event_table: Name of event table
+            event_flow: Label of event flow
             
         Returns:
             Created event ID or None if failed
         """
-        if not event_table:
-            synthetic_id = self._next_synthetic_event_id(step)
-            self.logger.debug(
-                f"No event table provided; using synthetic event id {synthetic_id} for step {step.step_id}"
-            )
-            return synthetic_id
-        try:
-            # Find relationship column
-            relationship_columns = self.entity_manager.find_relationship_columns(
-                session, entity_table, event_table
-            )
-            if not relationship_columns:
-                self.logger.warning(f"No relationship column found between {entity_table} and {event_table}")
-                return self._next_synthetic_event_id(step)
-            
-            relationship_column = relationship_columns[0]
-            
-            # Find event type column
-            event_type_column = self.entity_manager.find_event_type_column(session, event_table)
-            if not event_type_column:
-                self.logger.error(f"Could not find event type column in {event_table}")
-                return None
-            
-            # Get next event ID using resolved primary key column
-            pk_column = self.column_resolver.get_primary_key(event_table)
-            sql_query = text(f'SELECT MAX("{pk_column}") FROM "{event_table}"')
-            result = session.execute(sql_query).fetchone()
-            next_id = (result[0] or 0) + 1
-            
-            # Create event record
-            row_data = {
-                pk_column: next_id,
-                relationship_column: entity_id,
-                event_type_column: step.step_id
-            }
-            
-            # Generate additional attributes if needed
-            self._generate_event_attributes(session, row_data, event_table, next_id, 
-                                          relationship_column, event_type_column)
-            
-            # Insert event record
-            columns = ", ".join(row_data.keys())
-            placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-            sql_query = text(f"INSERT INTO {event_table} ({columns}) VALUES ({placeholders})")
-            
-            session.execute(sql_query, row_data)
-            session.commit()
-            
-            self.logger.debug(f"Created event {next_id} of type '{step.step_id}' for entity {entity_id}")
-            return next_id
-            
-        except NoSuchTableError:
-            self.logger.warning(
-                f"Event table '{event_table}' not found; using synthetic event id for step {step.step_id}"
-            )
-            return self._next_synthetic_event_id(step)
-        except Exception as e:
-            self.logger.error(f"Error creating event for step {step.step_id}: {str(e)}", exc_info=True)
-            return None
+        synthetic_id = self._next_synthetic_event_id(step)
+        self.logger.debug(
+            f"Using synthetic event id {synthetic_id} for step {step.step_id} (flow={event_flow})"
+        )
+        return synthetic_id
     
     def _generate_event_attributes(self, session, row_data: dict, event_table: str, 
                                   event_id: int, relationship_column: str, event_type_column: str):

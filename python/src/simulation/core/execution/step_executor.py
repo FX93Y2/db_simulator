@@ -25,7 +25,7 @@ class StepExecutor:
         self.flow_event_trackers = flow_event_trackers
     
     def process_step(self, entity_id: int, step_id: str, flow: 'EventFlow', 
-                    entity_table: str, event_table: str):
+                    entity_table: str, event_flow: str):
         """
         Process a step using processors, then route to next if provided.
 
@@ -34,7 +34,7 @@ class StepExecutor:
             step_id: Current step ID.
             flow: Event flow configuration.
             entity_table: Name of the entity table.
-            event_table: Name of the event table.
+            event_flow: Identifier/label of the event flow.
         """
         step = self._find_step_by_id(step_id, flow)
         if not step:
@@ -49,7 +49,7 @@ class StepExecutor:
             
             # Use the step processor factory to process the step
             step_generator = self.step_processor_factory.process_step(
-                entity_id, step, flow, entity_table, event_table, flow_event_tracker
+                entity_id, step, flow, entity_table, event_flow, flow_event_tracker
             )
             
             # Process the step and get the next step ID
@@ -57,7 +57,7 @@ class StepExecutor:
             
             # Continue to next step if applicable
             if next_step_id:
-                self.env.process(self.process_step(entity_id, next_step_id, flow, entity_table, event_table))
+                self.env.process(self.process_step(entity_id, next_step_id, flow, entity_table, event_flow))
             else:
                 logger.debug(f"Entity {entity_id} flow ended at step {step_id}")
                 

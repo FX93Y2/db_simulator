@@ -31,7 +31,7 @@ class EntityRouter:
         self.env = env
     
     def route_entity_from_create(self, entity_id: int, initial_step_id: str, flow: 'EventFlow',
-                                entity_table: str, event_table: str, step_executor):
+                                entity_table: str, event_flow: str, step_executor):
         """
         Route an entity from a create module to its initial step.
         
@@ -40,7 +40,7 @@ class EntityRouter:
             initial_step_id: ID of the initial step to route to
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label of the event flow
             step_executor: Step executor instance for processing
         """
         try:
@@ -54,14 +54,14 @@ class EntityRouter:
             
             # Start processing the entity from the initial step
             self.env.process(
-                step_executor.process_step(entity_id, initial_step_id, flow, entity_table, event_table)
+                step_executor.process_step(entity_id, initial_step_id, flow, entity_table, event_flow)
             )
             
         except Exception as e:
             logger.error(f"Error routing entity {entity_id} from Create module: {e}", exc_info=True)
     
     def route_entity_to_next_step(self, entity_id: int, current_step_id: str, next_step_id: str,
-                                 flow: 'EventFlow', entity_table: str, event_table: str, step_executor):
+                                 flow: 'EventFlow', entity_table: str, event_flow: str, step_executor):
         """
         Route an entity from one step to the next step in a flow.
         
@@ -71,7 +71,7 @@ class EntityRouter:
             next_step_id: ID of the next step to route to
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label of the event flow
             step_executor: Step executor instance for processing
         """
         try:
@@ -85,7 +85,7 @@ class EntityRouter:
             
             # Continue processing the entity at the next step
             self.env.process(
-                step_executor.process_step(entity_id, next_step_id, flow, entity_table, event_table)
+                step_executor.process_step(entity_id, next_step_id, flow, entity_table, event_flow)
             )
             
         except Exception as e:

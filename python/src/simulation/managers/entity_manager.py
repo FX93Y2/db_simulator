@@ -235,8 +235,8 @@ class EntityManager:
             return
             
         entity_table, event_table, resource_table = self.get_table_names()
-        if not entity_table or not event_table:
-            logger.error("Missing entity or event table names. Cannot generate entities.")
+        if not entity_table:
+            logger.error("Missing entity table name. Cannot generate entities.")
             return
             
         arrival_config = event_sim.entity_arrival

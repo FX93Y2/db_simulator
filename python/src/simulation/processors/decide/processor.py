@@ -106,7 +106,7 @@ class DecideStepProcessor(StepProcessor):
         return True
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_flow: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process a decide step and determine the next step based on decision logic.
         
@@ -115,7 +115,7 @@ class DecideStepProcessor(StepProcessor):
             step: Decide step configuration
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label of the event flow
             
         Yields:
             No SimPy events (decision is instantaneous)

@@ -48,7 +48,7 @@ class ReleaseStepProcessor(StepProcessor):
         return step.step_type == "release"
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_flow: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process a release step to complete entity lifecycle.
         
@@ -57,7 +57,7 @@ class ReleaseStepProcessor(StepProcessor):
             step: Release step configuration
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label of the event flow
             
         Yields:
             No SimPy events (release is instantaneous)

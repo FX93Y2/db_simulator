@@ -129,12 +129,25 @@ class EventTracker:
         
         # Reflect existing event and resource tables if names provided
         try:
+            inspector = None
+            if self.event_table_name or self.resource_table_name:
+                from sqlalchemy import inspect
+                inspector = inspect(self.engine)
+
             if self.event_table_name:
-                Table(self.event_table_name, self.metadata, autoload_with=self.engine)
-                logger.debug(f"Reflected table {self.event_table_name} into metadata.")
+                if inspector and inspector.has_table(self.event_table_name):
+                    Table(self.event_table_name, self.metadata, autoload_with=self.engine)
+                    logger.debug(f"Reflected table {self.event_table_name} into metadata.")
+                else:
+                    logger.debug(f"Skipping reflection for missing event table {self.event_table_name}.")
+                    self.event_table_name = None
+                    self.event_fk_column = None
             if self.resource_table_name:
-                Table(self.resource_table_name, self.metadata, autoload_with=self.engine)
-                logger.debug(f"Reflected table {self.resource_table_name} into metadata.")
+                if inspector and inspector.has_table(self.resource_table_name):
+                    Table(self.resource_table_name, self.metadata, autoload_with=self.engine)
+                    logger.debug(f"Reflected table {self.resource_table_name} into metadata.")
+                else:
+                    logger.debug(f"Skipping reflection for missing resource table {self.resource_table_name}.")
         except NoSuchTableError as e:
             logger.warning(f"Event/resource table not found during reflection: {e}. Bridge table FK constraints might be skipped.")
         except Exception as e:

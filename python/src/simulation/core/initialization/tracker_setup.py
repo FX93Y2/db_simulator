@@ -49,6 +49,11 @@ class FlowEventTrackerSetup:
         for flow in flows:
             flow_id = flow.flow_id
             event_table_name = flow.event_table
+
+            # If the event table is not defined in db_config, treat it as absent
+            if event_table_name and not self._event_table_in_db_config(event_table_name):
+                logger.debug(f"Flow {flow_id}: event_table '{event_table_name}' not found in db_config; ignoring.")
+                event_table_name = None
             
             # Find bridge table for this flow's event table
             bridge_table_config = self._find_bridge_table_for_flow(
@@ -157,6 +162,12 @@ class FlowEventTrackerSetup:
                 }
         
         return None
+
+    def _event_table_in_db_config(self, event_table_name: str) -> bool:
+        """Check if an event table is defined in the database config."""
+        if not self.db_config:
+            return False
+        return any(e.type == 'event' and e.name == event_table_name for e in self.db_config.entities)
 
     def _get_entity_table_name(self) -> Optional[str]:
         """

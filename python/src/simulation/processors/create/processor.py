@@ -87,7 +87,7 @@ class CreateStepProcessor(StepProcessor):
         return True
     
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str, event_tracker=None) -> Generator:
+                entity_table: str, event_flow: str, event_tracker=None) -> Generator:
         """
         Process the Create step by scheduling non-blocking entity arrivals.
         
@@ -96,7 +96,7 @@ class CreateStepProcessor(StepProcessor):
             step: Create step configuration
             flow: Event flow configuration
             entity_table: Not used (entity table comes from create_config)
-            event_table: Event table name for relationship setup
+            event_flow: Event flow label for tracking
             
         Yields:
             None - this method returns immediately after scheduling first arrival
@@ -113,14 +113,14 @@ class CreateStepProcessor(StepProcessor):
         logger.info(f"Create module {step.step_id} will generate up to {max_entities} entities")
         
         # Schedule the first arrival (non-blocking)
-        self._schedule_next_arrival(step, flow, config, event_table, 0, max_entities)
+        self._schedule_next_arrival(step, flow, config, event_flow, 0, max_entities)
         
         # Return immediately - arrivals will continue independently
         return None
         yield  # Make this a generator (required by interface)
     
     def _schedule_next_arrival(self, step: 'Step', flow: 'EventFlow', config: 'CreateConfig', 
-                              event_table: str, entities_created: int, max_entities: int):
+                              event_flow: str, entities_created: int, max_entities: int):
         """Schedule the next entity arrival as a separate non-blocking process."""
         # Generate interarrival time
         try:
@@ -132,14 +132,14 @@ class CreateStepProcessor(StepProcessor):
             
             # Schedule the arrival event
             self.env.process(self._entity_arrival_event(
-                interarrival_minutes, step, flow, config, event_table, entities_created, max_entities
+                interarrival_minutes, step, flow, config, event_flow, entities_created, max_entities
             ))
             
         except Exception as e:
             logger.error(f"Error scheduling arrival for Create module {step.step_id}: {e}", exc_info=True)
     
     def _entity_arrival_event(self, delay: float, step: 'Step', flow: 'EventFlow', 
-                             config: 'CreateConfig', event_table: str, entities_created: int, max_entities: int):
+                             config: 'CreateConfig', event_flow: str, entities_created: int, max_entities: int):
         """Handle a single arrival event (possibly batch)."""
         try:
             # Wait for interarrival time
@@ -168,7 +168,7 @@ class CreateStepProcessor(StepProcessor):
             # Create and route batch of entities
             successfully_created = 0
             for i in range(batch_size):
-                created_entity_id = self._create_entity(config.entity_table, event_table)
+                created_entity_id = self._create_entity(config.entity_table)
                 
                 if created_entity_id:
                     # Increment entities processed counter for termination tracking
@@ -178,7 +178,7 @@ class CreateStepProcessor(StepProcessor):
                     # Route entity to first next step
                     first_next_step = step.next_steps[0]
                     self._route_entity_to_next_step(created_entity_id, first_next_step, flow, 
-                                                   config.entity_table, event_table)
+                                                   config.entity_table, event_flow)
                     successfully_created += 1
                 else:
                     logger.warning(f"Create module {step.step_id} failed to create entity")
@@ -193,7 +193,7 @@ class CreateStepProcessor(StepProcessor):
             
             # Schedule next arrival if we haven't reached the limit
             if max_entities == -1 or new_entities_created < max_entities:
-                self._schedule_next_arrival(step, flow, config, event_table, new_entities_created, max_entities)
+                self._schedule_next_arrival(step, flow, config, event_flow, new_entities_created, max_entities)
             else:
                 logger.info(f"Create module {step.step_id} completed. Created {new_entities_created} entities")
                 
@@ -232,13 +232,12 @@ class CreateStepProcessor(StepProcessor):
         
         return int(config.max_entities)
     
-    def _create_entity(self, entity_table: str, event_table: str) -> Optional[int]:
+    def _create_entity(self, entity_table: str) -> Optional[int]:
         """
         Create a new entity in the specified table.
         
         Args:
             entity_table: Name of the entity table
-            event_table: Name of the event table (for tracking)
             
         Returns:
             ID of created entity or None on failure
@@ -275,7 +274,7 @@ class CreateStepProcessor(StepProcessor):
             process_engine.dispose()
     
     def _route_entity_to_next_step(self, entity_id: int, next_step_id: str, flow: 'EventFlow',
-                                  entity_table: str, event_table: str):
+                                  entity_table: str, event_flow: str):
         """
         Route the created entity to its next processing step.
         
@@ -284,12 +283,12 @@ class CreateStepProcessor(StepProcessor):
             next_step_id: ID of the next step to route to
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Event flow label
         """
         try:
             if self.entity_router_callback:
                 # Use the simulator's callback for proper integration
-                self.entity_router_callback(entity_id, next_step_id, flow, entity_table, event_table)
+                self.entity_router_callback(entity_id, next_step_id, flow, entity_table, event_flow)
             else:
                 logger.warning(f"No entity router callback set. Entity {entity_id} cannot be routed to step {next_step_id}")
             

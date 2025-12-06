@@ -43,7 +43,7 @@ class StepProcessor(ABC):
     
     @abstractmethod
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
-                entity_table: str, event_table: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
+                entity_table: str, event_flow: str, event_tracker=None) -> Generator[Any, None, Optional[str]]:
         """
         Process a step for an entity.
         
@@ -52,7 +52,7 @@ class StepProcessor(ABC):
             step: Step configuration object
             flow: Event flow configuration
             entity_table: Name of the entity table
-            event_table: Name of the event table
+            event_flow: Identifier/label for the event flow
             
         Yields:
             SimPy events during processing

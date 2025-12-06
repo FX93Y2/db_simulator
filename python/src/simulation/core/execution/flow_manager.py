@@ -99,12 +99,12 @@ class FlowManager:
             flow: The event flow containing this Create step.
         """
         try:
-            # Get flow-specific tables
+            # Get flow-specific tables/labels
             entity_table = create_step.create_config.entity_table
-            event_table = flow.event_table
+            event_flow = getattr(flow, 'event_flow', None) or flow.flow_id
             _, _, resource_table = self.entity_manager.get_table_names()  # Still need resource table
             
-            logger.debug(f"Create module {create_step.step_id} using flow-specific tables: entity={entity_table}, event={event_table}, flow={flow.flow_id}")
+            logger.debug(f"Create module {create_step.step_id} using flow-specific tables: entity={entity_table}, flow={event_flow}, flow_id={flow.flow_id}")
             
             # Get the Create step processor and set up entity routing callback
             create_processor = self.step_processor_factory.get_processor('create')
@@ -121,7 +121,7 @@ class FlowManager:
                 create_step, 
                 flow, 
                 entity_table,  # Use the specific entity table from Create config
-                event_table,  # Use the flow-specific event table
+                event_flow,  # Use the flow-specific event flow label
                 flow_event_tracker  # Use the flow-specific EventTracker
             )
             
@@ -132,7 +132,7 @@ class FlowManager:
             logger.error(f"Error running Create module {create_step.step_id}: {e}", exc_info=True)
     
     def _route_entity_from_create(self, entity_id: int, initial_step_id: str, flow: 'EventFlow', 
-                                entity_table: str, event_table: str):
+                                entity_table: str, event_flow: str):
         """
         Callback method for Create processors to route entities to their initial steps.
         
@@ -141,7 +141,7 @@ class FlowManager:
             initial_step_id: ID of the initial step to route to.
             flow: Event flow configuration.
             entity_table: Name of the entity table.
-            event_table: Name of the event table.
+            event_flow: Identifier/label of the event flow.
         """
         try:
             # Find the initial step in the flow
@@ -160,7 +160,7 @@ class FlowManager:
             
             # Start processing the entity from the initial step
             self.env.process(
-                step_executor.process_step(entity_id, initial_step_id, flow, entity_table, event_table)
+                step_executor.process_step(entity_id, initial_step_id, flow, entity_table, event_flow)
             )
             
         except Exception as e:
