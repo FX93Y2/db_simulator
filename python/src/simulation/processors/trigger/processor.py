@@ -155,7 +155,7 @@ class TriggerStepProcessor(StepProcessor):
                 return None
 
             # Resolve timestamp columns and values
-            timestamp_column, sim_time_column, event_timestamp, sim_minutes = self._resolve_timestamp_fields(
+            timestamp_column, sim_time_column, event_timestamp, sim_minutes, ts_missing_attr = self._resolve_timestamp_fields(
                 trigger_config, target_entity, step.step_id
             )
 
@@ -168,7 +168,8 @@ class TriggerStepProcessor(StepProcessor):
                 timestamp_column=timestamp_column,
                 sim_time_column=sim_time_column,
                 event_timestamp=event_timestamp,
-                sim_minutes=sim_minutes
+                sim_minutes=sim_minutes,
+                timestamp_missing_attr=ts_missing_attr
             )
 
             self.logger.info(
@@ -288,18 +289,29 @@ class TriggerStepProcessor(StepProcessor):
         Raises if start_date is missing when a timestamp column is requested.
         """
         if not target_entity:
-            return None, None, None, None
+            return None, None, None, None, False
 
         attributes_by_name = {attr.name: attr for attr in target_entity.attributes}
 
         # Determine timestamp column (explicit or default 'created_at')
         timestamp_column = trigger_config.timestamp_column
-        if not timestamp_column and 'created_at' in attributes_by_name:
-            ts_attr = attributes_by_name['created_at']
-            if getattr(ts_attr, 'type', None) in ('datetime', 'timestamp'):
-                timestamp_column = 'created_at'
+        timestamp_missing_attr = False
 
-        if timestamp_column and timestamp_column not in attributes_by_name:
+        if not timestamp_column:
+            # Default to created_at; if not present, create it
+            timestamp_column = 'created_at'
+            if 'created_at' not in attributes_by_name:
+                self._ensure_timestamp_column_exists(target_entity.name, timestamp_column)
+                timestamp_missing_attr = True
+            else:
+                ts_attr = attributes_by_name['created_at']
+                if getattr(ts_attr, 'type', None) not in ('datetime', 'timestamp'):
+                    self.logger.warning(
+                        f"Trigger step {step_id}: created_at exists but is not datetime/timestamp; skipping timestamp injection."
+                    )
+                    timestamp_column = None
+
+        if timestamp_column and not timestamp_missing_attr and timestamp_column not in attributes_by_name:
             self.logger.warning(
                 f"Trigger step {step_id}: timestamp_column '{timestamp_column}' not found in {target_entity.name}; skipping timestamp injection."
             )
@@ -322,7 +334,18 @@ class TriggerStepProcessor(StepProcessor):
             event_timestamp = self.config.start_date + timedelta(minutes=self.env.now)
 
         sim_minutes = self.env.now if sim_time_column else None
-        return timestamp_column, sim_time_column, event_timestamp, sim_minutes
+        return timestamp_column, sim_time_column, event_timestamp, sim_minutes, timestamp_missing_attr
+
+    def _ensure_timestamp_column_exists(self, table_name: str, column_name: str):
+        """Add a datetime column if it does not exist."""
+        inspector = inspect(self.engine)
+        existing_cols = [col['name'] for col in inspector.get_columns(table_name)]
+        if column_name in existing_cols:
+            return
+        self.logger.info(f"Adding missing timestamp column '{column_name}' to table '{table_name}' for trigger stamping.")
+        with self.engine.connect() as conn:
+            conn.execute(text(f'ALTER TABLE "{table_name}" ADD COLUMN "{column_name}" DATETIME'))
+            conn.commit()
 
     def _generate_records(
         self,
@@ -333,7 +356,8 @@ class TriggerStepProcessor(StepProcessor):
         timestamp_column: Optional[str],
         sim_time_column: Optional[str],
         event_timestamp,
-        sim_minutes: Optional[float]
+        sim_minutes: Optional[float],
+        timestamp_missing_attr: bool = False
     ) -> List[int]:
         """
         Generate records in target table.
@@ -429,6 +453,10 @@ class TriggerStepProcessor(StepProcessor):
                             row_data[attr.name] = datetime.now()
                         else:
                             row_data[attr.name] = None
+
+                # If timestamp column was created on the fly and not present in attributes, inject here
+                if timestamp_missing_attr and timestamp_column and timestamp_column not in row_data:
+                    row_data[timestamp_column] = event_timestamp
 
                 # Build INSERT statement
                 columns = ', '.join(row_data.keys())
