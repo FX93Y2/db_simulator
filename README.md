@@ -114,5 +114,4 @@ CLI alternative:
 - Missing Faker methods or invalid formula: check logs and the formula reference.
 
 ## License
-MIT
-
+Apache-2.0

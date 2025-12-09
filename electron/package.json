@@ -15,7 +15,7 @@
     "postinstall": "electron-builder install-app-deps"
   },
   "author": "FX93V2",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "repository": {
     "type": "git",
     "url": "https://github.com/FX93Y2/db_simulator.git"
