@@ -36,20 +36,23 @@ class FlowEventTrackerSetup:
             logger.warning("No event flows found. Cannot create flow-specific EventTrackers.")
             return flow_trackers
         
-        # Get resource/entity table names (shared across flows)
+        # Handle both new EventFlowsConfig structure and direct list structure  
+        flows = self._get_flows_from_config()
         resource_table_name = self._get_resource_table_name()
-        entity_table_name = self._get_entity_table_name()
         if not resource_table_name:
             logger.error("Could not determine resource table name. EventTrackers cannot be created.")
             return flow_trackers
         
-        # Handle both new EventFlowsConfig structure and direct list structure  
-        flows = self._get_flows_from_config()
-        
         for flow in flows:
             flow_id = flow.flow_id
             
-            # Find bridge table for this flow's event table
+            # Resolve entity table for this flow
+            entity_table_name = self._get_entity_table_for_flow(flow)
+            if not entity_table_name:
+                logger.warning(f"Flow {flow_id}: unable to determine entity table; skipping EventTracker.")
+                continue
+
+            # Find bridge table for this flow's entity/resource combo
             bridge_table_config = self._find_bridge_table_for_flow(
                 resource_table_name,
                 entity_table_name
@@ -104,6 +107,25 @@ class FlowEventTrackerSetup:
                 if hasattr(self.config.event_simulation.event_flows, 'flows') 
                 else self.config.event_simulation.event_flows)
     
+    def _get_entity_table_for_flow(self, flow) -> Optional[str]:
+        """
+        Determine entity table for a given flow. Prefers the entity_table on its Create step.
+        Falls back to global table_specification or db_config.
+        """
+        for step in getattr(flow, 'steps', []):
+            if getattr(step, 'step_type', None) == 'create' and getattr(step, 'create_config', None):
+                if getattr(step.create_config, 'entity_table', None):
+                    return step.create_config.entity_table
+
+        if self.config.event_simulation and self.config.event_simulation.table_specification:
+            return self.config.event_simulation.table_specification.entity_table
+
+        if self.db_config:
+            for entity in self.db_config.entities:
+                if entity.type == 'entity':
+                    return entity.name
+        return None
+
     def _find_bridge_table_for_flow(self, resource_table_name: str, entity_table_name: Optional[str]) -> Optional[Dict]:
         """
         Find the bridge table configuration for a specific event table.
