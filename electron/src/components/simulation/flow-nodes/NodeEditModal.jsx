@@ -118,6 +118,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const getAvailableAttributesForCurrentFlow = () => {
+    // ... existing implementation ...
     const attrs = new Set();
     const flow = getFlowForNode();
     const entityTable = getEntityTableForFlow(flow);
@@ -145,13 +146,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     return Array.from(attrs).sort();
   };
 
+  const stepTypes = React.useMemo(() => {
+    if (!parsedSchema?.event_simulation?.event_flows) return {};
+    const types = {};
+    parsedSchema.event_simulation.event_flows.forEach(flow => {
+      flow?.steps?.forEach(step => {
+        if (step.step_id && step.step_type) {
+          types[step.step_id] = step.step_type;
+        }
+      });
+    });
+    return types;
+  }, [parsedSchema]);
+
   const initializeEventForm = (stepConfig) => {
     const eventConfig = stepConfig.event_config || {};
     const duration = eventConfig.duration || {};
-    
+
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
-    
+
     setFormData({
       name: stepName,
       duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : 'NORM(5, 1)'),
@@ -166,26 +180,26 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       duration_values: duration.distribution?.values ? duration.distribution.values.join(', ') : '1, 2, 3',
       duration_weights: duration.distribution?.weights ? duration.distribution.weights.join(', ') : '0.5, 0.3, 0.2'
     });
-    
+
     setResourceRequirements(eventConfig.resource_requirements || []);
   };
 
   const initializeDecideForm = (stepConfig) => {
     const decideConfig = stepConfig.decide_config || {};
-    
+
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
-    
+
     setFormData({
       name: stepName,
       decision_type: decideConfig.decision_type || '2way-chance'
     });
-    
+
     // Convert outcomes to use step IDs as display names (step_id is the display name)
     const convertedOutcomes = (decideConfig.outcomes || []).map((outcome) => {
       const nextStepId = outcome.next_step_id;
       const condition = outcome.conditions?.[0] || {};
-      
+
       const convertedOutcome = {
         next_event_name: nextStepId || ''
       };
@@ -202,12 +216,12 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
       return convertedOutcome;
     });
-    
+
     // Ensure at least 2 outcomes with appropriate defaults based on decision type
     if (convertedOutcomes.length === 0) {
       const currentDecisionType = decideConfig.decision_type || '2way-chance';
       const isCondition = currentDecisionType.includes('condition');
-      
+
       if (isCondition) {
         setOutcomes([
           { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' },
@@ -222,7 +236,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     } else {
       // For 2-way decisions, ensure we have exactly 2 outcomes
       if (decideConfig.decision_type?.startsWith('2way') && convertedOutcomes.length < 2) {
-        const secondOutcome = decideConfig.decision_type.includes('condition') 
+        const secondOutcome = decideConfig.decision_type.includes('condition')
           ? { next_event_name: '', if: 'Attribute', name: '', is: '==', value: '' }
           : { next_event_name: '', probability: 0.3 };
         setOutcomes([...convertedOutcomes, secondOutcome]);
@@ -234,14 +248,14 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
   const initializeAssignForm = (stepConfig) => {
     const assignConfig = stepConfig.assign_config || {};
-    
+
     // Use step_id as the display name
     const stepName = stepConfig.step_id || '';
-    
+
     setFormData({
       name: stepName
     });
-    
+
     // Initialize assignments
     const convertedAssignments = (assignConfig.assignments || []).map((assignment) => ({
       assignment_type: assignment.assignment_type || 'attribute',
@@ -250,7 +264,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       value: assignment.value ?? '',
       expression: assignment.expression || ''
     }));
-    
+
     // Ensure at least one assignment
     if (convertedAssignments.length === 0) {
       setAssignments([{
@@ -266,7 +280,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const initializeReleaseForm = (stepConfig) => {
     // Use step_id as the display name
     const stepName = stepConfig.step_id || 'Release';
-    
+
     setFormData({
       name: stepName
     });
@@ -289,7 +303,9 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       interarrival_formula: interarrivalTime.formula || (interarrivalTime.distribution ? convertOldDistributionToFormula(interarrivalTime.distribution) : ''),
       interarrival_time_unit: interarrivalTime.time_unit || undefined,
       max_entities: createConfig.max_entities || 'n/a',
-      next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : ''
+      next_step: stepConfig.next_steps && stepConfig.next_steps.length > 0 ? stepConfig.next_steps[0] : '',
+      next_steps: stepConfig.next_steps || [],
+      is_triggered: !interarrivalTime || (!interarrivalTime.formula && !interarrivalTime.distribution)
     });
   };
 
@@ -311,7 +327,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   // Helper function to handle form data changes
   const handleFormDataChange = (newData) => {
     setFormData({ ...formData, ...newData });
-    
+
     // Validate step name when it changes
     if (newData.name !== undefined) {
       validateStepName(newData.name);
@@ -347,12 +363,12 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     if (availableResourceTables.length === 0) {
       return; // Don't add if no resource tables available
     }
-    
+
     const defaultResourceTable = availableResourceTables[0];
     const defaultResourceType = resourceDefinitions[defaultResourceTable]?.resourceTypes?.length > 0
       ? resourceDefinitions[defaultResourceTable].resourceTypes[0]
       : '';
-    
+
     setResourceRequirements([...resourceRequirements, {
       resource_table: defaultResourceTable,
       value: defaultResourceType,
@@ -369,7 +385,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const handleOutcomeChange = (index, field, value) => {
     const updated = [...outcomes];
     updated[index] = { ...updated[index], [field]: value };
-    
+
     // For 2-way chance decisions, auto-calculate "else" probability
     if (formData.decision_type === '2way-chance' && field === 'probability' && index === 0) {
       const primaryProb = parseFloat(value) || 0;
@@ -377,7 +393,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         updated[1] = { ...updated[1], probability: 1 - primaryProb };
       }
     }
-    
+
     setOutcomes(updated);
   };
 
@@ -415,7 +431,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         processedValue = value.includes('.') ? parseFloat(value) : parseInt(value, 10);
       }
     }
-    
+
     const updated = [...assignments];
     updated[index] = { ...updated[index], [field]: processedValue };
     setAssignments(updated);
@@ -457,13 +473,13 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     if (!node) {
       return false; // Don't save if no node
     }
-    
+
     // Check name validation first
     if (!nameValidation.valid) {
       console.warn('Cannot save step with invalid name:', nameValidation.error);
       return false; // Don't save if name validation fails
     }
-    
+
     // Validation depends on step type
     const stepType = node.data.stepConfig.step_type;
     if ((stepType === 'event' || stepType === 'release') && !formData.name) {
@@ -520,7 +536,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   const buildStepConfig = () => {
     const stepType = node.data.stepConfig.step_type;
     const stepId = generateStepId(stepType, formData);
-    const updatedStepConfig = { 
+    const updatedStepConfig = {
       ...node.data.stepConfig,
       step_id: stepId
     };
@@ -539,7 +555,10 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
     } else if (stepType === 'create') {
       updatedStepConfig.create_config = buildCreateConfig();
-      updatedStepConfig.next_steps = formData.next_step ? [formData.next_step] : [];
+      // Use next_steps if available, otherwise fall back to next_step (singlet)
+      updatedStepConfig.next_steps = formData.next_steps && formData.next_steps.length > 0
+        ? [...new Set(formData.next_steps)] // Deduplicate
+        : (formData.next_step ? [formData.next_step] : []);
       // Store event_flow in stepConfig for YAML generation (not in create_config)
       updatedStepConfig._eventFlow = formData.event_flow || '';
     } else if (stepType === 'trigger') {
@@ -555,7 +574,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     if (formData.duration_time_unit) {
       duration.time_unit = formData.duration_time_unit;
     }
-    
+
     const sanitizedRequirements = resourceRequirements.map((req) => {
       const requirement = { ...req };
 
@@ -595,7 +614,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
           const primaryProbability = parseFloat(outcomes[0]?.probability) || 0.5;
           probabilityValue = 1 - primaryProbability;
         }
-        
+
         baseOutcome.conditions = [{
           if: 'Probability',
           is: '==',
@@ -659,14 +678,20 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildCreateConfig = () => {
-    const interarrivalTime = { formula: formData.interarrival_formula || '' };
-    if (formData.interarrival_time_unit) {
-      interarrivalTime.time_unit = formData.interarrival_time_unit;
+    let interarrivalTime = null;
+
+    // Only build interarrival config if NOT triggered (Standard mode)
+    if (!formData.is_triggered) {
+      interarrivalTime = { formula: formData.interarrival_formula || '' };
+      if (formData.interarrival_time_unit) {
+        interarrivalTime.time_unit = formData.interarrival_time_unit;
+      }
     }
 
     return {
       entity_table: formData.entity_table || '',
       interarrival_time: interarrivalTime,
+
       max_entities: formData.max_entities === 'n/a' ? 'n/a' : (parseInt(formData.max_entities) || 'n/a')
     };
   };
@@ -689,7 +714,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     // In the new system, step_id IS the display name
     // So we use formData.name directly as the step_id
     const stepName = formData.name;
-    
+
     if (!stepName || stepName.trim() === '') {
       // Fallback to auto-generated name if empty
       if (stepType === 'create') {
@@ -698,7 +723,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       }
       return `${stepType.charAt(0).toUpperCase() + stepType.slice(1)} Step`;
     }
-    
+
     // Return the name as-is (it's already validated in the UI)
     return stepName.trim();
   };
@@ -721,6 +746,8 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     const availableSteps = getAvailableStepNames();
     const availableAttributes = getAvailableAttributesForCurrentFlow();
 
+
+
     switch (stepType) {
       case 'event':
         return (
@@ -736,7 +763,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             nameValidation={nameValidation}
           />
         );
-      
+
       case 'decide':
         return (
           <DecideStepEditor
@@ -751,7 +778,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             nameValidation={nameValidation}
           />
         );
-      
+
       case 'assign':
         return (
           <AssignStepEditor
@@ -765,7 +792,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             nameValidation={nameValidation}
           />
         );
-      
+
       case 'release':
         return (
           <ReleaseStepEditor
@@ -774,7 +801,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             nameValidation={nameValidation}
           />
         );
-      
+
       case 'create':
         return (
           <CreateStepEditor
@@ -783,6 +810,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             availableSteps={availableSteps}
             availableEntityTables={entityTables}
             nameValidation={nameValidation}
+            stepTypes={stepTypes}
           />
         );
 
@@ -832,16 +860,16 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
         </Modal.Body>
         <Modal.Footer>
           {node && (
-            <Button 
-              variant="outline-danger" 
+            <Button
+              variant="outline-danger"
               onClick={handleDelete}
               className="me-auto"
             >
               <FiTrash2 className="me-2" /> Delete Step
             </Button>
           )}
-          <Button 
-            variant="primary" 
+          <Button
+            variant="primary"
             onClick={handleSaveAndClose}
             disabled={!nameValidation.valid}
             title={!nameValidation.valid ? nameValidation.error : 'Save & Close'}

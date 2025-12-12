@@ -12,7 +12,7 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} nodes - New nodes array
    */
   updateNodes: (nodes) => {
-    
+
     set((state) => {
       state.nodes = nodes;
     });
@@ -23,7 +23,7 @@ export const createCanvasActions = (set, get) => ({
    * @param {Array} edges - New edges array
    */
   updateEdges: (edges) => {
-    
+
     set((state) => {
       state.edges = edges;
     });
@@ -35,21 +35,21 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} position - New position {x, y}
    */
   updateNodePosition: (nodeId, position) => {
-    
+
     set((state) => {
       // Update in nodes array for immediate visual feedback
       const nodeIndex = state.nodes.findIndex(n => n.id === nodeId);
       if (nodeIndex >= 0) {
         state.nodes[nodeIndex].position = position;
       }
-      
+
       // Update in legacy positions map (for backward compatibility)
       state.positions.set(nodeId, position);
-      
+
       // Save to PositionService (memory + persistent storage)
       positionService.setPosition(state.projectId, nodeId, position, 'simulation');
     });
-    
+
     // Note: Not updating canonicalSteps here to avoid triggering visual state rebuild
     // which would wipe out edge selection state. Position will be synced to canonical
     // steps when needed (e.g., during YAML sync or manual updates)
@@ -62,7 +62,7 @@ export const createCanvasActions = (set, get) => ({
   deleteNodes: (nodeIds) => {
     // Push current state to history before making changes
     pushToHistory(set, get, 'simulation', 'DELETE', { stepIds: nodeIds });
-    
+
     // Clean up positions for deleted nodes
     const { projectId } = get();
     if (projectId) {
@@ -70,42 +70,42 @@ export const createCanvasActions = (set, get) => ({
         positionService.removePosition(projectId, nodeId, 'simulation');
       });
     }
-    
+
     set((state) => {
       // Remove from nodes array
       state.nodes = state.nodes.filter(n => !nodeIds.includes(n.id));
-      
+
       // Remove from edges array
-      state.edges = state.edges.filter(e => 
+      state.edges = state.edges.filter(e =>
         !nodeIds.includes(e.source) && !nodeIds.includes(e.target)
       );
-      
+
       // Remove from canonical steps and clean up references
       let remainingSteps = state.canonicalSteps.filter(
         step => !nodeIds.includes(step.step_id)
       );
-      
+
       // Clean up references in remaining steps
       remainingSteps = remainingSteps.map(step => {
         let updatedStep = { ...step };
-        
+
         // Clean up next_steps references
         if (step.next_steps) {
           updatedStep.next_steps = step.next_steps.filter(id => !nodeIds.includes(id));
         }
-        
+
         // Clean up decide_config outcome references
         if (step.decide_config?.outcomes) {
           updatedStep.decide_config = {
             ...step.decide_config,
-            outcomes: step.decide_config.outcomes.filter(outcome => 
+            outcomes: step.decide_config.outcomes.filter(outcome =>
               !nodeIds.includes(outcome.next_step_id)
             )
           };
-          
+
           // Rebalance probabilities for remaining outcomes (only for N-way decisions)
-          if (updatedStep.decide_config.outcomes.length > 0 && 
-              !updatedStep.decide_config.decision_type?.startsWith('2way')) {
+          if (updatedStep.decide_config.outcomes.length > 0 &&
+            !updatedStep.decide_config.decision_type?.startsWith('2way')) {
             const equalProbability = 1 / updatedStep.decide_config.outcomes.length;
             updatedStep.decide_config.outcomes.forEach(outcome => {
               outcome.conditions.forEach(condition => {
@@ -116,25 +116,25 @@ export const createCanvasActions = (set, get) => ({
             });
           }
         }
-        
+
         return updatedStep;
       });
-      
+
       state.canonicalSteps = remainingSteps;
-      
+
       // Remove from positions map and display names
       nodeIds.forEach(id => {
         state.positions.delete(id);
         // Remove from PositionService
         positionService.removePosition(state.projectId, id, 'simulation');
       });
-      
+
       // Clear selection if deleted
       if (state.selectedNode && nodeIds.includes(state.selectedNode.id)) {
         state.selectedNode = null;
       }
     });
-    
+
     // Trigger YAML regeneration
     get().syncCanvasToYaml();
   },
@@ -147,7 +147,7 @@ export const createCanvasActions = (set, get) => ({
   addNode: (stepData, position = { x: 100, y: 100 }) => {
     // Push current state to history before making changes
     pushToHistory(set, get, 'simulation', 'ADD', { stepId: stepData.step_id });
-    
+
     set((state) => {
       // Add to canonical steps
       const newStep = {
@@ -155,15 +155,15 @@ export const createCanvasActions = (set, get) => ({
         position
       };
       state.canonicalSteps.push(newStep);
-      
+
       // Add position to map
       state.positions.set(stepData.step_id, position);
-      
+
       // Save to PositionService
       positionService.setPosition(state.projectId, stepData.step_id, position, 'simulation');
-      
+
     });
-    
+
     // Update visual state and sync to YAML
     get().updateVisualState();
     get().syncCanvasToYaml();
@@ -177,9 +177,9 @@ export const createCanvasActions = (set, get) => ({
   updateStep: (stepId, newData) => {
     // Push current state to history before making changes
     pushToHistory(set, get, 'simulation', 'UPDATE', { stepId, newData });
-    
+
     const isIdChanging = newData.step_id && newData.step_id !== stepId;
-    
+
     set((state) => {
       const stepIndex = state.canonicalSteps.findIndex(s => s.step_id === stepId);
       if (stepIndex >= 0) {
@@ -189,16 +189,16 @@ export const createCanvasActions = (set, get) => ({
           ...newData,
           position
         };
-        
-        
+
+
         // If step ID is changing, update references in other steps
         if (isIdChanging) {
           state.canonicalSteps.forEach((step, index) => {
             if (index === stepIndex) return; // Skip the step being updated
-            
+
             let needsUpdate = false;
             let updatedStep = { ...step };
-            
+
             // Update next_steps references
             if (step.next_steps) {
               const updatedNextSteps = step.next_steps.map(id => id === stepId ? newData.step_id : id);
@@ -207,14 +207,14 @@ export const createCanvasActions = (set, get) => ({
                 needsUpdate = true;
               }
             }
-            
+
             // Update decide outcomes references
             if (step.decide_config?.outcomes) {
               const updatedOutcomes = step.decide_config.outcomes.map(outcome => ({
                 ...outcome,
                 next_step_id: outcome.next_step_id === stepId ? newData.step_id : outcome.next_step_id
               }));
-              
+
               if (JSON.stringify(updatedOutcomes) !== JSON.stringify(step.decide_config.outcomes)) {
                 updatedStep.decide_config = {
                   ...step.decide_config,
@@ -223,12 +223,12 @@ export const createCanvasActions = (set, get) => ({
                 needsUpdate = true;
               }
             }
-            
+
             if (needsUpdate) {
               state.canonicalSteps[index] = updatedStep;
             }
           });
-          
+
           // Update position mapping
           if (state.positions.has(stepId)) {
             const position = state.positions.get(stepId);
@@ -238,7 +238,7 @@ export const createCanvasActions = (set, get) => ({
         }
       }
     });
-    
+
     // Update visual state and sync to YAML
     get().updateVisualState();
     get().syncCanvasToYaml();
@@ -249,7 +249,7 @@ export const createCanvasActions = (set, get) => ({
    * Transforms canonical steps into ReactFlow nodes and edges
    */
   updateVisualState: () => {
-    
+
     set((state) => {
       if (state.canonicalSteps.length === 0) {
         state.nodes = [];
@@ -260,41 +260,41 @@ export const createCanvasActions = (set, get) => ({
       // Build visual nodes from canonical steps
       const visualNodes = state.canonicalSteps.map((step, index) => {
         const nodeType = step.step_type === 'event' ? 'process' :
-                        step.step_type === 'decide' ? 'decide' :
-                        step.step_type === 'assign' ? 'assign' :
-                        step.step_type === 'release' ? 'release' :
-                        step.step_type === 'create' ? 'create' :
-                        step.step_type === 'trigger' ? 'trigger' : 'process';
-        
+          step.step_type === 'decide' ? 'decide' :
+            step.step_type === 'assign' ? 'assign' :
+              step.step_type === 'release' ? 'release' :
+                step.step_type === 'create' ? 'create' :
+                  step.step_type === 'trigger' ? 'trigger' : 'process';
+
         // Position priority: PositionService -> step.position -> calculated default
         // PositionService has the most recent user-dragged position
         let position = positionService.getPosition(state.projectId, step.step_id, 'simulation');
-        
+
         if (!position) {
           // Fallback to stored position in canonical step
           position = step.position;
         }
-        
+
         if (!position) {
           // Calculate default position based on index
           position = {
             x: 100 + (index % 3) * 300, // Spread horizontally
             y: 100 + Math.floor(index / 3) * 200 // Stack vertically
           };
-          
+
         }
-        
+
         // Only update the step position if it's different to avoid triggering updates
         if (!step.position || step.position.x !== position.x || step.position.y !== position.y) {
           step.position = position;
         }
-        
+
         // Update positions map
         state.positions.set(step.step_id, position);
-        
+
         // Ensure PositionService has the position
         positionService.setPosition(state.projectId, step.step_id, position, 'simulation');
-        
+
         return {
           id: step.step_id,
           type: nodeType,
@@ -306,7 +306,7 @@ export const createCanvasActions = (set, get) => ({
           }
         };
       });
-    
+
       // Build edges from canonical steps
       const visualEdges = [];
       state.canonicalSteps.forEach(step => {
@@ -325,7 +325,9 @@ export const createCanvasActions = (set, get) => ({
             }
           });
         } else if (step.next_steps && step.next_steps.length > 0) {
-          step.next_steps.forEach(nextStepId => {
+          // Deduplicate next_steps to prevent duplicate edges
+          const uniqueNextSteps = [...new Set(step.next_steps)];
+          uniqueNextSteps.forEach(nextStepId => {
             visualEdges.push({
               id: `${step.step_id}-${nextStepId}`,
               source: step.step_id,
@@ -352,7 +354,7 @@ export const createCanvasActions = (set, get) => ({
     if (get().currentState === 'importing') {
       return;
     }
-    
+
     // Sync positions from visual nodes to canonical steps before generating YAML
     set((state) => {
       state.nodes.forEach(node => {
@@ -362,13 +364,13 @@ export const createCanvasActions = (set, get) => ({
         }
       });
     });
-    
+
     const generatedYaml = get().generateYaml();
-    
+
     set((state) => {
       state.yamlContent = generatedYaml;
     });
-    
+
     // Update parsedSchema only (preserve canonicalSteps as canvas is source of truth)
     get().updateParsedSchemaOnly();
   },
@@ -378,19 +380,19 @@ export const createCanvasActions = (set, get) => ({
    * @param {Object} connection - ReactFlow connection object
    */
   connectNodes: (connection) => {
-    
+
     const { source, target, sourceHandle } = connection;
-    
+
     set((state) => {
       const sourceStepIndex = state.canonicalSteps.findIndex(s => s.step_id === source);
-      
+
       if (sourceStepIndex >= 0) {
         const sourceStep = state.canonicalSteps[sourceStepIndex];
-        
+
         if (sourceStep.step_type === 'decide' && sourceHandle) {
           // Handle decide module connections through outcomes
           const outcomeIndex = parseInt(sourceHandle.replace('outcome-', ''));
-          
+
           // Ensure outcomes array exists
           if (!sourceStep.decide_config) {
             state.canonicalSteps[sourceStepIndex].decide_config = { outcomes: [] };
@@ -398,10 +400,10 @@ export const createCanvasActions = (set, get) => ({
           if (!sourceStep.decide_config.outcomes) {
             state.canonicalSteps[sourceStepIndex].decide_config.outcomes = [];
           }
-          
+
           // If connecting to a new outcome handle for N-way decisions, create new outcome
-          if (!sourceStep.decide_config.outcomes[outcomeIndex] && 
-              sourceStep.decide_config.decision_type?.startsWith('nway')) {
+          if (!sourceStep.decide_config.outcomes[outcomeIndex] &&
+            sourceStep.decide_config.decision_type?.startsWith('nway')) {
             const isCondition = sourceStep.decide_config.decision_type.includes('condition');
             const newOutcome = {
               outcome_id: `outcome_${outcomeIndex + 1}`,
@@ -427,14 +429,14 @@ export const createCanvasActions = (set, get) => ({
           if (!sourceStep.next_steps) {
             state.canonicalSteps[sourceStepIndex].next_steps = [];
           }
-          
+
           if (!sourceStep.next_steps.includes(target)) {
             state.canonicalSteps[sourceStepIndex].next_steps.push(target);
           }
         }
       }
     });
-    
+
     // Update visual state and sync to YAML
     get().updateVisualState();
     get().syncCanvasToYaml();

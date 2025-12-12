@@ -10,7 +10,7 @@ export const createYamlActions = (set, get) => ({
    * @param {string} content - Raw YAML content
    */
   importYaml: async (content) => {
-    
+
     try {
       // Set importing state to prevent circular updates
       set((state) => {
@@ -24,38 +24,45 @@ export const createYamlActions = (set, get) => ({
       if (doc.errors && doc.errors.length > 0) {
         throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
       }
-      
+
       const parsedObj = doc.toJSON();
-      
+
       // Validate this is simulation YAML
       if (!parsedObj?.event_simulation && !parsedObj?.simulation) {
         throw new Error('Invalid YAML: This appears to be database configuration, not simulation configuration');
       }
 
+
       // Extract canonical steps from parsed schema - collect from ALL flows
-      // Also migrate legacy create_config.event_table to _eventFlow
-      const canonicalSteps = [];
+      // Use a Map to prevent duplicates if a step appears in multiple flows
+      const stepsMap = new Map();
       if (parsedObj.event_simulation?.event_flows) {
         parsedObj.event_simulation.event_flows.forEach(flow => {
           if (flow.steps) {
             flow.steps.forEach(step => {
-              if (step.step_type === 'create') {
-                // Migrate legacy per-step event_flow/event_table
-                if (step.create_config?.event_flow) {
-                  step._eventFlow = step.create_config.event_flow;
-                  delete step.create_config.event_flow;
+              if (!step.step_id) return;
+
+              // Only process if we haven't seen this step ID yet
+              if (!stepsMap.has(step.step_id)) {
+                if (step.step_type === 'create') {
+                  // Migrate legacy per-step event_flow/event_table
+                  if (step.create_config?.event_flow) {
+                    step._eventFlow = step.create_config.event_flow;
+                    delete step.create_config.event_flow;
+                  }
+                  if (!step._eventFlow && flow.event_flow) {
+                    step._eventFlow = flow.event_flow;
+                  } else if (!step._eventFlow && flow.event_table) {
+                    step._eventFlow = flow.event_table;
+                  }
                 }
-                if (!step._eventFlow && flow.event_flow) {
-                  step._eventFlow = flow.event_flow;
-                } else if (!step._eventFlow && flow.event_table) {
-                  step._eventFlow = flow.event_table;
-                }
+                stepsMap.set(step.step_id, step);
               }
-              canonicalSteps.push(step);
             });
           }
         });
       }
+      const canonicalSteps = Array.from(stepsMap.values());
 
       // Update store state
       set((state) => {
@@ -77,16 +84,16 @@ export const createYamlActions = (set, get) => ({
       // Note: Removed cleanupObsoletePositions() to prevent removing database entity positions
 
       return { success: true, message: 'Simulation configuration imported successfully' };
-      
+
     } catch (error) {
       console.error('[YamlActions] YAML import failed:', error);
-      
+
       set((state) => {
         state.currentState = 'idle';
         state.isLoading = false;
         state.error = error.message;
       });
-      
+
       return { success: false, message: error.message };
     }
   },
@@ -97,7 +104,7 @@ export const createYamlActions = (set, get) => ({
    */
   exportYaml: (filename = 'simulation-config.yaml') => {
     const { yamlContent } = get();
-    
+
     if (!yamlContent) {
       console.warn('[YamlActions] No content to export');
       return { success: false, message: 'No content to export' };
@@ -126,7 +133,7 @@ export const createYamlActions = (set, get) => ({
    * @param {string} content - New YAML content
    */
   updateYamlContent: (content) => {
-    
+
     set((state) => {
       state.yamlContent = content;
     });
@@ -140,7 +147,7 @@ export const createYamlActions = (set, get) => ({
    */
   parseYaml: () => {
     const { yamlContent } = get();
-    
+
     if (!yamlContent) {
       set((state) => {
         state.parsedSchema = null;
@@ -153,36 +160,43 @@ export const createYamlActions = (set, get) => ({
 
     try {
       const doc = yaml.parseDocument(yamlContent);
-      
+
       if (doc.errors && doc.errors.length > 0) {
         throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
       }
-      
+
       const parsedObj = doc.toJSON();
-      
-      // Extract canonical steps - collect from ALL flows
-      const canonicalSteps = [];
+
+
+      // Use a Map to prevent duplicates
+      const stepsMap = new Map();
       if (parsedObj.event_simulation?.event_flows) {
         parsedObj.event_simulation.event_flows.forEach(flow => {
           if (flow.steps) {
             flow.steps.forEach(step => {
-              // Migrate legacy per-step event_flow and inherit flow-level label
-              if (step.step_type === 'create') {
-                if (step.create_config?.event_flow) {
-                  step._eventFlow = step.create_config.event_flow;
-                  delete step.create_config.event_flow;
+              if (!step.step_id) return;
+
+              // Only process if we haven't seen this step ID yet
+              if (!stepsMap.has(step.step_id)) {
+                // Migrate legacy per-step event_flow and inherit flow-level label
+                if (step.step_type === 'create') {
+                  if (step.create_config?.event_flow) {
+                    step._eventFlow = step.create_config.event_flow;
+                    delete step.create_config.event_flow;
+                  }
+                  if (!step._eventFlow && flow.event_flow) {
+                    step._eventFlow = flow.event_flow;
+                  } else if (!step._eventFlow && flow.event_table) {
+                    step._eventFlow = flow.event_table;
+                  }
                 }
-                if (!step._eventFlow && flow.event_flow) {
-                  step._eventFlow = flow.event_flow;
-                } else if (!step._eventFlow && flow.event_table) {
-                  step._eventFlow = flow.event_table;
-                }
+                stepsMap.set(step.step_id, step);
               }
-              canonicalSteps.push(step);
             });
           }
         });
       }
+      const canonicalSteps = Array.from(stepsMap.values());
 
       set((state) => {
         state.parsedSchema = parsedObj;
@@ -196,7 +210,7 @@ export const createYamlActions = (set, get) => ({
 
     } catch (error) {
       console.error('[YamlActions] YAML parsing failed:', error);
-      
+
       set((state) => {
         state.parsedSchema = null;
         state.flowSchema = null;
@@ -212,7 +226,7 @@ export const createYamlActions = (set, get) => ({
    */
   updateParsedSchemaOnly: () => {
     const { yamlContent } = get();
-    
+
     if (!yamlContent) {
       set((state) => {
         state.parsedSchema = null;
@@ -224,11 +238,11 @@ export const createYamlActions = (set, get) => ({
 
     try {
       const doc = yaml.parseDocument(yamlContent);
-      
+
       if (doc.errors && doc.errors.length > 0) {
         throw new Error(`YAML parsing error: ${doc.errors[0].message}`);
       }
-      
+
       const parsedObj = doc.toJSON();
 
       set((state) => {
@@ -243,7 +257,7 @@ export const createYamlActions = (set, get) => ({
 
     } catch (error) {
       console.error('[YamlActions] YAML parsing failed:', error);
-      
+
       set((state) => {
         state.parsedSchema = null;
         state.flowSchema = null;
@@ -262,19 +276,19 @@ export const createYamlActions = (set, get) => ({
   traceFlowFromCreate: (startingCreate, allSteps) => {
     const visited = new Set();
     const flowSteps = [];
-    
+
     /**
      * Helper function to clean step object and remove canvas/frontend-only properties
      * Also handles SQL expression formatting for backend compatibility
      */
     const cleanStep = (step) => {
       const { position, displayName, ...stepWithoutFrontendProps } = step;
-      
+
       // No debug logging in production
-      
+
       // Deep clone first to avoid modifying read-only objects
       const cleanedStep = JSON.parse(JSON.stringify(stepWithoutFrontendProps));
-      
+
       // Handle conditions for decide steps - just clean up empty values
       if (cleanedStep.step_type === 'decide' && cleanedStep.decide_config?.outcomes) {
         cleanedStep.decide_config.outcomes = cleanedStep.decide_config.outcomes.map((outcome, outcomeIndex) => {
@@ -291,13 +305,13 @@ export const createYamlActions = (set, get) => ({
               return cleanCondition;
             });
           }
-          
+
           // Clean up outcome level - remove any frontend-only fields
           const { sqlExpression, ...cleanOutcome } = outcome;
           return cleanOutcome;
         });
       }
-      
+
       // Handle SQL expressions for assign steps
       if (cleanedStep.step_type === 'assign' && cleanedStep.assign_config?.assignments) {
         cleanedStep.assign_config.assignments = cleanedStep.assign_config.assignments.map(assignment => {
@@ -321,7 +335,7 @@ export const createYamlActions = (set, get) => ({
           return cleanAssignment;
         });
       }
-      
+
       // Remove internal _eventFlow field (used for flow-level label generation)
       delete cleanedStep._eventFlow;
 
@@ -333,10 +347,10 @@ export const createYamlActions = (set, get) => ({
           delete cleanedStep.event_config;
         }
       }
-      
+
       return cleanedStep;
     };
-    
+
     /**
      * Recursive function to trace connections
      */
@@ -344,10 +358,10 @@ export const createYamlActions = (set, get) => ({
       if (!currentStep || visited.has(currentStep.step_id)) {
         return; // Prevent cycles and null steps
       }
-      
+
       visited.add(currentStep.step_id);
       flowSteps.push(cleanStep(currentStep));
-      
+
       // Follow next_steps connections
       if (currentStep.next_steps && Array.isArray(currentStep.next_steps)) {
         currentStep.next_steps.forEach(nextStepId => {
@@ -359,7 +373,7 @@ export const createYamlActions = (set, get) => ({
           }
         });
       }
-      
+
       // Handle decision nodes - follow all outcome paths
       if (currentStep.step_type === 'decide' && currentStep.decide_config?.outcomes) {
         currentStep.decide_config.outcomes.forEach(outcome => {
@@ -372,7 +386,7 @@ export const createYamlActions = (set, get) => ({
         });
       }
     };
-    
+
     // Start tracing from the Create module
     traceFrom(startingCreate);
     return flowSteps;
@@ -391,7 +405,7 @@ export const createYamlActions = (set, get) => ({
 
     // Find all Create modules to determine flow structure
     const createModules = canonicalSteps.filter(step => step.step_type === 'create');
-    
+
     if (createModules.length === 0) {
       // No Create modules - return empty flows
       // Unconnected steps won't appear in YAML (design workspace vs executable config)
@@ -401,14 +415,14 @@ export const createYamlActions = (set, get) => ({
     // Generate flows based on Create modules using flow tracing
     const flows = [];
     let flowCounter = 1;
-    
+
     createModules.forEach(createModule => {
       const flowId = `flow_${flowCounter}_${createModule.step_id}`;
       const eventFlowLabel = createModule._eventFlow || flowId;
-      
+
       // Trace connected steps from this Create module
       const connectedSteps = get().traceFlowFromCreate(createModule, canonicalSteps);
-      
+
       // Only create flow if there are connected steps
       if (connectedSteps.length > 0) {
         flows.push({
@@ -492,18 +506,18 @@ export const createYamlActions = (set, get) => ({
   validateYaml: (content) => {
     try {
       const doc = yaml.parseDocument(content);
-      
+
       if (doc.errors && doc.errors.length > 0) {
         return { valid: false, error: doc.errors[0].message };
       }
-      
+
       const parsedObj = doc.toJSON();
-      
+
       // Validate structure
       if (!parsedObj?.event_simulation && !parsedObj?.simulation) {
         return { valid: false, error: 'Invalid YAML: Missing simulation configuration structure' };
       }
-      
+
       return { valid: true };
     } catch (error) {
       return { valid: false, error: error.message };
