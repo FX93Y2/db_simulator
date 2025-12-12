@@ -369,7 +369,7 @@ class DecideStepProcessor(StepProcessor):
             if not condition.name:
                 self.logger.error(f"Invalid attribute condition for entity {entity_id}: missing name field")
                 return False
-            return self._evaluate_attribute_condition(entity_id, condition.name, operator, value)
+            return self._evaluate_attribute_condition(entity_id, condition.name, operator, value, entity_table)
         elif if_type == "expression":
             # Legacy format: if: expression
             expression_to_evaluate = condition.if_
@@ -405,7 +405,7 @@ class DecideStepProcessor(StepProcessor):
         self.logger.debug(f"Entity {entity_id}: Probability {random_value} <= {probability_value} -> {result}")
         return result
     
-    def _evaluate_attribute_condition(self, entity_id: int, attribute_name: str, operator: str, expected_value) -> bool:
+    def _evaluate_attribute_condition(self, entity_id: int, attribute_name: str, operator: str, expected_value, entity_table: str = None) -> bool:
         """
         Evaluate attribute condition using operator.
         
@@ -414,6 +414,7 @@ class DecideStepProcessor(StepProcessor):
             attribute_name: Name of the attribute
             operator: Comparison operator ("==", "!=", ">", ">=", "<", "<=", "<>")
             expected_value: Value to compare against
+            entity_table: Entity table name (for DB fallback)
             
         Returns:
             True if condition is met, False otherwise
@@ -426,7 +427,7 @@ class DecideStepProcessor(StepProcessor):
             self.logger.error(f"Invalid attribute condition for entity {entity_id}: missing attribute_name or value")
             return False
         
-        actual_value = self.entity_attribute_manager.get_attribute(entity_id, attribute_name)
+        actual_value = self.entity_attribute_manager.get_attribute(entity_id, attribute_name, entity_table)
         
         try:
             if operator == "==":

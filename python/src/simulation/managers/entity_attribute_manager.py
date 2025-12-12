@@ -55,22 +55,46 @@ class EntityAttributeManager:
             logger.debug(f"Set attribute '{attribute_name}' = {value} for entity {entity_id}")
             return True
     
-    def get_attribute(self, entity_id: int, attribute_name: str) -> Optional[Union[str, int, float]]:
+    def get_attribute(self, entity_id: int, attribute_name: str, entity_table: str = None) -> Optional[Union[str, int, float]]:
         """
         Get an attribute value for an entity.
         
         Args:
             entity_id: Entity ID
             attribute_name: Name of the attribute to retrieve
+            entity_table: Optional table name for database fallback
             
         Returns:
             Attribute value if exists, None otherwise
         """
+        # First check in-memory attributes
         with self._lock:
-            if entity_id not in self._entity_attributes:
-                return None
-            
-            return self._entity_attributes[entity_id].get(attribute_name)
+            if entity_id in self._entity_attributes and attribute_name in self._entity_attributes[entity_id]:
+                return self._entity_attributes[entity_id][attribute_name]
+        
+        # Fallback to database if table name provided and entity manager exists
+        if entity_table and self.entity_manager:
+            try:
+                # Use EntityManager logic to fetch from DB
+                from sqlalchemy import text
+                
+                # We need to quote columns to be safe
+                pk_column = "id"
+                if hasattr(self.entity_manager, 'column_resolver'):
+                    pk_column = self.entity_manager.column_resolver.get_primary_key(entity_table)
+                    
+                sql_query = text(f'SELECT "{attribute_name}" FROM "{entity_table}" WHERE "{pk_column}" = :entity_id')
+                
+                with self.entity_manager.engine.connect() as connection:
+                    result = connection.execute(sql_query, {"entity_id": entity_id}).fetchone()
+                    if result:
+                        logger.debug(f"Retrieved attribute '{attribute_name}' = {result[0]} from DB for entity {entity_id}")
+                        return result[0]
+            except Exception as e:
+                # Log debug instead of error to avoid spamming if column doesn't exist
+                logger.debug(f"Could not retrieve attribute '{attribute_name}' from DB for entity {entity_id}: {e}")
+                
+        return None
     
     def has_attribute(self, entity_id: int, attribute_name: str) -> bool:
         """

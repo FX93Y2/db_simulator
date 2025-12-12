@@ -29,6 +29,16 @@ class QueueEntry:
     entry_time: float  # Simulation time when entity entered queue
     priority: float = 0.0  # Priority for sorting (used by PriorityStore)
 
+    def __lt__(self, other):
+        # Support comparison for PriorityQueue (heapq)
+        # If priorities are handled by tuple unpacking in PriorityStore, 
+        # this acts as tie-breaker (FIFO based on entry_time, then deterministic by ID)
+        if hasattr(other, 'entry_time') and self.entry_time != other.entry_time:
+            return self.entry_time < other.entry_time
+        if hasattr(other, 'entity_id'):
+            return self.entity_id < other.entity_id
+        return False
+
 
 class QueueManager:
     """
