@@ -72,28 +72,28 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   // Validate entity data
   const validateEntity = () => {
     const errors = [];
-    
+
     if (!name.trim()) {
       errors.push('Entity name is required');
     }
-    
+
     if (attributes.length === 0) {
       errors.push('At least one attribute is required');
     }
-    
+
     // Check for duplicate attribute names
     const attributeNames = attributes.map(attr => attr.name.toLowerCase());
     const duplicates = attributeNames.filter((name, index) => attributeNames.indexOf(name) !== index);
     if (duplicates.length > 0) {
       errors.push(`Duplicate attribute names: ${duplicates.join(', ')}`);
     }
-    
+
     // Check for empty attribute names
     const emptyNames = attributes.filter(attr => !attr.name.trim());
     if (emptyNames.length > 0) {
       errors.push('All attributes must have names');
     }
-    
+
     // Validate primary key
     const primaryKeys = attributes.filter(attr => attr.type === 'pk');
     if (primaryKeys.length === 0) {
@@ -101,7 +101,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     } else if (primaryKeys.length > 1) {
       errors.push('Entity can only have one primary key');
     }
-    
+
     setValidationErrors(errors);
     return errors.length === 0;
   };
@@ -126,19 +126,19 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
   // Delete attribute
   const handleDeleteAttribute = (index) => {
     const attributeToDelete = attributes[index];
-    
+
     // Prevent deletion of protected auto-generated columns
-    if ((entityType === 'bridging' && 
-         (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) ||
-        (entityType === 'entity' && attributeToDelete.name === 'created_at')) {
+    if ((entityType === 'bridge' &&
+      (attributeToDelete.name === 'start_date' || attributeToDelete.name === 'end_date')) ||
+      (entityType === 'entity' && attributeToDelete.name === 'created_at')) {
       return; // Do nothing for protected columns
     }
-    
+
     // Prevent deletion of resource_type in resource entities
     if (entityType === 'resource' && attributeToDelete.type === 'resource_type') {
       return; // Do nothing for protected columns
     }
-    
+
     const newAttributes = attributes.filter((_, i) => i !== index);
     setAttributes(newAttributes);
   };
@@ -156,23 +156,23 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   const handleEntityTypeChange = (newType) => {
     setEntityType(newType);
-    
+
     // Auto-set rows for dynamic table types
-    if (newType === 'bridging' || newType === 'entity') {
+    if (newType === 'bridge' || newType === 'entity') {
       setRows('n/a');
     }
-    
+
     let updatedAttributes = [...attributes];
 
     // Handle bridging table date columns
-    if (newType === 'bridging') {
+    if (newType === 'bridge') {
       if (!updatedAttributes.some(attr => attr.name === 'start_date')) {
         updatedAttributes.push({ name: 'start_date', type: 'datetime' });
       }
       if (!updatedAttributes.some(attr => attr.name === 'end_date')) {
         updatedAttributes.push({ name: 'end_date', type: 'datetime' });
       }
-    } else if (entityType === 'bridging') {
+    } else if (entityType === 'bridge') {
       updatedAttributes = updatedAttributes.filter(
         attr => !(attr.name === 'start_date' || attr.name === 'end_date')
       );
@@ -192,8 +192,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
     // Handle resource table resource_type column
     if (newType === 'resource') {
       if (!updatedAttributes.some(attr => attr.type === 'resource_type')) {
-        updatedAttributes.push({ 
-          name: 'resource_type', 
+        updatedAttributes.push({
+          name: 'resource_type',
           type: 'resource_type',
           generator: {
             type: 'distribution',
@@ -238,29 +238,29 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
       const updatedEntity = {
         name: name.trim(),
         type: entityType || undefined,
-        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) : 
-              (rows === 'n/a' || rows === '' ? rows : (typeof rows === 'number' ? rows : parseInt(rows) || rows)),
+        rows: entityType === 'resource' ? (typeof rows === 'number' ? rows : parseInt(rows) || 100) :
+          (rows === 'n/a' || rows === '' ? rows : (typeof rows === 'number' ? rows : parseInt(rows) || rows)),
         attributes: attributes.map(attr => {
           const cleanedAttr = {
             name: attr.name.trim(),
             type: attr.type
           };
-          
+
           // Add generator for non-primary key attributes
           if (attr.type !== 'pk' && attr.generator) {
             cleanedAttr.generator = { ...attr.generator };
           }
-          
+
           // Add reference for foreign key types
-          if ((attr.type === 'fk' || attr.type === 'event_id' || 
-               attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
+          if ((attr.type === 'fk' || attr.type === 'event_id' ||
+            attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
             cleanedAttr.ref = attr.ref;
           }
-          
+
           return cleanedAttr;
         })
       };
-      
+
       onEntityUpdate(updatedEntity);
       return true;
     }
@@ -279,174 +279,174 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
 
   return (
     <>
-    <Modal
-      show={show}
-      onHide={onHide}
-      centered
-      backdrop="static"
-      className={`entity-editor-modal ${showGeneratorModal ? 'generator-modal-open' : ''}`}
-    >
-      <Modal.Header closeButton>
-        <Modal.Title>
-          {entity ? `Edit Entity: ${entity.name}` : 'Create New Entity'}
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
-        {validationErrors.length > 0 && (
-          <Alert variant="danger">
-            <ul className="mb-0">
-              {validationErrors.map((error, index) => (
-                <li key={index}>{error}</li>
-              ))}
-            </ul>
-          </Alert>
-        )}
-        
-        <Form>
-          {/* Entity Basic Information */}
-          <div className="entity-basic-info mb-4">
-            
-            <div className="row">
-              <div className="col-md-8">
-                <div className="row">
-                  <div className="col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Entity Name *</Form.Label>
-                      <Form.Control
-                        type="text"
-                        value={name}
-                        onChange={(e) => handleNameChange(e.target.value)}
-                        placeholder="Enter entity name"
-                        isInvalid={validationErrors.some(error => error.includes('Entity name'))}
-                      />
-                    </Form.Group>
-                  </div>
-                  <div className="col-md-6">
-                    <Form.Group className="mb-3">
-                      <Form.Label>Entity Type</Form.Label>
-                      <Form.Select
-                        value={entityType}
-                        onChange={(e) => handleEntityTypeChange(e.target.value)}
-                      >
-                        <option value="">Default</option>
-                        <option value="entity">Entity</option>
-                        <option value="resource">Resource</option>
-                        <option value="bridge">Bridge</option>
-                      </Form.Select>
-                      <Form.Text className="text-muted">
-                        Specify the role in simulations
-                      </Form.Text>
-                    </Form.Group>
+      <Modal
+        show={show}
+        onHide={onHide}
+        centered
+        backdrop="static"
+        className={`entity-editor-modal ${showGeneratorModal ? 'generator-modal-open' : ''}`}
+      >
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {entity ? `Edit Entity: ${entity.name}` : 'Create New Entity'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {validationErrors.length > 0 && (
+            <Alert variant="danger">
+              <ul className="mb-0">
+                {validationErrors.map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
+          <Form>
+            {/* Entity Basic Information */}
+            <div className="entity-basic-info mb-4">
+
+              <div className="row">
+                <div className="col-md-8">
+                  <div className="row">
+                    <div className="col-md-6">
+                      <Form.Group className="mb-3">
+                        <Form.Label>Entity Name *</Form.Label>
+                        <Form.Control
+                          type="text"
+                          value={name}
+                          onChange={(e) => handleNameChange(e.target.value)}
+                          placeholder="Enter entity name"
+                          isInvalid={validationErrors.some(error => error.includes('Entity name'))}
+                        />
+                      </Form.Group>
+                    </div>
+                    <div className="col-md-6">
+                      <Form.Group className="mb-3">
+                        <Form.Label>Entity Type</Form.Label>
+                        <Form.Select
+                          value={entityType}
+                          onChange={(e) => handleEntityTypeChange(e.target.value)}
+                        >
+                          <option value="">Default</option>
+                          <option value="entity">Entity</option>
+                          <option value="resource">Resource</option>
+                          <option value="bridge">Bridge</option>
+                        </Form.Select>
+                        <Form.Text className="text-muted">
+                          Specify the role in simulations
+                        </Form.Text>
+                      </Form.Group>
+                    </div>
                   </div>
                 </div>
-              </div>
-              
-              <div className="col-md-4">
-                <Form.Group className="mb-3">
-                  <Form.Label>Number of Rows</Form.Label>
-                  {entityType === 'resource' ? (
-                    <Form.Control
-                      type="number"
-                      min="1"
-                      value={rows}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        handleRowsChange(value === '' ? '' : parseInt(value) || 100);
-                      }}
-                      placeholder="Number of rows"
-                    />
-                  ) : entityType === 'bridge' || entityType === 'entity' ? (
-                    <Form.Select
-                      value={rows}
-                      onChange={(e) => handleRowsChange(e.target.value)}
-                      disabled
-                    >
-                      <option value="n/a">n/a (Dynamic)</option>
-                    </Form.Select>
-                  ) : (
-                    <Form.Control
-                      type="text"
-                      value={rows}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        // Allow 'n/a' or numbers for default tables
-                        if (value === 'n/a' || value === '') {
-                          handleRowsChange(value === '' ? 'n/a' : value);
-                        } else if (!isNaN(parseInt(value))) {
-                          handleRowsChange(parseInt(value));
-                        }
-                      }}
-                      placeholder="Enter number of rows or 'n/a' for dynamic"
-                    />
-                  )}
-                  <Form.Text className="text-muted">
-                    {entityType === 'resource' 
-                      ? 'Enter desired number of resources'
-                      : entityType === 'bridging'
-                      ? 'Bridging table rows will be dynamic'
-                      : entityType === 'entity'
-                      ? 'Entity table rows will be dynamic'
-                      : 'Define number of rows here'
-                    }
-                  </Form.Text>
-                </Form.Group>
-              </div>
-            </div>
-          </div>
 
-          {/* Attributes Section */}
-          <div className="entity-attributes-section">
-            <div className="d-flex justify-content-between align-items-center mb-3">
+                <div className="col-md-4">
+                  <Form.Group className="mb-3">
+                    <Form.Label>Number of Rows</Form.Label>
+                    {entityType === 'resource' ? (
+                      <Form.Control
+                        type="number"
+                        min="1"
+                        value={rows}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          handleRowsChange(value === '' ? '' : parseInt(value) || 100);
+                        }}
+                        placeholder="Number of rows"
+                      />
+                    ) : entityType === 'bridge' || entityType === 'entity' ? (
+                      <Form.Select
+                        value={rows}
+                        onChange={(e) => handleRowsChange(e.target.value)}
+                        disabled
+                      >
+                        <option value="n/a">n/a (Dynamic)</option>
+                      </Form.Select>
+                    ) : (
+                      <Form.Control
+                        type="text"
+                        value={rows}
+                        onChange={(e) => {
+                          const value = e.target.value;
+                          // Allow 'n/a' or numbers for default tables
+                          if (value === 'n/a' || value === '') {
+                            handleRowsChange(value === '' ? 'n/a' : value);
+                          } else if (!isNaN(parseInt(value))) {
+                            handleRowsChange(parseInt(value));
+                          }
+                        }}
+                        placeholder="Enter number of rows or 'n/a' for dynamic"
+                      />
+                    )}
+                    <Form.Text className="text-muted">
+                      {entityType === 'resource'
+                        ? 'Enter desired number of resources'
+                        : entityType === 'bridge'
+                          ? 'Bridging table rows will be dynamic'
+                          : entityType === 'entity'
+                            ? 'Entity table rows will be dynamic'
+                            : 'Define number of rows here'
+                      }
+                    </Form.Text>
+                  </Form.Group>
+                </div>
+              </div>
             </div>
-            
-            {attributes.length === 0 ? (
-              <Alert variant="info">
-                No attributes defined. Click "Add Attribute" below to create the first attribute.
-              </Alert>
-            ) : null}
-            
-            <AttributeTable
-              attributes={attributes}
-              onAttributesChange={handleAttributesChange}
-              onAddAttribute={handleAddAttribute}
-              onDeleteAttribute={handleDeleteAttribute}
-              entityType={entityType}
-              theme={theme}
-              onGeneratorModalChange={setShowGeneratorModal}
-            />
-          </div>
-        </Form>
-      </Modal.Body>
-      <Modal.Footer>
-        {entity && (
-          <Button 
-            variant="outline-danger" 
-            onClick={handleDelete} 
-            disabled={isLoading}
-            className="me-auto"
-          >
-            <FiTrash2 className="me-2" /> Delete Entity
+
+            {/* Attributes Section */}
+            <div className="entity-attributes-section">
+              <div className="d-flex justify-content-between align-items-center mb-3">
+              </div>
+
+              {attributes.length === 0 ? (
+                <Alert variant="info">
+                  No attributes defined. Click "Add Attribute" below to create the first attribute.
+                </Alert>
+              ) : null}
+
+              <AttributeTable
+                attributes={attributes}
+                onAttributesChange={handleAttributesChange}
+                onAddAttribute={handleAddAttribute}
+                onDeleteAttribute={handleDeleteAttribute}
+                entityType={entityType}
+                theme={theme}
+                onGeneratorModalChange={setShowGeneratorModal}
+              />
+            </div>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          {entity && (
+            <Button
+              variant="outline-danger"
+              onClick={handleDelete}
+              disabled={isLoading}
+              className="me-auto"
+            >
+              <FiTrash2 className="me-2" /> Delete Entity
+            </Button>
+          )}
+          <Button variant="primary" onClick={handleSaveAndClose} disabled={isLoading}>
+            Save & Close
           </Button>
-        )}
-        <Button variant="primary" onClick={handleSaveAndClose} disabled={isLoading}>
-          Save & Close
-        </Button>
-      </Modal.Footer>
-    </Modal>
+        </Modal.Footer>
+      </Modal>
 
-    <ConfirmationModal
-      show={showDeleteConfirm}
-      onHide={() => setShowDeleteConfirm(false)}
-      onConfirm={confirmDelete}
-      title="Delete Entity"
-      message={`Are you sure you want to delete the entity "${name}"? This action cannot be undone.`}
-      confirmText="Delete Entity"
-      cancelText="Cancel"
-      variant="danger"
-      theme={theme}
-    />
+      <ConfirmationModal
+        show={showDeleteConfirm}
+        onHide={() => setShowDeleteConfirm(false)}
+        onConfirm={confirmDelete}
+        title="Delete Entity"
+        message={`Are you sure you want to delete the entity "${name}"? This action cannot be undone.`}
+        confirmText="Delete Entity"
+        cancelText="Cancel"
+        variant="danger"
+        theme={theme}
+      />
 
-  </>
+    </>
   );
 };
 export default EntityEditor;
