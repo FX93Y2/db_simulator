@@ -117,7 +117,7 @@ class FlowManager:
             
             # Process the Create step using the step processor factory
             step_generator = self.step_processor_factory.process_step(
-                0,  # entity_id not used for Create steps
+                None,  # entity_id is None for root Create steps (Source Mode)
                 create_step, 
                 flow, 
                 entity_table,  # Use the specific entity table from Create config

@@ -65,7 +65,11 @@ class EventTracker:
         # Initialize column resolver for strict column resolution
         if not db_config:
             raise ValueError("db_config is required for EventTracker - cannot use hardcoded column names")
+        self.db_config = db_config
         self.column_resolver = ColumnResolver(db_config)
+        
+        # Cache for dynamic bridge tables: (entity_table, resource_table) -> (Table, entity_fk, resource_fk, event_type_col)
+        self.bridge_table_cache = {}
         
         # Use custom bridge table configuration if provided
         if bridge_table_config:
@@ -92,6 +96,7 @@ class EventTracker:
             Column('event_flow', String, nullable=False),
             Column('event_id', Integer, nullable=False),
             Column('entity_id', Integer, nullable=False),
+            Column('entity_table', String, nullable=True),
             Column('start_time', Float, nullable=False),  # Simulation time in minutes
             Column('end_time', Float, nullable=False),
             Column('duration', Float, nullable=False),
@@ -176,7 +181,7 @@ class EventTracker:
     # Entity arrivals are now tracked automatically via created_at column in entity tables
     
     def record_event_processing(self, event_flow: str, event_id: int, entity_id: int, 
-                               start_time: float, end_time: float):
+                               start_time: float, end_time: float, entity_table: str = None):
         """
         Record event processing
         
@@ -186,6 +191,7 @@ class EventTracker:
             entity_id: Entity ID
             start_time: Start time in minutes
             end_time: End time in minutes
+            entity_table: Name of the entity table
         """
         duration = end_time - start_time
         start_datetime = self.start_date + timedelta(minutes=start_time)
@@ -196,6 +202,7 @@ class EventTracker:
                 event_flow=event_flow,
                 event_id=event_id,
                 entity_id=entity_id,
+                entity_table=entity_table,
                 start_time=start_time,
                 end_time=end_time,
                 duration=duration,
@@ -207,7 +214,7 @@ class EventTracker:
     
     def record_resource_allocation(self, event_flow, event_id, resource_table, resource_id,
                                   allocation_time, release_time=None,
-                                  entity_id: Optional[int] = None, event_type: Optional[str] = None):
+                                  entity_id: Optional[int] = None, entity_table: Optional[str] = None, event_type: Optional[str] = None):
         """Record the allocation of a resource to an event."""
         try:
             allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
@@ -227,24 +234,51 @@ class EventTracker:
                 conn.execute(stmt)
                 
                 # Populate the dynamic bridge table if it exists and the resource table matches
+                # Attempt to populate bridge table
+                # Strategy:
+                # 1. Try static bridge configuration (legacy/single-entity mode)
+                # 2. Try dynamic lookup if entity_table is provided
+                
+                target_bridge = None
+                entity_fk = None
+                resource_fk = None
+                event_type_col = None
+                
+                # Check static bridge first
                 if self.bridge_table is not None and resource_table == self.resource_table_name:
-                    logger.debug(f"Recording allocation in bridge table {self.bridge_table_name}")
-                    if self.bridge_mode == 'entity' and self.entity_fk_column and entity_id is None:
-                        logger.warning("Bridge logging skipped because entity_id was not provided for entity/resource bridge.")
+                    if self.entity_table_name is None or (entity_table is None or entity_table == self.entity_table_name):
+                         target_bridge = self.bridge_table
+                         entity_fk = self.entity_fk_column
+                         resource_fk = self.resource_fk_column
+                         event_type_col = self.event_type_column
+                
+                # If no match, try dynamic lookup
+                if target_bridge is None and entity_table and resource_table:
+                    bridge_info = self._get_dynamic_bridge(entity_table, resource_table)
+                    if bridge_info:
+                        target_bridge, entity_fk, resource_fk, event_type_col = bridge_info
+                
+                if target_bridge is not None:
+
+                    
+                    if entity_fk and entity_id is None:
+                        logger.warning(f"Bridge logging skipped for {target_bridge.name}: entity_id required but not provided.")
                         conn.commit()
                         return
+
                     bridge_data = {
-                        self.resource_fk_column: resource_id,
+                        resource_fk: resource_id,
                         'start_date': allocation_datetime,
                         'end_date': release_datetime
                     }
 
-                    if self.bridge_mode == 'entity' and self.entity_fk_column:
-                        bridge_data[self.entity_fk_column] = entity_id
-                        if event_type and self.event_type_column in self.bridge_columns:
-                            bridge_data[self.event_type_column] = event_type
+                    if entity_fk:
+                        bridge_data[entity_fk] = entity_id
+                    
+                    if event_type and event_type_col and event_type_col in [c.name for c in target_bridge.columns]:
+                         bridge_data[event_type_col] = event_type
 
-                    stmt = insert(self.bridge_table).values(**bridge_data)
+                    stmt = insert(target_bridge).values(**bridge_data)
                     conn.execute(stmt)
                 
                 # Move the commit inside the with block to ensure the transaction is committed before the connection is closed
@@ -252,6 +286,74 @@ class EventTracker:
         except Exception as e:
             logger.error(f"Error recording resource allocation: {e}")
     
+    def _get_dynamic_bridge(self, entity_table: str, resource_table: str):
+        """
+        Dynamically resolve a bridge table for a given entity and resource pair.
+        
+        Args:
+            entity_table: Name of the entity table
+            resource_table: Name of the resource table
+            
+        Returns:
+            Tuple (Table, entity_fk_column, resource_fk_column, event_type_column) or None
+        """
+        cache_key = (entity_table, resource_table)
+        if cache_key in self.bridge_table_cache:
+            return self.bridge_table_cache[cache_key]
+            
+        if not self.db_config:
+            return None
+            
+        # Search db_config for a matching bridge entity
+        target_bridge_entity = None
+        entity_fk_col = None
+        resource_fk_col = None
+        event_type_col = None
+        
+        for entity in self.db_config.entities:
+            e_fk = None
+            r_fk = None
+            evt_type = None
+            
+            for attr in entity.attributes:
+                # Check for entity_id ref
+                if attr.type == 'entity_id' and attr.ref:
+                    # ref is "Table.id"
+                    ref_table = attr.ref.split('.')[0]
+                    if ref_table == entity_table:
+                        e_fk = attr.name
+                
+                # Check for resource_id ref
+                elif attr.type == 'resource_id' and attr.ref:
+                    ref_table = attr.ref.split('.')[0]
+                    if ref_table == resource_table:
+                        r_fk = attr.name
+                        
+                # Check for event_type
+                elif attr.type == 'event_type':
+                    evt_type = attr.name
+            
+            if e_fk and r_fk:
+                target_bridge_entity = entity
+                entity_fk_col = e_fk
+                resource_fk_col = r_fk
+                event_type_col = evt_type
+                break
+        
+        if target_bridge_entity:
+            try:
+                # Reflect the table
+                bridge_table = Table(target_bridge_entity.name, self.metadata, autoload_with=self.engine)
+                result = (bridge_table, entity_fk_col, resource_fk_col, event_type_col)
+                self.bridge_table_cache[cache_key] = result
+                logger.debug(f"Resolved dynamic bridge for {entity_table}/{resource_table} -> {target_bridge_entity.name}")
+                return result
+            except Exception as e:
+                logger.error(f"Failed to reflect dynamic bridge table {target_bridge_entity.name}: {e}")
+                
+        self.bridge_table_cache[cache_key] = None
+        return None
+
     def dispose(self):
         """
         Properly dispose of the EventTracker engine to release database connections.

@@ -8,7 +8,7 @@ and routes them to their initial processing steps.
 import logging
 import random
 from datetime import timedelta
-from typing import Optional, Generator
+from typing import Optional, Generator, Dict, Any
 from sqlalchemy import create_engine, insert, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
@@ -31,6 +31,7 @@ class CreateStepProcessor(StepProcessor):
     - Create entities in the specified database table
     - Route created entities to their initial processing step
     - Support entity limits and arrival patterns
+    - Support triggered creation (sub-flows) from other entities
     """
     
     def __init__(self, env, engine, resource_manager, entity_manager, event_tracker, config, simulator=None):
@@ -62,26 +63,22 @@ class CreateStepProcessor(StepProcessor):
             logger.error(f"Create step {step.step_id} missing entity_table")
             return False
             
-        if not config.interarrival_time:
-            logger.error(f"Create step {step.step_id} missing interarrival_time")
-            return False
+        # interarrival_time is now optional (for triggered steps), but if present must be valid
+        if config.interarrival_time:
+            # Validate interarrival_time format (dict with 'distribution' OR 'formula', or direct formula string)
+            if isinstance(config.interarrival_time, str):
+                pass
+            elif isinstance(config.interarrival_time, dict):
+                if 'distribution' not in config.interarrival_time and 'formula' not in config.interarrival_time:
+                    logger.error(f"Create step {step.step_id} interarrival_time dict must have 'distribution' or 'formula' key")
+                    return False
+            else:
+                logger.error(f"Create step {step.step_id} interarrival_time must be string (formula) or dict")
+                return False
             
         # Validate that the step has next_steps for routing entities
         if not step.next_steps:
             logger.error(f"Create step {step.step_id} missing next_steps for entity routing")
-            return False
-            
-        # Validate interarrival_time format (dict with 'distribution' OR 'formula', or direct formula string)
-        if isinstance(config.interarrival_time, str):
-            # Formula string format - valid
-            pass
-        elif isinstance(config.interarrival_time, dict):
-            # Dict format - must have either 'distribution' or 'formula' key
-            if 'distribution' not in config.interarrival_time and 'formula' not in config.interarrival_time:
-                logger.error(f"Create step {step.step_id} interarrival_time dict must have 'distribution' or 'formula' key")
-                return False
-        else:
-            logger.error(f"Create step {step.step_id} interarrival_time must be string (formula) or dict")
             return False
             
         return True
@@ -89,34 +86,81 @@ class CreateStepProcessor(StepProcessor):
     def process(self, entity_id: int, step: 'Step', flow: 'EventFlow', 
                 entity_table: str, event_flow: str, event_tracker=None) -> Generator:
         """
-        Process the Create step by scheduling non-blocking entity arrivals.
+        Process the Create step.
+        
+        Modes:
+        1. Standard (Source): entity_id is None. Schedules non-blocking arrivals based on interarrival_time.
+        2. Triggered (Sub-flow): entity_id is NOT None. Spawns new entities immediately based on this trigger.
         
         Args:
-            entity_id: Not used for Create steps (entities are created, not processed)
+            entity_id: Incoming entity ID (if triggered) or None (if source)
             step: Create step configuration
             flow: Event flow configuration
             entity_table: Not used (entity table comes from create_config)
             event_flow: Event flow label for tracking
             
         Yields:
-            None - this method returns immediately after scheduling first arrival
+            None
         """
         if not self.validate_step(step):
             logger.error(f"Invalid Create step configuration: {step.step_id}")
             return
             
         config = step.create_config
-        logger.info(f"Starting Create module {step.step_id} for entity table '{config.entity_table}'")
         
-        # Determine maximum entities to create
-        max_entities = self._get_max_entities(config)
-        logger.info(f"Create module {step.step_id} will generate up to {max_entities} entities")
+        if entity_id is not None:
+             # --- Trigger Mode ---
+            logger.info(f"Create module {step.step_id} triggered by entity {entity_id}")
+            
+            # Determine how many entities to create
+            count = self._get_entities_per_arrival(config)
+            logger.debug(f"Triggering generation of {count} entities in {config.entity_table}")
+            
+            # Context for new entities (linking to parent)
+            # We loosely assume column name mapping or rely on EntityManager's smarts, 
+            # but getting the Parent's specific ID is critical.
+            # We'll try to find a column named "{parent_table}_id" or just pass it in initial_data
+            # and let EntityManager match it if it wants.
+            
+            parent_table = entity_table # The table of the entity that triggered this
+            
+            initial_data = {}
+            # Heuristic: Try to guess the FK column name.
+            # Common pattern: parent_table + "_id" (lowercase) at the child.
+            # Or just pass context and let a smarter mechanism handle it later?
+            # For now, simplistic heuristic:
+            if parent_table:
+                fk_col_candidate = f"{parent_table.lower()}_id"
+                initial_data[fk_col_candidate] = entity_id
+            
+            # Create the batch immediately
+            self._create_and_route_batch(count, step, flow, config, event_flow, initial_data)
+            
+            # The INCOMING entity (Parent) stops here *in this branch of execution*.
+            # It is "consumed" by the Create step to produce children.
+            return
         
-        # Schedule the first arrival (non-blocking)
-        self._schedule_next_arrival(step, flow, config, event_flow, 0, max_entities)
+        else:
+            # --- Standard/Source Mode ---
+            # Only start scheduling if interarrival_time is defined
+            if not config.interarrival_time:
+                # If no interarrival time and not triggered, this create step does nothing on its own.
+                # (Active only when triggered)
+                logger.info(f"Create module {step.step_id} has no interarrival_time; waiting for triggers.")
+                return 
+
+            logger.info(f"Starting Create module {step.step_id} for entity table '{config.entity_table}'")
+            
+            # Determine maximumentities to create
+            max_entities = self._get_max_entities(config)
+            logger.info(f"Create module {step.step_id} will generate up to {max_entities} entities")
+            
+            # Schedule the first arrival (non-blocking)
+            self._schedule_next_arrival(step, flow, config, event_flow, 0, max_entities)
+            
+            # Return immediately - arrivals will continue independently
+            return None
         
-        # Return immediately - arrivals will continue independently
-        return None
         yield  # Make this a generator (required by interface)
     
     def _schedule_next_arrival(self, step: 'Step', flow: 'EventFlow', config: 'CreateConfig', 
@@ -166,22 +210,7 @@ class CreateStepProcessor(StepProcessor):
                 batch_size = min(batch_size, remaining_entities)
             
             # Create and route batch of entities
-            successfully_created = 0
-            for i in range(batch_size):
-                created_entity_id = self._create_entity(config.entity_table)
-                
-                if created_entity_id:
-                    # Increment entities processed counter for termination tracking
-                    if self.simulator:
-                        self.simulator.initializer.entities_processed += 1
-                    
-                    # Route entity to first next step
-                    first_next_step = step.next_steps[0]
-                    self._route_entity_to_next_step(created_entity_id, first_next_step, flow, 
-                                                   config.entity_table, event_flow)
-                    successfully_created += 1
-                else:
-                    logger.warning(f"Create module {step.step_id} failed to create entity")
+            successfully_created, _ = self._create_and_route_batch(batch_size, step, flow, config, event_flow)
             
             new_entities_created = entities_created + successfully_created
             
@@ -199,7 +228,40 @@ class CreateStepProcessor(StepProcessor):
                 
         except Exception as e:
             logger.error(f"Error in arrival event for Create module {step.step_id}: {e}", exc_info=True)
-    
+
+    def _create_and_route_batch(self, count: int, step: 'Step', flow: 'EventFlow', 
+                                config: 'CreateConfig', event_flow: str, 
+                                initial_data: Optional[Dict[str, Any]] = None) -> (int, list):
+        """
+        Helper to create 'count' entities and route them to ALL next steps (Forking).
+        
+        Returns:
+            (number_successfully_created, list_of_created_ids)
+        """
+        successfully_created = 0
+        created_ids = []
+        
+        for i in range(count):
+            # Pass initial_data (e.g. parent FKs) to creation
+            created_entity_id = self._create_entity(config.entity_table, initial_data)
+            
+            if created_entity_id:
+                # Increment entities processed counter for termination tracking
+                if self.simulator:
+                    self.simulator.initializer.entities_processed += 1
+                
+                # FORKING LOGIC: Route to ALL next steps
+                for next_step_id in step.next_steps:
+                    self._route_entity_to_next_step(created_entity_id, next_step_id, flow, 
+                                                   config.entity_table, event_flow)
+                
+                successfully_created += 1
+                created_ids.append(created_entity_id)
+            else:
+                logger.warning(f"Create module {step.step_id} failed to create entity")
+        
+        return successfully_created, created_ids
+
     def _get_entities_per_arrival(self, config: 'CreateConfig') -> int:
         """Get number of entities to create in this arrival."""
         if config.entities_per_arrival is None:
@@ -232,12 +294,13 @@ class CreateStepProcessor(StepProcessor):
         
         return int(config.max_entities)
     
-    def _create_entity(self, entity_table: str) -> Optional[int]:
+    def _create_entity(self, entity_table: str, initial_data: Optional[Dict[str, Any]] = None) -> Optional[int]:
         """
         Create a new entity in the specified table.
         
         Args:
             entity_table: Name of the entity table
+            initial_data: Optional data to override generation
             
         Returns:
             ID of created entity or None on failure
@@ -251,8 +314,8 @@ class CreateStepProcessor(StepProcessor):
         
         try:
             with Session(process_engine) as session:
-                # Create entity using EntityManager
-                entity_id = self.entity_manager.create_entity(session, entity_table)
+                # Create entity using EntityManager, passing initial_data
+                entity_id = self.entity_manager.create_entity(session, entity_table, initial_data)
 
                 if entity_id:
                     session.commit()
@@ -277,13 +340,6 @@ class CreateStepProcessor(StepProcessor):
                                   entity_table: str, event_flow: str):
         """
         Route the created entity to its next processing step.
-        
-        Args:
-            entity_id: ID of the created entity
-            next_step_id: ID of the next step to route to
-            flow: Event flow configuration
-            entity_table: Name of the entity table
-            event_flow: Event flow label
         """
         try:
             if self.entity_router_callback:
@@ -298,16 +354,7 @@ class CreateStepProcessor(StepProcessor):
     
     
     def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
-        """
-        Find a step by its ID within a flow.
-        
-        Args:
-            step_id: Step ID to find
-            flow: Event flow to search in
-            
-        Returns:
-            Step object or None if not found
-        """
+        """Find a step by its ID within a flow."""
         for step in flow.steps:
             if step.step_id == step_id:
                 return step

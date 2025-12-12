@@ -153,6 +153,7 @@ class EventStepProcessor(StepProcessor):
                 event_flow_label,
                 active_event_tracker,
                 entity_id=entity_id,
+                entity_table=entity_table,
                 event_type=step.step_id
             )
             
@@ -163,7 +164,8 @@ class EventStepProcessor(StepProcessor):
             # Record event processing
             self._record_event_processing(
                 process_engine, event_flow_label, event_id, entity_id,
-                start_time, end_time, duration_minutes, active_event_tracker
+                start_time, end_time, duration_minutes, active_event_tracker,
+                entity_table=entity_table
             )
                 
             # Release resources
@@ -238,7 +240,7 @@ class EventStepProcessor(StepProcessor):
     
     def _record_event_processing(self, engine, event_flow: Optional[str], event_id: int, 
                                 entity_id: int, start_time: float, end_time: float, 
-                                duration_minutes: float, event_tracker=None):
+                                duration_minutes: float, event_tracker=None, entity_table: str = None):
         """Record event processing in the event tracker."""
         try:
             # Use provided event_tracker or fall back to default
@@ -256,30 +258,27 @@ class EventStepProcessor(StepProcessor):
 
             # Record in event tracker if available
             if active_event_tracker:
-                with engine.connect() as conn:
-                    stmt = insert(active_event_tracker.event_processing).values(
-                        event_flow=event_flow_label,
-                        event_id=event_id,
-                        entity_id=entity_id,
-                        start_time=start_time,
-                        end_time=end_time,
-                        duration=duration_minutes,
-                        start_datetime=start_datetime,
-                        end_datetime=end_datetime
-                    )
-                    conn.execute(stmt)
-                    conn.commit()
+                 active_event_tracker.record_event_processing(
+                     event_flow=event_flow_label,
+                     event_id=event_id,
+                     entity_id=entity_id,
+                     start_time=start_time,
+                     end_time=end_time,
+                     entity_table=entity_table
+                 )
                     
         except Exception as e:
             self.logger.warning(f"Error recording event processing: {str(e)}")
     
     def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_flow: str,
-                                     event_tracker=None, entity_id: Optional[int] = None, event_type: Optional[str] = None):
+                                     event_tracker=None, entity_id: Optional[int] = None, 
+                                     entity_table: str = None, event_type: Optional[str] = None):
         """Record resource allocations in the event tracker."""
         try:
             active_event_tracker = event_tracker or self.event_tracker
             # Use composite key to handle ID collisions between event tables
             allocation_key = f"{event_flow}_{event_id}" if event_flow else str(event_id)
+            
             if active_event_tracker and allocation_key in self.resource_manager.event_allocations:
                 allocated_resources = self.resource_manager.event_allocations[allocation_key]
                 for resource in allocated_resources:
@@ -292,6 +291,7 @@ class EventStepProcessor(StepProcessor):
                         allocation_time=start_time,
                         release_time=end_time,
                         entity_id=entity_id,
+                        entity_table=entity_table,
                         event_type=event_type
                     )
                 self.logger.debug(f"Recorded {len(allocated_resources)} resource allocations for event {event_id}")

@@ -59,23 +59,25 @@ class FlowEventTrackerSetup:
             )
 
             if not bridge_table_config:
-                logger.warning(f"Flow {flow_id} has no matching bridge table. Skipping EventTracker creation.")
-                continue
+                logger.info(f"Flow {flow_id} has no matching bridge table for primary entity. Proceeding with limited tracking.")
+                # Continue and create tracker anyway
             
-            if bridge_table_config:
-                # Create EventTracker for this flow
+            # Create EventTracker for this flow (even without bridge config)
+            try:
                 event_tracker = EventTracker(
                     self.db_path,
                     self.config.start_date,
                     resource_table_name=resource_table_name,
                     entity_table_name=entity_table_name,
-                    bridge_table_config=bridge_table_config,
+                    bridge_table_config=bridge_table_config,  # May be None
                     db_config=self.db_config
                 )
                 flow_trackers[flow_id] = event_tracker
-                logger.debug(f"Created EventTracker for flow {flow_id}: bridge_table={bridge_table_config['name']}")
-            else:
-                logger.warning(f"Could not find bridge table for flow {flow_id}. Resource tracking may be limited.")
+                
+                bridge_name = bridge_table_config['name'] if bridge_table_config else "None"
+                logger.debug(f"Created EventTracker for flow {flow_id}: bridge_table={bridge_name}")
+            except Exception as e:
+                logger.error(f"Failed to create EventTracker for flow {flow_id}: {e}")
         
         logger.debug(f"Initialized {len(flow_trackers)} flow-specific EventTrackers")
         return flow_trackers

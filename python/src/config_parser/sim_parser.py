@@ -50,7 +50,8 @@ class TableSpecification:
 
 @dataclass
 class EntityArrival:
-    interarrival_time: DistributionConfig  # Supports both dict and formula string
+    entity_table: str
+    interarrival_time: Optional[DistributionConfig] = None  # Optional for triggered creation (sub-flows)
     max_entities: Optional[Any] = None  # Can be int or 'n/a'
     override_db_config: bool = True
 
@@ -123,7 +124,7 @@ class TriggerConfig:
 class CreateConfig:
     """Configuration for Create step modules (Arena-style entity creation)"""
     entity_table: str
-    interarrival_time: DistributionConfig  # Supports both dict and formula string
+    interarrival_time: Optional[DistributionConfig] = None  # Optional for triggered creation (sub-flows)
     max_entities: Optional[Union[int, str]] = None  # Can be int or 'n/a'
     entities_per_arrival: Optional[Union[int, DistributionConfig]] = None  # Number of entities per arrival
 
@@ -369,7 +370,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         create_dict = step_dict['create_config']
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
-                            interarrival_time=create_dict.get('interarrival_time', {}),
+                            interarrival_time=create_dict.get('interarrival_time'),
                             max_entities=create_dict.get('max_entities'),
                             entities_per_arrival=create_dict.get('entities_per_arrival')
                         )
@@ -610,7 +611,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         create_dict = step_dict['create_config']
                         create_config = CreateConfig(
                             entity_table=create_dict.get('entity_table', ''),
-                            interarrival_time=create_dict.get('interarrival_time', {}),
+                            interarrival_time=create_dict.get('interarrival_time'),
                             max_entities=create_dict.get('max_entities'),
                             entities_per_arrival=create_dict.get('entities_per_arrival')
                         )

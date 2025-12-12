@@ -212,13 +212,14 @@ class EntityManager:
 
         return self.get_table_by_type('entity'), self.get_table_by_type('resource')
 
-    def create_entity(self, session, entity_table: str) -> int:
+    def create_entity(self, session, entity_table: str, initial_data: Optional[Dict[str, Any]] = None) -> int:
         """
         Create a new entity in the database, populating attributes based on generators.
         
         Args:
             session: SQLAlchemy session
             entity_table: Name of the entity table
+            initial_data: Optional dictionary of attributes to set explicitly (overrides generators)
             
         Returns:
             ID of the created entity or None on error
@@ -237,10 +238,19 @@ class EntityManager:
             
             row_data = {pk_column: next_id}
             
+            # Apply initial data if provided
+            if initial_data:
+                for key, value in initial_data.items():
+                    row_data[key] = value
+            
             # Generate values for other attributes
             for attr in entity_config.attributes:
                 if attr.is_primary_key:
                     continue # Skip primary key
+                
+                # Skip if already populated by initial_data
+                if attr.name in row_data:
+                    continue
                 
                 # Handle foreign key generator specifically
                 if attr.generator and attr.generator.type == "foreign_key":
