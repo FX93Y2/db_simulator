@@ -65,15 +65,15 @@ class CreateStepProcessor(StepProcessor):
             
         # interarrival_time is now optional (for triggered steps), but if present must be valid
         if config.interarrival_time:
-            # Validate interarrival_time format (dict with 'distribution' OR 'formula', or direct formula string)
-            if isinstance(config.interarrival_time, str):
+            # Validate interarrival_time format (dict with 'distribution' OR 'formula', direct formula string, or numeric constant)
+            if isinstance(config.interarrival_time, (str, int, float)):
                 pass
             elif isinstance(config.interarrival_time, dict):
                 if 'distribution' not in config.interarrival_time and 'formula' not in config.interarrival_time:
                     logger.error(f"Create step {step.step_id} interarrival_time dict must have 'distribution' or 'formula' key")
                     return False
             else:
-                logger.error(f"Create step {step.step_id} interarrival_time must be string (formula) or dict")
+                logger.error(f"Create step {step.step_id} interarrival_time must be string (formula), dict, or numeric constant")
                 return False
             
         # Validate that the step has next_steps for routing entities

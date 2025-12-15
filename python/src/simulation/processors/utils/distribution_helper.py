@@ -53,9 +53,12 @@ def extract_distribution_config(config_value: Union[str, Dict[str, Any]]) -> Uni
         else:
             # Assume the dict itself is the distribution config (direct dict format)
             return config_value
+    elif isinstance(config_value, (int, float)):
+        # Constant value
+        return {"type": "FIXED", "value": config_value}
     else:
         raise ValueError(f"Invalid distribution config format: {type(config_value)}. "
-                       f"Expected string formula or dict with 'formula'/'distribution' keys.")
+                       f"Expected string formula, dict, or numeric constant.")
 
 
 def extract_distribution_config_with_time_unit(config_value: Union[str, Dict[str, Any]]) -> Tuple[Union[str, Dict[str, Any]], Optional[str]]:
@@ -107,6 +110,9 @@ def extract_distribution_config_with_time_unit(config_value: Union[str, Dict[str
             # But exclude time_unit from the distribution config
             dist_config = {k: v for k, v in config_value.items() if k != 'time_unit'}
             return dist_config, time_unit
+    elif isinstance(config_value, (int, float)):
+        # Constant value - no time_unit
+        return {"type": "FIXED", "value": config_value}, None
     else:
         raise ValueError(f"Invalid distribution config format: {type(config_value)}. "
-                       f"Expected string formula or dict with 'formula'/'distribution' keys.")
+                       f"Expected string formula, dict, or numeric constant.")
