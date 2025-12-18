@@ -79,6 +79,29 @@ class DataPopulator:
             self.pending_formulas[entity.name] = formula_attrs
             logger.info(f"Found {len(formula_attrs)} formula attributes in table {entity.name} for post-simulation resolution")
         
+        # Pre-process one_to_one attributes to create shuffled ID decks
+        one_to_one_decks = {}
+        for attr in entity.attributes:
+            if attr.generator and getattr(attr.generator, "type", None) == "foreign_key":
+                subtype = getattr(attr.generator, "subtype", "one_to_many")
+                if subtype == "one_to_one" and attr.ref:
+                    ref_table, ref_column = attr.ref.split('.')
+                    parent_model = self.models[ref_table]
+                    # Fetch all parent IDs
+                    parent_ids = self.session.query(getattr(parent_model, ref_column)).all()
+                    parent_ids = [pid[0] for pid in parent_ids]
+                    
+                    if not parent_ids:
+                        logger.warning(f"No parent rows found for 1:1 FK '{attr.name}' in '{entity.name}'")
+                        one_to_one_decks[attr.name] = []
+                    else:
+                        import random
+                        # Create a copy and shuffle it
+                        deck = list(parent_ids)
+                        random.shuffle(deck)
+                        one_to_one_decks[attr.name] = deck
+                        logger.info(f"Prepared 1:1 deck for {attr.name}: {len(deck)} unique IDs")
+
         # Generate rows
         for i in range(num_rows):
             row_data = {}
@@ -96,25 +119,37 @@ class DataPopulator:
 
                 # Handle new "foreign_key" generator type
                 if attr.generator and getattr(attr.generator, "type", None) == "foreign_key":
-                    # Get parent table and column
-                    if not attr.ref:
-                        logger.error(f"Foreign key attribute '{attr.name}' in table '{entity.name}' missing 'ref'. Assigning None.")
-                        row_data[attr.name] = None
+                    subtype = getattr(attr.generator, "subtype", "one_to_many")
+                    
+                    if subtype == "one_to_one":
+                        # Use the pre-shuffled deck
+                        deck = one_to_one_decks.get(attr.name, [])
+                        if deck:
+                            row_data[attr.name] = deck.pop()
+                        else:
+                            logger.warning(f"Ran out of unique IDs for 1:1 FK '{attr.name}' in '{entity.name}' (Row {i+1}). Setting to None.")
+                            row_data[attr.name] = None
                     else:
-                        ref_table, ref_column = attr.ref.split('.')
-                        parent_model = self.models[ref_table]
-                        parent_ids = self.session.query(getattr(parent_model, ref_column)).all()
-                        parent_ids = [id[0] for id in parent_ids]
-                        
-                        if not parent_ids:
-                            logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{entity.name}'")
+                        # Standard One-to-Many logic
+                        # Get parent table and column
+                        if not attr.ref:
+                            logger.error(f"Foreign key attribute '{attr.name}' in table '{entity.name}' missing 'ref'. Assigning None.")
                             row_data[attr.name] = None
                         else:
-                            # Use ForeignKeyResolver for proper formula-based selection
-                            from .foreign_key import ForeignKeyResolver
-                            fk_resolver = ForeignKeyResolver()
-                            formula = getattr(attr.generator, 'formula', None)
-                            row_data[attr.name] = fk_resolver.select_parent_id(parent_ids, formula)
+                            ref_table, ref_column = attr.ref.split('.')
+                            parent_model = self.models[ref_table]
+                            parent_ids = self.session.query(getattr(parent_model, ref_column)).all()
+                            parent_ids = [id[0] for id in parent_ids]
+                            
+                            if not parent_ids:
+                                logger.warning(f"No rows in parent table {ref_table}, assigning None to FK '{attr.name}' in '{entity.name}'")
+                                row_data[attr.name] = None
+                            else:
+                                # Use ForeignKeyResolver for proper formula-based selection
+                                from .foreign_key import ForeignKeyResolver
+                                fk_resolver = ForeignKeyResolver()
+                                formula = getattr(attr.generator, 'formula', None)
+                                row_data[attr.name] = fk_resolver.select_parent_id(parent_ids, formula)
                 # Generate data based on other generator configuration
                 elif attr.generator:
                     # If this attribute is assigned by any Assign step in flows,
