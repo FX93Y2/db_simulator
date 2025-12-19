@@ -192,14 +192,60 @@ def _convert_to_config(dist_name: str, params: List[Union[float, int, str]]) -> 
         if len(params) < 2 or len(params) % 2 != 0:
             raise ValueError(f"DISC requires even number of parameters (p1, v1, p2, v2, ...), got {len(params)}")
         
-        # Extract probability-value pairs
-        weights = []
-        values = []
-        for i in range(0, len(params), 2):
-            weights.append(params[i])
-            values.append(params[i + 1])
+        # Try standard order: (weight, value, weight, value...)
+        weights1 = []
+        values1 = []
+        weights1_valid = True
+        weights1_sum = 0
         
-        return {"type": "DISC", "values": values, "weights": weights}
+        for i in range(0, len(params), 2):
+            w = params[i]
+            if not isinstance(w, (int, float)):
+                weights1_valid = False
+                break
+            weights1.append(w)
+            weights1_sum += w
+            values1.append(params[i + 1])
+            
+        # Try swapped order: (value, weight, value, weight...)
+        weights2 = []
+        values2 = []
+        weights2_valid = True
+        weights2_sum = 0
+        
+        for i in range(0, len(params), 2):
+            w = params[i + 1]
+            if not isinstance(w, (int, float)):
+                weights2_valid = False
+                break
+            weights2.append(w)
+            weights2_sum += w
+            values2.append(params[i])
+
+        # Decide which order to use
+        # 1. If standard works and sums to approx 1.0, use it.
+        # 2. If standard is invalid but swapped is valid, use swapped.
+        # 3. If both valid, prefer the one closer to 1.0 sum.
+        # 4. Fallback to standard if both doubtful (will likely fail later but consistent behavior).
+        
+        use_swapped = False
+        
+        if weights1_valid and abs(weights1_sum - 1.0) < 0.01:
+            use_swapped = False
+        elif weights2_valid and abs(weights2_sum - 1.0) < 0.01:
+            use_swapped = True
+        elif not weights1_valid and weights2_valid:
+            use_swapped = True
+        elif weights1_valid and weights2_valid:
+            # Both valid numbers, pick closest to 1.0
+            diff1 = abs(weights1_sum - 1.0)
+            diff2 = abs(weights2_sum - 1.0)
+            use_swapped = diff2 < diff1
+        
+        if use_swapped:
+            return {"type": "DISC", "values": values2, "weights": weights2}
+        else:
+            return {"type": "DISC", "values": values1, "weights": weights1}
     
     elif dist_name == 'RAND':
         if len(params) != 0:
