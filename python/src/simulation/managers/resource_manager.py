@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from datetime import datetime
 
 from ...distributions import generate_from_distribution
+from ..utils.column_resolver import ColumnResolver
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,9 @@ class ResourceManager:
         self.engine = engine
         self.db_path = db_path
         self.db_config = db_config
+        
+        # Initialize column resolver for dynamic PK/column lookups
+        self.column_resolver = ColumnResolver(db_config) if db_config else None
         
         # Main resource store
         self.resource_store = simpy.FilterStore(env)
@@ -144,12 +148,22 @@ class ResourceManager:
                 resource_count = 0
                 resource_types = set()
                 
+                # Get PK column name from db_config for proper ID lookup
+                pk_column = None
+                if self.column_resolver:
+                    try:
+                        pk_column = self.column_resolver.get_primary_key(resource_table)
+                    except ValueError:
+                        logger.warning(f"Could not resolve PK column for {resource_table}, falling back to 'id'")
+                pk_column = pk_column or 'id'
+                logger.debug(f"Using '{pk_column}' as primary key column for resource loading")
+                
                 for row in result:
                     row_dict = dict(row._mapping)
                     
-                    # Create a Resource object
+                    # Create a Resource object using resolved PK column
                     resource = Resource(
-                        id=row_dict.get('id'),
+                        id=row_dict.get(pk_column),
                         table=resource_table,
                         type=row_dict.get(resource_type_column, 'unknown'),
                         attributes=row_dict

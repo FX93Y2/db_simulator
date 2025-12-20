@@ -377,18 +377,26 @@ class CreateStepProcessor(StepProcessor):
                 f"Entity table '{child_table}' not found in database configuration."
             )
         
-        # Search for an attribute with a foreign_key generator that references the parent table
+        # Search for an attribute with FK relationship to parent table
         for attr in child_entity.attributes:
+            # Check 1: Generator-based FK (explicit foreign_key generator)
             if attr.generator and attr.generator.type == "foreign_key" and attr.ref:
                 ref_table = attr.ref.split('.')[0]
                 if ref_table == parent_table:
-                    logger.debug(f"Found FK column '{attr.name}' in '{child_table}' referencing '{parent_table}'")
+                    logger.debug(f"Found FK column '{attr.name}' in '{child_table}' referencing '{parent_table}' (generator-based)")
+                    return attr.name
+            
+            # Check 2: Type-based FK (semantic types like entity_id, event_id, fk with ref)
+            elif attr.ref and attr.type in ('entity_id', 'event_id', 'fk'):
+                ref_table = attr.ref.split('.')[0]
+                if ref_table == parent_table:
+                    logger.debug(f"Found FK column '{attr.name}' in '{child_table}' referencing '{parent_table}' (type-based)")
                     return attr.name
         
         raise ValueError(
             f"No foreign key column found in '{child_table}' that references '{parent_table}'. "
             f"For triggered Create steps, the child entity table must have a column with "
-            f"generator type='foreign_key' and ref='{parent_table}.<pk_column>'."
+            f"generator type='foreign_key' OR type in (entity_id, event_id, fk), plus ref='{parent_table}.<pk_column>'."
         )
     
     
