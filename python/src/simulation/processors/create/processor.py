@@ -117,21 +117,13 @@ class CreateStepProcessor(StepProcessor):
             logger.debug(f"Triggering generation of {count} entities in {config.entity_table}")
             
             # Context for new entities (linking to parent)
-            # We loosely assume column name mapping or rely on EntityManager's smarts, 
-            # but getting the Parent's specific ID is critical.
-            # We'll try to find a column named "{parent_table}_id" or just pass it in initial_data
-            # and let EntityManager match it if it wants.
-            
-            parent_table = entity_table # The table of the entity that triggered this
+            parent_table = entity_table  # The table of the entity that triggered this
             
             initial_data = {}
-            # Heuristic: Try to guess the FK column name.
-            # Common pattern: parent_table + "_id" (lowercase) at the child.
-            # Or just pass context and let a smarter mechanism handle it later?
-            # For now, simplistic heuristic:
             if parent_table:
-                fk_col_candidate = f"{parent_table.lower()}_id"
-                initial_data[fk_col_candidate] = entity_id
+                # Find FK column in child entity that references the parent table
+                fk_column = self._find_parent_fk_column(config.entity_table, parent_table)
+                initial_data[fk_column] = entity_id
             
             # Create the batch immediately
             self._create_and_route_batch(count, step, flow, config, event_flow, initial_data)
@@ -351,6 +343,53 @@ class CreateStepProcessor(StepProcessor):
         except Exception as e:
             logger.error(f"Error routing entity {entity_id} to next step {next_step_id}: {e}", 
                         exc_info=True)
+    
+    def _find_parent_fk_column(self, child_table: str, parent_table: str) -> str:
+        """
+        Find the FK column in child_table that references parent_table.
+        
+        Args:
+            child_table: Name of the child entity table
+            parent_table: Name of the parent entity table
+            
+        Returns:
+            Name of the FK column
+            
+        Raises:
+            ValueError: If no FK column referencing parent_table is found
+        """
+        db_config = getattr(self.entity_manager, 'db_config', None)
+        if not db_config:
+            raise ValueError(
+                f"Cannot find FK column: db_config is not available. "
+                f"Child table '{child_table}' must have a foreign_key column referencing '{parent_table}'."
+            )
+        
+        # Find the child entity configuration
+        child_entity = None
+        for entity in db_config.entities:
+            if entity.name == child_table:
+                child_entity = entity
+                break
+        
+        if not child_entity:
+            raise ValueError(
+                f"Entity table '{child_table}' not found in database configuration."
+            )
+        
+        # Search for an attribute with a foreign_key generator that references the parent table
+        for attr in child_entity.attributes:
+            if attr.generator and attr.generator.type == "foreign_key" and attr.ref:
+                ref_table = attr.ref.split('.')[0]
+                if ref_table == parent_table:
+                    logger.debug(f"Found FK column '{attr.name}' in '{child_table}' referencing '{parent_table}'")
+                    return attr.name
+        
+        raise ValueError(
+            f"No foreign key column found in '{child_table}' that references '{parent_table}'. "
+            f"For triggered Create steps, the child entity table must have a column with "
+            f"generator type='foreign_key' and ref='{parent_table}.<pk_column>'."
+        )
     
     
     def _find_step_by_id(self, step_id: str, flow: 'EventFlow') -> Optional['Step']:
