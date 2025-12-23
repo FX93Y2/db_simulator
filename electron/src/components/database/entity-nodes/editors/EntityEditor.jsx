@@ -252,7 +252,7 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
           }
 
           // Add reference for foreign key types
-          if ((attr.type === 'fk' || attr.type === 'event_id' ||
+          if ((attr.type === 'fk' ||
             attr.type === 'entity_id' || attr.type === 'resource_id') && attr.ref) {
             cleanedAttr.ref = attr.ref;
           }

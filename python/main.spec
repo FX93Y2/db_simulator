@@ -12,6 +12,7 @@ a = Analysis(
     binaries=[],
     datas=[
         ('config_storage', 'config_storage'),
+        ('src/generator/data/faker_js/bundle.js', 'src/generator/data/faker_js'),
     ],
     hiddenimports=[
         'flask', 
@@ -24,7 +25,9 @@ a = Analysis(
         'faker',
         'yaml',
         'dateutil',
-        'pkg_resources.py2_warn'
+        'pkg_resources.py2_warn',
+        'py_mini_racer',
+        'py_mini_racer.py_mini_racer',
     ],
     hookspath=[],
     hooksconfig={},

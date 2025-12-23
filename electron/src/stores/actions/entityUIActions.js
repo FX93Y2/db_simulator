@@ -91,7 +91,7 @@ export const createEntityUIActions = (set, get) => ({
         ...n,
         selected: n.id === node?.id
       }));
-      
+
       // Highlight connected edges when node is selected
       if (node) {
         state.entityEdges = state.entityEdges.map(edge => ({
@@ -122,13 +122,13 @@ export const createEntityUIActions = (set, get) => ({
         ...node,
         selected: false
       }));
-      
+
       // Set only the clicked edge as selected
       state.entityEdges = state.entityEdges.map(e => ({
         ...e,
         selected: e.id === edge.id
       }));
-      
+
       // Update selectedEdges state
       state.selectedEdges = [edge];
     });
@@ -140,46 +140,45 @@ export const createEntityUIActions = (set, get) => ({
   deleteSelectedEdge: () => {
     const state = get();
     if (state.selectedEdges.length === 0) return;
-    
+
     const edge = state.selectedEdges[0];
     const sourceEntityId = edge.source;
     const targetEntityId = edge.target;
 
     // Push current state to history before making changes
-    pushToHistory(set, get, 'database', 'UPDATE', { 
-      action: 'DELETE_EDGE', 
-      sourceEntityId, 
+    pushToHistory(set, get, 'database', 'UPDATE', {
+      action: 'DELETE_EDGE',
+      sourceEntityId,
       targetEntityId,
-      edgeId: edge.id 
+      edgeId: edge.id
     });
-    
+
     set((state) => {
       // Find the source entity
       const sourceEntityIndex = state.canonicalEntities.findIndex(entity => entity.name === sourceEntityId);
       if (sourceEntityIndex === -1) return;
-      
+
       const sourceEntity = state.canonicalEntities[sourceEntityIndex];
-      
+
       // Find and remove the foreign key attribute
       const updatedAttributes = sourceEntity.attributes.filter(attr => {
         // Check if this attribute is a foreign key pointing to the target entity
-        // Handle both standard FK types (fk) and simulation FK types (resource_id, event_id, entity_id)
+        // Handle both standard FK types (fk) and simulation FK types (resource_id, entity_id)
         const isForeignKey = attr.type.startsWith('fk') ||
-                            attr.type === 'resource_id' ||
-                            attr.type === 'event_id' ||
-                            attr.type === 'entity_id';
+          attr.type === 'resource_id' ||
+          attr.type === 'entity_id';
 
         const pointsToTarget = attr.ref && attr.ref.startsWith(`${targetEntityId}.`);
 
         return !(isForeignKey && pointsToTarget);
       });
-      
+
       // Update the source entity
       state.canonicalEntities[sourceEntityIndex] = {
         ...sourceEntity,
         attributes: updatedAttributes
       };
-      
+
       // Clear edge selection
       state.selectedEdges = [];
       state.entityEdges = state.entityEdges.map(e => ({
@@ -187,7 +186,7 @@ export const createEntityUIActions = (set, get) => ({
         selected: false
       }));
     });
-    
+
     // Trigger visual state update
     const { updateEntityVisualState } = get();
     updateEntityVisualState();
@@ -219,7 +218,7 @@ export const createEntityUIActions = (set, get) => ({
   handleEntitiesDelete: (deletedNodes) => {
     const deletedIds = deletedNodes.map(node => node.id);
     get().deleteEntities(deletedIds);
-    
+
     // Clear all selections and hide context menu
     get().clearEntitySelection();
     get().hideContextMenu();
@@ -231,7 +230,7 @@ export const createEntityUIActions = (set, get) => ({
    */
   handleEntityUpdate: (updatedEntity) => {
     const { selectedEntity } = get();
-    
+
     if (selectedEntity) {
       const updateData = {
         name: updatedEntity.name,
@@ -239,10 +238,10 @@ export const createEntityUIActions = (set, get) => ({
         rows: updatedEntity.rows,
         attributes: updatedEntity.attributes
       };
-      
+
       get().updateEntity(selectedEntity.id, updateData);
     }
-    
+
     // Close modal after update
     get().closeEntityModal();
   },
@@ -256,7 +255,7 @@ export const createEntityUIActions = (set, get) => ({
     if (selectedEntity) {
       get().deleteEntity(selectedEntity.id);
     }
-    
+
     // Close modal after deletion
     get().closeEntityModal();
   },
@@ -270,13 +269,13 @@ export const createEntityUIActions = (set, get) => ({
       const hasSelectedEntity = state.selectedEntity !== null;
       const hasSelectedNodes = state.entityNodes.some(node => node.selected);
       const hasSelectedEdges = state.entityEdges.some(edge => edge.selected);
-      
+
       if (!hasSelectedEntity && !hasSelectedNodes && !hasSelectedEdges) {
         return; // No changes needed
       }
-      
+
       state.selectedEntity = null;
-      
+
       // Only update nodes if some are actually selected
       if (hasSelectedNodes) {
         state.entityNodes = state.entityNodes.map(node => ({
@@ -284,7 +283,7 @@ export const createEntityUIActions = (set, get) => ({
           selected: false
         }));
       }
-      
+
       // Only update edges if some are actually selected  
       if (hasSelectedEdges) {
         state.entityEdges = state.entityEdges.map(edge => ({
@@ -292,7 +291,7 @@ export const createEntityUIActions = (set, get) => ({
           selected: false
         }));
       }
-      
+
       state.selectedEntities = [];
       state.selectedEdges = [];
     });
@@ -309,7 +308,7 @@ export const createEntityUIActions = (set, get) => ({
         ...edge,
         selected: false
       }));
-      
+
       // Select specified edges
       edges.forEach(selectedEdge => {
         const edgeIndex = state.entityEdges.findIndex(edge => edge.id === selectedEdge.id);
@@ -317,9 +316,9 @@ export const createEntityUIActions = (set, get) => ({
           state.entityEdges[edgeIndex].selected = true;
         }
       });
-      
+
       state.selectedEdges = edges;
-      
+
       // Clear entity selection when selecting edges
       if (edges.length > 0) {
         state.entityNodes = state.entityNodes.map(node => ({
@@ -338,7 +337,7 @@ export const createEntityUIActions = (set, get) => ({
    */
   handleEntityNodesChange: (changes) => {
     let selectionChanged = false;
-    
+
     changes.forEach(change => {
       if (change.type === 'position' && change.position) {
         // Update position immediately for visual feedback
@@ -348,7 +347,7 @@ export const createEntityUIActions = (set, get) => ({
             state.entityNodes[nodeIndex].position = change.position;
           }
         });
-        
+
         // Also update in canonical entities and PositionService
         get().updateEntityPosition(change.id, change.position);
       } else if (change.type === 'select') {
@@ -362,21 +361,21 @@ export const createEntityUIActions = (set, get) => ({
         });
       }
     });
-    
+
     // If selection changed, update selectedEntities and edge highlighting
     if (selectionChanged) {
       set((state) => {
         // Update selectedEntities array with all currently selected nodes
         const selectedNodes = state.entityNodes.filter(node => node.selected);
         state.selectedEntities = selectedNodes;
-        
+
         // Keep selectedEntity for backward compatibility (use first selected)
         state.selectedEntity = selectedNodes.length > 0 ? selectedNodes[0] : null;
-        
+
         // Update edge highlighting based on ALL selected nodes
         state.entityEdges = state.entityEdges.map(edge => ({
           ...edge,
-          selected: selectedNodes.some(node => 
+          selected: selectedNodes.some(node =>
             edge.source === node.id || edge.target === node.id
           )
         }));
@@ -396,7 +395,7 @@ export const createEntityUIActions = (set, get) => ({
           const edgeIndex = state.entityEdges.findIndex(edge => edge.id === change.id);
           if (edgeIndex !== -1) {
             state.entityEdges[edgeIndex].selected = change.selected;
-            
+
             // If edge is being selected, clear node selection
             if (change.selected) {
               state.selectedEntity = null;
@@ -500,7 +499,7 @@ export const createEntityUIActions = (set, get) => ({
     const pastedEntities = clipboard.map((entity, index) => {
       const baseName = entity.name;
       let newName = `${baseName}_${pasteCounter + index}`;
-      
+
       // Ensure the name is unique
       let counter = pasteCounter + index;
       while (canonicalEntities.some(e => e.name === newName)) {
@@ -572,13 +571,13 @@ export const createEntityUIActions = (set, get) => ({
       get().hideContextMenu();
       event.preventDefault();
     }
-    
+
     // Copy: Ctrl+C / Cmd+C
     if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
       get().copyEntities();
       event.preventDefault();
     }
-    
+
     // Paste: Ctrl+V / Cmd+V
     if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
       // Use a default position if no specific cursor position available

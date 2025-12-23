@@ -1,0 +1,304 @@
+simulation:
+  base_time_unit: hours
+  terminating_conditions: TIME(72)
+  start_date: 2024-01-01
+  random_seed: 42
+  resources:
+    - resource_table: Doctor
+      capacities:
+        Consulting Physician: 1
+        Primary Care: 1
+        Assistant: 1
+event_simulation:
+  event_flows:
+    - flow_id: flow_1_Patient Arrives
+      event_flow: flow_1_patient_arrives
+      steps:
+        - step_id: Patient Arrives
+          step_type: create
+          create_config:
+            entity_table: Patient
+            interarrival_time:
+              formula: UNIF(1,3)
+              time_unit: hours
+            max_entities: n/a
+          next_steps:
+            - Doctor Consultation
+            - create_entities_1
+        - step_id: Doctor Consultation
+          step_type: event
+          event_config:
+            duration:
+              formula: EXPO(2)
+              time_unit: hours
+            resource_requirements:
+              - resource_table: Doctor
+                value: Consulting Physician
+                count: 1
+          next_steps:
+            - release_2
+        - step_id: release_2
+          step_type: release
+        - step_id: create_entities_1
+          step_type: create
+          create_config:
+            entity_table: Prescription
+            interarrival_time: null
+            max_entities: n/a
+          next_steps:
+            - Deliver Drugs
+        - step_id: Deliver Drugs
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(1,3)
+              time_unit: hours
+            resource_requirements: []
+          next_steps:
+            - select_medications
+        # Select 1-3 random medications and insert into Prescription_Drug
+        - step_id: select_medications
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: >-
+                  INSERT INTO Prescription_Drug (prescription_id, medication_id, quantity)
+                  WITH num_drugs AS (
+                    SELECT CASE
+                      WHEN (ABS(RANDOM()) % 100) < 50 THEN 1
+                      WHEN (ABS(RANDOM()) % 100) < 85 THEN 2
+                      ELSE 3
+                    END as drug_count
+                  )
+                  SELECT
+                    Entity.PrescriptionID as prescription_id,
+                    m.DrugID as medication_id,
+                    CASE
+                      WHEN (ABS(RANDOM()) % 100) < 70 THEN 1
+                      WHEN (ABS(RANDOM()) % 100) < 90 THEN 2
+                      ELSE 3
+                    END as quantity
+                  FROM Medication m, num_drugs n
+                  ORDER BY RANDOM()
+                  LIMIT (SELECT drug_count FROM num_drugs)
+          next_steps:
+            - update_stock
+        # Decrement stock for all medications in this prescription
+        - step_id: update_stock
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Medication
+                  SET stock_level = stock_level - (
+                      SELECT pd.quantity
+                      FROM Prescription_Drug pd
+                      WHERE pd.prescription_id = Entity.PrescriptionID
+                      AND pd.medication_id = Medication.DrugID
+                  )
+                  WHERE Medication.DrugID IN (
+                      SELECT medication_id
+                      FROM Prescription_Drug
+                      WHERE prescription_id = Entity.PrescriptionID
+                  )
+          next_steps:
+            - check_stock
+        # Check if any medication is low on stock (< 20 units)
+        - step_id: check_stock
+          step_type: decide
+          decide_config:
+            decision_type: 2way-condition
+            outcomes:
+              - outcome_id: needs_restock
+                next_step_id: restock_medication
+                conditions:
+                  - if: >-
+                      SELECT CASE 
+                        WHEN COUNT(*) > 0 THEN 'true' 
+                        ELSE 'false' 
+                      END 
+                      FROM Medication WHERE stock_level < 20
+                    is: ==
+                    value: true
+              - outcome_id: stock_ok
+                next_step_id: create_entities_2
+                conditions: []
+        # Restock all low-stock medications by adding 50 units
+        - step_id: restock_medication
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Medication 
+                  SET stock_level = stock_level + 50 
+                  WHERE stock_level < 20
+          next_steps:
+            - create_entities_2
+        - step_id: create_entities_2
+          step_type: create
+          create_config:
+            entity_table: Invoice
+            interarrival_time: null
+            max_entities: n/a
+          next_steps:
+            - calculate_invoice_total
+        # Calculate TotalAmount from prescription drugs (quantity × price)
+        - step_id: calculate_invoice_total
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Invoice
+                  SET TotalAmount = (
+                      SELECT ROUND(SUM(CAST(m.PricePerUnit AS REAL) * pd.quantity), 2)
+                      FROM Prescription_Drug pd
+                      JOIN Medication m ON pd.medication_id = m.DrugID
+                      JOIN Prescription p ON pd.prescription_id = p.PrescriptionID
+                      WHERE p.PrescriptionID = Entity.prescription_id
+                  )
+                  WHERE Invoice.InvoiceID = Entity.InvoiceID
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release
+    - flow_id: flow_2_create_entities_1
+      event_flow: flow_1_patient_arrives
+      steps:
+        - step_id: create_entities_1
+          step_type: create
+          create_config:
+            entity_table: Prescription
+            interarrival_time: null
+            max_entities: n/a
+          next_steps:
+            - Deliver Drugs
+        - step_id: Deliver Drugs
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(1,3)
+              time_unit: hours
+            resource_requirements: []
+          next_steps:
+            - select_medications
+        - step_id: select_medications
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: >-
+                  INSERT INTO Prescription_Drug (prescription_id, medication_id, quantity)
+                  WITH num_drugs AS (
+                    SELECT CASE
+                      WHEN (ABS(RANDOM()) % 100) < 50 THEN 1
+                      WHEN (ABS(RANDOM()) % 100) < 85 THEN 2
+                      ELSE 3
+                    END as drug_count
+                  )
+                  SELECT
+                    Entity.PrescriptionID as prescription_id,
+                    m.DrugID as medication_id,
+                    CASE
+                      WHEN (ABS(RANDOM()) % 100) < 70 THEN 1
+                      WHEN (ABS(RANDOM()) % 100) < 90 THEN 2
+                      ELSE 3
+                    END as quantity
+                  FROM Medication m, num_drugs n
+                  ORDER BY RANDOM()
+                  LIMIT (SELECT drug_count FROM num_drugs)
+          next_steps:
+            - update_stock
+        - step_id: update_stock
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Medication
+                  SET stock_level = stock_level - (
+                      SELECT pd.quantity
+                      FROM Prescription_Drug pd
+                      WHERE pd.prescription_id = Entity.PrescriptionID
+                      AND pd.medication_id = Medication.DrugID
+                  )
+                  WHERE Medication.DrugID IN (
+                      SELECT medication_id
+                      FROM Prescription_Drug
+                      WHERE prescription_id = Entity.PrescriptionID
+                  )
+          next_steps:
+            - check_stock
+        - step_id: check_stock
+          step_type: decide
+          decide_config:
+            decision_type: 2way-condition
+            outcomes:
+              - outcome_id: needs_restock
+                next_step_id: restock_medication
+                conditions:
+                  - if: >-
+                      SELECT CASE 
+                        WHEN COUNT(*) > 0 THEN 'true' 
+                        ELSE 'false' 
+                      END 
+                      FROM Medication WHERE stock_level < 20
+                    is: ==
+                    value: true
+              - outcome_id: stock_ok
+                next_step_id: create_entities_2
+                conditions: []
+        - step_id: restock_medication
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Medication 
+                  SET stock_level = stock_level + 50 
+                  WHERE stock_level < 20
+          next_steps:
+            - create_entities_2
+        - step_id: create_entities_2
+          step_type: create
+          create_config:
+            entity_table: Invoice
+            interarrival_time: null
+            max_entities: n/a
+          next_steps:
+            - calculate_invoice_total
+        - step_id: calculate_invoice_total
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: |-
+                  UPDATE Invoice
+                  SET TotalAmount = (
+                      SELECT ROUND(SUM(CAST(m.PricePerUnit AS REAL) * pd.quantity), 2)
+                      FROM Prescription_Drug pd
+                      JOIN Medication m ON pd.medication_id = m.DrugID
+                      JOIN Prescription p ON pd.prescription_id = p.PrescriptionID
+                      WHERE p.PrescriptionID = Entity.prescription_id
+                  )
+                  WHERE Invoice.InvoiceID = Entity.InvoiceID
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release
+    - flow_id: flow_3_create_entities_2
+      event_flow: flow_1_patient_arrives
+      steps:
+        - step_id: create_entities_2
+          step_type: create
+          create_config:
+            entity_table: Invoice
+            interarrival_time: null
+            max_entities: n/a
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release

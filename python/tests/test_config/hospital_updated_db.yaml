@@ -1,0 +1,158 @@
+entities:
+  - name: Patient
+    type: entity
+    rows: n/a
+    attributes:
+      - name: PatientID
+        type: pk
+      - name: Address
+        type: string
+        generator:
+          type: faker
+          method: location.streetAddress()
+      - name: DateOfBirth
+        type: date
+        generator:
+          type: faker
+          method: "date.birthdate({ mode: 'age', min: 30, max: 65 })"
+      - name: FirasName
+        type: string
+        generator:
+          type: faker
+          method: person.firstName()
+      - name: LastName
+        type: string
+        generator:
+          type: faker
+          method: person.lastName()
+      - name: Phone
+        type: string
+        generator:
+          type: faker
+          method: phone.number()
+      - name: created_at
+        type: datetime
+  - name: Medication
+    rows: 100
+    attributes:
+      - name: DrugID
+        type: pk
+      - name: stock_level
+        type: integer
+        generator:
+          type: distribution
+          formula: UNIF(50, 200)
+      - name: PricePerUnit
+        type: string
+        generator:
+          type: faker
+          method: commerce.price()
+      - name: MedicationCategory
+        type: string
+        generator:
+          type: distribution
+          formula: DISC(Antibiotics, 0.10, Cardiovascular, 0.20, Respiratory, 0.10,
+            Digestive, 0.15, PainInflammation, 0.20, MentalHealthNeuro, 0.10,
+            VitaminsPreventive, 0.15)
+  - name: Doctor
+    type: resource
+    rows: 100
+    attributes:
+      - name: DoctorID
+        type: pk
+      - name: FirstName
+        type: string
+        generator:
+          type: faker
+          method: person.firstName()
+      - name: LastName
+        type: string
+        generator:
+          type: faker
+          method: person.firstName()
+      - name: LicenseNo
+        type: string
+        generator:
+          type: faker
+          method: string.uuid
+      - name: Phone
+        type: string
+        generator:
+          type: faker
+          method: phone.number()
+      - name: resource_type
+        type: resource_type
+        generator:
+          type: distribution
+          formula: DISC(0.4, Consulting Physician, 0.3, Primary Care, 0.3, Assistant)
+  - name: Appointment
+    type: bridge
+    rows: n/a
+    attributes:
+      - name: AppointmentID
+        type: pk
+      - name: doctor_id
+        type: resource_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Doctor.DoctorID
+      - name: patient_id
+        type: entity_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Patient.PatientID
+      - name: start_date
+        type: datetime
+      - name: end_date
+        type: datetime
+  - name: Prescription
+    type: entity
+    rows: n/a
+    attributes:
+      - name: PrescriptionID
+        type: pk
+      - name: patient_id
+        type: entity_id
+        ref: Patient.PatientID
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+      - name: created_at
+        type: datetime
+  - name: Invoice
+    type: entity
+    rows: n/a
+    attributes:
+      - name: InvoiceID
+        type: pk
+      - name: prescription_id
+        type: entity_id
+        ref: Prescription.PrescriptionID
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+      - name: created_at
+        type: datetime
+      - name: TotalAmount
+        type: decimal(10,2)
+  - name: Prescription_Drug
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: medication_id
+        type: fk
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Medication.DrugID
+      - name: prescription_id
+        type: entity_id
+        generator:
+          type: foreign_key
+          subtype: one_to_many
+        ref: Prescription.PrescriptionID
+      - name: quantity
+        type: integer

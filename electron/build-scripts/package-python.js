@@ -33,21 +33,21 @@ if (!fs.existsSync(venvDir)) {
 // Install required packages
 console.log('Installing Python dependencies...');
 try {
-  const pipCmd = process.platform === 'win32' 
-    ? path.join(venvDir, 'Scripts', 'pip') 
+  const pipCmd = process.platform === 'win32'
+    ? path.join(venvDir, 'Scripts', 'pip')
     : path.join(venvDir, 'bin', 'pip');
-    
-  execSync(`"${pipCmd}" install -r "${requirementsFile}"`, { 
+
+  execSync(`"${pipCmd}" install -r "${requirementsFile}"`, {
     cwd: pythonDir,
     stdio: 'inherit'
   });
-  
+
   // Make sure PyInstaller is installed
-  execSync(`"${pipCmd}" install pyinstaller`, { 
+  execSync(`"${pipCmd}" install pyinstaller`, {
     cwd: pythonDir,
     stdio: 'inherit'
   });
-  
+
   console.log('Python dependencies installed successfully.');
 } catch (error) {
   console.error('Error installing Python dependencies:', error.message);
@@ -68,27 +68,48 @@ if (fs.existsSync(useCopiedEnvMarker)) {
 // Build the Python backend using PyInstaller
 console.log('Building standalone Python executable with PyInstaller...');
 try {
-  const pythonCmd = process.platform === 'win32' 
-    ? path.join(venvDir, 'Scripts', 'python') 
+  const pythonCmd = process.platform === 'win32'
+    ? path.join(venvDir, 'Scripts', 'python')
     : path.join(venvDir, 'bin', 'python');
-  
-  execSync(`"${pythonCmd}" build_api.py`, { 
+
+  execSync(`"${pythonCmd}" build_api.py`, {
     cwd: pythonDir,
     stdio: 'inherit',
     timeout: 300000 // 5 minute timeout
   });
-  
+
   // Check if the executable was created successfully
   const exeDestPath = path.join(pythonDir, 'dist', 'db_simulator_api');
   if (fs.existsSync(exeDestPath)) {
     console.log('Python backend built successfully with PyInstaller.');
-    
+
     // Create a marker file to indicate we should use the PyInstaller executable
     fs.writeFileSync(useExecutableMarker, 'This file indicates that PyInstaller succeeded and we should use the executable.', 'utf8');
 
     // Ensure py-mini-racer native library and data files are present at runtime location
     try {
-      const sitePkgDir = path.resolve(path.join(pythonDir, 'venv', 'lib', 'python3.11', 'site-packages', 'py_mini_racer'));
+      // Detect site-packages path cross-platform
+      let sitePkgDir;
+      if (process.platform === 'win32') {
+        // Windows: venv/Lib/site-packages/py_mini_racer
+        sitePkgDir = path.join(pythonDir, 'venv', 'Lib', 'site-packages', 'py_mini_racer');
+      } else {
+        // Linux/macOS: venv/lib/pythonX.X/site-packages/py_mini_racer
+        // Try to find the Python version directory
+        const libDir = path.join(pythonDir, 'venv', 'lib');
+        if (fs.existsSync(libDir)) {
+          const pythonDirs = fs.readdirSync(libDir).filter(d => d.startsWith('python'));
+          if (pythonDirs.length > 0) {
+            sitePkgDir = path.join(libDir, pythonDirs[0], 'site-packages', 'py_mini_racer');
+          }
+        }
+        if (!sitePkgDir) {
+          sitePkgDir = path.join(pythonDir, 'venv', 'lib', 'python3.11', 'site-packages', 'py_mini_racer');
+        }
+      }
+
+      console.log(`Looking for py_mini_racer files in: ${sitePkgDir}`);
+
       const internalDir = path.join(exeDestPath, '_internal');
       if (!fs.existsSync(internalDir)) {
         fs.mkdirSync(internalDir, { recursive: true });
@@ -125,23 +146,23 @@ console.log('Updating package.json for Python packaging...');
 try {
   const packageJsonPath = path.join(__dirname, '..', 'package.json');
   const packageJson = require(packageJsonPath);
-  
+
   // Reset extraResources and only include PyInstaller executable
   packageJson.build.extraResources = [];
-  
+
   // Only include the PyInstaller executable (since we fail fast if it doesn't work)
   packageJson.build.extraResources.push({
     from: "../python/dist/db_simulator_api",
     to: "python/dist/db_simulator_api",
     filter: ["**/*"]
   });
-  
+
   // Include marker file
   packageJson.build.extraResources.push({
     from: "../python/USE_EXECUTABLE",
     to: "python/USE_EXECUTABLE"
   });
-  
+
   // Write the updated package.json
   fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf8');
   console.log('Package.json updated for Python packaging.');

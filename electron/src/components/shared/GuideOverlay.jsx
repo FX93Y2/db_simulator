@@ -139,7 +139,6 @@ generator:
             <li><strong>entity_type</strong>: Entity classification column</li>
             <li><strong>resource_type</strong>: Resource classification column</li>
             <li><strong>entity_id</strong>: Links to entity tables (fk)</li>
-            <li><strong>event_id</strong>: Event identifier (fk)</li>
             <li><strong>resource_id</strong>: Resource identifier (fk)</li>
           </ul>
 

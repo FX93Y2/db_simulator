@@ -9,12 +9,12 @@ import ForeignKeyGeneratorEditor from './ForeignKeyGeneratorEditor';
 import FormulaGeneratorEditor from './FormulaGeneratorEditor';
 import TypeSelector from '../../../shared/TypeSelector';
 
-const AttributeTable = ({ 
-  attributes = [], 
-  onAttributesChange, 
-  onAddAttribute, 
+const AttributeTable = ({
+  attributes = [],
+  onAttributesChange,
+  onAddAttribute,
   onDeleteAttribute,
-  entityType = '', 
+  entityType = '',
   onGeneratorModalChange
 }) => {
   const [editingIndex, setEditingIndex] = useState(-1);
@@ -24,16 +24,16 @@ const AttributeTable = ({
   // Helper function to check if an attribute is protected (cannot be deleted)
   const isProtectedAttribute = (attribute) => {
     return (entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date')) ||
-           (entityType === 'entity' && attribute.name === 'created_at') ||
-           attribute.type === 'event_type' ||
-           (entityType === 'resource' && attribute.type === 'resource_type');
+      (entityType === 'entity' && attribute.name === 'created_at') ||
+      attribute.type === 'event_type' ||
+      (entityType === 'resource' && attribute.type === 'resource_type');
   };
 
   // Helper function to check if an attribute is fully protected (cannot be edited at all)
   const isFullyProtectedAttribute = (attribute) => {
     return (entityType === 'bridging' && (attribute.name === 'start_date' || attribute.name === 'end_date')) ||
-           (entityType === 'entity' && attribute.name === 'created_at') ||
-           attribute.type === 'event_type';
+      (entityType === 'entity' && attribute.name === 'created_at') ||
+      attribute.type === 'event_type';
   };
 
   // Helper function to get generator display text
@@ -78,12 +78,12 @@ const AttributeTable = ({
   const handleAttributeChange = (index, field, value) => {
     const updatedAttributes = [...attributes];
     const updatedAttribute = { ...updatedAttributes[index], [field]: value };
-    
+
     // Handle generator configuration based on data type
     if (field === 'type') {
       const oldType = attributes[index].type;
       const existingGenerator = updatedAttribute.generator;
-      
+
       if (!shouldHaveGenerator(value)) {
         delete updatedAttribute.generator;
       } else if (value === 'fk') {
@@ -110,22 +110,22 @@ const AttributeTable = ({
         const isNumericType = (type) => ['integer', 'float', 'decimal', 'numeric'].includes(type.split('(')[0]);
         const isTextType = (type) => ['string', 'varchar', 'char', 'text'].includes(type.split('(')[0]);
         const isDateType = (type) => ['date', 'datetime'].includes(type);
-        
+
         let shouldPreserve = false;
-        
+
         // Check if we should preserve the existing generator
-        if (existingGenerator.type === 'distribution' && 
-            (isNumericType(oldType) && isNumericType(value))) {
+        if (existingGenerator.type === 'distribution' &&
+          (isNumericType(oldType) && isNumericType(value))) {
           shouldPreserve = true;
         }
-        else if (existingGenerator.type === 'faker' && 
-                 ((isTextType(oldType) && isTextType(value)) ||
-                  (isDateType(oldType) && isDateType(value)) ||
-                  (isNumericType(oldType) && isNumericType(value)))) {
+        else if (existingGenerator.type === 'faker' &&
+          ((isTextType(oldType) && isTextType(value)) ||
+            (isDateType(oldType) && isDateType(value)) ||
+            (isNumericType(oldType) && isNumericType(value)))) {
           shouldPreserve = true;
         }
-        else if (existingGenerator.type === 'distribution' && 
-                 !isNumericType(value) && value !== 'resource_type') {
+        else if (existingGenerator.type === 'distribution' &&
+          !isNumericType(value) && value !== 'resource_type') {
           // Distribution on non-numeric type - convert to faker
           shouldPreserve = false;
         }
@@ -133,7 +133,7 @@ const AttributeTable = ({
           // Default: try to preserve unless it's clearly incompatible
           shouldPreserve = true;
         }
-        
+
         if (shouldPreserve) {
           // Keep the existing generator unchanged
         } else {
@@ -165,7 +165,7 @@ const AttributeTable = ({
         }
       }
     }
-    
+
     updatedAttributes[index] = updatedAttribute;
     onAttributesChange(updatedAttributes);
   };
@@ -173,7 +173,7 @@ const AttributeTable = ({
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
     // Only exclude system-managed fields that are auto-generated
-    const typesWithoutGenerators = ['pk', 'event_id', 'entity_id', 'resource_id', 'event_type'];
+    const typesWithoutGenerators = ['pk', 'entity_id', 'resource_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
@@ -193,20 +193,20 @@ const AttributeTable = ({
   // Handle generator configuration changes
   const handleGeneratorChange = (field, value) => {
     if (selectedAttributeIndex < 0) return;
-    
+
     // Deep clone the attributes array to avoid read-only property errors
     const updatedAttributes = attributes.map(attr => ({
       ...attr,
       generator: attr.generator ? { ...attr.generator } : undefined
     }));
-    
+
     const updatedGenerator = { ...updatedAttributes[selectedAttributeIndex].generator, [field]: value };
 
     // Ensure legacy distribution payloads are cleared once a formula is set
     if (field === 'formula' && 'distribution' in updatedGenerator) {
       delete updatedGenerator.distribution;
     }
-    
+
     // Reset generator fields when type changes
     if (field === 'type') {
       if (value === 'none') {
@@ -260,9 +260,9 @@ const AttributeTable = ({
   // Render generator configuration fields in modal
   const renderGeneratorFields = () => {
     if (selectedAttributeIndex < 0) return null;
-    
+
     const generator = attributes[selectedAttributeIndex].generator || {};
-    
+
     switch (generator.type) {
       case 'faker':
         return (
@@ -271,7 +271,7 @@ const AttributeTable = ({
             onGeneratorChange={handleGeneratorChange}
           />
         );
-        
+
       case 'template':
         return (
           <TemplateGeneratorEditor
@@ -279,7 +279,7 @@ const AttributeTable = ({
             onGeneratorChange={handleGeneratorChange}
           />
         );
-        
+
       case 'distribution':
         return (
           <DistributionGeneratorEditor
@@ -287,7 +287,7 @@ const AttributeTable = ({
             onFormulaChange={(formula) => handleGeneratorChange('formula', formula)}
           />
         );
-        
+
       case 'foreign_key':
         return (
           <ForeignKeyGeneratorEditor
@@ -295,7 +295,7 @@ const AttributeTable = ({
             onGeneratorChange={handleGeneratorChange}
           />
         );
-        
+
       case 'formula':
         return (
           <FormulaGeneratorEditor
@@ -323,7 +323,7 @@ const AttributeTable = ({
             <div className="grid-header-cell">Options</div>
             <div className="grid-header-cell"></div>
           </div>
-          
+
           {/* Data Rows */}
           <DragDropContext onDragEnd={handleDragEnd}>
             <Droppable droppableId="attribute-grid-body" type="ATTRIBUTE">
@@ -339,11 +339,9 @@ const AttributeTable = ({
                         <div
                           ref={provided.innerRef}
                           {...provided.draggableProps}
-                          className={`data-grid-row ${
-                            snapshot.isDragging ? 'dragging' : ''
-                          } ${
-                            isProtectedAttribute(attribute) ? 'protected-attribute' : ''
-                          }`}
+                          className={`data-grid-row ${snapshot.isDragging ? 'dragging' : ''
+                            } ${isProtectedAttribute(attribute) ? 'protected-attribute' : ''
+                            }`}
                         >
                           <div className="grid-cell">
                             <div
@@ -404,18 +402,18 @@ const AttributeTable = ({
                                   <span>{getGeneratorDisplayText(attribute)}</span>
                                 </Button>
                               )}
-                              {(attribute.type === 'fk' || attribute.type === 'event_id' ||
+                              {(attribute.type === 'fk' ||
                                 attribute.type === 'entity_id' || attribute.type === 'resource_id') && (
-                                <Form.Control
-                                  type="text"
-                                  size="sm"
-                                  value={attribute.ref || ''}
-                                  onChange={(e) => handleAttributeChange(index, 'ref', e.target.value)}
-                                  placeholder="Table.column"
-                                  title="Reference to another entity's attribute"
-                                  style={{ display: 'inline-block', width: 'auto', minWidth: '120px' }}
-                                />
-                              )}
+                                  <Form.Control
+                                    type="text"
+                                    size="sm"
+                                    value={attribute.ref || ''}
+                                    onChange={(e) => handleAttributeChange(index, 'ref', e.target.value)}
+                                    placeholder="Table.column"
+                                    title="Reference to another entity's attribute"
+                                    style={{ display: 'inline-block', width: 'auto', minWidth: '120px' }}
+                                  />
+                                )}
                             </div>
                           </div>
                           <div className="grid-cell">

@@ -37,7 +37,6 @@ const TypeSelector = ({
     'System Types': {
       pk: { display: 'Primary Key', template: 'pk' },
       fk: { display: 'Foreign Key', template: 'fk' },
-      event_id: { display: 'Event ID (FK)', template: 'event_id' },
       entity_id: { display: 'Entity ID (FK)', template: 'entity_id' },
       resource_id: { display: 'Resource ID (FK)', template: 'resource_id' },
       event_type: { display: 'Event Type', template: 'event_type' },
@@ -84,7 +83,7 @@ const TypeSelector = ({
     if (!typeInfo) return;
 
     setDropdownOpen(false);
-    
+
     // For parameterized types, start editing mode
     if (isParameterizedValue(typeInfo.template)) {
       setEditValue(typeInfo.template);
@@ -147,19 +146,19 @@ const TypeSelector = ({
   // Get display text for current value
   const getDisplayText = () => {
     if (!value) return placeholder;
-    
+
     // Check if it matches a known template exactly
     for (const [key, typeInfo] of Object.entries(allTypes)) {
       if (typeInfo.template === value) {
         return typeInfo.display;
       }
     }
-    
+
     // For custom parameterized types, show the value as-is
     if (isParameterizedValue(value)) {
       return value;
     }
-    
+
     // For unknown types, show the value
     return value;
   };
@@ -205,7 +204,7 @@ const TypeSelector = ({
             className="type-selector-edit-field"
             placeholder="Enter type (e.g., decimal(10,2))"
           />
-          
+
           {/* Save button */}
           <button
             type="button"
@@ -215,7 +214,7 @@ const TypeSelector = ({
           >
             <FiCheck size={12} />
           </button>
-          
+
           {/* Cancel button */}
           <button
             type="button"
@@ -243,10 +242,10 @@ const TypeSelector = ({
         >
           <FiEdit3 size={10} />
         </button>
-        
+
         {/* Type display text */}
         <span className="type-selector-value">{getDisplayText()}</span>
-        
+
         {/* Dropdown toggle icon */}
         <button
           type="button"
@@ -259,8 +258,8 @@ const TypeSelector = ({
           }}
           title="Select from templates"
         >
-          <FiChevronDown 
-            size={10} 
+          <FiChevronDown
+            size={10}
             className={`chevron ${dropdownOpen ? 'chevron-up' : ''}`}
           />
         </button>
@@ -268,7 +267,7 @@ const TypeSelector = ({
 
       {/* Dropdown menu (positioned with fixed positioning to escape modal) */}
       {dropdownOpen && (
-        <div 
+        <div
           className="type-selector-menu"
           style={{
             top: `${dropdownPosition.top}px`,
@@ -297,7 +296,7 @@ const TypeSelector = ({
               {categoryName !== 'System Types' && <div className="dropdown-divider" />}
             </React.Fragment>
           ))}
-          
+
           <div className="dropdown-divider" />
           <button
             type="button"
