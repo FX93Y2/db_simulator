@@ -13,7 +13,12 @@ from src.simulation.core.runner import run_simulation, run_simulation_from_confi
 from config_storage.config_db import ConfigManager
 
 # Import the Flask app factory from refactored API server
+# Import the Flask app factory from refactored API server
 from api.server import create_app
+
+# Apply py_mini_racer patch for Windows support
+import patch_mini_racer
+patch_mini_racer.apply_patch()
 
 # Configure logging (console)
 logging.basicConfig(
