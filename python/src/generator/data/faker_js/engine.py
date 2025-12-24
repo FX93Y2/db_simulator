@@ -8,10 +8,14 @@ and executes Faker.js methods for data generation.
 import os
 import sys
 import logging
+import threading
 from typing import Any, Optional
 from py_mini_racer import MiniRacer
 
 logger = logging.getLogger(__name__)
+
+# Thread lock for V8 engine access - critical for Windows stability
+_v8_lock = threading.Lock()
 
 
 class FakerJSEngine:
@@ -79,10 +83,12 @@ class FakerJSEngine:
             'john.doe@example.com'
         """
         try:
-            # Use the generateFake helper function from the bundle
-            # Properly escape the method string to handle quotes
-            escaped_method = method.replace("'", "\\'").replace('"', '\\"')
-            result = self.ctx.eval(f"generateFake('{escaped_method}')")
+            # Use thread lock to prevent concurrent V8 access issues on Windows
+            with _v8_lock:
+                # Use the generateFake helper function from the bundle
+                # Properly escape the method string to handle quotes
+                escaped_method = method.replace("'", "\\'").replace('"', '\\"')
+                result = self.ctx.eval(f"generateFake('{escaped_method}')")
 
             # Check if result is an error message
             if isinstance(result, str) and result.startswith("Unsupported Faker Method:"):
@@ -136,16 +142,21 @@ class FakerJSEngine:
 
 # Singleton instance
 _faker_engine: Optional[FakerJSEngine] = None
+_engine_init_lock = threading.Lock()
 
 
 def get_faker_engine() -> FakerJSEngine:
     """
     Get or create the singleton Faker.js engine instance.
+    Thread-safe using double-checked locking.
     
     Returns:
         The singleton FakerJSEngine instance
     """
     global _faker_engine
     if _faker_engine is None:
-        _faker_engine = FakerJSEngine()
+        with _engine_init_lock:
+            # Double-check after acquiring lock
+            if _faker_engine is None:
+                _faker_engine = FakerJSEngine()
     return _faker_engine
