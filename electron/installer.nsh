@@ -32,3 +32,20 @@ RequestExecutionLevel admin
     ; Set the Start Menu shortcut to run as administrator
     ExecWait 'powershell -Command "$$WshShell = New-Object -comObject WScript.Shell; $$Shortcut = $$WshShell.CreateShortcut(\"$$env:ALLUSERSPROFILE\\Microsoft\\Windows\\Start Menu\\Programs\\${PRODUCT_NAME}\\${PRODUCT_NAME}.lnk\"); $$Shortcut.Save(); $$bytes = [System.IO.File]::ReadAllBytes(\"$$env:ALLUSERSPROFILE\\Microsoft\\Windows\\Start Menu\\Programs\\${PRODUCT_NAME}\\${PRODUCT_NAME}.lnk\"); $$bytes[21] = $$bytes[21] -bor 32; [System.IO.File]::WriteAllBytes(\"$$env:ALLUSERSPROFILE\\Microsoft\\Windows\\Start Menu\\Programs\\${PRODUCT_NAME}\\${PRODUCT_NAME}.lnk\", $$bytes)"'
 !macroend
+
+!macro customUnInstall
+    ; Ask user if they want to remove user data (projects, settings, etc.)
+    MessageBox MB_YESNO|MB_ICONQUESTION "Do you want to remove all user data (projects, configurations, and settings)?$\n$\nThis data is stored in: $APPDATA\${PRODUCT_NAME}$\n$\nClick 'No' to keep your data for future use." IDYES removeUserData IDNO skipRemoveUserData
+    
+    removeUserData:
+        ; Remove user data directory
+        RMDir /r "$APPDATA\${PRODUCT_NAME}"
+        ; Also clean up any local app data if it exists
+        RMDir /r "$LOCALAPPDATA\${PRODUCT_NAME}"
+        Goto endRemoveUserData
+    
+    skipRemoveUserData:
+        ; User chose to keep data, do nothing
+    
+    endRemoveUserData:
+!macroend
