@@ -11,18 +11,18 @@ const fs = require('fs');
 const path = require('path');
 const { API_BASE_URL, CACHE_EXPIRY } = require('./config');
 const { waitForBackend } = require('./backend');
-const { 
-  getSimulationResults, 
-  getDatabaseTables, 
-  getTableData, 
-  exportDatabaseToCSV 
+const {
+  getSimulationResults,
+  getDatabaseTables,
+  getTableData,
+  exportDatabaseToCSV
 } = require('./database');
-const { 
-  openFile, 
-  saveFile, 
-  deleteResult, 
-  scanProjectResults, 
-  showDirectoryPicker 
+const {
+  openFile,
+  saveFile,
+  deleteResult,
+  scanProjectResults,
+  showDirectoryPicker
 } = require('./file-operations');
 
 // Simple cache for GET requests
@@ -35,22 +35,22 @@ const apiCache = {};
 function registerApiHandlers(appPaths) {
   // Project Management
   registerProjectHandlers();
-  
+
   // Configuration Management
   registerConfigHandlers();
-  
+
   // Database and Simulation
   registerDatabaseHandlers();
-  
+
   // Results Management
   registerResultsHandlers(appPaths);
-  
+
   // File Management
   registerFileHandlers();
-  
+
   // App Controls
   registerAppControlHandlers();
-  
+
   console.log('All API handlers registered successfully');
 }
 
@@ -78,12 +78,12 @@ function registerProjectHandlers() {
     try {
       // First delete the project database entry
       const result = await makeApiRequest('DELETE', `projects/${projectId}`);
-      
+
       // If successful, also clean up the project's output directory
       if (result.success) {
         await cleanupProjectFiles(projectId);
       }
-      
+
       return result;
     } catch (error) {
       console.error(`Error deleting project: ${error.message}`);
@@ -155,7 +155,7 @@ function registerDatabaseHandlers() {
         console.log(`Generating database for project: ${data.project_id}`);
         await ensureProjectDirectory(data.project_id);
       }
-      
+
       // Pass the request to the backend API
       return await makeApiRequest('POST', 'generate-database', data);
     } catch (error) {
@@ -232,15 +232,15 @@ async function makeApiRequest(method, endpoint, data = null) {
   try {
     // Make sure backend is up and running
     await waitForBackend();
-    
+
     const url = `${API_BASE_URL}/${endpoint}`;
     let response;
-    
+
     // For GET requests, check the cache first
     if (method === 'GET') {
       const cacheKey = `${method}:${url}:${JSON.stringify(data || {})}`;
       const cachedResponse = apiCache[cacheKey];
-      
+
       if (cachedResponse && Date.now() - cachedResponse.timestamp < CACHE_EXPIRY) {
         // Only log cache hits in development when debugging
         if (process.env.NODE_ENV === 'development' && process.env.DEBUG_CACHE) {
@@ -248,9 +248,9 @@ async function makeApiRequest(method, endpoint, data = null) {
         }
         return cachedResponse.data;
       }
-      
+
       response = await axios.get(url, { params: data });
-      
+
       // Cache the response
       apiCache[cacheKey] = {
         data: response.data,
@@ -269,7 +269,7 @@ async function makeApiRequest(method, endpoint, data = null) {
       // Invalidate all caches
       clearCache();
     }
-    
+
     return response.data;
   } catch (error) {
     console.error(`API ${method} request to ${endpoint} failed:`, error.message);
@@ -341,21 +341,21 @@ async function cleanupProjectFiles(projectId) {
   try {
     // Build the path to the project's output directory
     const projectOutputDir = path.resolve(path.dirname(app.getAppPath()), 'output', projectId);
-    
+
     // Check if the directory exists
     if (fs.existsSync(projectOutputDir)) {
       console.log(`Cleaning up project output directory: ${projectOutputDir}`);
-      
+
       // Get all files in the directory
       const files = fs.readdirSync(projectOutputDir);
-      
+
       // Delete each file
       for (const file of files) {
         const filePath = path.join(projectOutputDir, file);
         fs.unlinkSync(filePath);
         console.log(`Deleted file: ${filePath}`);
       }
-      
+
       // Delete the directory itself
       fs.rmdirSync(projectOutputDir);
       console.log(`Deleted project output directory: ${projectOutputDir}`);
@@ -373,7 +373,7 @@ async function cleanupProjectFiles(projectId) {
 async function ensureProjectDirectory(projectId) {
   const { getAppPaths } = require('./paths');
   const appPaths = getAppPaths();
-  
+
   if (app.isPackaged) {
     const projectDir = path.join(appPaths.output, projectId);
     if (!fs.existsSync(projectDir)) {
@@ -388,7 +388,7 @@ async function ensureProjectDirectory(projectId) {
  */
 function registerAppControlHandlers() {
   const { getMainWindow } = require('./window');
-  
+
   ipcMain.handle('api:reloadApp', async () => {
     const mainWindow = getMainWindow();
     if (mainWindow) {
@@ -396,6 +396,10 @@ function registerAppControlHandlers() {
       return { success: true };
     }
     return { success: false, error: 'Main window not found' };
+  });
+
+  ipcMain.handle('api:getAppVersion', async () => {
+    return { success: true, version: app.getVersion() };
   });
 
   ipcMain.handle('api:closeApp', async () => {
@@ -419,7 +423,7 @@ function registerAppControlHandlers() {
     try {
       // Validate URL format
       const urlObj = new URL(url);
-      
+
       // Allow only HTTPS URLs to trusted documentation domains
       const allowedDomains = [
         'fakerjs.dev',
@@ -433,19 +437,19 @@ function registerAppControlHandlers() {
         'stackoverflow.com',
         'developer.mozilla.org'
       ];
-      
+
       if (urlObj.protocol !== 'https:') {
         return { success: false, error: 'Only HTTPS URLs are allowed' };
       }
-      
-      const isAllowedDomain = allowedDomains.some(domain => 
+
+      const isAllowedDomain = allowedDomains.some(domain =>
         urlObj.hostname === domain || urlObj.hostname.endsWith('.' + domain)
       );
-      
+
       if (!isAllowedDomain) {
         return { success: false, error: 'URL domain not in allowed list' };
       }
-      
+
       // Open URL: handle WSL explicitly to avoid xdg-open failures
       const isWSL = process.platform === 'linux' && (
         process.env.WSL_DISTRO_NAME || os.release().toLowerCase().includes('microsoft')
@@ -478,7 +482,7 @@ function registerAppControlHandlers() {
       // Non-WSL: open in user's default browser
       await shell.openExternal(url);
       return { success: true };
-      
+
     } catch (error) {
       console.error('Error opening external URL:', error);
       return { success: false, error: error.message };
@@ -493,7 +497,7 @@ function registerAppControlHandlers() {
 function getCacheStats() {
   const entries = Object.keys(apiCache).length;
   const totalSize = JSON.stringify(apiCache).length;
-  
+
   return {
     entries,
     totalSize,

@@ -3,7 +3,7 @@
  * Handles window creation, configuration, and event management
  */
 
-const { BrowserWindow, Menu } = require('electron');
+const { app, BrowserWindow, Menu } = require('electron');
 const path = require('path');
 const { WINDOW_CONFIG, CSP_HEADER } = require('./config');
 
@@ -18,6 +18,7 @@ function createWindow(preloadPath) {
   // Update preload path in config
   const windowConfig = {
     ...WINDOW_CONFIG,
+    title: `DB Simulator v${app.getVersion()}`,
     webPreferences: {
       ...WINDOW_CONFIG.webPreferences,
       preload: preloadPath
@@ -48,7 +49,7 @@ function createWindow(preloadPath) {
   mainWindow.on('close', (event) => {
     // Always prevent immediate close and let renderer handle unsaved changes
     event.preventDefault();
-    
+
     // Send close request to renderer
     mainWindow.webContents.send('app-close-requested');
   });
@@ -80,10 +81,10 @@ function setupCSP() {
  */
 function setupContextMenu() {
   const { app } = require('electron');
-  
+
   mainWindow.webContents.on('context-menu', (event, params) => {
     let template;
-    
+
     if (app.isPackaged) {
       // Production menu - essential options for end users
       template = [
@@ -125,7 +126,7 @@ function setupContextMenu() {
         }
       ];
     }
-    
+
     const menu = Menu.buildFromTemplate(template);
     menu.popup({ window: mainWindow, x: params.x, y: params.y });
   });
