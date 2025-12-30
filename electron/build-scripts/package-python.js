@@ -115,8 +115,25 @@ try {
         fs.mkdirSync(internalDir, { recursive: true });
       }
 
+      let binaryName = 'mini_racer.so';
+      if (process.platform === 'win32') {
+        binaryName = 'mini_racer.dll';
+      } else if (process.platform === 'darwin') {
+        // macOS uses .dylib, check for common variants
+        if (fs.existsSync(path.join(sitePkgDir, 'libmini_racer.dylib'))) {
+          binaryName = 'libmini_racer.dylib';
+        } else if (fs.existsSync(path.join(sitePkgDir, 'mini_racer.dylib'))) {
+          binaryName = 'mini_racer.dylib';
+        } else {
+          // Fallback or legacy
+          binaryName = 'mini_racer.so';
+        }
+      }
+
+      console.log(`Identified MiniRacer binary as: ${binaryName}`);
+
       const filesToCopy = [
-        { src: path.join(sitePkgDir, process.platform === 'win32' ? 'mini_racer.dll' : 'mini_racer.so'), dst: path.join(internalDir, process.platform === 'win32' ? 'mini_racer.dll' : 'mini_racer.so'), label: 'MiniRacer native library' },
+        { src: path.join(sitePkgDir, binaryName), dst: path.join(internalDir, binaryName), label: 'MiniRacer native library' },
         { src: path.join(sitePkgDir, 'icudtl.dat'), dst: path.join(internalDir, 'icudtl.dat'), label: 'ICU data file' },
         { src: path.join(sitePkgDir, 'snapshot_blob.bin'), dst: path.join(internalDir, 'snapshot_blob.bin'), label: 'V8 snapshot blob' }
       ];
