@@ -3,12 +3,12 @@ import { Button, Spinner } from 'react-bootstrap';
 import { FiSave, FiRefreshCw, FiUpload, FiDownload } from 'react-icons/fi';
 import * as monaco from 'monaco-editor/esm/vs/editor/editor.api';
 
-const YamlEditor = ({ 
-  initialValue, 
-  onSave, 
+const YamlEditor = ({
+  initialValue,
+  onSave,
   onChange,
   onImport,  // New callback for importing YAML files
-  readOnly = false, 
+  readOnly = false,
   height = '500px',
   theme,
   showImportExport = false,  // New prop to control import/export buttons
@@ -30,7 +30,7 @@ const YamlEditor = ({
       // Register the YAML language if it hasn't been registered
       if (!monaco.languages.getLanguages().some(lang => lang.id === 'yaml')) {
         monaco.languages.register({ id: 'yaml' });
-        
+
         // Define comprehensive YAML tokenizer
         monaco.languages.setMonarchTokensProvider('yaml', {
           tokenizer: {
@@ -38,40 +38,40 @@ const YamlEditor = ({
               // Document separators
               [/^---/, 'delimiter.yaml'],
               [/^\.\.\./, 'delimiter.yaml'],
-              
+
               // Comments
               [/#.*$/, 'comment.yaml'],
-              
+
               // Keys (property names)
               [/^\s*[\w\-\.]+\s*(?=:)/, 'key.yaml'],
               [/^\s*"[^"]*"\s*(?=:)/, 'key.yaml'],
               [/^\s*'[^']*'\s*(?=:)/, 'key.yaml'],
-              
+
               // Strings
               [/"([^"\\]|\\.)*"/, 'string.yaml'],
               [/'([^'\\]|\\.)*'/, 'string.yaml'],
-              
+
               // Numbers
               [/\b\d+\.?\d*\b/, 'number.yaml'],
-              
+
               // Booleans and null
               [/\b(true|false|null|True|False|Null|TRUE|FALSE|NULL)\b/, 'keyword.yaml'],
-              
+
               // Arrays and objects
               [/[\[\]]/, 'delimiter.bracket.yaml'],
               [/[{}]/, 'delimiter.curly.yaml'],
-              
+
               // Colons and commas
               [/:/, 'delimiter.colon.yaml'],
               [/,/, 'delimiter.comma.yaml'],
-              
+
               // Multi-line strings
               [/[|>]/, 'string.yaml'],
-              
+
               // Anchors and references
               [/&\w+/, 'tag.yaml'],
               [/\*\w+/, 'tag.yaml'],
-              
+
               // Tags
               [/!\w+/, 'tag.yaml']
             ]
@@ -120,8 +120,8 @@ const YamlEditor = ({
         });
       }
 
-      // Always use dark theme for YAML editor
-      const initialTheme = 'yaml-dark';
+      // Use provided theme or default to dark
+      const initialTheme = theme === 'dark' ? 'yaml-dark' : 'yaml-light';
 
       // Create editor with CSS Grid optimizations (VS Code architecture)
       const editor = monaco.editor.create(containerRef.current, {
@@ -131,7 +131,7 @@ const YamlEditor = ({
         // CRITICAL: Disable automaticLayout for 10x performance improvement
         automaticLayout: false,
         // Optimized minimap settings
-        minimap: { 
+        minimap: {
           enabled: true,
           showSlider: 'mouseover',     // Reduce rendering overhead
           renderCharacters: false,     // Major performance boost
@@ -182,14 +182,14 @@ const YamlEditor = ({
       const resizeObserver = new ResizeObserver((entries) => {
         for (const entry of entries) {
           const { width, height } = entry.contentRect;
-          
+
           // Only trigger layout for significant changes (>50px threshold)
           if (width > 50 && height > 50) {
             // Debounce layout calls to avoid thrashing
             if (layoutTimeoutRef.current) {
               clearTimeout(layoutTimeoutRef.current);
             }
-            
+
             layoutTimeoutRef.current = setTimeout(() => {
               if (monacoRef.current) {
                 // Explicit dimensions to prevent Monaco from recalculating
@@ -225,16 +225,17 @@ const YamlEditor = ({
     }
   }, [initialValue]);
 
-  // Always use dark theme for YAML editor (ignore theme prop changes)
+  // Update theme when prop changes
   useEffect(() => {
     if (monacoRef.current) {
       try {
-        monaco.editor.setTheme('yaml-dark');
+        const targetTheme = theme === 'dark' ? 'yaml-dark' : 'yaml-light';
+        monaco.editor.setTheme(targetTheme);
       } catch (error) {
-        console.error('[YamlEditor] Error setting dark theme:', error);
+        console.error('[YamlEditor] Error setting theme:', error);
       }
     }
-  }, [monacoRef.current]);
+  }, [theme, monacoRef.current]);
 
   // Handle save
   const handleSave = () => {
@@ -334,12 +335,12 @@ const YamlEditor = ({
           />
         </div>
       )}
-      <div 
+      <div
         ref={containerRef}
-        className="monaco-editor-container" 
-        style={{ 
-          height, 
-          width: '100%', 
+        className="monaco-editor-container"
+        style={{
+          height,
+          width: '100%',
           borderRadius: '4px',
           overflow: 'hidden'
         }}

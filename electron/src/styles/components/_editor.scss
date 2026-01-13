@@ -6,18 +6,18 @@
   width: 100%;
   gap: 0;
   flex: 1;
-  
+
   grid-template-areas:
     "yaml-header handle canvas-content"
     "yaml-content handle canvas-content";
-  
+
   // CSS containment for performance
   contain: layout style;
-  
+
   // Hide CSS Grid debugging lines and drag artifacts
   outline: none !important;
   border: none !important;
-  
+
   // Prevent blue selection highlights during drag
   * {
     outline: none !important;
@@ -29,7 +29,7 @@
     -ms-user-select: none !important;
     user-select: none !important;
   }
-  
+
   // Allow text selection in editor areas
   .grid-yaml-content,
   .grid-canvas-content {
@@ -41,30 +41,36 @@
       user-select: text !important;
     }
   }
-  
+
   // Default grid columns (fallback)
-  grid-template-columns: 
-    minmax(300px, 20%) 
-    6px 
-    1fr;
+  grid-template-columns: minmax(300px, 20%) 6px 1fr;
 }
 
 // Unified Configuration Editor grid - shared by both database and simulation editors
 .db-config-editor .editor-grid-container,
 .sim-config-editor .editor-grid-container {
-  grid-template-columns: 
-    minmax(300px, var(--yaml-panel-width, 20%)) 
-    6px 
-    1fr;
+  grid-template-columns:
+    minmax(300px, var(--yaml-panel-width, 20%)) 6px 1fr;
 }
 
 // Grid area assignments (shared for all editor containers)
 .editor-grid-container {
-  .grid-yaml-header { grid-area: yaml-header; }
-  .grid-yaml-content { grid-area: yaml-content; }
-  .grid-resize-handle { grid-area: handle; }
-  .grid-canvas-content { grid-area: canvas-content; }
-  
+  .grid-yaml-header {
+    grid-area: yaml-header;
+  }
+
+  .grid-yaml-content {
+    grid-area: yaml-content;
+  }
+
+  .grid-resize-handle {
+    grid-area: handle;
+  }
+
+  .grid-canvas-content {
+    grid-area: canvas-content;
+  }
+
   // Panel styling for grid areas
   .grid-yaml-content {
     overflow: hidden;
@@ -72,24 +78,24 @@
     color: var(--theme-text);
     display: flex;
     flex-direction: column;
-    
+
     // GPU acceleration for smooth rendering
     transform: translate3d(0, 0, 0);
     will-change: auto;
   }
-  
+
   .grid-canvas-content {
     overflow: hidden;
     background-color: var(--theme-editor-bg);
     color: var(--theme-text);
     display: flex;
     flex-direction: column;
-    
+
     // GPU acceleration for smooth rendering
     transform: translate3d(0, 0, 0);
     will-change: auto;
   }
-  
+
   // YAML header styling (VS Code style with integrated tabs)
   .grid-yaml-header {
     background-color: var(--theme-navbar-bg); // Use black sidebar color instead of grey
@@ -100,20 +106,20 @@
     z-index: 5;
     padding: 0;
     position: relative;
-    
+
     .yaml-header-container {
       width: 100%;
       height: 100%;
       display: flex;
       align-items: stretch;
-      
+
       // VS Code style tabs section
       .vscode-tabs {
         display: flex;
         align-items: stretch;
-        flex-shrink: 1;        // Allow tabs container to shrink
-        min-width: 0;          // Allow flex shrinking below content size
-        overflow: hidden;      // Hide overflow
+        flex-shrink: 1; // Allow tabs container to shrink
+        min-width: 0; // Allow flex shrinking below content size
+        overflow: hidden; // Hide overflow
 
         .tab-item {
           height: 100%;
@@ -126,11 +132,11 @@
           border: none !important; // Override any Bootstrap borders
           border-radius: 0;
           transition: background-color 0.15s ease;
-          flex-shrink: 1;        // Individual tabs can shrink
-          min-width: 80px;       // Minimum width per tab
-          overflow: hidden;      // Hide overflow text
+          flex-shrink: 1; // Individual tabs can shrink
+          min-width: 80px; // Minimum width per tab
+          overflow: hidden; // Hide overflow text
           text-overflow: ellipsis; // Show ... for long text
-          white-space: nowrap;   // Prevent text wrapping
+          white-space: nowrap; // Prevent text wrapping
 
           // Inactive tab - matches navbar (black) color
           background-color: var(--theme-navbar-bg) !important;
@@ -139,8 +145,9 @@
           // Active tab - matches YAML editor background (seamless connection)
           &.active {
             background-color: var(--theme-yaml-editor-bg) !important;
-            color: var(--theme-text) !important;
-            border-bottom: none !important;
+            color: var(--theme-primary) !important; // Use primary color for text
+            font-weight: 500;
+            border-bottom: 2px solid var(--theme-primary) !important; // Add accent border
           }
 
           // Hover effect for inactive tabs - use #282828 (same as YAML editor)
@@ -156,7 +163,7 @@
           }
         }
       }
-      
+
       // Action buttons section (right side) - VS Code style
       .yaml-actions {
         margin-left: auto; // Push to right within flex container
@@ -203,7 +210,7 @@
           padding-right: 0.5rem;
 
           .yaml-action-btn {
-            width: 28px;   // Reduce from 34px
+            width: 28px; // Reduce from 34px
             height: 28px;
             font-size: 0.9rem; // Reduce icon size
           }
@@ -211,32 +218,32 @@
       }
     }
   }
-  
+
   .grid-canvas-header {
     justify-content: stretch;
     padding: 0; // Unified header handles its own padding
-    
+
     // Tab support for canvas header
     &.has-tabs {
       padding: 0 20px;
       position: relative;
-      
+
       .nav-tabs {
         border-bottom: none;
         margin-bottom: 0;
-        
+
         .nav-link {
           border: none;
           border-bottom: 2px solid transparent;
           background: none;
           color: var(--theme-muted-text);
           padding: 12px 16px;
-          
+
           &:hover {
             border-bottom-color: var(--theme-primary);
             color: var(--theme-text);
           }
-          
+
           &.active {
             border-bottom-color: var(--theme-primary);
             color: var(--theme-primary);
@@ -244,7 +251,7 @@
           }
         }
       }
-      
+
       .tab-actions {
         position: absolute;
         right: 20px;
@@ -260,7 +267,7 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  
+
   .yaml-panel-header {
     background-color: var(--theme-yaml-editor-bg); // Match active parent tab
     border-bottom: 1px solid var(--theme-border);
@@ -270,7 +277,7 @@
     justify-content: center; // Center the tabs
     padding: 0 16px;
     flex-shrink: 0;
-    
+
     .yaml-panel-tabs {
       display: flex;
       align-items: center;
@@ -278,7 +285,7 @@
       padding: 2px;
       background-color: var(--theme-yaml-editor-bg); // Match YAML editor background
       border-radius: 10px; // Rounded container
-      
+
       .yaml-sub-tab {
         padding: 4px 18px;
         border-radius: 10px; // Less rounded corners
@@ -295,20 +302,20 @@
         white-space: nowrap;
         flex: 1; // Make tabs equally sized
         min-width: 0; // Allow flex shrinking
-        
+
         // Hover state for inactive tabs
         &:not(.active):hover {
           background-color: rgba(255, 255, 255, 0.05);
           color: var(--theme-text);
         }
-        
+
         // Active capsule state
         &.active {
           background-color: var(--theme-hover-bg); // System hover color for active
           color: var(--theme-text);
           box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        
+
         // Icon styling
         .tab-icon {
           margin-right: 8px;
@@ -318,7 +325,7 @@
       }
     }
   }
-  
+
   .yaml-panel-content {
     flex: 1;
     height: 100%;
@@ -333,7 +340,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
-    
+
     .monaco-editor-container {
       flex: 1;
       width: 100%;
@@ -341,7 +348,7 @@
       background-color: var(--theme-yaml-editor-bg);
       border: none !important;
       overflow: hidden;
-      
+
       // Critical: Let CSS Grid handle sizing, not Monaco
       .monaco-editor {
         width: 100% !important;
@@ -349,7 +356,7 @@
       }
     }
   }
-  
+
   // Canvas content optimization
   .canvas-content {
     height: 100%;
@@ -358,7 +365,7 @@
     background: transparent;
     display: flex;
     flex-direction: column;
-    
+
     .er-diagram-container,
     .event-flow-container {
       flex: 1;
@@ -367,22 +374,21 @@
       position: relative;
       border: none;
       overflow: hidden;
-      
+
       .react-flow {
         width: 100%;
         height: 100%;
       }
-      
+
       .react-flow__container,
       .react-flow__renderer {
         height: 100%;
         width: 100%;
       }
-      
+
       .react-flow__controls {
         box-shadow: 0 0 2px 1px rgba(0, 0, 0, 0.1);
       }
     }
   }
 }
-

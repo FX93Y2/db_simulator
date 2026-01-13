@@ -6,119 +6,166 @@
 
 // Neutral Scale (Slate-based for UI elements)
 $neutral: (
-  50: #f8fafc,    // Lightest background
-  100: #f1f5f9,   // Light background
-  150: #f8fff4,   // React flow canvas background
-  200: #e2e8f0,   // Light borders
-  300: #cbd5e1,   // Borders
-  400: #94a3b8,   // Disabled text/icons
-  500: #64748b,   // Muted text
-  600: #475569,   // Secondary text
-  700: #334155,   // Primary text (light mode)
-  800: #1e293b,   // Emphasis text
-  900: #0f172a,   // Maximum contrast
-  950: #020617    // Absolute maximum
+  50: #f8fafc,
+  // Lightest background
+  100: #f1f5f9,
+  // Light background
+  150: #f8fff4,
+  // React flow canvas background
+  200: #e2e8f0,
+  // Light borders
+  300: #cbd5e1,
+  // Borders
+  400: #94a3b8,
+  // Disabled text/icons
+  500: #64748b,
+  // Muted text
+  600: #475569,
+  // Secondary text
+  700: #334155,
+  // Primary text (light mode)
+  800: #1e293b,
+  // Emphasis text
+  900: #0f172a,
+  // Maximum contrast
+  950: #020617 // Absolute maximum
 );
 
 // True Gray Scale (VS Code inspired dark theme hierarchy)
 $gray: (
-  400: #6e6e6e,    // Muted text
-  500: #555555,    // dividers, 
-  550: #434448,    //reactflow background
-  600: #454545,    // Borders, inactive UI, resizer bar handel
-  700: #3c3c3c,    // Input box, regular hover states for table cell, buttons, drop down menu
-  800: #2D2D2D,    // Context menu, Secondary panel like html table wrapped inside Editor modals(Example: AttributeTable), Guide overlay background color
-  900: #252526,    // YAML Editor background, all modals body and footer, hover states on tabs(regular hover states will use 700), react flow nodes body, tool bar
-  950: #1e1e1e     // Darkest, navigation bar, side bar, all modals header yaml editor header, react flow nodes header.
+  400: #6e6e6e,
+  // Muted text
+  500: #555555,
+  // dividers, 
+  550: #434448,
+  //reactflow background
+  600: #454545,
+  // Borders, inactive UI, resizer bar handel
+  700: #3c3c3c,
+  // Input box, regular hover states for table cell, buttons, drop down menu
+  800: #2D2D2D,
+  // Context menu, Secondary panel like html table wrapped inside Editor modals(Example: AttributeTable), Guide overlay background color
+  900: #252526,
+  // YAML Editor background, all modals body and footer, hover states on tabs(regular hover states will use 700), react flow nodes body, tool bar
+  950: #1e1e1e // Darkest, navigation bar, side bar, all modals header yaml editor header, react flow nodes header.
 );
 
 
 // Primary Scale (Blue - keeping current brand color)
+// Primary Scale (Indigo-Blue - Modernizing the brand color)
 $blue: (
-  50: #eff6ff,    // Tints/light backgrounds
-  100: #dbeafe,   // Light hover states
-  200: #bfdbfe,   // Light active states
-  300: #93c5fd,   // Light interactive elements
-  400: #60a5fa,   // Secondary actions
-  500: #3b82f6,   // Primary actions (close to current #3498db)
-  600: #2563eb,   // Primary hover
-  700: #1d4ed8,   // Primary active
-  800: #1e40af,   // Dark mode primary
-  900: #1e3a8a    // Maximum emphasis
+  50: #eff6ff,
+  // Tints/light backgrounds
+  100: #dbeafe,
+  // Light hover states
+  200: #bfdbfe,
+  // Light active states
+  300: #93c5fd,
+  // Light interactive elements
+  400: #60a5fa,
+  // Secondary actions
+  500: #3b82f6,
+  // Primary actions (Keeping close to standard for safety but cleaner)
+  600: #2563eb,
+  // Primary hover
+  700: #1d4ed8,
+  // Primary active
+  800: #1e40af,
+  // Dark mode primary
+  900: #1e3a8a // Maximum emphasis
+);
+
+// New Vibrant Scale for highlights (if needed later)
+$indigo: (
+  500: #4f46e5,
+  600: #4338ca
 );
 
 // Secondary Scale (Green - keeping current secondary)
 $green: (
-  50: #f0fdf4,    // Success tints
-  100: #dcfce7,   // Light success backgrounds
-  200: #bbf7d0,   // Light success borders
-  300: #86efac,   // Light success elements
-  400: #4ade80,   // Secondary actions
-  500: #22c55e,   // Secondary primary (close to current #2ecc71)
-  600: #16a34a,   // Secondary hover
-  700: #15803d,   // Secondary active
-  800: #166534,   // Dark mode secondary
-  900: #14532d    // Maximum emphasis
+  50: #f0fdf4,
+  // Success tints
+  100: #dcfce7,
+  // Light success backgrounds
+  200: #bbf7d0,
+  // Light success borders
+  300: #86efac,
+  // Light success elements
+  400: #4ade80,
+  // Secondary actions
+  500: #22c55e,
+  // Secondary primary (close to current #2ecc71)
+  600: #16a34a,
+  // Secondary hover
+  700: #15803d,
+  // Secondary active
+  800: #166534,
+  // Dark mode secondary
+  900: #14532d // Maximum emphasis
 );
 
 // Accent Scale (Purple for variety)
 $purple: (
-  50: #faf5ff,    // Accent tints
-  100: #f3e8ff,   // Light accent backgrounds
-  200: #e9d5ff,   // Light accent borders
-  300: #d8b4fe,   // Light accent elements
-  400: #c084fc,   // Accent secondary
-  500: #a855f7,   // Accent primary
-  600: #9333ea,   // Accent hover
-  700: #7c3aed,   // Accent active
-  800: #6b21a8,   // Dark mode accent
-  900: #581c87    // Maximum emphasis
+  50: #faf5ff,
+  // Accent tints
+  100: #f3e8ff,
+  // Light accent backgrounds
+  200: #e9d5ff,
+  // Light accent borders
+  300: #d8b4fe,
+  // Light accent elements
+  400: #c084fc,
+  // Accent secondary
+  500: #a855f7,
+  // Accent primary
+  600: #9333ea,
+  // Accent hover
+  700: #7c3aed,
+  // Accent active
+  800: #6b21a8,
+  // Dark mode accent
+  900: #581c87 // Maximum emphasis
 );
 
 // Semantic Colors (using appropriate scales)
 $semantic: (
-  success: (
-    50: #f0fdf4,
-    500: #22c55e,   // Green 500
+  "success": (50: #f0fdf4,
+    500: #22c55e, // Green 500
     600: #16a34a,
-    700: #15803d
-  ),
-  warning: (
-    50: #fffbeb,
-    500: #f59e0b,   // Amber 500
+    700: #15803d),
+  "warning": (50: #fffbeb,
+    500: #f59e0b, // Amber 500
     600: #d97706,
-    700: #b45309
-  ),
-  error: (
-    50: #fef2f2,
-    500: #ef4444,   // Red 500
+    700: #b45309),
+  "error": (50: #fef2f2,
+    500: #ef4444, // Red 500
     600: #dc2626,
-    700: #b91c1c
-  ),
-  info: (
-    50: #eff6ff,
-    500: #3b82f6,   // Blue 500
+    700: #b91c1c),
+  "info": (50: #eff6ff,
+    500: #3b82f6, // Blue 500
     600: #2563eb,
-    700: #1d4ed8
-  )
+    700: #1d4ed8)
 );
+// Updated to quoted keys for SASS compatibility
 
 // Brand Colors (for backwards compatibility)
 $brand: (
-  primary: map-get($blue, 500),      // #3b82f6 (close to current #3498db)
-  secondary: map-get($green, 500),   // #22c55e (close to current #2ecc71)
-  accent: map-get($purple, 500)      // #a855f7
+  primary: map-get($blue, 500),
+  // #3b82f6 (close to current #3498db)
+  secondary: map-get($green, 500),
+  // #22c55e (close to current #2ecc71)
+  accent: map-get($purple, 500) // #a855f7
 );
 
 // Export all color scales as SCSS maps
 $colors: (
-  neutral: $neutral,
-  gray: $gray,
-  blue: $blue,
-  green: $green,
-  purple: $purple,
-  semantic: $semantic,
-  brand: $brand
+  "neutral": $neutral,
+  "gray": $gray,
+  "blue": $blue,
+  "green": $green,
+  "purple": $purple,
+  "semantic": $semantic,
+  "brand": $brand
 );
 
 // Helper functions for accessing colors
@@ -128,22 +175,22 @@ $colors: (
 
 // Helper function for semantic colors (3 parameters)
 @function semantic-color($type, $shade: 500) {
-  @return map-get(map-get(map-get($colors, semantic), $type), $shade);
+  @return map-get(map-get(map-get($colors, "semantic"), $type), $shade);
 }
 
 
 // Quick access variables for most common colors
-$color-primary: color(blue, 500);
-$color-secondary: color(green, 500);
-$color-accent: color(purple, 500);
-$color-text: color(neutral, 700);
-$color-text-muted: color(neutral, 500);
-$color-background: color(neutral, 50);
+$color-primary: color("blue", 500);
+$color-secondary: color("green", 500);
+$color-accent: color("purple", 500);
+$color-text: color("neutral", 700);
+$color-text-muted: color("neutral", 500);
+$color-background: color("neutral", 50);
 $color-surface: white;
-$color-border: color(neutral, 200);
+$color-border: color("neutral", 200);
 
 // Success, Warning, Error, Info shortcuts
-$color-success: semantic-color(success, 500);
-$color-warning: semantic-color(warning, 500);
-$color-error: semantic-color(error, 500);
-$color-info: semantic-color(info, 500);
+$color-success: semantic-color("success", 500);
+$color-warning: semantic-color("warning", 500);
+$color-error: semantic-color("error", 500);
+$color-info: semantic-color("info", 500);

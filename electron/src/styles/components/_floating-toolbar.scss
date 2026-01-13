@@ -7,49 +7,49 @@
   position: absolute;
   z-index: 100;
   pointer-events: none; // Allow canvas interactions to pass through
-  
+
   // Position variants
   &--left {
     left: 16px;
     top: 50%;
     transform: translateY(-50%);
   }
-  
+
   &--right {
     right: 16px;
     top: 50%;
     transform: translateY(-50%);
   }
-  
+
   &--top {
     top: 16px;
     left: 16px;
     transform: none;
-    
+
     .floating-toolbar__container {
       flex-direction: row;
       gap: 6px;
       padding: 8px 12px;
     }
   }
-  
+
   &--top-center {
     top: 16px;
     left: 50%;
     transform: translateX(-50%);
-    
+
     .floating-toolbar__container {
       flex-direction: row;
       gap: 6px;
       padding: 8px 12px;
     }
   }
-  
+
   &--bottom {
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
-    
+
     .floating-toolbar__container {
       flex-direction: row;
     }
@@ -66,7 +66,7 @@
   border-radius: 8px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
   pointer-events: auto; // Re-enable interactions for toolbar content
-  
+
   // Dark theme adjustments
   .theme-dark & {
     background-color: var(--theme-toolbar-bg, #2d2d2d);
@@ -89,14 +89,14 @@
   transition: background-color 0.15s ease;
   text-decoration: none;
   cursor: pointer;
-  
+
   // Icon-only button adjustments
   &:not(:has(.floating-toolbar__label)) {
     padding: 8px;
     min-width: 35px;
     min-height: 35px;
   }
-  
+
   // Icon and label layout
   .floating-toolbar__icon {
     display: flex;
@@ -104,122 +104,122 @@
     justify-content: center;
     font-size: 1.08rem; // 0.9rem * 1.2 = 1.08rem
     line-height: 1;
-    
+
     // Ensure proper icon alignment in icon-only buttons
     .floating-toolbar__item:not(:has(.floating-toolbar__label)) & {
       margin: 0;
     }
   }
-  
+
   .floating-toolbar__label {
     margin-left: 6px;
     font-weight: 500;
     white-space: nowrap;
   }
-  
+
   // Hide labels for compact toolbar
   .floating-toolbar--compact & {
     .floating-toolbar__label {
       display: none;
     }
   }
-  
+
   // Toolbar variant styling - matches entity table row hover
   &--toolbar {
     &:hover:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
       color: var(--theme-text, #333333);
     }
-    
+
     &:active:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
     }
-    
+
     &:focus-visible {
       outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
       outline-offset: 2px;
     }
-    
+
     // Dark theme hover
     .theme-dark &:hover:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
     }
-    
+
     .theme-dark &:active:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
     }
   }
-  
+
   // Primary variant - same background as entity table with subtle accent
   &--primary {
-    background-color: var(--theme-toolbar-bg, #ffffff);
-    color: var(--theme-text, #333333);
-    
+    background-color: transparent !important; // Override Bootstrap btn-primary
+    color: var(--theme-text, #333333) !important; // Override Bootstrap btn-primary color
+
     &:hover:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
-      color: var(--theme-text, #333333);
+      color: var(--theme-primary, #333333); // Accent on hover
     }
-    
+
     &:active:not(:disabled) {
-      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
-      color: var(--theme-text, #333333);
+      background-color: var(--theme-active-bg, rgba(0, 0, 0, 0.08));
+      color: var(--theme-primary, #333333);
     }
-    
+
     &:focus-visible {
       outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
       outline-offset: 2px;
     }
-    
+
     // Dark theme styling
     .theme-dark & {
       background-color: var(--theme-toolbar-bg, #2d2d2d);
       color: var(--theme-text, #ffffff);
-      
+
       &:hover:not(:disabled) {
         background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
       }
-      
+
       &:active:not(:disabled) {
         background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
       }
     }
   }
-  
+
   // Active variant - toggled state using theme hover background
   &--active {
     background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
     color: var(--theme-text, #333333);
-    
+
     &:hover:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.08));
       color: var(--theme-text, #333333);
     }
-    
+
     &:active:not(:disabled) {
       background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.12));
       color: var(--theme-text, #333333);
     }
-    
+
     &:focus-visible {
       outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
       outline-offset: 2px;
     }
-    
+
     // Dark theme styling
     .theme-dark & {
       background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.05));
       color: var(--theme-text, #ffffff);
-      
+
       &:hover:not(:disabled) {
         background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.08));
       }
-      
+
       &:active:not(:disabled) {
         background-color: var(--theme-hover-bg, rgba(255, 255, 255, 0.12));
       }
     }
   }
-  
+
   // Disabled state
   &:disabled {
     opacity: 0.5;
@@ -235,7 +235,7 @@
   height: 1px;
   background-color: var(--theme-border, #e0e0e0);
   margin: 2px 0;
-  
+
   .theme-dark & {
     background-color: var(--theme-border, #404040);
   }
@@ -244,18 +244,19 @@
 // Responsive adjustments
 @media (max-width: 768px) {
   .floating-toolbar {
+
     &--left,
     &--right {
       .floating-toolbar__label {
         display: none;
       }
     }
-    
+
     .floating-toolbar__container {
       padding: 8px;
       gap: 6px;
     }
-    
+
     .floating-toolbar__item {
       min-width: 36px;
       min-height: 36px;
@@ -270,7 +271,7 @@
   .floating-toolbar__container {
     // Remove animation that can cause positioning issues on reload
     opacity: 1;
-    
+
     // Ensure stable initial positioning
     position: relative;
     transform: none;
