@@ -1,9 +1,10 @@
 // Global Styles
+html,
 body {
   // Typography is now handled by _typography.scss
   margin: 0;
   padding: 0;
-  background-color: $background-color;
+  background-color: var(--theme-bg);
   color: $text-color;
-  transition: background-color 0.2s, color 0.2s;
+  // transition: background-color 0.3s ease, color 0.3s ease; // Sync with component transitions
 }

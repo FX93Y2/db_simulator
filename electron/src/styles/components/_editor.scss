@@ -131,7 +131,7 @@
           font-weight: 400;
           border: none !important; // Override any Bootstrap borders
           border-radius: 0;
-          transition: background-color 0.15s ease;
+          // transition: background-color 0.15s ease; // Removed to prevent theme lag
           flex-shrink: 1; // Individual tabs can shrink
           min-width: 80px; // Minimum width per tab
           overflow: hidden; // Hide overflow text

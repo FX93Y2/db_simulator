@@ -4,7 +4,7 @@
 .sidebar-header {
   padding: 1rem;
   border-bottom: 1px solid var(--theme-border);
-  background-color: var(--theme-sidebar-bg);
+  background-color: var(--theme-sidebar-bg, transparent); // Fallback to transparent
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -34,7 +34,7 @@
   // Individual action button styling
   .sidebar-action-button {
     position: relative;
-    color: var(--theme-primary, #2563eb) !important; // Fallback to blue-600
+    color: var(--theme-primary);
     width: 2rem;
     height: 2rem;
     cursor: pointer;
@@ -78,8 +78,8 @@
         bottom: -2px;
         right: -2px;
         font-size: 0.75rem;
-        background-color: var(--theme-primary, #2563eb); // Fallback to blue-600
-        color: white;
+        background-color: var(--theme-primary);
+        color: white; // Correct: overlay icon is always white on colored bg
         border-radius: 50%;
         width: 0.875rem;
         height: 0.875rem;
@@ -164,7 +164,8 @@ body:not(.theme-dark) {
 
 // Animation for header state changes
 .sidebar-header {
-  transition: all 0.2s ease;
+  // Sync with global theme transition - Removed to prevent theme lag/flash
+  // transition: background-color 0.3s ease, padding 0.2s ease;
 
   &.loading {
     opacity: 0.7;

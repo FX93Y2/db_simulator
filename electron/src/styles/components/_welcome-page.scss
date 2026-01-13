@@ -2,54 +2,54 @@
 .welcome-page {
   background-color: var(--theme-bg);
   min-height: 100vh;
-  
+
   .display-4 {
     color: var(--theme-text);
     font-weight: 700;
   }
-  
+
   .lead {
     font-size: 1.1rem;
   }
-  
+
   .card {
     background-color: var(--theme-card-bg);
     border-color: var(--theme-border) !important;
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
-    
+    // transition: transform 0.2s ease, box-shadow 0.2s ease; // Removed to prevent theme lag
+
     &:hover {
       transform: translateY(-2px);
       box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15) !important;
     }
-    
+
     .card-body {
       h5 {
         color: var(--theme-text);
         font-weight: 600;
         margin-bottom: 1rem;
       }
-      
+
       .text-muted {
         color: var(--theme-muted-text) !important;
       }
-      
+
       .text-primary {
         color: var(--theme-primary) !important;
       }
     }
-    
+
     &.bg-light {
       background-color: var(--theme-guide-bg) !important;
-      
+
       .text-primary {
         color: var(--theme-primary) !important;
         font-weight: 600;
       }
-      
+
       p {
         color: var(--theme-text) !important;
         margin-bottom: 0.5rem;
-        
+
         svg {
           color: var(--theme-primary);
         }

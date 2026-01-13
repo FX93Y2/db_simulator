@@ -150,23 +150,23 @@
     }
   }
 
-  // Primary variant - same background as entity table with subtle accent
+  // Primary variant
   &--primary {
     background-color: transparent !important; // Override Bootstrap btn-primary
-    color: var(--theme-text, #333333) !important; // Override Bootstrap btn-primary color
+    color: var(--theme-text) !important; // Override Bootstrap btn-primary color
 
     &:hover:not(:disabled) {
-      background-color: var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
-      color: var(--theme-primary, #333333); // Accent on hover
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-primary);
     }
 
     &:active:not(:disabled) {
-      background-color: var(--theme-active-bg, rgba(0, 0, 0, 0.08));
-      color: var(--theme-primary, #333333);
+      background-color: var(--theme-active-bg);
+      color: var(--theme-primary);
     }
 
     &:focus-visible {
-      outline: 2px solid var(--theme-hover-bg, rgba(0, 0, 0, 0.04));
+      outline: 2px solid var(--theme-hover-bg);
       outline-offset: 2px;
     }
 

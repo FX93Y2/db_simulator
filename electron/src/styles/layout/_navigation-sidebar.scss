@@ -95,13 +95,13 @@
       }
 
       &.active {
-        background-color: var(--theme-primary, #2563eb) !important; // Fallback to blue-600
-        color: var(--theme-primary-text, #ffffff) !important; // Fallback to white
+        background-color: var(--theme-primary);
+        color: var(--theme-primary-text);
         font-weight: 500;
 
         &:hover {
-          background-color: var(--theme-primary, #2563eb) !important; // Fallback to blue-600
-          color: var(--theme-primary-text, #ffffff) !important; // Fallback to white
+          background-color: var(--theme-primary);
+          color: var(--theme-primary-text);
         }
       }
 

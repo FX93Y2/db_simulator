@@ -32,7 +32,7 @@
   padding: 15px;
   margin-bottom: 15px;
   background-color: var(--theme-card-bg);
-  transition: transform 0.2s, box-shadow 0.2s;
+  // transition: transform 0.2s, box-shadow 0.2s; // Removed to prevent theme lag
 
   &:hover {
     transform: translateY(-3px);

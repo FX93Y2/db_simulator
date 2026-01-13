@@ -4,18 +4,19 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.5rem 1rem;
-  background-color: var(--theme-card-bg);
+  background-color: var(--theme-card-bg, transparent);
+  // transition: background-color 0.3s ease; // Removed to prevent theme lag
   border-bottom: 1px solid var(--theme-border);
   height: 48px;
-  
+
   .canvas-header-left {
     flex: 1;
     display: flex;
     justify-content: flex-start;
-    
+
     .canvas-tabs {
       border-bottom: none;
-      
+
       .nav-link {
         display: flex;
         align-items: center;
@@ -28,12 +29,12 @@
         border-radius: 4px;
         transition: all 0.2s ease;
         font-size: 0.875rem;
-        
+
         &:hover {
           color: var(--theme-text);
           background-color: var(--theme-hover-bg);
         }
-        
+
         &.active {
           color: var(--theme-primary);
           background-color: var(--theme-active-bg);
@@ -42,10 +43,10 @@
       }
     }
   }
-  
+
   .canvas-header-right {
     flex: 0 0 auto;
-    
+
     .run-simulation-btn {
       display: flex;
       align-items: center;
@@ -64,7 +65,8 @@
     align-items: center;
     justify-content: flex-start;
     padding: 0.5rem 1rem;
-    background-color: var(--theme-card-bg);
+    background-color: var(--theme-card-bg, transparent);
+    // transition: background-color 0.3s ease; // Removed to prevent theme lag
     border-bottom: 1px solid var(--theme-border);
     height: 48px;
   }
@@ -75,14 +77,14 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  
+
   .db-config-editor,
   .sim-config-editor {
     height: 100%;
     flex: 1;
     display: flex;
     flex-direction: column;
-    
+
     .editor-grid-container {
       flex: 1;
       height: 100%;
@@ -94,7 +96,7 @@
 .project-page {
   .project-content-wrapper {
     height: 100vh;
-    
+
     // Override any remaining height constraints from old tab system
     .editor-grid-container {
       height: 100vh !important;

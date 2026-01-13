@@ -35,20 +35,20 @@
     height: 40px;
     cursor: pointer;
     border-radius: 6px;
-    transition: color 0.1s ease, background-color 0.1s ease;
+    // transition: color 0.1s ease, background-color 0.1s ease; // Removed to prevent theme lag
     background: transparent;
     border: none;
     outline: none;
     color: var(--theme-navbar-text);
 
     &:hover {
-      background-color: var(--theme-hover-bg, #f1f5f9) !important;
-      color: var(--theme-primary, #2563eb) !important; // Blue text on hover
+      background-color: var(--theme-hover-bg);
+      color: var(--theme-primary);
     }
 
     &.active {
-      background-color: var(--theme-selected-bg, rgba(37, 99, 235, 0.1)) !important;
-      color: var(--theme-primary, #2563eb) !important;
+      background-color: var(--theme-selected-bg);
+      color: var(--theme-primary);
     }
 
     svg,
@@ -68,7 +68,11 @@
     border-radius: 12px;
     cursor: pointer;
     overflow: hidden;
-    transition: all 0.3s ease;
+    border-radius: 12px;
+    cursor: pointer;
+    overflow: hidden;
+    // Only animate shadow, let background snap instantly to avoid lag
+    transition: box-shadow 0.3s ease;
     box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.1);
 
     .theme-icons {
@@ -111,7 +115,7 @@
       height: 18px;
       background-color: white;
       border-radius: 50%;
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease; // Restored as requested
       z-index: 2;
       box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 

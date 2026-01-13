@@ -6,18 +6,19 @@
 
 // Base resize handle styles
 %resize-handle-base {
-  background-color: var(--theme-border);
+  background-color: var(--theme-border, transparent); // Fallback to transparent to avoid white flash
   cursor: col-resize;
   position: relative;
   z-index: 10;
   user-select: none;
-  transition: background-color 0.2s ease;
-  
+  // Removed transition to match instant global theme switch
+  // transition: background-color 0.3s ease;
+
   &:hover,
   &.dragging {
     background-color: var(--theme-resize-handle-hover-bg);
   }
-  
+
   // Visual indicator
   &::before {
     content: '';
@@ -30,7 +31,7 @@
     background-color: var(--theme-muted-text);
     opacity: 0.6;
   }
-  
+
   // Hover effect
   &:hover::before {
     opacity: 1;
@@ -49,7 +50,7 @@
 .resize-handle-horizontal {
   @extend %resize-handle-base;
   cursor: row-resize;
-  
+
   &::before {
     width: 20px;
     height: 1px;
@@ -60,7 +61,7 @@
 .resize-handle-corner {
   @extend %resize-handle-base;
   cursor: nwse-resize;
-  
+
   &::before {
     width: 12px;
     height: 12px;
@@ -69,7 +70,7 @@
     border-radius: 2px;
     opacity: 0.6;
   }
-  
+
   &:hover::before {
     border-color: var(--theme-text);
     opacity: 1;
@@ -78,6 +79,7 @@
 
 // Theme-specific adjustments
 body.theme-dark {
+
   .resize-handle,
   .grid-resize-handle,
   .grid-sidebar-handle,
