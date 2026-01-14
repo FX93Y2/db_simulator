@@ -2,8 +2,8 @@ import React from 'react';
 import { Form, Button, Card } from 'react-bootstrap';
 import { DistributionFormulaInput, convertDistributionToFormula } from '../../../shared/distribution';
 
-const ForeignKeyGeneratorEditor = ({ 
-  generator, 
+const ForeignKeyGeneratorEditor = ({
+  generator,
   onGeneratorChange
 }) => {
   // Convert old distribution format to formula if needed
@@ -13,7 +13,7 @@ const ForeignKeyGeneratorEditor = ({
     }
     return convertDistributionToFormula(generator.distribution) || '';
   };
-  
+
   const handleFormulaChange = (newFormula) => {
     onGeneratorChange('formula', newFormula);
   };
@@ -38,15 +38,14 @@ const ForeignKeyGeneratorEditor = ({
       <Form.Group className="mb-3">
         <Form.Label>Foreign Key Subtype</Form.Label>
         <Form.Select
-          value={generator.subtype || 'one_to_many'}
+          value={(generator.subtype === 'one_to_many' ? 'many_to_one' : generator.subtype) || 'many_to_one'}
           onChange={(e) => onGeneratorChange('subtype', e.target.value)}
         >
-          <option value="one_to_many">One to Many</option>
           <option value="many_to_one">Many to One</option>
           <option value="one_to_one">One to One</option>
         </Form.Select>
       </Form.Group>
-      
+
       {(generator.distribution || generator.formula !== undefined) && (
         <Card className="distribution-optional-card">
           <Card.Header>
@@ -62,7 +61,7 @@ const ForeignKeyGeneratorEditor = ({
           </Card.Body>
         </Card>
       )}
-      
+
       <Button
         variant="outline-secondary"
         size="sm"

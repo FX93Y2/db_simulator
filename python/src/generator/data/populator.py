@@ -83,7 +83,7 @@ class DataPopulator:
         one_to_one_decks = {}
         for attr in entity.attributes:
             if attr.generator and getattr(attr.generator, "type", None) == "foreign_key":
-                subtype = getattr(attr.generator, "subtype", "one_to_many")
+                subtype = getattr(attr.generator, "subtype", "many_to_one")
                 if subtype == "one_to_one" and attr.ref:
                     ref_table, ref_column = attr.ref.split('.')
                     parent_model = self.models[ref_table]
@@ -119,7 +119,7 @@ class DataPopulator:
 
                 # Handle new "foreign_key" generator type
                 if attr.generator and getattr(attr.generator, "type", None) == "foreign_key":
-                    subtype = getattr(attr.generator, "subtype", "one_to_many")
+                    subtype = getattr(attr.generator, "subtype", "many_to_one")
                     
                     if subtype == "one_to_one":
                         # Use the pre-shuffled deck
@@ -130,7 +130,11 @@ class DataPopulator:
                             logger.warning(f"Ran out of unique IDs for 1:1 FK '{attr.name}' in '{entity.name}' (Row {i+1}). Setting to None.")
                             row_data[attr.name] = None
                     else:
-                        # Standard One-to-Many logic
+                        # Standard Many-to-One logic (formerly called One-to-Many)
+                        # We accept "one_to_many" as a legacy alias for "many_to_one"
+                        if subtype == "one_to_many":
+                             logger.debug(f"Attribute '{attr.name}' uses legacy subtype 'one_to_many'. Treating as 'many_to_one'.")
+
                         # Get parent table and column
                         if not attr.ref:
                             logger.error(f"Foreign key attribute '{attr.name}' in table '{entity.name}' missing 'ref'. Assigning None.")

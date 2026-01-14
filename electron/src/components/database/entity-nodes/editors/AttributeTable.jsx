@@ -48,7 +48,7 @@ const AttributeTable = ({
       case 'distribution':
         return `Distribution: ${attribute.generator.formula || 'formula'}`;
       case 'foreign_key':
-        return `FK: ${attribute.generator.subtype || 'one_to_many'}`;
+        return `FK: ${attribute.generator.subtype || 'many_to_one'}`;
       case 'formula':
         return `Formula: ${attribute.generator.expression ? 'expression' : 'empty'}`;
       case 'none':
@@ -90,7 +90,7 @@ const AttributeTable = ({
         // Foreign key type always needs specific generator
         updatedAttribute.generator = {
           type: 'foreign_key',
-          subtype: 'one_to_many'
+          subtype: 'many_to_one'
         };
       } else if (oldType === 'fk') {
         // Changing FROM foreign key - need to create new appropriate generator
@@ -237,7 +237,7 @@ const AttributeTable = ({
           delete updatedGenerator.distribution;
           break;
         case 'foreign_key':
-          updatedGenerator.subtype = 'one_to_many';
+          updatedGenerator.subtype = 'many_to_one';
           delete updatedGenerator.method;
           delete updatedGenerator.template;
           break;

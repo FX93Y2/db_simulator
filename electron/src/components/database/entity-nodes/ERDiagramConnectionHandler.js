@@ -84,7 +84,7 @@ export const createForeignKeyAttribute = (fkName, fkType, targetTable, targetCol
     ref: `${targetTable}.${targetColumn}`,
     generator: {
       type: 'foreign_key',
-      subtype: 'one_to_many' // Default relationship type
+      subtype: 'many_to_one' // Default relationship type
     }
   };
 };
