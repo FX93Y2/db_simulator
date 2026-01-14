@@ -10,9 +10,19 @@
   border: 2px solid var(--theme-muted-text) !important;
   background: var(--theme-card-bg) !important;
   border-radius: 50% !important;
-  transition: all 0.2s ease !important;
+  transition: all 0.2s ease, opacity 0.2s ease !important;
   cursor: crosshair !important;
+  opacity: 0 !important;
   @include prevent-text-selection-important;
+
+  // Show handles when node is hovered or selected
+  // We use :global to ensure we can target the parent react-flow class if this is used as a module,
+  // preventing specificity issues.
+  .react-flow__node:hover &,
+  .react-flow__node.selected &,
+  &:focus {
+    opacity: 1 !important;
+  }
 
   &:hover {
     width: 14px !important;

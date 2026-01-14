@@ -271,14 +271,17 @@ export const createEntityActions = (set, get) => ({
                 sourceHandle: 'source-right',
                 target: targetEntity,
                 targetHandle: 'target-left',
-                animated: true,
-                type: 'smoothstep',
-                style: { stroke: '#3498db' },
-                markerEnd: {
-                  type: 'arrowclosed',
-                  width: 20,
-                  height: 20,
-                  color: '#3498db',
+                animated: false,
+                type: 'erEdge',
+                style: { stroke: '#b1b7c1' },
+                animated: false,
+                type: 'erEdge',
+                style: { stroke: '#b1b7c1' },
+                markerStart: 'crows-foot-many',
+                markerEnd: 'crows-foot-one',
+                data: {
+                  markerStartType: 'crows-foot-many',
+                  markerEndType: 'crows-foot-one'
                 },
               });
             }
@@ -353,15 +356,18 @@ export const createEntityActions = (set, get) => ({
       const newEdge = {
         id: `${connection.source}-${connection.target}`,
         ...connection,
-        animated: true,
-        type: 'smoothstep',
-        style: { stroke: '#3498db' },
-        markerEnd: {
-          type: 'arrowclosed',
-          width: 20,
-          height: 20,
-          color: '#3498db',
-        }
+        animated: false,
+        type: 'erEdge',
+        style: { stroke: '#b1b7c1' },
+        animated: false,
+        type: 'erEdge',
+        style: { stroke: '#b1b7c1' },
+        markerStart: 'crows-foot-many',
+        markerEnd: 'crows-foot-one',
+        data: {
+          markerStartType: 'crows-foot-many',
+          markerEndType: 'crows-foot-one'
+        },
       };
 
       set((state) => {

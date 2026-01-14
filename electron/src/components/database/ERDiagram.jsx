@@ -36,9 +36,17 @@ import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPreve
 import useContextMenuLogic from '../../hooks/shared/useContextMenu';
 import useViewportPersistence from '../../hooks/shared/useViewportPersistence';
 
+import CrowsFootMarkers from './edges/CrowsFootMarkers';
+import EREdge from './edges/EREdge';
+
 // Node types definition
 const nodeTypes = {
   entity: EntityNode,
+};
+
+// Edge types definition
+const edgeTypes = {
+  erEdge: EREdge,
 };
 
 /**
@@ -48,7 +56,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const containerRef = useRef(null);
   const [initialized, setInitialized] = React.useState(false);
   const reactFlowInstance = useReactFlow();
-  
+
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const entityNodes = useEntityNodes(projectId);
   const entityEdges = useEntityEdges(projectId);
@@ -61,7 +69,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   const currentState = useDatabaseCurrentState(projectId);
   const clipboard = useClipboard(projectId);
   const contextMenu = useContextMenu(projectId);
-  
+
   // Store actions
   const {
     addEntity,
@@ -108,7 +116,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
       setInitialized(true);
     }
   }, []);
-  
+
   // Log component re-renders (only when entities actually change)
   useEffect(() => {
   }, [entityNodes.length, canonicalEntities.length, selectedEntity?.id]);
@@ -163,7 +171,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   // Memoize entity prop to prevent unnecessary EntityEditor resets
   const memoizedEntity = useMemo(() => {
     if (!selectedEntity) return null;
-    
+
     // Get the most up-to-date entity data from canonicalEntities
     const canonicalEntity = canonicalEntities.find(e => e.name === selectedEntity.id);
     if (canonicalEntity) {
@@ -214,7 +222,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
     event.preventDefault();
     event.stopPropagation();
     setSelectedEdges([edge]);
-    
+
     const clientX = event.nativeEvent?.clientX ?? event.clientX;
     const clientY = event.nativeEvent?.clientY ?? event.clientY;
     showContextMenu(clientX, clientY);
@@ -260,7 +268,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
           showContextMenu(e.clientX, e.clientY);
         }
       };
-      
+
       // Use capture phase to intercept before other handlers
       document.addEventListener('contextmenu', handleSelectionContextMenu, true);
       return () => {
@@ -289,19 +297,19 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
-      <div 
-        ref={containerRef} 
-        className="er-diagram-container" 
-        style={{ 
-          width: '100%', 
+      <div
+        ref={containerRef}
+        className="er-diagram-container"
+        style={{
+          width: '100%',
           height: '100%',
           borderRadius: '4px',
           overflow: 'hidden'
-        }} 
+        }}
       />
     );
   }
-  
+
   return (
     <div ref={containerRef} className={`er-diagram-container ${selectionMode ? 'selection-mode' : ''}`} style={{ width: '100%', height: '100%' }}>
       {initialized && (
@@ -322,6 +330,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             onPaneClick={onPaneClick}
             onPaneContextMenu={contextMenuHook.onPaneContextMenu}
             nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
             snapToGrid={true}
             snapGrid={[20, 20]}
             fitView={false}
