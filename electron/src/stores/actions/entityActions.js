@@ -265,12 +265,16 @@ export const createEntityActions = (set, get) => ({
             const [targetEntity] = attr.ref.split('.');
             // Only create edge if target entity exists in canonical entities
             if (canonicalEntities.find(e => e.name === targetEntity)) {
+              // Get edge metadata (handles) from PositionService
+              const edgeKey = `${entity.name}-${targetEntity}`;
+              const edgeMetadata = projectId ? positionService.getEdgeMetadata(projectId, edgeKey, 'database') : null;
+
               visualEdges.push({
-                id: `${entity.name}-${targetEntity}`,
+                id: edgeKey,
                 source: entity.name,
-                sourceHandle: 'source-right',
+                sourceHandle: edgeMetadata?.sourceHandle || 'source-right',
                 target: targetEntity,
-                targetHandle: 'target-left',
+                targetHandle: edgeMetadata?.targetHandle || 'source-left',
                 animated: false,
                 type: 'erEdge',
                 style: { stroke: '#b1b7c1' },
@@ -336,6 +340,16 @@ export const createEntityActions = (set, get) => ({
     );
 
     if (updatedSchema) {
+      // Save edge metadata (handles) to PositionService
+      const { projectId } = get();
+      if (projectId) {
+        const edgeKey = `${connection.source}-${connection.target}`;
+        positionService.setEdgeMetadata(projectId, edgeKey, {
+          sourceHandle: connection.sourceHandle,
+          targetHandle: connection.targetHandle
+        }, 'database');
+      }
+
       // Update canonical entities to reflect the new foreign key
       set((state) => {
         state.canonicalEntities = state.canonicalEntities.map(entity => {

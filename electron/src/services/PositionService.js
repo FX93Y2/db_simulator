@@ -13,15 +13,15 @@ class PositionService {
   constructor() {
     // Memory cache: projectId -> Map<nodeId, position>
     this.cache = new Map();
-    
+
     // Debounce timers for saving to localStorage
     this.saveTimers = new Map();
-    
+
     // Configuration
     this.SAVE_DEBOUNCE_MS = 300;
     this.STORAGE_PREFIX = 'positions_';
     this.MAX_CACHE_AGE_MS = 30 * 60 * 1000; // 30 minutes
-    
+
     console.log('[PositionService] Initialized hybrid position service');
   }
 
@@ -43,7 +43,7 @@ class PositionService {
    */
   loadProject(projectId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     if (this.cache.has(cacheKey)) {
       console.log(`[PositionService] Project ${cacheKey} already loaded in cache`);
       return;
@@ -52,15 +52,18 @@ class PositionService {
     try {
       const storageKey = this._getStorageKey(projectId, canvasType);
       const savedData = localStorage.getItem(storageKey);
-      
+
       if (savedData) {
         const parsed = JSON.parse(savedData);
         const positionsMap = new Map(parsed.positions || []);
-        
+        const edgeMetadataMap = new Map(parsed.edgeMetadata || []);
+
+
         const nodeIds = Array.from(positionsMap.keys());
-        console.log(`[PositionService] Loaded ${positionsMap.size} positions for project: ${cacheKey}`, { nodeIds });
+        console.log(`[PositionService] Loaded ${positionsMap.size} positions and ${edgeMetadataMap.size} edge metadata for project: ${cacheKey}`, { nodeIds });
         this.cache.set(cacheKey, {
           positions: positionsMap,
+          edgeMetadata: edgeMetadataMap,
           lastAccess: Date.now(),
           dirty: false
         });
@@ -68,6 +71,7 @@ class PositionService {
         // Initialize empty cache for project
         this.cache.set(cacheKey, {
           positions: new Map(),
+          edgeMetadata: new Map(),
           lastAccess: Date.now(),
           dirty: false
         });
@@ -78,6 +82,7 @@ class PositionService {
       // Initialize empty cache on error
       this.cache.set(cacheKey, {
         positions: new Map(),
+        edgeMetadata: new Map(), // Added edgeMetadata property
         lastAccess: Date.now(),
         dirty: false
       });
@@ -93,7 +98,7 @@ class PositionService {
    */
   getPosition(projectId, nodeId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
       this.loadProject(projectId, canvasType);
@@ -103,7 +108,7 @@ class PositionService {
     if (projectCache) {
       projectCache.lastAccess = Date.now();
       const position = projectCache.positions.get(nodeId);
-      
+
       if (position) {
         return position;
       }
@@ -121,7 +126,7 @@ class PositionService {
    */
   setPosition(projectId, nodeId, position, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
       this.loadProject(projectId, canvasType);
@@ -132,14 +137,64 @@ class PositionService {
       // Clone position to break any Immer proxy connections
       // This prevents "Cannot perform 'get' on a proxy that has been revoked" errors
       const safePosition = this._clonePosition(position);
-      
+
       projectCache.positions.set(nodeId, safePosition);
       projectCache.lastAccess = Date.now();
       projectCache.dirty = true;
-      
+
       // Debounced save to localStorage
       this._debouncedSave(projectId, canvasType);
     }
+  }
+
+  /**
+   * Set metadata for an edge (update memory + trigger persistence)
+   * @param {string} projectId - Project identifier
+   * @param {string} edgeKey - Edge identifier (e.g., 'source-target')
+   * @param {Object} metadata - Metadata object (e.g., { sourceHandle, targetHandle })
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
+   */
+  setEdgeMetadata(projectId, edgeKey, metadata, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
+
+    // Ensure project is loaded
+    if (!this.cache.has(cacheKey)) {
+      this.loadProject(projectId, canvasType);
+    }
+
+    const projectCache = this.cache.get(cacheKey);
+    if (projectCache) {
+      projectCache.edgeMetadata.set(edgeKey, metadata);
+      projectCache.lastAccess = Date.now();
+      projectCache.dirty = true;
+
+      // Debounced save to localStorage
+      this._debouncedSave(projectId, canvasType);
+    }
+  }
+
+  /**
+   * Get metadata for an edge
+   * @param {string} projectId - Project identifier
+   * @param {string} edgeKey - Edge identifier
+   * @param {string} canvasType - Canvas type ('database', 'simulation', 'default')
+   * @returns {Object|null} - Metadata object or null if not found
+   */
+  getEdgeMetadata(projectId, edgeKey, canvasType = 'default') {
+    const cacheKey = `${canvasType}_${projectId || 'default'}`;
+
+    // Ensure project is loaded
+    if (!this.cache.has(cacheKey)) {
+      this.loadProject(projectId, canvasType);
+    }
+
+    const projectCache = this.cache.get(cacheKey);
+    if (projectCache) {
+      projectCache.lastAccess = Date.now();
+      return projectCache.edgeMetadata.get(edgeKey) || null;
+    }
+
+    return null;
   }
 
   /**
@@ -150,7 +205,7 @@ class PositionService {
    */
   getAllPositions(projectId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     // Ensure project is loaded
     if (!this.cache.has(cacheKey)) {
       this.loadProject(projectId, canvasType);
@@ -168,15 +223,15 @@ class PositionService {
    */
   removePosition(projectId, nodeId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     const projectCache = this.cache.get(cacheKey);
     if (projectCache && projectCache.positions.has(nodeId)) {
       projectCache.positions.delete(nodeId);
       projectCache.lastAccess = Date.now();
       projectCache.dirty = true;
-      
+
       console.log(`[PositionService] Removed position for ${cacheKey}/${nodeId}`);
-      
+
       // Debounced save to localStorage
       this._debouncedSave(projectId, canvasType);
     }
@@ -213,7 +268,7 @@ class PositionService {
       }
 
       return safePosition;
-      
+
     } catch (error) {
       // If cloning failed (likely due to revoked proxy), use defaults
       console.warn('[PositionService] Failed to clone position (likely revoked proxy), using defaults:', error.message);
@@ -241,15 +296,15 @@ class PositionService {
         if (isNaN(testAccess)) {
           throw new Error('Invalid position values');
         }
-        
+
         // If we get here, position is valid - clone it to be safe
         const cleanedPosition = this._clonePosition(position);
         cleanedPositions.set(nodeId, cleanedPosition);
-        
+
       } catch (error) {
         // This position is likely a revoked proxy or invalid
         console.warn(`[PositionService] Cleaning invalid position for ${nodeId}:`, error.message);
-        
+
         // Use default position
         cleanedPositions.set(nodeId, { x: 100, y: 100 });
         cleanedCount++;
@@ -258,7 +313,7 @@ class PositionService {
 
     // Replace the positions map with cleaned versions
     projectCache.positions = cleanedPositions;
-    
+
     if (cleanedCount > 0) {
       console.log(`[PositionService] Cleaned ${cleanedCount} revoked proxy positions`);
     }
@@ -278,10 +333,10 @@ class PositionService {
       // Try to detect proxy characteristics
       // Immer proxies have specific internal symbols/properties
       const objString = Object.prototype.toString.call(obj);
-      const isProxy = objString === '[object Object]' && 
-                     obj.constructor === Object &&
-                     Object.getOwnPropertySymbols(obj).length > 0;
-      
+      const isProxy = objString === '[object Object]' &&
+        obj.constructor === Object &&
+        Object.getOwnPropertySymbols(obj).length > 0;
+
       return isProxy;
     } catch (error) {
       // If we can't inspect the object, it might be a revoked proxy
@@ -296,7 +351,7 @@ class PositionService {
    */
   _debouncedSave(projectId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     // Clear existing timer
     if (this.saveTimers.has(cacheKey)) {
       clearTimeout(this.saveTimers.get(cacheKey));
@@ -319,7 +374,7 @@ class PositionService {
   _saveToStorage(projectId, canvasType = 'default') {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
     const projectCache = this.cache.get(cacheKey);
-    
+
     if (!projectCache || !projectCache.dirty) {
       return; // Nothing to save
     }
@@ -328,35 +383,37 @@ class PositionService {
       const storageKey = this._getStorageKey(projectId, canvasType);
       const data = {
         positions: Array.from(projectCache.positions.entries()),
+        edgeMetadata: Array.from(projectCache.edgeMetadata.entries()),
         lastSaved: Date.now(),
         projectId: projectId,
         canvasType: canvasType
       };
-      
+
       localStorage.setItem(storageKey, JSON.stringify(data));
       projectCache.dirty = false;
-      
+
       const nodeIds = Array.from(projectCache.positions.keys());
       console.log(`[PositionService] Saved ${projectCache.positions.size} positions for project: ${cacheKey}`, { nodeIds });
     } catch (error) {
       console.error(`[PositionService] Error saving project ${cacheKey}:`, error);
-      
+
       // If serialization failed due to proxy objects, attempt to clean the cache
       if (error.message && error.message.includes('proxy that has been revoked')) {
         console.log(`[PositionService] Attempting to clean revoked proxies for project: ${cacheKey}`);
         this._cleanRevokedProxies(projectCache);
-        
+
         // Retry save with cleaned cache
         try {
           const cleanData = {
             positions: Array.from(projectCache.positions.entries()),
+            edgeMetadata: Array.from(projectCache.edgeMetadata.entries()),
             lastSaved: Date.now(),
             projectId: projectId
           };
-          
+
           localStorage.setItem(this._getStorageKey(projectId, canvasType), JSON.stringify(cleanData));
           projectCache.dirty = false;
-          
+
           console.log(`[PositionService] Successfully saved after cleaning proxies for project: ${cacheKey}`);
         } catch (retryError) {
           console.error(`[PositionService] Failed to save even after cleaning proxies for project ${cacheKey}:`, retryError);
@@ -373,19 +430,19 @@ class PositionService {
    */
   unloadProject(projectId, canvasType = 'default', forceSave = true) {
     const cacheKey = `${canvasType}_${projectId || 'default'}`;
-    
+
     if (this.cache.has(cacheKey)) {
       // Save if dirty or forced
       if (forceSave) {
         this._saveToStorage(projectId, canvasType);
       }
-      
+
       // Clear save timer
       if (this.saveTimers.has(cacheKey)) {
         clearTimeout(this.saveTimers.get(cacheKey));
         this.saveTimers.delete(cacheKey);
       }
-      
+
       // Remove from cache
       this.cache.delete(cacheKey);
       console.log(`[PositionService] Unloaded project: ${cacheKey}`);
@@ -480,7 +537,7 @@ if (typeof window !== 'undefined') {
       positionService._saveToStorage(projectId === 'default' ? null : projectId, canvasType);
     }
   });
-  
+
   // Periodic garbage collection
   setInterval(() => {
     positionService.garbageCollect();

@@ -48,31 +48,41 @@ const EntityNode = ({ data, theme }) => {
     }
   };
 
-  // Get handle tooltip based on table type and position
-  const getHandleTooltip = (position, type) => {
-    if (type === 'source') {
-      return `Connect from ${data.label} to another table (creates foreign key in ${data.label})`;
-    } else {
-      return `Connect to ${data.label} from another table (creates foreign key in source table)`;
-    }
+  // Get handle tooltip - consistent for all handles now
+  const getHandleTooltip = () => {
+    return `Connect from ${data.label} to another table (creates foreign key in ${data.label})`;
   };
 
   return (
     <div className={`entity-node ${getNodeTypeClass()}`}>
-      {/* Connection handles - Left and Right only for ER connections */}
+      {/* Connection handles - All sides are sources for unified behavior */}
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="source-top"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip()}
+      />
       <Handle
         type="source"
         position={Position.Right}
         id="source-right"
         className="connection-handle connection-handle--source"
-        title={getHandleTooltip('right', 'source')}
+        title={getHandleTooltip()}
       />
       <Handle
-        type="target"
+        type="source"
+        position={Position.Bottom}
+        id="source-bottom"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip()}
+      />
+      <Handle
+        type="source"
         position={Position.Left}
-        id="target-left"
-        className="connection-handle connection-handle--target"
-        title={getHandleTooltip('left', 'target')}
+        id="source-left"
+        className="connection-handle connection-handle--source"
+        title={getHandleTooltip()}
       />
 
       {/* Modern ER table structure with header and body */}

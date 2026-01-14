@@ -4,6 +4,7 @@ import ReactFlow, {
   Background,
   useReactFlow,
   ReactFlowProvider,
+  ConnectionMode,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -317,6 +318,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
           <ReactFlow
             nodes={entityNodes}
             edges={entityEdges}
+            connectionMode={ConnectionMode.Loose}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
