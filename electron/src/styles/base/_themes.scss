@@ -72,6 +72,12 @@
   --theme-guide-bg: #f8fafc; // Slate 50
   --theme-resize-handle-hover-bg: #60a5fa; // Blue 400
   --theme-er-node-bg: white; // White nodes
+
+  // App Icon Colors
+  --app-icon-blue-light: #38B6FF;
+  --app-icon-blue-medium: #5170FF;
+  --app-icon-blue-dark: #004AAD;
+  --app-icon-accent: #FFA629;
 }
 
 body.theme-dark {
@@ -131,6 +137,13 @@ body.theme-dark {
   --theme-guide-bg: #{color("gray", 800)}; // Guide overlays - #2D2D2D (secondary panels)
   --theme-resize-handle-hover-bg: #{color("gray", 600)}; // Resizer handles - #454545
   --theme-er-node-bg: #{color("gray", 800)}; // React Flow node body - #252526
+
+  // App Icon Colors (Lightened for visibility on dark background)
+  --app-icon-blue-light: #7dd3fc; // Sky 300
+  --app-icon-blue-medium: #{color("blue", 400)}; // #60a5fa
+  --app-icon-blue-dark: #{color("blue", 500)}; // #3b82f6
+  --app-icon-accent: #fbbf24; // Amber 400
+
 
   // --- Bootstrap Variable Overrides for Dark Theme ---
   // Strategy: Override Bootstrap CSS variables to use our theme system

@@ -1,0 +1,165 @@
+import React from 'react';
+
+const AppIcon = ({ width = 120, height = 114, className = '' }) => {
+    // Default aspect ratio matches 228x217. Scaled down default size slightly.
+    return (
+        <svg
+            width={width}
+            height={height}
+            viewBox="0 0 228 217"
+            fill="none"
+            xmlns="http://www.w3.org/2000/svg"
+            className={className}
+        >
+            <path
+                d="M37.0004 109.987L37 45.9867C37 40.4638 41.4772 35.9866 47.0001 35.9866L73.0002 35.9867L109 35.9867"
+                style={{ stroke: 'var(--app-icon-blue-light)' }}
+                strokeWidth="4"
+            />
+            <path
+                d="M36.9863 106.987L36.986 170.987C36.986 176.509 41.4632 180.987 46.986 180.987L72.9861 180.987L108.986 180.987"
+                style={{ stroke: 'var(--app-icon-blue-dark)' }}
+                strokeWidth="4"
+            />
+            <path
+                d="M206.5 161.987C218.374 161.987 228 171.613 228 183.487C228 195.361 218.374 204.987 206.5 204.987H81.9453C96.4421 193.534 108.255 178.836 116.286 161.987H206.5Z"
+                style={{ fill: 'var(--app-icon-blue-dark)' }}
+            />
+            <line
+                x1="47"
+                y1="109.987"
+                x2="142"
+                y2="109.987"
+                style={{ stroke: 'var(--app-icon-blue-medium)' }}
+                strokeWidth="4"
+            />
+            <path
+                d="M206.5 87.9866C218.374 87.9866 228 97.6125 228 109.487C228 121.361 218.374 130.987 206.5 130.987H126.183C127.376 124.166 128 117.149 128 109.987C128 102.474 127.313 95.1208 126.003 87.9866H206.5Z"
+                style={{ fill: 'var(--app-icon-blue-medium)' }}
+            />
+            <path
+                d="M206.5 13.9866C218.374 13.9866 228 23.6125 228 35.4866C228 47.3608 218.374 56.9866 206.5 56.9866H115.804C107.545 40.0643 95.4563 25.3542 80.6641 13.9866H206.5Z"
+                style={{ fill: 'var(--app-icon-blue-light)' }}
+            />
+            <g filter="url(#filter0_d_app_icon)">
+                <circle cx="210.5" cy="109.487" r="7.5" style={{ fill: 'var(--app-icon-accent)' }} />
+            </g>
+            <g filter="url(#filter1_d_app_icon)">
+                <circle cx="210.5" cy="183.487" r="7.5" style={{ fill: 'var(--app-icon-accent)' }} />
+            </g>
+            <g filter="url(#filter2_d_app_icon)">
+                <circle cx="210.5" cy="36.4866" r="7.5" style={{ fill: 'var(--app-icon-accent)' }} />
+            </g>
+            <rect x="25" y="98.9866" width="24" height="24" rx="5" style={{ fill: 'var(--app-icon-blue-medium)' }} />
+            <defs>
+                <filter
+                    id="filter0_d_app_icon"
+                    x="199"
+                    y="101.987"
+                    width="23"
+                    height="23"
+                    filterUnits="userSpaceOnUse"
+                    colorInterpolationFilters="sRGB"
+                >
+                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                    <feColorMatrix
+                        in="SourceAlpha"
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                        result="hardAlpha"
+                    />
+                    <feOffset dy="4" />
+                    <feGaussianBlur stdDeviation="2" />
+                    <feComposite in2="hardAlpha" operator="out" />
+                    <feColorMatrix
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in2="BackgroundImageFix"
+                        result="effect1_dropShadow_app_icon"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in="SourceGraphic"
+                        in2="effect1_dropShadow_app_icon"
+                        result="shape"
+                    />
+                </filter>
+                <filter
+                    id="filter1_d_app_icon"
+                    x="199"
+                    y="175.987"
+                    width="23"
+                    height="23"
+                    filterUnits="userSpaceOnUse"
+                    colorInterpolationFilters="sRGB"
+                >
+                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                    <feColorMatrix
+                        in="SourceAlpha"
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                        result="hardAlpha"
+                    />
+                    <feOffset dy="4" />
+                    <feGaussianBlur stdDeviation="2" />
+                    <feComposite in2="hardAlpha" operator="out" />
+                    <feColorMatrix
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in2="BackgroundImageFix"
+                        result="effect1_dropShadow_app_icon"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in="SourceGraphic"
+                        in2="effect1_dropShadow_app_icon"
+                        result="shape"
+                    />
+                </filter>
+                <filter
+                    id="filter2_d_app_icon"
+                    x="199"
+                    y="28.9866"
+                    width="23"
+                    height="23"
+                    filterUnits="userSpaceOnUse"
+                    colorInterpolationFilters="sRGB"
+                >
+                    <feFlood floodOpacity="0" result="BackgroundImageFix" />
+                    <feColorMatrix
+                        in="SourceAlpha"
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+                        result="hardAlpha"
+                    />
+                    <feOffset dy="4" />
+                    <feGaussianBlur stdDeviation="2" />
+                    <feComposite in2="hardAlpha" operator="out" />
+                    <feColorMatrix
+                        type="matrix"
+                        values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in2="BackgroundImageFix"
+                        result="effect1_dropShadow_app_icon"
+                    />
+                    <feBlend
+                        mode="normal"
+                        in="SourceGraphic"
+                        in2="effect1_dropShadow_app_icon"
+                        result="shape"
+                    />
+                </filter>
+            </defs>
+        </svg>
+    );
+};
+
+export default AppIcon;
