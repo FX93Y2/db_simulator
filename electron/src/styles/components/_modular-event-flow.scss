@@ -6,7 +6,7 @@
   width: 100%;
   @include prevent-text-selection;
   position: relative;
-  
+
   // Drag over feedback
   &.drag-over {
     &::after {
@@ -23,28 +23,28 @@
       animation: pulse 1.5s infinite;
     }
   }
-  
+
   // Node colors using theme system (light theme defaults)
-  --flow-node-bg: var(--theme-card-bg);           // White background
-  --flow-node-outline: var(--theme-text);         // Black outline
-  --flow-node-text: var(--theme-text);            // Black text
-  --flow-node-icon: var(--theme-text-muted);      // Gray for icons
-  --flow-node-shadow: rgba(0, 0, 0, 0.1);         // Light shadow
-  --flow-node-hover-shadow: rgba(0, 0, 0, 0.15);  // Hover shadow
-  --theme-tooltip-bg: #333;                       // Tooltip background
-  --theme-tooltip-text: white;                    // Tooltip text
+  --flow-node-bg: var(--theme-card-bg); // White background
+  --flow-node-outline: var(--theme-text); // Black outline
+  --flow-node-text: var(--theme-text); // Black text
+  --flow-node-icon: var(--theme-text-muted); // Gray for icons
+  --flow-node-shadow: rgba(0, 0, 0, 0.1); // Light shadow
+  --flow-node-hover-shadow: rgba(0, 0, 0, 0.15); // Hover shadow
+  --theme-tooltip-bg: #333; // Tooltip background
+  --theme-tooltip-text: white; // Tooltip text
 }
 
 // Dark theme overrides using existing theme variables
 .dark-theme .modular-event-flow {
-  --flow-node-bg: var(--theme-er-node-bg);        // Use same as ER nodes
-  --flow-node-outline: var(--theme-text-muted);   // Lighter outline
-  --flow-node-text: var(--theme-text);            // White text
-  --flow-node-icon: var(--theme-text-muted);      // Muted for icons
-  --flow-node-shadow: rgba(0, 0, 0, 0.3);         // Darker shadow
-  --flow-node-hover-shadow: rgba(0, 0, 0, 0.4);   // Darker hover shadow
-  --theme-tooltip-bg: #555;                       // Darker tooltip
-  --theme-tooltip-text: white;                    // White tooltip text
+  --flow-node-bg: var(--theme-er-node-bg); // Use same as ER nodes
+  --flow-node-outline: var(--theme-text-muted); // Lighter outline
+  --flow-node-text: var(--theme-text); // White text
+  --flow-node-icon: var(--theme-text-muted); // Muted for icons
+  --flow-node-shadow: rgba(0, 0, 0, 0.3); // Darker shadow
+  --flow-node-hover-shadow: rgba(0, 0, 0, 0.4); // Darker hover shadow
+  --theme-tooltip-bg: #555; // Darker tooltip
+  --theme-tooltip-text: white; // White tooltip text
 }
 
 /* Override ReactFlow default node styling */
@@ -84,18 +84,21 @@
 .node-svg {
   width: 100%;
   height: 100%;
-  
+  overflow: visible;
+
   // Override SVG fill with theme colors (no stroke for clean look)
-  path, rect, ellipse {
+  path,
+  rect,
+  ellipse {
     fill: var(--flow-node-bg) !important;
     stroke: none !important;
   }
-  
+
   // Extra specificity for transparent fills
   ellipse[fill="transparent"] {
     fill: var(--flow-node-bg) !important;
   }
-  
+
   // Handle shadow effects
   filter: drop-shadow(0 1px 3px var(--flow-node-shadow));
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -147,7 +150,7 @@
   height: 100%;
   position: relative;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover .node-svg {
     transform: scale(1.02);
     filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
@@ -166,7 +169,7 @@
   height: 100%;
   position: relative;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover .node-svg {
     transform: scale(1.02);
     filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
@@ -176,7 +179,7 @@
 /* Process/Event Node (Rectangle) */
 .process-step-node {
   width: 130px;
-  height: 90px;
+  height: 80px;
   position: relative;
 }
 
@@ -185,7 +188,7 @@
   height: 100%;
   position: relative;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover .node-svg {
     transform: scale(1.02);
     filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
@@ -210,7 +213,7 @@
   height: 80px;
   position: relative;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover .node-svg {
     transform: scale(1.02);
     filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
@@ -229,7 +232,7 @@
   height: 100%;
   position: relative;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-  
+
   &:hover .node-svg {
     transform: scale(1.02);
     filter: drop-shadow(0 4px 6px var(--flow-node-hover-shadow));
@@ -257,11 +260,14 @@
 
 /* Selection States */
 .custom-node.selected .node-svg {
-  path, rect, ellipse {
+
+  path,
+  rect,
+  ellipse {
     stroke-width: 3px !important;
     stroke: var(--theme-primary) !important;
   }
-  
+
   filter: drop-shadow(0 0 6px rgba(66, 153, 225, 0.4)) drop-shadow(0 4px 8px var(--flow-node-hover-shadow));
 }
 
@@ -272,11 +278,22 @@
   background: var(--flow-node-outline);
   border: 1px solid var(--flow-node-bg);
   border-radius: 50%;
-  
-  &:hover {
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  z-index: 10;
+
+  &:hover,
+  &:focus {
     background: var(--theme-primary);
     transform: scale(1.3);
+    opacity: 1 !important;
   }
+}
+
+// Show handles when node is hovered or selected
+.modular-event-flow .react-flow__node:hover .react-flow__handle,
+.modular-event-flow .react-flow__node.selected .react-flow__handle {
+  opacity: 1 !important;
 }
 
 /* Decide node handle positioning and colors */
@@ -293,7 +310,7 @@
   background: var(--flow-node-outline);
   border: 2px dashed var(--flow-node-bg);
   opacity: 0.7;
-  
+
   &:hover {
     opacity: 1;
     transform: scale(1.3);
@@ -304,7 +321,7 @@
 .modular-event-flow .react-flow__edge {
   stroke: var(--flow-node-outline);
   stroke-width: 1.5;
-  
+
   &.react-flow__edge-smoothstep {
     stroke-width: 1.5;
   }
@@ -331,9 +348,11 @@
   0% {
     transform: scale(1);
   }
+
   50% {
     transform: scale(1.05);
   }
+
   100% {
     transform: scale(1);
   }
@@ -342,7 +361,7 @@
 /* Node Dragging States */
 .modular-event-flow .react-flow__node.dragging {
   opacity: 0.8;
-  
+
   .node-svg {
     transform: scale(1.02);
   }
@@ -356,16 +375,16 @@
   border: 1px solid var(--flow-node-outline);
   border-radius: 6px;
   box-shadow: 0 2px 4px var(--flow-node-shadow);
-  
+
   button {
     background: var(--flow-node-bg);
     border: none;
     color: var(--flow-node-text);
-    
+
     &:hover {
       background: var(--theme-hover-bg);
     }
-    
+
     &:disabled {
       opacity: 0.5;
     }
@@ -380,31 +399,32 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+
   .create-step-node,
   .release-step-node {
     width: 70px;
     height: 70px;
-    
+
     .node-icon {
       size: 20px;
     }
   }
-  
+
   .process-step-node {
     width: 110px;
     height: 70px;
   }
-  
+
   .decide-step-node {
     width: 90px;
     height: 70px;
   }
-  
+
   .assign-step-node {
     width: 100px;
     height: 70px;
   }
-  
+
   .node-label {
     font-size: 12px;
     max-width: 80px;
@@ -416,9 +436,11 @@
   0% {
     opacity: 0.3;
   }
+
   50% {
     opacity: 0.5;
   }
+
   100% {
     opacity: 0.3;
   }
@@ -429,7 +451,7 @@
   opacity: 0.7;
   filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.2));
   pointer-events: none;
-  
+
   svg {
     width: 100%;
     height: 100%;
