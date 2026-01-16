@@ -2,11 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Form, Button } from 'react-bootstrap';
 import { FiHelpCircle } from 'react-icons/fi';
 import { SharedHelpPanel } from '../help';
+import InlineCodeEditor from '../InlineCodeEditor';
 
-const DistributionFormulaInput = ({ 
-  value = '', 
-  onChange, 
-  label = 'Distribution Formula', 
+const DistributionFormulaInput = ({
+  value = '',
+  onChange,
+  label = 'Distribution Formula',
   placeholder = 'e.g., UNIF(3, 10) or NORM(5, 1)',
   className = '',
   required = false,
@@ -25,36 +26,30 @@ const DistributionFormulaInput = ({
   return (
     <>
       <Form.Group className={`mb-3 ${className}`}>
-        <Form.Label>
-          {label}
-          {required && <span className="text-danger ms-1">*</span>}
-        </Form.Label>
-        <div className="position-relative">
-          <Form.Control
-            type="text"
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            required={required}
-            className="pe-5"
-            style={{ paddingRight: '40px' }}
-          />
+        <div className="d-flex align-items-center justify-content-between mb-1">
+          <Form.Label className="mb-0">
+            {label}
+            {required && <span className="text-danger ms-1">*</span>}
+          </Form.Label>
           <Button
             variant=""
             size="sm"
             onClick={() => setShowHelpPanel(!showHelpPanel)}
-            className={`position-absolute top-50 translate-middle-y border-0 help-toggle-btn ${showHelpPanel ? 'active' : ''}`}
-            style={{
-              right: '8px',
-              zIndex: 5,
-              padding: '4px',
-              borderRadius: 'inherit'
-            }}
+            className={`border-0 help-toggle-btn ${showHelpPanel ? 'active' : ''}`}
             title={showHelpPanel ? "Hide distribution formula help" : "Show distribution formula help"}
           >
             <FiHelpCircle size={18} />
           </Button>
         </div>
+
+        <InlineCodeEditor
+          value={value}
+          onChange={onChange}
+          language="pgsql"
+          height={100}
+          lineNumbers="off"
+        />
+
         {helpText && (
           <Form.Text className="text-muted">
             {helpText}
@@ -62,7 +57,7 @@ const DistributionFormulaInput = ({
         )}
       </Form.Group>
 
-      <SharedHelpPanel 
+      <SharedHelpPanel
         show={showHelpPanel}
         onHide={() => setShowHelpPanel(false)}
         helpType="distribution"

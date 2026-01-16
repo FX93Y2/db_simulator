@@ -39,7 +39,7 @@ export const DecideNode = ({ data, selected }) => {
 
   // Calculate handle positions
   const handleSpacing = 15;
-  const handleStartTop = 50; // Center of diamond area
+  const handleStartTop = 40; // Center of diamond area (40px is center of 80px height)
 
   const renderHandles = () => {
     const handles = [];
@@ -158,7 +158,7 @@ export const DecideNode = ({ data, selected }) => {
       className={`custom-node decide-step-node ${selected ? 'selected' : ''}`}
       style={{ height: `${nodeHeight}px` }}
     >
-      <Handle type="target" position={Position.Left} style={{ left: '-6px', top: '50%' }} />
+      <Handle type="target" position={Position.Left} style={{ left: '-6px', top: '40px' }} />
       <div className="decide-shape">
         <DiamondSVG className="node-svg" />
         <div className="node-content-overlay">

@@ -120,15 +120,13 @@
 
 /* Node text styling */
 .node-label {
-  font-size: 14px;
+  font-size: 11px;
   font-weight: 600;
   color: var(--flow-node-text);
   text-align: center;
-  line-height: 1.2;
-  max-width: 100px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.1;
+  white-space: pre-wrap; // Allow wrapping but preserve manual breaks if any
+  overflow: visible; // Allow overflow
 }
 
 /* Node icon styling */
@@ -309,7 +307,7 @@
 .decide-step-node .new-outcome-handle {
   background: var(--flow-node-outline);
   border: 2px dashed var(--flow-node-bg);
-  opacity: 0.7;
+  opacity: 0;
 
   &:hover {
     opacity: 1;

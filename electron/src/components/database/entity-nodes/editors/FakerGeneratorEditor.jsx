@@ -1,6 +1,7 @@
 import React from 'react';
 import { Form, Button } from 'react-bootstrap';
 import { FiHelpCircle } from 'react-icons/fi';
+import InlineCodeEditor from '../../../shared/InlineCodeEditor';
 
 const FakerGeneratorEditor = ({ generator, onGeneratorChange }) => {
   const openFakerDocs = async () => {
@@ -16,27 +17,27 @@ const FakerGeneratorEditor = ({ generator, onGeneratorChange }) => {
 
   return (
     <Form.Group className="mb-3">
-      <Form.Label>Faker Method</Form.Label>
-      <div className="position-relative">
-        <Form.Control
-          type="text"
-          value={generator.method || ''}
-          onChange={(e) => onGeneratorChange('method', e.target.value)}
-          placeholder="e.g., name, email, address"
-          className="pe-5"
-          style={{ paddingRight: '40px' }}
-        />
+      <div className="d-flex align-items-center justify-content-between mb-1">
+        <Form.Label className="mb-0">Faker Method</Form.Label>
         <Button
           variant=""
           size="sm"
           onClick={openFakerDocs}
-          className="position-absolute top-50 translate-middle-y border-0 help-toggle-btn"
-          style={{ right: '8px', zIndex: 5, padding: '4px', borderRadius: 'inherit' }}
+          className="border-0 help-toggle-btn"
           title="Open Faker.js API documentation"
         >
           <FiHelpCircle size={18} />
         </Button>
       </div>
+
+      <InlineCodeEditor
+        value={generator.method}
+        onChange={(val) => onGeneratorChange('method', val)}
+        language="pgsql" // Using PGSQL for now as it gives some syntax coloring, ideally 'javascript' or custom
+        height={100} // Shorter than formula as typically just one line
+        lineNumbers="off" // Simple input doesn't need line numbers usually
+        minimap={false}
+      />
       <Form.Text className="text-muted">
         Faker.js method name (e.g., name, email, phone, address)
       </Form.Text>
