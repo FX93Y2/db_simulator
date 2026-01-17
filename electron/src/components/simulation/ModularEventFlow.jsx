@@ -28,6 +28,7 @@ import {
 import useResourceDefinitions from '../../hooks/shared/useResourceDefinitions';
 import useEntityTables from '../../hooks/shared/useEntityTables';
 import useRelatedEntityTables from '../../hooks/shared/useRelatedEntityTables';
+import useBridgeTables from '../../hooks/shared/useBridgeTables';
 import yaml from 'yaml';
 import useReactFlowHandlers from '../../hooks/shared/useReactFlowHandlers';
 import useTextSelectionPrevention from '../../hooks/shared/useTextSelectionPrevention';
@@ -48,7 +49,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const [isDragOver, setIsDragOver] = React.useState(false);
   const containerRef = useRef(null);
   const reactFlowInstance = useReactFlow();
-  
+
   // Store state subscriptions (selective to prevent unnecessary re-renders)
   const nodes = useNodes(projectId);
   const edges = useEdges(projectId);
@@ -61,19 +62,19 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   const contextMenu = useSimulationContextMenu(projectId);
 
   // Store actions
-  const { 
-    updateNodePosition, 
+  const {
+    updateNodePosition,
     updateNodes,
     updateEdges,
-    deleteNodes, 
-    updateStep, 
-    connectNodes, 
+    deleteNodes,
+    updateStep,
+    connectNodes,
     updateVisualState,
     addNode
   } = useCanvasActions(projectId);
-  
-  const { 
-    handleNodeDoubleClick, 
+
+  const {
+    handleNodeDoubleClick,
     updateSelectedNodes,
     updateSelectedEdges,
     setSelectedEdges,
@@ -83,17 +84,19 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     showContextMenu,
     hideContextMenu
   } = useUIActions(projectId);
-  
+
   // Use the custom hook to get resource definitions from database config
   const resourceDefinitions = useResourceDefinitions(dbConfigContent);
 
   // Queue definitions are stored with the project simulation data
   const simulationData = useSimulationData(projectId);
   const queueDefinitions = simulationData?.queues || [];
-  
+
   // Use the custom hooks to get entity and event tables from database config
   const entityTables = useEntityTables(dbConfigContent);
   const relatedEntityTables = useRelatedEntityTables(dbConfigContent);
+  const bridgeTables = useBridgeTables(dbConfigContent);
+
   const entityAttributesMap = React.useMemo(() => {
     if (!dbConfigContent) return {};
     try {
@@ -212,7 +215,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     event.preventDefault();
     event.stopPropagation();
     setSelectedEdges([edge]);
-    
+
     const clientX = event.nativeEvent?.clientX ?? event.clientX;
     const clientY = event.nativeEvent?.clientY ?? event.clientY;
     showContextMenu(clientX, clientY);
@@ -221,25 +224,25 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
   // Edge deletion handler
   const onDeleteEdge = React.useCallback(() => {
     if (selectedEdges.length === 0) return;
-    
+
     const edge = selectedEdges[0];
     const sourceNodeId = edge.source;
     const targetNodeId = edge.target;
     const handleId = edge.sourceHandle;
-    
+
     // Find the source step in canonical steps
     const sourceStep = canonicalSteps.find(step => step.step_id === sourceNodeId);
     if (!sourceStep) return;
 
     // Push current state to history before making changes
     const store = useSimulationConfigStore(projectId);
-    pushToHistory(store.setState, store.getState, 'simulation', 'UPDATE', { 
-      action: 'DELETE_EDGE', 
-      sourceStepId: sourceNodeId, 
+    pushToHistory(store.setState, store.getState, 'simulation', 'UPDATE', {
+      action: 'DELETE_EDGE',
+      sourceStepId: sourceNodeId,
       targetStepId: targetNodeId,
-      handleId 
+      handleId
     });
-    
+
     if (sourceStep.step_type === 'decide' && handleId) {
       // For decision steps, clear the specific outcome next_step_id
       const outcomeIndex = parseInt(handleId.replace('outcome-', ''));
@@ -272,7 +275,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         updateStep(sourceStep.step_id, updatedStep);
       }
     }
-    
+
     // Clear edge selection and update visual state
     clearSelection();
     updateVisualState();
@@ -329,7 +332,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
       x: event.clientX,
       y: event.clientY,
     });
-    
+
     // Center the node on cursor (subtract half of typical node size)
     position.x -= 40;
     position.y -= 40;
@@ -346,14 +349,14 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         }
         return stepId;
       }
-      
+
       let counter = 1;
       let stepId = `${stepType}_${counter}`;
       while (existingStepIds.includes(stepId)) {
         counter++;
         stepId = `${stepType}_${counter}`;
       }
-      
+
       return stepId;
     };
 
@@ -383,7 +386,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
               conditions: [{ if: "Probability", is: "==", value: 0.5 }]
             },
             {
-              outcome_id: "outcome_2", 
+              outcome_id: "outcome_2",
               next_step_id: "",
               conditions: [{ if: "Probability", is: "==", value: 0.5 }]
             }
@@ -431,7 +434,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     const { selectedNode } = getStoreState();
     if (!selectedNode) return;
 
-    
+
     updateStep(selectedNode.id, {
       ...updatedNode.data.stepConfig,
       step_id: updatedNode.id
@@ -459,7 +462,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
           showContextMenu(e.clientX, e.clientY);
         }
       };
-      
+
       // Use capture phase to intercept before other handlers
       document.addEventListener('contextmenu', handleSelectionContextMenu, true);
       return () => {
@@ -473,35 +476,35 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     addStep: (stepData) => {
       // Get viewport center for positioning new steps
       const viewport = reactFlowInstance.getViewport();
-      const position = containerRef.current 
+      const position = containerRef.current
         ? {
-            x: -viewport.x + (containerRef.current.clientWidth || 800) / 2 / viewport.zoom - 100,
-            y: -viewport.y + (containerRef.current.clientHeight || 600) / 2 / viewport.zoom - 50
-          }
+          x: -viewport.x + (containerRef.current.clientWidth || 800) / 2 / viewport.zoom - 100,
+          y: -viewport.y + (containerRef.current.clientHeight || 600) / 2 / viewport.zoom - 50
+        }
         : { x: 100, y: 100 };
-      
+
       addNode(stepData, position);
     },
     updateStep,
     deleteStep: (stepId) => deleteNodes([stepId]),
     getCanonicalSteps: () => getStoreState().canonicalSteps
   }), [addNode, updateStep, deleteNodes, getStoreState, reactFlowInstance]);
-  
+
   // Expose methods to parent components
   useImperativeHandle(ref, () => imperativeMethods, [imperativeMethods]);
 
   // If not initialized, just show the container to get dimensions
   if (!initialized) {
     return (
-      <div 
-        ref={containerRef} 
-        className="modular-event-flow event-flow-container" 
-        style={{ 
-          width: '100%', 
+      <div
+        ref={containerRef}
+        className="modular-event-flow event-flow-container"
+        style={{
+          width: '100%',
           height: '100%',
           borderRadius: '4px',
           overflow: 'hidden'
-        }} 
+        }}
       />
     );
   }
@@ -511,7 +514,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
       {initialized && (
         <div id="modular-event-flow-wrapper" style={{ width: '100%', height: '100%' }}>
           <ReactFlow
-            id="modular-event-flow-instance" 
+            id="modular-event-flow-instance"
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
@@ -550,10 +553,10 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             panOnDrag={!selectionMode}
             deleteKeyCode={null}
           >
-            <Background 
+            <Background
               key="modular-event-flow-background"
-              variant="dots" 
-              gap={12} 
+              variant="dots"
+              gap={12}
               size={1}
             />
             <Controls position="bottom-right" />
@@ -574,6 +577,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         entityTables={entityTables}
         relatedEntityTables={relatedEntityTables}
         entityAttributesMap={entityAttributesMap}
+        bridgeTables={bridgeTables}
       />
       <CanvasContextMenu
         visible={contextMenu.visible}
@@ -600,11 +604,11 @@ ModularEventFlowInner.displayName = 'ModularEventFlowInner';
 const ModularEventFlow = forwardRef(({ theme, dbConfigContent, projectId }, ref) => {
   return (
     <ReactFlowProvider>
-      <ModularEventFlowInner 
-        theme={theme} 
-        dbConfigContent={dbConfigContent} 
-        projectId={projectId} 
-        ref={ref} 
+      <ModularEventFlowInner
+        theme={theme}
+        dbConfigContent={dbConfigContent}
+        projectId={projectId}
+        ref={ref}
       />
     </ReactFlowProvider>
   );

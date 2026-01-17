@@ -154,7 +154,8 @@ class EventStepProcessor(StepProcessor):
                 active_event_tracker,
                 entity_id=entity_id,
                 entity_table=entity_table,
-                event_type=step.step_id
+                event_type=step.step_id,
+                bridge_table=event_config.bridge_table
             )
             
             # Increment events processed counter for termination tracking
@@ -272,7 +273,8 @@ class EventStepProcessor(StepProcessor):
     
     def _record_resource_allocations(self, event_id: int, start_time: float, end_time: float, event_flow: str,
                                      event_tracker=None, entity_id: Optional[int] = None, 
-                                     entity_table: str = None, event_type: Optional[str] = None):
+                                     entity_table: str = None, event_type: Optional[str] = None,
+                                     bridge_table: Optional[str] = None):
         """Record resource allocations in the event tracker."""
         try:
             active_event_tracker = event_tracker or self.event_tracker
@@ -292,7 +294,8 @@ class EventStepProcessor(StepProcessor):
                         release_time=end_time,
                         entity_id=entity_id,
                         entity_table=entity_table,
-                        event_type=event_type
+                        event_type=event_type,
+                        target_bridge_table=bridge_table
                     )
                 self.logger.debug(f"Recorded {len(allocated_resources)} resource allocations for event {event_id}")
         except Exception as e:

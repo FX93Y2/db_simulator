@@ -283,8 +283,25 @@
   &:hover,
   &:focus {
     background: var(--theme-primary);
-    transform: scale(1.3);
     opacity: 1 !important;
+  }
+
+  &.react-flow__handle-left,
+  &.react-flow__handle-right {
+
+    &:hover,
+    &:focus {
+      transform: translate(0, -50%) scale(1.3);
+    }
+  }
+
+  &.react-flow__handle-top,
+  &.react-flow__handle-bottom {
+
+    &:hover,
+    &:focus {
+      transform: translate(-50%, 0) scale(1.3);
+    }
   }
 }
 
@@ -311,7 +328,7 @@
 
   &:hover {
     opacity: 1;
-    transform: scale(1.3);
+    transform: translate(0, -50%) scale(1.3);
   }
 }
 

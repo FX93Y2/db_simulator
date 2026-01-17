@@ -214,7 +214,8 @@ class EventTracker:
     
     def record_resource_allocation(self, event_flow, event_id, resource_table, resource_id,
                                   allocation_time, release_time=None,
-                                  entity_id: Optional[int] = None, entity_table: Optional[str] = None, event_type: Optional[str] = None):
+                                  entity_id: Optional[int] = None, entity_table: Optional[str] = None, 
+                                  event_type: Optional[str] = None, target_bridge_table: Optional[str] = None):
         """Record the allocation of a resource to an event."""
         try:
             allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
@@ -245,7 +246,7 @@ class EventTracker:
                 event_type_col = None
                 
                 # Check static bridge first
-                if self.bridge_table is not None and resource_table == self.resource_table_name:
+                if self.bridge_table is not None and resource_table == self.resource_table_name and not target_bridge_table:
                     if self.entity_table_name is None or (entity_table is None or entity_table == self.entity_table_name):
                          target_bridge = self.bridge_table
                          entity_fk = self.entity_fk_column
@@ -254,7 +255,7 @@ class EventTracker:
                 
                 # If no match, try dynamic lookup
                 if target_bridge is None and entity_table and resource_table:
-                    bridge_info = self._get_dynamic_bridge(entity_table, resource_table)
+                    bridge_info = self._get_dynamic_bridge(entity_table, resource_table, target_bridge_table)
                     if bridge_info:
                         target_bridge, entity_fk, resource_fk, event_type_col = bridge_info
                 
@@ -286,18 +287,19 @@ class EventTracker:
         except Exception as e:
             logger.error(f"Error recording resource allocation: {e}")
     
-    def _get_dynamic_bridge(self, entity_table: str, resource_table: str):
+    def _get_dynamic_bridge(self, entity_table: str, resource_table: str, target_bridge_table_name: Optional[str] = None):
         """
         Dynamically resolve a bridge table for a given entity and resource pair.
         
         Args:
             entity_table: Name of the entity table
             resource_table: Name of the resource table
+            target_bridge_table_name: Optional specific name of the bridge table to find
             
         Returns:
             Tuple (Table, entity_fk_column, resource_fk_column, event_type_column) or None
         """
-        cache_key = (entity_table, resource_table)
+        cache_key = (entity_table, resource_table, target_bridge_table_name)
         if cache_key in self.bridge_table_cache:
             return self.bridge_table_cache[cache_key]
             
@@ -311,6 +313,10 @@ class EventTracker:
         event_type_col = None
         
         for entity in self.db_config.entities:
+            # If target name provided, skip if not matching
+            if target_bridge_table_name and entity.name != target_bridge_table_name:
+                continue
+
             e_fk = None
             r_fk = None
             evt_type = None
@@ -344,6 +350,13 @@ class EventTracker:
             try:
                 # Reflect the table
                 bridge_table = Table(target_bridge_entity.name, self.metadata, autoload_with=self.engine)
+                
+                # Auto-detection: If event_type column not explicitly mapped in config, 
+                # check if 'event_type' column exists in the physical table (created by TableBuilder defaults)
+                if event_type_col is None and 'event_type' in bridge_table.columns:
+                    event_type_col = 'event_type'
+                    logger.debug(f"Auto-detected 'event_type' column for bridge {target_bridge_entity.name}")
+
                 result = (bridge_table, entity_fk_col, resource_fk_col, event_type_col)
                 self.bridge_table_cache[cache_key] = result
                 logger.debug(f"Resolved dynamic bridge for {entity_table}/{resource_table} -> {target_bridge_entity.name}")

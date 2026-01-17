@@ -17,7 +17,7 @@ const convertOldDistributionToFormula = (distribution) => {
   return convertDistributionToFormula(distribution);
 };
 
-const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], relatedEntityTables = {}, entityAttributesMap = {} }) => {
+const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, parsedSchema, resourceDefinitions, queueDefinitions = [], entityTables = [], relatedEntityTables = {}, entityAttributesMap = {}, bridgeTables = [] }) => {
   const [formData, setFormData] = useState({});
   const [resourceRequirements, setResourceRequirements] = useState([]);
   const [outcomes, setOutcomes] = useState([]);
@@ -168,6 +168,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
 
     setFormData({
       name: stepName,
+      bridge_table: eventConfig.bridge_table || '',
       duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : 'NORM(5, 1)'),
       duration_time_unit: duration.time_unit || undefined,
       // Keep old format for backward compatibility during migration
@@ -592,10 +593,17 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
       return requirement;
     });
 
-    return {
+    const eventConfig = {
       duration,
       resource_requirements: sanitizedRequirements
     };
+
+    // Add bridge_table if set
+    if (formData.bridge_table) {
+      eventConfig.bridge_table = formData.bridge_table;
+    }
+
+    return eventConfig;
   };
 
   const buildDecideConfig = (stepId) => {
@@ -761,6 +769,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
             resourceDefinitions={resourceDefinitions}
             queueDefinitions={queueDefinitions}
             nameValidation={nameValidation}
+            bridgeTables={bridgeTables}
           />
         );
 

@@ -4,8 +4,8 @@ import { FiTrash2 } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
 import { DistributionFormulaInput, convertDistributionToFormula, getDefaultFormula } from '../../../shared/distribution';
 
-const EventStepEditor = ({ 
-  formData, 
+const EventStepEditor = ({
+  formData,
   onFormDataChange,
   resourceRequirements,
   onResourceRequirementChange,
@@ -13,14 +13,15 @@ const EventStepEditor = ({
   onRemoveResourceRequirement,
   resourceDefinitions,
   queueDefinitions = [],
-  nameValidation = { valid: true, error: null }
+  nameValidation = { valid: true, error: null },
+  bridgeTables = []
 }) => {
   // Convert old distribution format to formula if needed
   const getCurrentFormula = () => {
     if (formData.duration_formula) {
       return formData.duration_formula;
     }
-    
+
     // Convert from old format
     const oldDistribution = {
       type: formData.distribution_type === 'choice' ? 'discrete' : formData.distribution_type,
@@ -30,7 +31,7 @@ const EventStepEditor = ({
       min: formData.duration_min,
       max: formData.duration_max
     };
-    
+
     // Handle choice format conversion
     if (formData.distribution_type === 'choice') {
       const values = formData.duration_values ? formData.duration_values.split(',').map(v => v.trim()) : ['1', '2', '3'];
@@ -38,10 +39,10 @@ const EventStepEditor = ({
       oldDistribution.values = values;
       oldDistribution.weights = weights;
     }
-    
+
     return convertDistributionToFormula(oldDistribution) || getDefaultFormula('duration');
   };
-  
+
   const handleFormulaChange = (newFormula) => {
     onFormDataChange({ duration_formula: newFormula });
   };
@@ -57,6 +58,33 @@ const EventStepEditor = ({
           placeholder="Enter event name"
           className="mb-3"
         />
+
+        <Form.Group className="mb-3">
+          <Form.Label>Target Bridge Table (Optional)</Form.Label>
+          {bridgeTables.length > 0 ? (
+            <Form.Select
+              value={formData.bridge_table || ''}
+              onChange={(e) => onFormDataChange({ bridge_table: e.target.value })}
+            >
+              <option value="">Default (Auto-detect)</option>
+              {bridgeTables.map((table) => (
+                <option key={table} value={table}>
+                  {table}
+                </option>
+              ))}
+            </Form.Select>
+          ) : (
+            <Form.Control
+              type="text"
+              placeholder="Enter bridge table name (optional)"
+              value={formData.bridge_table || ''}
+              onChange={(e) => onFormDataChange({ bridge_table: e.target.value })}
+            />
+          )}
+          <Form.Text className="text-muted">
+            Specify which table to record this event in.
+          </Form.Text>
+        </Form.Group>
 
         <Row>
           <Col md={8}>
@@ -98,13 +126,13 @@ const EventStepEditor = ({
             <div className="grid-header-cell">Count</div>
             <div className="grid-header-cell"></div>
           </div>
-          
+
           {/* Data Rows */}
           {resourceRequirements.map((req, index) => {
             const availableResourceTables = Object.keys(resourceDefinitions);
             const selectedResourceTable = req.resource_table || '';
-            const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable] 
-              ? resourceDefinitions[selectedResourceTable].resourceTypes 
+            const availableResourceTypes = selectedResourceTable && resourceDefinitions[selectedResourceTable]
+              ? resourceDefinitions[selectedResourceTable].resourceTypes
               : [];
             const queueOptions = Array.isArray(queueDefinitions) ? queueDefinitions : [];
             const hasQueues = queueOptions.length > 0;
@@ -155,7 +183,7 @@ const EventStepEditor = ({
                     )}
                   </div>
                 </div>
-                
+
                 <div className="grid-cell">
                   {availableResourceTypes.length > 0 ? (
                     <Form.Select
@@ -215,11 +243,11 @@ const EventStepEditor = ({
                     style={{ width: '100%' }}
                   />
                 </div>
-                
+
                 <div className="grid-cell cell-center">
-                  <Button 
-                    variant="outline-danger" 
-                    size="sm" 
+                  <Button
+                    variant="outline-danger"
+                    size="sm"
                     onClick={() => onRemoveResourceRequirement(index)}
                   >
                     <FiTrash2 />
@@ -231,9 +259,9 @@ const EventStepEditor = ({
         </div>
 
         <div className="mt-3">
-          <Button 
+          <Button
             variant="outline-primary"
-            size="sm" 
+            size="sm"
             onClick={onAddResourceRequirement}
             className="add-step-item-btn"
             disabled={!resourceDefinitions || Object.keys(resourceDefinitions).length === 0}

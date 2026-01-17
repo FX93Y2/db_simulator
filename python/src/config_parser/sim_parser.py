@@ -132,6 +132,7 @@ class CreateConfig:
 class EventStepConfig:
     duration: DistributionConfig  # Supports both dict and formula string
     resource_requirements: List[ResourceRequirement] = field(default_factory=list)
+    bridge_table: Optional[str] = None  # Optional target bridge table for logging
 
 @dataclass
 class Step:
@@ -320,7 +321,8 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                         
                         event_config = EventStepConfig(
                             duration=ec_dict.get('duration', {}),
-                            resource_requirements=resource_reqs
+                            resource_requirements=resource_reqs,
+                            bridge_table=ec_dict.get('bridge_table')
                         )
                     
                     elif step_dict.get('step_type') == 'decide' and 'decide_config' in step_dict:
@@ -561,7 +563,8 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                         
                         event_config = EventStepConfig(
                             duration=ec_dict.get('duration', {}),
-                            resource_requirements=resource_reqs
+                            resource_requirements=resource_reqs,
+                            bridge_table=ec_dict.get('bridge_table')
                         )
                     
                     elif step_dict.get('step_type') == 'decide' and 'decide_config' in step_dict:
