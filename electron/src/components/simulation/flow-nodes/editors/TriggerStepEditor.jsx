@@ -1,6 +1,9 @@
-import React from 'react';
-import { Form, Row, Col } from 'react-bootstrap';
+import React, { useState } from 'react';
+import { Form, Row, Col, Button } from 'react-bootstrap';
+import { FiHelpCircle } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import InlineCodeEditor from '../../../shared/InlineCodeEditor';
+import { SharedHelpPanel } from '../../../shared/help';
 
 const TriggerStepEditor = ({
   formData,
@@ -9,6 +12,8 @@ const TriggerStepEditor = ({
   availableTargetTables = [], // Related tables sourced from database config
   nameValidation = { valid: true, error: null }
 }) => {
+  const [showHelpPanel, setShowHelpPanel] = useState(false);
+
   return (
     <div className="trigger-step-editor">
       <div className="step-info-section">
@@ -57,15 +62,36 @@ const TriggerStepEditor = ({
           <Col md={6}>
             {/* Count Input (supports int or formula) */}
             <Form.Group className="mb-3">
-              <Form.Label>
-                Count <span className="text-danger">*</span>
-              </Form.Label>
-              <Form.Control
-                type="text"
-                value={formData.count !== undefined ? formData.count : ''}
-                onChange={(e) => onFormDataChange({ count: e.target.value })}
+              <div className="d-flex align-items-center justify-content-between mb-1">
+                <Form.Label className="mb-0">
+                  Count <span className="text-danger">*</span>
+                </Form.Label>
+                <Button
+                  variant=""
+                  size="sm"
+                  onClick={() => setShowHelpPanel(!showHelpPanel)}
+                  className={`border-0 help-toggle-btn ${showHelpPanel ? 'active' : ''}`}
+                  title={showHelpPanel ? "Hide distribution formula help" : "Show distribution formula help"}
+                >
+                  <FiHelpCircle size={18} />
+                </Button>
+              </div>
+
+              <InlineCodeEditor
+                value={formData.count !== undefined ? formData.count.toString() : ''}
+                onChange={(val) => {
+                  const trimmed = val ? val.trim() : '';
+                  const intVal = parseInt(trimmed, 10);
+                  if (!isNaN(intVal) && intVal.toString() === trimmed) {
+                    onFormDataChange({ count: intVal });
+                  } else {
+                    onFormDataChange({ count: trimmed });
+                  }
+                }}
+                height={32}
+                singleLine={true}
+                language="pgsql"
                 placeholder="e.g., 3 or UNIF(1, 5)"
-                required
               />
               <Form.Text className="text-muted">
                 Fixed number or formula
@@ -73,6 +99,12 @@ const TriggerStepEditor = ({
             </Form.Group>
           </Col>
         </Row>
+
+        <SharedHelpPanel
+          show={showHelpPanel}
+          onHide={() => setShowHelpPanel(false)}
+          helpType="distribution"
+        />
 
         <Row>
           <Col md={12}>
