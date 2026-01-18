@@ -245,6 +245,7 @@ class EventTracker:
                 entity_fk = None
                 resource_fk = None
                 event_type_col = None
+                bridge_fk_info = None  # For Resource-Bridge/Entity-Bridge patterns
                 
                 # Check static bridge first
                 if self.bridge_table is not None and resource_table == self.resource_table_name and not target_bridge_table:
@@ -258,31 +259,59 @@ class EventTracker:
                 if target_bridge is None and entity_table and resource_table:
                     bridge_info = self._get_dynamic_bridge(entity_table, resource_table, target_bridge_table)
                     if bridge_info:
-                        target_bridge, entity_fk, resource_fk, event_type_col = bridge_info
+                        target_bridge, entity_fk, resource_fk, event_type_col, bridge_fk_info = bridge_info
                 
                 if target_bridge is not None:
-
+                    # For Entity-Resource pattern, require entity_id
+                    # For Resource-Bridge pattern, we don't need entity_id (use bridge FK instead)
+                    bridge_fk_col = None
+                    if bridge_fk_info:
+                        bridge_fk_col, parent_bridge_table = bridge_fk_info
                     
-                    if entity_fk and entity_id is None:
+                    if entity_fk and entity_id is None and not bridge_fk_col:
                         logger.warning(f"Bridge logging skipped for {target_bridge.name}: entity_id required but not provided.")
                         conn.commit()
                         return
 
                     bridge_data = {
-                        resource_fk: resource_id,
                         'start_date': allocation_datetime,
                         'end_date': release_datetime
                     }
+                    
+                    # Add resource FK if present
+                    if resource_fk:
+                        bridge_data[resource_fk] = resource_id
 
-                    if entity_fk:
+                    # Add entity FK if present (Entity-Resource or Entity-Bridge patterns)
+                    if entity_fk and entity_id is not None:
                         bridge_data[entity_fk] = entity_id
+                    
+                    # Handle chained bridge FK (Resource-Bridge or Entity-Bridge patterns)
+                    # For chained bridges, we first create a record in the parent bridge table,
+                    # then use that record's PK for the child bridge FK
+                    if bridge_fk_col:
+                        parent_bridge_table_name, parent_bridge_pk = bridge_fk_info[1], None
+                        
+                        # Create a record in the parent bridge table first
+                        parent_bridge_pk = self._create_parent_bridge_record(
+                            conn, parent_bridge_table_name, entity_id, resource_id,
+                            allocation_datetime, release_datetime, event_type
+                        )
+                        
+                        if parent_bridge_pk:
+                            bridge_data[bridge_fk_col] = parent_bridge_pk
+                            logger.debug(f"Created parent bridge record in {parent_bridge_table_name} with id={parent_bridge_pk}")
+                        else:
+                            logger.warning(f"Failed to create parent bridge record in {parent_bridge_table_name}, skipping child bridge")
+                            conn.commit()
+                            return
                     
                     # Handle event_type column
                     if event_type and event_type_col and event_type_col in [c.name for c in target_bridge.columns]:
                          bridge_data[event_type_col] = event_type
 
-                    # Handle event_id column (if exists) for direct linking
-                    if 'event_id' in [c.name for c in target_bridge.columns]:
+                    # Handle event_id column (if exists) for direct linking (legacy behavior)
+                    if 'event_id' in [c.name for c in target_bridge.columns] and 'event_id' not in bridge_data:
                         bridge_data['event_id'] = event_id
 
                     # Merge extra attributes (generated data)
@@ -302,9 +331,38 @@ class EventTracker:
         except Exception as e:
             logger.error(f"Error recording resource allocation: {e}")
     
+    def _is_bridge_table(self, table_name: str) -> bool:
+        """Check if a table has type 'bridge' in db_config."""
+        if not self.db_config:
+            return False
+        for entity in self.db_config.entities:
+            if entity.name == table_name and entity.type == 'bridge':
+                return True
+        return False
+    
+    def _get_bridge_fk_column(self, entity_config) -> Optional[tuple]:
+        """
+        Find an FK column that references a bridge table.
+        
+        Returns:
+            Tuple (column_name, referenced_bridge_table) or None
+        """
+        for attr in entity_config.attributes:
+            # Check FK columns (type 'fk' or 'event_id') that reference bridge tables
+            if attr.type in ('fk', 'event_id') and attr.ref:
+                ref_table = attr.ref.split('.')[0]
+                if self._is_bridge_table(ref_table):
+                    return (attr.name, ref_table)
+        return None
+
     def _get_dynamic_bridge(self, entity_table: str, resource_table: str, target_bridge_table_name: Optional[str] = None):
         """
         Dynamically resolve a bridge table for a given entity and resource pair.
+        
+        Supports three relationship patterns:
+        1. Entity-Resource: entity_id + resource_id
+        2. Resource-Bridge: bridge_fk + resource_id (child bridge referencing parent bridge)
+        3. Entity-Bridge: entity_id + bridge_fk
         
         Args:
             entity_table: Name of the entity table
@@ -312,7 +370,8 @@ class EventTracker:
             target_bridge_table_name: Optional specific name of the bridge table to find
             
         Returns:
-            Tuple (Table, entity_fk_column, resource_fk_column, event_type_column) or None
+            Tuple (Table, left_fk_column, resource_fk_column, event_type_column, bridge_fk_info) or None
+            where bridge_fk_info is (column_name, parent_bridge_table) for Resource-Bridge pattern, else None
         """
         cache_key = (entity_table, resource_table, target_bridge_table_name)
         if cache_key in self.bridge_table_cache:
@@ -326,6 +385,7 @@ class EventTracker:
         entity_fk_col = None
         resource_fk_col = None
         event_type_col = None
+        bridge_fk_info = None  # For Resource-Bridge pattern
         
         for entity in self.db_config.entities:
             # If target name provided, skip if not matching
@@ -354,12 +414,37 @@ class EventTracker:
                 elif attr.type == 'event_type':
                     evt_type = attr.name
             
+            # Pattern 1: Entity-Resource (existing behavior)
             if e_fk and r_fk:
                 target_bridge_entity = entity
                 entity_fk_col = e_fk
                 resource_fk_col = r_fk
                 event_type_col = evt_type
+                bridge_fk_info = None
                 break
+            
+            # Pattern 2: Resource-Bridge (new - e.g., Medication_Order with doctor_id + event_id->Event)
+            if r_fk and not e_fk:
+                # Check for a bridge FK
+                b_fk_result = self._get_bridge_fk_column(entity)
+                if b_fk_result:
+                    target_bridge_entity = entity
+                    entity_fk_col = None  # No direct entity FK
+                    resource_fk_col = r_fk
+                    event_type_col = evt_type
+                    bridge_fk_info = b_fk_result  # (column_name, parent_bridge_table)
+                    break
+            
+            # Pattern 3: Entity-Bridge (future - e.g., FollowUp with patient_id + appointment_id->Appointment)
+            if e_fk and not r_fk:
+                b_fk_result = self._get_bridge_fk_column(entity)
+                if b_fk_result:
+                    target_bridge_entity = entity
+                    entity_fk_col = e_fk
+                    resource_fk_col = None  # No direct resource FK
+                    event_type_col = evt_type
+                    bridge_fk_info = b_fk_result
+                    break
         
         if target_bridge_entity:
             try:
@@ -372,9 +457,12 @@ class EventTracker:
                     event_type_col = 'event_type'
                     logger.debug(f"Auto-detected 'event_type' column for bridge {target_bridge_entity.name}")
 
-                result = (bridge_table, entity_fk_col, resource_fk_col, event_type_col)
+                result = (bridge_table, entity_fk_col, resource_fk_col, event_type_col, bridge_fk_info)
                 self.bridge_table_cache[cache_key] = result
-                logger.debug(f"Resolved dynamic bridge for {entity_table}/{resource_table} -> {target_bridge_entity.name}")
+                pattern = "Entity-Resource" if entity_fk_col and resource_fk_col else \
+                          "Resource-Bridge" if resource_fk_col and bridge_fk_info else \
+                          "Entity-Bridge" if entity_fk_col and bridge_fk_info else "Unknown"
+                logger.debug(f"Resolved dynamic bridge ({pattern}) for {entity_table}/{resource_table} -> {target_bridge_entity.name}")
                 return result
             except Exception as e:
                 logger.error(f"Failed to reflect dynamic bridge table {target_bridge_entity.name}: {e}")
@@ -402,4 +490,77 @@ class EventTracker:
             return self.column_resolver.get_primary_key(table_name)
         except Exception as e:
             raise ValueError(f"Cannot resolve primary key for table '{table_name}': {e}. "
-                           f"Ensure table has column with type='pk' defined in db_config.") 
+                           f"Ensure table has column with type='pk' defined in db_config.")
+    
+    def _create_parent_bridge_record(self, conn, parent_bridge_table_name: str, 
+                                      entity_id: int, resource_id: int,
+                                      start_datetime, end_datetime, 
+                                      event_type: Optional[str] = None) -> Optional[int]:
+        """
+        Create a record in the parent bridge table for chained bridge relationships.
+        
+        When a child bridge table references a parent bridge table, this method creates
+        the parent record first and returns its PK to use as the child's FK.
+        
+        Args:
+            conn: Database connection
+            parent_bridge_table_name: Name of the parent bridge table
+            entity_id: Entity ID
+            resource_id: Resource ID
+            start_datetime: Event start datetime
+            end_datetime: Event end datetime
+            event_type: Event type label
+            
+        Returns:
+            Inserted record's primary key, or None on failure
+        """
+        try:
+            # Find parent bridge table config
+            parent_entity_config = None
+            for entity in self.db_config.entities:
+                if entity.name == parent_bridge_table_name:
+                    parent_entity_config = entity
+                    break
+            
+            if not parent_entity_config:
+                logger.error(f"Parent bridge table {parent_bridge_table_name} not found in db_config")
+                return None
+            
+            # Reflect the parent bridge table
+            parent_table = Table(parent_bridge_table_name, self.metadata, autoload_with=self.engine)
+            
+            # Build insert data for parent bridge
+            parent_data = {
+                'start_date': start_datetime,
+                'end_date': end_datetime
+            }
+            
+            # Find entity_id and resource_id columns in parent bridge
+            for attr in parent_entity_config.attributes:
+                if attr.type == 'entity_id':
+                    parent_data[attr.name] = entity_id
+                elif attr.type == 'resource_id':
+                    parent_data[attr.name] = resource_id
+                elif attr.type == 'event_type' or attr.name == 'event_type':
+                    if event_type:
+                        parent_data[attr.name] = event_type
+            
+            # Also check if 'event_type' column exists in table but not mapped in config
+            if 'event_type' in [c.name for c in parent_table.columns] and 'event_type' not in parent_data:
+                if event_type:
+                    parent_data['event_type'] = event_type
+            
+            stmt = insert(parent_table).values(**parent_data)
+            result = conn.execute(stmt)
+            
+            # Get the inserted row's primary key
+            inserted_pk = result.lastrowid
+            
+            logger.debug(f"Created parent bridge record in {parent_bridge_table_name}: "
+                        f"entity_id={entity_id}, resource_id={resource_id}, event_type={event_type}, pk={inserted_pk}")
+            
+            return inserted_pk
+            
+        except Exception as e:
+            logger.error(f"Failed to create parent bridge record in {parent_bridge_table_name}: {e}")
+            return None

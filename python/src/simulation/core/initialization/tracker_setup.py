@@ -132,6 +132,11 @@ class FlowEventTrackerSetup:
         """
         Find the bridge table configuration for a specific event table.
         
+        Supports three relationship patterns:
+        1. Entity-Resource: entity_id + resource_id
+        2. Resource-Bridge: bridge_fk + resource_id (child bridge referencing parent bridge)
+        3. Entity-Bridge: entity_id + bridge_fk
+        
         Args:
             resource_table_name: Name of the resource table (shared).
             entity_table_name: Name of the entity table.
@@ -142,13 +147,21 @@ class FlowEventTrackerSetup:
         if not self.db_config:
             return None
         
-        # Find a bridge table entity that has entity_id and resource_id type attributes
+        def is_bridge_table(table_name: str) -> bool:
+            """Check if a table has type 'bridge' in db_config."""
+            for e in self.db_config.entities:
+                if e.name == table_name and e.type == 'bridge':
+                    return True
+            return False
+        
+        # Find a bridge table entity that has the right FK pattern
         for entity in self.db_config.entities:
             entity_fk_attr = None
             resource_fk_attr = None
             event_type_attr = None
+            bridge_fk_attr = None  # FK referencing another bridge table
             
-            # Check if this entity has attributes with type 'entity_id' and 'resource_id'
+            # Check if this entity has attributes with various FK types
             for attr in entity.attributes:
                 if entity_table_name and attr.type == 'entity_id' and attr.ref and attr.ref.startswith(f"{entity_table_name}."):
                     entity_fk_attr = attr
@@ -156,15 +169,24 @@ class FlowEventTrackerSetup:
                     resource_fk_attr = attr
                 elif attr.type == 'event_type':
                     event_type_attr = attr
+                # Check for FK to bridge table (Resource-Bridge or Entity-Bridge pattern)
+                elif attr.type in ('fk', 'event_id') and attr.ref:
+                    ref_table = attr.ref.split('.')[0]
+                    if is_bridge_table(ref_table):
+                        bridge_fk_attr = attr
             
-            # If we found both attributes, this is the bridge table for this flow
-                if entity_fk_attr and resource_fk_attr:
-                    return {
-                        'name': entity.name,
-                        'entity_fk_column': entity_fk_attr.name,
-                        'resource_fk_column': resource_fk_attr.name,
-                        'event_type_column': event_type_attr.name if event_type_attr else None
-                    }
+            # Pattern 1: Entity-Resource (existing behavior)
+            if entity_fk_attr and resource_fk_attr:
+                return {
+                    'name': entity.name,
+                    'entity_fk_column': entity_fk_attr.name,
+                    'resource_fk_column': resource_fk_attr.name,
+                    'event_type_column': event_type_attr.name if event_type_attr else None
+                }
+            
+            # Note: Resource-Bridge and Entity-Bridge patterns are handled dynamically
+            # by event_tracker._get_dynamic_bridge() when target_bridge_table is specified
+            # in the simulation step config. Here we only need to find the primary bridge.
         
         return None
 

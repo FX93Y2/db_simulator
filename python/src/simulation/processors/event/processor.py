@@ -325,7 +325,20 @@ class EventStepProcessor(StepProcessor):
                             if attr.type in ('entity_id', 'resource_id'):
                                 continue
                             
+                            # Handle FK with formula - generate value from the distribution
                             if attr.generator and attr.generator.type == 'foreign_key':
+                                # Only skip FKs that don't have a formula - those are handled elsewhere
+                                if not attr.generator.formula:
+                                    continue
+                                # FK with formula: generate value from distribution
+                                try:
+                                    from ....distributions import generate_from_distribution
+                                    from ..utils import extract_distribution_config
+                                    dist_config = extract_distribution_config(attr.generator.formula)
+                                    val = int(generate_from_distribution(dist_config))
+                                    extra_attributes[attr.name] = val
+                                except Exception as e:
+                                    self.logger.warning(f"Error generating FK {attr.name} from formula {attr.generator.formula}: {e}")
                                 continue
                             
                             # Safest is to generate only if it has a generator
