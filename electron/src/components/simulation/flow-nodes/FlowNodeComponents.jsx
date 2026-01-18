@@ -7,6 +7,33 @@ import { ReactComponent as DiamondSVG } from '../../../assets/svg/diamond.svg';
 import { ReactComponent as PentagonSVG } from '../../../assets/svg/pentagon.svg';
 import { ReactComponent as TriggerSVG } from '../../../assets/svg/trigger.svg';
 
+const GroupMarker = ({ groupId }) => {
+  if (!groupId) return null;
+  const groupNum = groupId.replace('group_', '');
+  return (
+    <div className="group-marker" style={{
+      position: 'absolute',
+      top: '-8px',
+      right: '-8px',
+      backgroundColor: '#f59e0b',
+      color: 'white',
+      borderRadius: '50%',
+      width: '20px',
+      height: '20px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      fontSize: '11px',
+      fontWeight: 'bold',
+      zIndex: 10,
+      border: '2px solid white',
+      boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+    }}>
+      {groupNum}
+    </div>
+  );
+};
+
 // Process (Event) Node Component - Rectangle with step_id visible
 export const ProcessNode = ({ data, selected }) => {
   return (
@@ -18,6 +45,7 @@ export const ProcessNode = ({ data, selected }) => {
           <div className="node-label">{data.stepConfig?.step_id || "Event"}</div>
         </div>
       </div>
+      <GroupMarker groupId={data.stepConfig?.group_id} />
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -167,7 +195,9 @@ export const DecideNode = ({ data, selected }) => {
       </div>
 
       {/* Cascading handles on the right */}
+      {/* Cascading handles on the right */}
       {renderHandles()}
+      <GroupMarker groupId={data.stepConfig?.group_id} />
     </div>
   );
 };
@@ -183,6 +213,7 @@ export const AssignNode = ({ data, selected }) => {
           <div className="node-label">{data.stepConfig?.step_id || "Assign"}</div>
         </div>
       </div>
+      <GroupMarker groupId={data.stepConfig?.group_id} />
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -202,6 +233,7 @@ export const ReleaseNode = ({ data, selected }) => {
           <FiMinus className="node-icon" size={24} />
         </div>
       </div>
+      <GroupMarker groupId={data.stepConfig?.group_id} />
     </div>
   );
 };
@@ -220,6 +252,7 @@ export const CreateNode = ({ data, selected }) => {
           <FiPlus className="node-icon" size={24} />
         </div>
       </div>
+      <GroupMarker groupId={data.stepConfig?.group_id} />
       <Handle type="source" position={Position.Right} />
     </div>
   );
@@ -239,6 +272,7 @@ export const TriggerNode = ({ data, selected }) => {
           <div className="node-label">{data.stepConfig?.step_id || "Trigger"}</div>
         </div>
       </div>
+      <GroupMarker groupId={data.stepConfig?.group_id} />
       <Handle type="source" position={Position.Right} />
     </div>
   );

@@ -1,22 +1,26 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
-import { FiCopy, FiClipboard, FiTrash2 } from 'react-icons/fi';
+import { FiCopy, FiClipboard, FiTrash2, FiLayers, FiGrid } from 'react-icons/fi';
 
 /**
  * Shared context menu component for canvas interactions (ER Diagram & Event Flow)
  * Provides copy, paste, and delete functionality for selected items
  */
-const CanvasContextMenu = ({ 
-  visible, 
-  x, 
-  y, 
-  onCopy, 
-  onPaste, 
-  onDelete, 
+const CanvasContextMenu = ({
+  visible,
+  x,
+  y,
+  onCopy,
+  onPaste,
+  onDelete,
   onDeleteEdge,
-  hasClipboard, 
+  hasClipboard,
   hasSelection,
   hasEdgeSelection,
+  onGroup,
+  onUngroup,
+  canGroup,
+  canUngroup,
   itemType = 'item' // 'entity', 'node', or generic 'item'
 }) => {
   if (!visible) return null;
@@ -56,7 +60,7 @@ const CanvasContextMenu = ({
         <FiCopy className="me-2" />
         Copy
       </div>
-      
+
       {hasClipboard && (
         <div
           className="context-menu-item"
@@ -76,7 +80,7 @@ const CanvasContextMenu = ({
           Paste
         </div>
       )}
-      
+
       {hasSelection && (
         <div
           className="context-menu-item"
@@ -95,7 +99,7 @@ const CanvasContextMenu = ({
           Delete {itemType}
         </div>
       )}
-      
+
       {hasEdgeSelection && onDeleteEdge && (
         <div
           className="context-menu-item"
@@ -112,6 +116,46 @@ const CanvasContextMenu = ({
         >
           <FiTrash2 className="me-2" />
           Delete Connection
+        </div>
+      )}
+
+      {canGroup && onGroup && (
+        <div
+          className="context-menu-item"
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            color: 'var(--theme-text)',
+            borderTop: '1px solid var(--theme-border)',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+          onClick={onGroup}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          <FiLayers className="me-2" />
+          Group
+        </div>
+      )}
+
+      {canUngroup && onUngroup && (
+        <div
+          className="context-menu-item"
+          style={{
+            padding: '8px 12px',
+            cursor: 'pointer',
+            color: 'var(--theme-text)',
+            borderTop: canGroup ? 'none' : '1px solid var(--theme-border)',
+            display: 'flex',
+            alignItems: 'center'
+          }}
+          onClick={onUngroup}
+          onMouseEnter={(e) => e.target.style.backgroundColor = 'var(--theme-hover-bg)'}
+          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+        >
+          <FiGrid className="me-2" />
+          Ungroup
         </div>
       )}
     </div>

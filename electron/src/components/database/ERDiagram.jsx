@@ -343,7 +343,7 @@ const ERDiagramInner = forwardRef(({ theme, projectId }, ref) => {
             nodesDraggable={true}
             elementsSelectable={true}
             edgesFocusable={true}
-            multiSelectionKeyCode={selectionMode ? false : 'Shift'}
+            multiSelectionKeyCode={selectionMode ? false : ['Control', 'Meta', 'Shift']}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
           >

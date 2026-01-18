@@ -440,5 +440,60 @@ export const createCanvasActions = (set, get) => ({
     // Update visual state and sync to YAML
     get().updateVisualState();
     get().syncCanvasToYaml();
+  },
+
+  /**
+   * Group selected nodes
+   * @param {Array} nodeIds - IDs of nodes to group
+   */
+  groupNodes: (nodeIds) => {
+    pushToHistory(set, get, 'simulation', 'UPDATE', { action: 'GROUP', nodeIds });
+
+    set((state) => {
+      // Find all existing group IDs to determine the next one
+      const existingGroupIds = state.canonicalSteps
+        .map(s => s.group_id)
+        .filter(Boolean);
+
+      let nextId = 1;
+      while (existingGroupIds.includes(`group_${nextId}`)) {
+        nextId++;
+      }
+      const newGroupId = `group_${nextId}`;
+
+      // Update group_id for all selected steps
+      state.canonicalSteps = state.canonicalSteps.map(step => {
+        if (nodeIds.includes(step.step_id)) {
+          return { ...step, group_id: newGroupId };
+        }
+        return step;
+      });
+    });
+
+    get().updateVisualState();
+    get().syncCanvasToYaml();
+  },
+
+  /**
+   * Ungroup selected nodes
+   * @param {Array} nodeIds - IDs of nodes to ungroup
+   */
+  ungroupNodes: (nodeIds) => {
+    pushToHistory(set, get, 'simulation', 'UPDATE', { action: 'UNGROUP', nodeIds });
+
+    set((state) => {
+      // Set group_id to null for selected steps
+      state.canonicalSteps = state.canonicalSteps.map(step => {
+        if (nodeIds.includes(step.step_id)) {
+          // Use destructing to remove group_id or explicitly set to undefined/null
+          const { group_id, ...rest } = step;
+          return { ...rest, group_id: null };
+        }
+        return step;
+      });
+    });
+
+    get().updateVisualState();
+    get().syncCanvasToYaml();
   }
 });

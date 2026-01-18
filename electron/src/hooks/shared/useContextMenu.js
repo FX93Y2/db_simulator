@@ -14,11 +14,13 @@ const useContextMenu = ({
   onDelete,
   onShowContextMenu,
   onHideContextMenu,
+  onGroup,
+  onUngroup,
   reactFlowInstance
 }) => {
   // Local state for mouse position tracking
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  
+
   // Track when context menu was last opened to prevent immediate closure
   const lastOpenedRef = useRef(0);
 
@@ -31,12 +33,12 @@ const useContextMenu = ({
     // Show context menu if we have clipboard content or selections
     if (clipboard.length > 0 || selectedItems.length > 0) {
       event.preventDefault();
-      
-      
+
+
       // Use native event coordinates if available, otherwise use synthetic
       const clientX = event.nativeEvent?.clientX ?? event.clientX;
       const clientY = event.nativeEvent?.clientY ?? event.clientY;
-      
+
       // Convert screen coordinates to flow coordinates for paste positioning
       const viewport = reactFlowInstance.getViewport();
       const flowPosition = {
@@ -59,12 +61,12 @@ const useContextMenu = ({
     // Always show context menu for node right-clicks
     event.preventDefault();
     event.stopPropagation();
-    
-    
+
+
     // Use native event coordinates if available, otherwise use synthetic
     const clientX = event.nativeEvent?.clientX ?? event.clientX;
     const clientY = event.nativeEvent?.clientY ?? event.clientY;
-    
+
     // Convert screen coordinates to flow coordinates
     const viewport = reactFlowInstance.getViewport();
     const flowPosition = {
@@ -104,6 +106,22 @@ const useContextMenu = ({
     onHideContextMenu();
   }, [selectedItems, onDelete, onHideContextMenu]);
 
+  const handleContextGroup = useCallback(() => {
+    if (onGroup && selectedItems.length > 0) {
+      const ids = selectedItems.map(item => item.id);
+      onGroup(ids);
+    }
+    onHideContextMenu();
+  }, [selectedItems, onGroup, onHideContextMenu]);
+
+  const handleContextUngroup = useCallback(() => {
+    if (onUngroup && selectedItems.length > 0) {
+      const ids = selectedItems.map(item => item.id);
+      onUngroup(ids);
+    }
+    onHideContextMenu();
+  }, [selectedItems, onUngroup, onHideContextMenu]);
+
   /**
    * Keyboard shortcuts handler
    */
@@ -123,20 +141,34 @@ const useContextMenu = ({
       onHideContextMenu();
       event.preventDefault();
     }
-    
+
     // Copy: Ctrl+C / Cmd+C
     if ((event.ctrlKey || event.metaKey) && event.key === 'c' && selectedItems.length > 0) {
       onCopy();
       event.preventDefault();
     }
-    
+
     // Paste: Ctrl+V / Cmd+V
     if ((event.ctrlKey || event.metaKey) && event.key === 'v' && clipboard.length > 0) {
       // Use a default position for keyboard paste
       onPaste({ x: 200, y: 200 });
       event.preventDefault();
     }
-  }, [selectedItems.length, clipboard.length, onCopy, onPaste, onHideContextMenu]);
+
+    // Group: Ctrl+G / Cmd+G
+    if ((event.ctrlKey || event.metaKey) && event.key === 'g' && selectedItems.length > 1 && onGroup) {
+      const ids = selectedItems.map(item => item.id);
+      onGroup(ids);
+      event.preventDefault();
+    }
+
+    // Ungroup: Ctrl+Shift+G / Cmd+Shift+G
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'G' && selectedItems.length > 0 && onUngroup) {
+      const ids = selectedItems.map(item => item.id);
+      onUngroup(ids);
+      event.preventDefault();
+    }
+  }, [selectedItems, clipboard.length, onCopy, onPaste, onHideContextMenu, onGroup, onUngroup]);
 
   /**
    * Close context menu when clicking elsewhere (but not immediately after opening)
@@ -147,24 +179,24 @@ const useContextMenu = ({
       if (event.button === 2) {
         return;
       }
-      
+
       // Don't hide if menu was just opened (within 200ms)
       const timeSinceOpened = Date.now() - lastOpenedRef.current;
       if (timeSinceOpened < 200) {
         return;
       }
-      
+
       // Check if click is inside context menu
       const contextMenu = event.target.closest('.context-menu');
       if (!contextMenu) {
         onHideContextMenu();
       }
     };
-    
+
     // Add both click and mousedown listeners to catch all interactions
     document.addEventListener('click', handleClick, false);
     document.addEventListener('mousedown', handleClick, false);
-    
+
     return () => {
       document.removeEventListener('click', handleClick, false);
       document.removeEventListener('mousedown', handleClick, false);
@@ -188,7 +220,9 @@ const useContextMenu = ({
     onPaneClick,
     handleContextCopy,
     handleContextPaste,
-    handleContextDelete
+    handleContextDelete,
+    handleContextGroup,
+    handleContextUngroup
   };
 };
 

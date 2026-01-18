@@ -70,7 +70,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     updateStep,
     connectNodes,
     updateVisualState,
-    addNode
+    addNode,
+    groupNodes,
+    ungroupNodes
   } = useCanvasActions(projectId);
 
   const {
@@ -178,6 +180,9 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     },
     onShowContextMenu: showContextMenu,
     onHideContextMenu: hideContextMenu,
+    onHideContextMenu: hideContextMenu,
+    onGroup: groupNodes,
+    onUngroup: ungroupNodes,
     reactFlowInstance
   });
 
@@ -548,7 +553,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
             nodesDraggable={true}
             elementsSelectable={true}
             edgesFocusable={true}
-            multiSelectionKeyCode={selectionMode ? false : 'Shift'}
+            multiSelectionKeyCode={selectionMode ? false : ['Control', 'Meta', 'Shift']}
             selectionOnDrag={selectionMode}
             panOnDrag={!selectionMode}
             deleteKeyCode={null}
@@ -586,10 +591,14 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
         onCopy={contextMenuHook.handleContextCopy}
         onPaste={contextMenuHook.handleContextPaste}
         onDelete={contextMenuHook.handleContextDelete}
+        onGroup={contextMenuHook.handleContextGroup}
+        onUngroup={contextMenuHook.handleContextUngroup}
         onDeleteEdge={onDeleteEdge}
         hasClipboard={clipboard.length > 0}
         hasSelection={selectedNodes.length > 0}
         hasEdgeSelection={selectedEdges.length > 0}
+        canGroup={selectedNodes.length > 1}
+        canUngroup={selectedNodes.some(n => n.data?.stepConfig?.group_id)}
         itemType="node"
       />
     </div>

@@ -24,7 +24,7 @@ const storeInstances = new Map();
  */
 const createProjectStore = (projectId = 'default') => {
   const storeName = projectId ? `simulation-config-${projectId}` : 'simulation-config-default';
-  
+
   return create()(
     devtools(
       immer((set, get) => {
@@ -42,11 +42,11 @@ const createProjectStore = (projectId = 'default') => {
           parsedSchema: null,
           canonicalSteps: [],
           flowSchema: null,
-          
+
           // ===== VISUAL STATE (ReactFlow) =====
           nodes: [],
           edges: [],
-          
+
           // ===== UI STATE =====
           activeTab: 'event-flow', // 'event-flow' | 'resources' | 'simulation'
           selectedNode: null,
@@ -54,34 +54,34 @@ const createProjectStore = (projectId = 'default') => {
           selectedEdges: [],
           selectionMode: false,
           showEditModal: false,
-          
+
           // ===== CLIPBOARD & CONTEXT MENU STATE =====
           clipboard: [], // Store copied nodes for paste functionality
           pasteCounter: 1, // Counter for generating unique names for pasted nodes
           contextMenu: { visible: false, x: 0, y: 0 }, // Context menu visibility and position
-          
+
           // ===== WORKFLOW STATE =====
           currentState: 'idle', // 'idle' | 'loading' | 'importing' | 'editing' | 'saving'
           isLoading: false,
           error: null,
-          
+
           // ===== CANVAS STATE =====
           positions: new Map(),
           viewportState: { x: 0, y: 0, zoom: 1 },
-          
+
           // ===== CONFIG METADATA =====
           config: null,
           name: '',
           description: '',
-          
+
           // ===== PROJECT STATE =====
           projectId: projectId,
           isProjectTab: false,
-          
+
           // ===== DATABASE CONFIG =====
           dbConfigContent: null,
           theme: 'light',
-          
+
           // ===== SIMULATION STATE =====
           simulationData: {
             base_time_unit: 'hours',
@@ -91,14 +91,14 @@ const createProjectStore = (projectId = 'default') => {
           },
           pendingSimulationChanges: {},
           hasUnsavedSimulation: false,
-          
+
           // ===== HISTORY STATE (Undo/Redo) =====
           nodeHistory: {
             past: [],    // Array of previous states
             future: [],  // Array of states for redo
             lastAction: null
           },
-          
+
           // ===== ACTIONS (available immediately) =====
           ...yamlActions,
           ...canvasActions,
@@ -106,7 +106,7 @@ const createProjectStore = (projectId = 'default') => {
           ...uiActions,
           ...configActions,
           ...simulationActions,
-          
+
           // ===== UNDO/REDO ACTIONS =====
           undo: () => performUndo(set, get, 'simulation'),
           redo: () => performRedo(set, get, 'simulation'),
@@ -150,13 +150,13 @@ const createProjectStore = (projectId = 'default') => {
 export const useSimulationConfigStore = (projectId = 'default') => {
   // Create store key
   const storeKey = projectId || 'default';
-  
+
   // Get or create store instance for this project
   if (!storeInstances.has(storeKey)) {
     console.log(`[Store] Creating new store instance for project: ${storeKey}`);
     storeInstances.set(storeKey, createProjectStore(projectId));
   }
-  
+
   return storeInstances.get(storeKey);
 };
 
@@ -209,7 +209,9 @@ export const useCanvasActions = (projectId) => {
     updateStep: state.updateStep,
     updateVisualState: state.updateVisualState,
     syncCanvasToYaml: state.syncCanvasToYaml,
-    connectNodes: state.connectNodes
+    connectNodes: state.connectNodes,
+    groupNodes: state.groupNodes,
+    ungroupNodes: state.ungroupNodes
   }));
 };
 
