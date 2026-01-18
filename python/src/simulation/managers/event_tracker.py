@@ -215,7 +215,8 @@ class EventTracker:
     def record_resource_allocation(self, event_flow, event_id, resource_table, resource_id,
                                   allocation_time, release_time=None,
                                   entity_id: Optional[int] = None, entity_table: Optional[str] = None, 
-                                  event_type: Optional[str] = None, target_bridge_table: Optional[str] = None):
+                                  event_type: Optional[str] = None, target_bridge_table: Optional[str] = None,
+                                  extra_attributes: Optional[Dict[str, Any]] = None):
         """Record the allocation of a resource to an event."""
         try:
             allocation_datetime = self.start_date + timedelta(minutes=allocation_time)
@@ -276,8 +277,22 @@ class EventTracker:
                     if entity_fk:
                         bridge_data[entity_fk] = entity_id
                     
+                    # Handle event_type column
                     if event_type and event_type_col and event_type_col in [c.name for c in target_bridge.columns]:
                          bridge_data[event_type_col] = event_type
+
+                    # Handle event_id column (if exists) for direct linking
+                    if 'event_id' in [c.name for c in target_bridge.columns]:
+                        bridge_data['event_id'] = event_id
+
+                    # Merge extra attributes (generated data)
+                    if extra_attributes:
+                        # Only include attributes that actually exist as columns in the bridge table
+                        # to avoid SQL errors
+                        bridge_columns = [c.name for c in target_bridge.columns]
+                        for key, value in extra_attributes.items():
+                            if key in bridge_columns:
+                                bridge_data[key] = value
 
                     stmt = insert(target_bridge).values(**bridge_data)
                     conn.execute(stmt)

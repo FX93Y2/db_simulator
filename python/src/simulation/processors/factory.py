@@ -102,9 +102,11 @@ class StepProcessorFactory:
         if self.db_config is None:
             return
 
-        # Configure trigger processor with database config
+        # Configure trigger and event processors with database config
         for processor in self.processors:
             if isinstance(processor, TriggerStepProcessor):
+                processor.set_db_config(self.db_config)
+            elif isinstance(processor, EventStepProcessor):
                 processor.set_db_config(self.db_config)
 
         self.logger.info("Configured database config-dependent processors")

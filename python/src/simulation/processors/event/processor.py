@@ -36,6 +36,13 @@ class EventStepProcessor(StepProcessor):
         self.queue_manager = queue_manager
         # Synthetic ID generator for runs without an event table
         self.synthetic_event_counter = 0
+
+        # Database config (set via set_db_config)
+        self.db_config = None
+
+    def set_db_config(self, db_config):
+        """Set the database configuration."""
+        self.db_config = db_config
     
     def can_handle(self, step_type: str) -> bool:
         """Check if this processor can handle event steps."""
@@ -298,6 +305,50 @@ class EventStepProcessor(StepProcessor):
             allocation_key = f"{event_flow}_{event_id}" if event_flow else str(event_id)
             
             if active_event_tracker and allocation_key in self.resource_manager.event_allocations:
+                
+                # Check for bridge table generators
+                extra_attributes = {}
+                if bridge_table and self.db_config:
+                    # Find bridge entity config
+                    bridge_entity = next((e for e in self.db_config.entities if e.name == bridge_table), None)
+                    if bridge_entity:
+                        from ....generator.data.attribute_generator import generate_attribute_value
+                        from ....generator.data.formula.evaluator import FormulaEvaluator
+                        # We might need a session for formula evaluation if complex formulas are used
+                        # For now, simple generation
+                        
+                        for attr in bridge_entity.attributes:
+                            # Skip standard logging columns handled by tracker
+                            if attr.name in ('id', 'event_id', 'start_date', 'end_date', 'event_type'):
+                                continue
+                            # Skip entity fk and resource fk (handled by tracker logic if named correctly)
+                            if attr.type in ('entity_id', 'resource_id'):
+                                continue
+                            
+                            if attr.generator and attr.generator.type == 'foreign_key':
+                                continue
+                            
+                            # Safest is to generate only if it has a generator
+                            
+                            if attr.generator:
+                                try:
+                                    # Convert to dict format expected by generator
+                                    attr_dict = {
+                                        'name': attr.name,
+                                        'generator': {
+                                            'type': attr.generator.type,
+                                            'method': attr.generator.method,
+                                            'template': attr.generator.template,
+                                            'formula': attr.generator.formula,
+                                            'expression': getattr(attr.generator, 'expression', None)
+                                        }
+                                    }
+                                    # Use a dummy index 0 or event_id as seed proxy
+                                    val = generate_attribute_value(attr_dict, event_id)
+                                    extra_attributes[attr.name] = val
+                                except Exception as e:
+                                    self.logger.warning(f"Error generating attribute {attr.name} for bridge {bridge_table}: {e}")
+
                 allocated_resources = self.resource_manager.event_allocations[allocation_key]
                 for resource in allocated_resources:
                     # Record in the event tracker
@@ -311,7 +362,8 @@ class EventStepProcessor(StepProcessor):
                         entity_id=entity_id,
                         entity_table=entity_table,
                         event_type=event_type,
-                        target_bridge_table=bridge_table
+                        target_bridge_table=bridge_table,
+                        extra_attributes=extra_attributes
                     )
                 self.logger.debug(f"Recorded {len(allocated_resources)} resource allocations for event {event_id}")
         except Exception as e:
