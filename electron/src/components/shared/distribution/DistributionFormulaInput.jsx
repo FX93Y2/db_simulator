@@ -11,6 +11,7 @@ const DistributionFormulaInput = ({
   placeholder = 'e.g., UNIF(3, 10) or NORM(5, 1)',
   className = '',
   required = false,
+  singleLine = false,
   helpText = ''
 }) => {
   const [showHelpPanel, setShowHelpPanel] = useState(false);
@@ -46,7 +47,8 @@ const DistributionFormulaInput = ({
           value={value}
           onChange={onChange}
           language="pgsql"
-          height={100}
+          height={singleLine ? 32 : 100}
+          singleLine={singleLine}
           lineNumbers="off"
         />
 

@@ -2,6 +2,7 @@ import React from 'react';
 import { Form, Row, Col, Button } from 'react-bootstrap';
 import { FiTrash2 } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
+import InlineCodeEditor from '../../../shared/InlineCodeEditor';
 import { DistributionFormulaInput, convertDistributionToFormula, getDefaultFormula } from '../../../shared/distribution';
 
 const EventStepEditor = ({
@@ -93,6 +94,7 @@ const EventStepEditor = ({
               onChange={handleFormulaChange}
               label="Duration Distribution"
               placeholder="e.g., NORM(5, 1) or DISC(0.7, 'fast', 0.3, 'slow')"
+              singleLine={true}
             />
           </Col>
           <Col md={4}>
@@ -234,14 +236,25 @@ const EventStepEditor = ({
                 </div>
 
                 <div className="grid-cell">
-                  <Form.Control
-                    type="number"
-                    min="1"
-                    value={req.count || 1}
-                    onChange={(e) => onResourceRequirementChange(index, 'count', parseInt(e.target.value) || 1)}
-                    size="sm"
-                    style={{ width: '100%' }}
-                  />
+                  <div style={{ width: '100%', height: '32px' }}>
+                    <InlineCodeEditor
+                      value={req.count ? req.count.toString() : '1'}
+                      onChange={(val) => {
+                        // If it looks like a simple integer, store as int for cleaner YAML
+                        // Otherwise store as string (formula)
+                        const trimmed = val ? val.trim() : '';
+                        const intVal = parseInt(trimmed, 10);
+                        if (!isNaN(intVal) && intVal.toString() === trimmed) {
+                          onResourceRequirementChange(index, 'count', intVal);
+                        } else {
+                          onResourceRequirementChange(index, 'count', trimmed);
+                        }
+                      }}
+                      height={32}
+                      singleLine={true}
+                      language="pgsql"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid-cell cell-center">

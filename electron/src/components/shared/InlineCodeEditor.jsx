@@ -14,7 +14,7 @@ const InlineCodeEditor = ({
     readOnly = false,
     lineNumbers = 'on',
     minimap = false,
-    placeholder = ''
+    singleLine = false
 }) => {
     const containerRef = useRef(null);
     const monacoRef = useRef(null);
@@ -73,7 +73,9 @@ const InlineCodeEditor = ({
                 { token: 'string.pgsql', foreground: 'CE9178' },
                 { token: 'variable.pgsql', foreground: '9CDCFE' }
             ],
-            colors: {}
+            colors: {
+                'editor.background': dark ? '#252526' : '#ffffff', // Match standard input bg
+            }
         });
         monaco.editor.setTheme(themeName);
         return themeName;
@@ -86,34 +88,41 @@ const InlineCodeEditor = ({
         let editor = null;
         try {
             const themeName = ensurePgLanguageAndTheme();
-            editor = monaco.editor.create(containerRef.current, {
+            const config = {
                 value: value || '',
                 language: language,
                 theme: themeName,
-                minimap: { enabled: minimap },
-                lineNumbers: lineNumbers,
-                lineNumbersMinChars: 2,
-                lineDecorationsWidth: 8,
+                minimap: { enabled: singleLine ? false : minimap },
+                lineNumbers: singleLine ? 'off' : lineNumbers,
+                lineNumbersMinChars: singleLine ? 0 : 2,
+                lineDecorationsWidth: singleLine ? 0 : 8,
                 glyphMargin: false,
-                wordWrap: 'on',
+                wordWrap: singleLine ? 'off' : 'on',
                 scrollBeyondLastLine: false,
                 fontSize: 13,
                 automaticLayout: true,
                 tabSize: 2,
                 insertSpaces: true,
-                folding: false,
+                folding: !singleLine,
                 overviewRulerBorder: false,
                 hideCursorInOverviewRuler: true,
                 readOnly: readOnly,
                 renderLineHighlight: 'none',
-                scrollbar: {
+                scrollbar: singleLine ? {
+                    vertical: 'hidden',
+                    horizontal: 'hidden',
+                    handleMouseWheel: false
+                } : {
                     vertical: 'auto',
                     horizontal: 'auto',
                     verticalScrollbarSize: 8,
                     horizontalScrollbarSize: 8
                 },
-                padding: { top: 8, bottom: 8 }
-            });
+                padding: singleLine ? { top: 4, bottom: 4 } : { top: 8, bottom: 8 },
+                overviewRulerLanes: 0,
+            };
+
+            editor = monaco.editor.create(containerRef.current, config);
 
             monacoRef.current = editor;
 

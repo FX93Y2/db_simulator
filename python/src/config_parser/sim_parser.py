@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ResourceRequirement:
     resource_table: str
     value: str  # Corresponds to the value in the resource_type column
-    count: int  # Number of resources required
+    count: Union[int, str]  # Number of resources required (int or distribution formula)
     capacity_per_resource: int = 1  # Capacity needed per resource
     queue: Optional[str] = None  # Optional reference to queue by name
 

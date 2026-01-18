@@ -215,10 +215,26 @@ class EventStepProcessor(StepProcessor):
         """Convert resource requirements to the format expected by resource manager."""
         requirements_list = []
         for req in requirements:
+            # Handle distribution formulas for count
+            count_val = req.count
+            if isinstance(count_val, str):
+                try:
+                    # Parse distribution config using the utility
+                    # We reuse extract_distribution_config which is imported
+                    dist_config = extract_distribution_config(count_val)
+                    # Generate value
+                    val = generate_from_distribution(dist_config)
+                    # Convert to int, ensure valid count (at least 1 usually, but 0 might be valid contextually?)
+                    # Generally resources required implies > 0, but 0 is safe to process (just no allocation)
+                    count_val = max(0, int(round(val)))
+                except Exception as e:
+                    self.logger.warning(f"Error evaluating resource count formula '{req.count}': {e}. Defaulting to 1.")
+                    count_val = 1
+
             req_dict = {
                 'resource_table': req.resource_table,
                 'value': req.value,
-                'count': req.count
+                'count': count_val
             }
             # Include queue reference if specified
             if hasattr(req, 'queue') and req.queue:
