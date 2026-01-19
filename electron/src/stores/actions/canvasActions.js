@@ -103,8 +103,10 @@ export const createCanvasActions = (set, get) => ({
             )
           };
 
+
           // Rebalance probabilities for remaining outcomes (only for N-way decisions)
           if (updatedStep.decide_config.outcomes.length > 0 &&
+            step.decide_config.outcomes.length > updatedStep.decide_config.outcomes.length && // Only if outcomes were removed
             !updatedStep.decide_config.decision_type?.startsWith('2way')) {
             const equalProbability = 1 / updatedStep.decide_config.outcomes.length;
             updatedStep.decide_config.outcomes.forEach(outcome => {
