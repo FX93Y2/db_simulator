@@ -93,9 +93,9 @@ entities:
           type: foreign_key
           subtype: many_to_one
         ref: Patient.PatientID
-      - name: end_date
-        type: datetime
       - name: start_date
+        type: datetime
+      - name: end_date
         type: datetime
       - name: event_type
         type: string
@@ -198,12 +198,12 @@ entities:
         generator:
           type: distribution
           formula: UNIF(200, 1000)
-      - name: end_date
-        type: datetime
-      - name: start_date
-        type: datetime
       - name: unit
         type: string
         generator:
           type: distribution
           formula: DISC(0.3, mg, 0.6, g, 0.1, cc)
+      - name: start_date
+        type: datetime
+      - name: end_date
+        type: datetime

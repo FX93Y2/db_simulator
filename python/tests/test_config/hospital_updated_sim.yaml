@@ -58,37 +58,23 @@ event_simulation:
             decision_type: nway-chance
             outcomes:
               - outcome_id: outcome_1
-                next_step_id: Medication Oder
+                next_step_id: Discharge_1
                 conditions:
                   - if: Probability
                     is: ==
-                    value: 0.5
+                    value: 0.3333333333333333
               - outcome_id: outcome_2
                 next_step_id: Tests
                 conditions:
                   - if: Probability
                     is: ==
-                    value: 0.4
+                    value: 0.3333333333333333
               - outcome_id: outcome_3
                 next_step_id: Treatment
                 conditions:
                   - if: Probability
                     is: ==
-                    value: 0.1
-          group_id: group_1
-        - step_id: Medication Oder
-          step_type: event
-          event_config:
-            duration:
-              formula: UNIF(15,30)
-              time_unit: minutes
-            resource_requirements:
-              - resource_table: Doctor
-                value: Attending Physician
-                count: 1
-            bridge_table: MedicationOrder
-          next_steps:
-            - Discharge_1
+                    value: 0.3333333333333333
           group_id: group_1
         - step_id: Discharge_1
           step_type: event
@@ -114,6 +100,48 @@ event_simulation:
               - assignment_type: attribute
                 attribute_name: status
                 value: discharged
+          next_steps:
+            - Medication Oder
+          group_id: group_1
+        - step_id: Medication Oder
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(15,30)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+            bridge_table: MedicationOrder
+          next_steps:
+            - Create Invoice
+          group_id: group_1
+        - step_id: Create Invoice
+          step_type: trigger
+          trigger_config:
+            target_table: Invoice
+            count: 1
+            fk_column: patient_id
+          next_steps:
+            - Calculate Invoice Total
+        - step_id: Calculate Invoice Total
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: sql
+                expression: >
+                  UPDATE Invoice SET 
+                    patient_id = '{Entity.PatientID}',
+                    TotalAmount = (
+                        SELECT COALESCE(SUM(CAST(REPLACE(M.unit_price, '$', '') AS REAL)), 0)
+                        FROM MedicationOrder MO
+                        JOIN ClinicalEvent CE ON MO.clinicalevent_id = CE.id
+                        JOIN Medication M ON MO.medication_id = M.MedicationID
+                        WHERE CE.patient_id = '{Entity.PatientID}'
+                    )
+                  WHERE InvoiceID = (SELECT InvoiceID FROM Invoice ORDER BY
+                  created_at DESC LIMIT 1)
           next_steps:
             - release_1
         - step_id: release_1
@@ -201,7 +229,8 @@ event_simulation:
                 attribute_name: status
                 value: discharged
           next_steps:
-            - release_1
+            - Medication Oder
+          group_id: group_1
         - step_id: Admitting
           step_type: event
           event_config:
@@ -224,6 +253,7 @@ event_simulation:
           group_id: group_1
         - step_id: release_2
           step_type: release
+          group_id: null
         - step_id: Treatment
           step_type: event
           event_config:

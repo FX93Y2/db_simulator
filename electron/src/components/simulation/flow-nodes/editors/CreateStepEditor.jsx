@@ -140,8 +140,9 @@ const CreateStepEditor = ({
               <DistributionFormulaInput
                 value={getCurrentFormula()}
                 onChange={handleFormulaChange}
-                label="Interarrival Time Distribution"
+                label="Time Distribution"
                 required
+                singleLine={true}
                 helpText="Distribution for time between entity arrivals"
               />
             </Col>

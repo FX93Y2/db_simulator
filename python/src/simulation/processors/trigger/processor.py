@@ -397,9 +397,27 @@ class TriggerStepProcessor(StepProcessor):
                 row_data = {}
 
                 for attr in target_entity.attributes:
-                    # Skip primary key (auto-increment)
+                    current_row_index = i
+                    
+                    # Handle primary key
                     if attr.type == 'pk':
-                        continue
+                        # If PK has a generator, we must generate the value
+                        if attr.generator:
+                            row_index = 0
+                            # For template generators, get row count for {id} support
+                            if getattr(attr.generator, 'type', None) == 'template':
+                                try:
+                                    count_result = conn.execute(text(f'SELECT COUNT(*) FROM "{target_table}"')).scalar()
+                                    row_index = int(count_result) if count_result is not None else 0
+                                    # Add loop iteration offset since we might be generating multiple in this batch
+                                    row_index += i 
+                                except Exception as e:
+                                    self.logger.warning(f"Could not determine row count for {target_table}: {e}")
+                            
+                            current_row_index = row_index
+                        else:
+                            # No generator - skip for auto-increment
+                            continue
 
                     # Handle FK column - use entity_id
                     if attr.name == fk_column:
@@ -434,11 +452,11 @@ class TriggerStepProcessor(StepProcessor):
                                     'type': attr.generator.type,
                                     'method': attr.generator.method,
                                     'template': attr.generator.template,
-                                    'formula': attr.generator.formula,
+                                    'formula': attr.generator.formula, 
                                     'expression': getattr(attr.generator, 'expression', None)
                                 }
                             }
-                            value = generate_attribute_value(attr_dict, i)
+                            value = generate_attribute_value(attr_dict, current_row_index)
                             # Apply type processing to respect integer/decimal constraints
                             from ....generator.data.type_processor import process_value_for_type
                             value = process_value_for_type(value, attr.type)
