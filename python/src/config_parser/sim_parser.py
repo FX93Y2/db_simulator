@@ -138,6 +138,7 @@ class EventStepConfig:
 class Step:
     step_id: str
     step_type: str  # 'event', 'decide', 'release', 'assign', 'create', 'trigger'
+    group_id: Optional[str] = None  # Resource group identifier - steps with same group_id share resources
     event_config: Optional[EventStepConfig] = None
     decide_config: Optional[DecideConfig] = None
     assign_config: Optional[AssignConfig] = None
@@ -392,6 +393,7 @@ def parse_sim_config(file_path: Union[str, Path], db_config: Optional[DatabaseCo
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
+                        group_id=step_dict.get('group_id'),
                         event_config=event_config,
                         decide_config=decide_config,
                         assign_config=assign_config,
@@ -634,6 +636,7 @@ def parse_sim_config_from_string(config_content: str, db_config: Optional[Databa
                     steps.append(Step(
                         step_id=step_dict.get('step_id', ''),
                         step_type=step_dict.get('step_type', ''),
+                        group_id=step_dict.get('group_id'),
                         event_config=event_config,
                         decide_config=decide_config,
                         assign_config=assign_config,

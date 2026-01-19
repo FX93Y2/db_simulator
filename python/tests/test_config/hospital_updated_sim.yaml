@@ -6,15 +6,20 @@ simulation:
   resources:
     - resource_table: Doctor
       capacities:
-        Consulting Physician: 1
-        Primary Care: 1
-        Assistant: 1
+        Attending Physician: 1
+        Resident Physician: 1
+        Nurse Practitioner: 1
+        Pathologist: 1
+  queues: &a1
+    - name: Initial Consultation Queue
+      type: HighAttribute
+      attribute: prioirty
 event_simulation:
   event_flows:
-    - flow_id: flow_1_Patient Arrives
+    - flow_id: flow_1_Patient Arrival
       event_flow: flow_1_patient_arrives
       steps:
-        - step_id: Patient Arrives
+        - step_id: Patient Arrival
           step_type: create
           create_config:
             entity_table: Patient
@@ -23,282 +28,220 @@ event_simulation:
               time_unit: hours
             max_entities: n/a
           next_steps:
-            - Doctor Consultation
-            - create_entities_1
-        - step_id: Doctor Consultation
+            - Initial Consultation
+        - step_id: Initial Consultation
           step_type: event
           event_config:
             duration:
-              formula: EXPO(2)
-              time_unit: hours
+              formula: UNIF(15,30)
+              time_unit: minutes
             resource_requirements:
               - resource_table: Doctor
-                value: Consulting Physician
+                value: Resident Physician
                 count: 1
+                queue: Initial Consultation Queue
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: UNIF(0,1)
+                queue: Initial Consultation Queue
+              - resource_table: Doctor
+                value: Attending Physician
+                count: UNIF(0,2)
+                queue: Initial Consultation Queue
+            bridge_table: Appointment
+          next_steps:
+            - Clinical Decision
+          group_id: group_1
+        - step_id: Clinical Decision
+          step_type: decide
+          decide_config:
+            decision_type: nway-chance
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: Medication Oder
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+              - outcome_id: outcome_2
+                next_step_id: Tests
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+              - outcome_id: outcome_3
+                next_step_id: Treatment
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.3333333333333333
+          group_id: group_1
+        - step_id: Medication Oder
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(15,30)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+            bridge_table: Medication_Order
+          next_steps:
+            - Discharge_1
+          group_id: group_1
+        - step_id: Discharge_1
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(30, 180)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: 1
+            bridge_table: Event
+          next_steps:
+            - assign discharge_1
+          group_id: group_1
+        - step_id: assign discharge_1
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: discharged
+          next_steps:
+            - release_1
+        - step_id: release_1
+          step_type: release
+        - step_id: Tests
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(30, 180)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Resident Physician
+                count: 1
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Pathologist
+                count: 1
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: 1
+            bridge_table: ClinicalEvent
+          next_steps:
+            - Review
+          group_id: group_1
+        - step_id: Review
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(15, 60)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Resident Physician
+                count: 1
+            bridge_table: ClinicalEvent
+          next_steps:
+            - Final Decision
+          group_id: group_1
+        - step_id: Final Decision
+          step_type: decide
+          decide_config:
+            decision_type: 2way-chance
+            outcomes:
+              - outcome_id: outcome_1
+                next_step_id: Discharge_2
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.5
+              - outcome_id: outcome_2
+                next_step_id: Admitting
+                conditions:
+                  - if: Probability
+                    is: ==
+                    value: 0.5
+          group_id: group_1
+        - step_id: Discharge_2
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(30, 180)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: 1
+            bridge_table: ClinicalEvent
+          next_steps:
+            - assign discharge_2
+          group_id: group_1
+        - step_id: assign discharge_2
+          step_type: assign
+          assign_config:
+            assignments:
+              - assignment_type: attribute
+                attribute_name: status
+                value: discharged
+          next_steps:
+            - release_1
+        - step_id: Admitting
+          step_type: event
+          event_config:
+            duration:
+              formula: UNIF(45, 120)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: 1
+              - resource_table: Doctor
+                value: Resident Physician
+                count: 1
+            bridge_table: ClinicalEvent
           next_steps:
             - release_2
+          group_id: group_1
         - step_id: release_2
           step_type: release
-        - step_id: create_entities_1
-          step_type: create
-          create_config:
-            entity_table: Prescription
-            interarrival_time: null
-            max_entities: n/a
-          next_steps:
-            - Deliver Drugs
-        - step_id: Deliver Drugs
+        - step_id: Treatment
           step_type: event
           event_config:
             duration:
-              formula: UNIF(1,3)
-              time_unit: hours
-            resource_requirements: []
+              formula: UNIF(30, 240)
+              time_unit: minutes
+            resource_requirements:
+              - resource_table: Doctor
+                value: Resident Physician
+                count: 1
+              - resource_table: Doctor
+                value: Attending Physician
+                count: 1
+              - resource_table: Doctor
+                value: Nurse Practitioner
+                count: 1
+            bridge_table: ClinicalEvent
           next_steps:
-            - select_medications
-        # Select 1-3 random medications and insert into Prescription_Drug
-        - step_id: select_medications
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: >-
-                  INSERT INTO Prescription_Drug (prescription_id, medication_id, quantity)
-                  WITH num_drugs AS (
-                    SELECT CASE
-                      WHEN (ABS(RANDOM()) % 100) < 50 THEN 1
-                      WHEN (ABS(RANDOM()) % 100) < 85 THEN 2
-                      ELSE 3
-                    END as drug_count
-                  )
-                  SELECT
-                    Entity.PrescriptionID as prescription_id,
-                    m.DrugID as medication_id,
-                    CASE
-                      WHEN (ABS(RANDOM()) % 100) < 70 THEN 1
-                      WHEN (ABS(RANDOM()) % 100) < 90 THEN 2
-                      ELSE 3
-                    END as quantity
-                  FROM Medication m, num_drugs n
-                  ORDER BY RANDOM()
-                  LIMIT (SELECT drug_count FROM num_drugs)
-          next_steps:
-            - update_stock
-        # Decrement stock for all medications in this prescription
-        - step_id: update_stock
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Medication
-                  SET stock_level = stock_level - (
-                      SELECT pd.quantity
-                      FROM Prescription_Drug pd
-                      WHERE pd.prescription_id = Entity.PrescriptionID
-                      AND pd.medication_id = Medication.DrugID
-                  )
-                  WHERE Medication.DrugID IN (
-                      SELECT medication_id
-                      FROM Prescription_Drug
-                      WHERE prescription_id = Entity.PrescriptionID
-                  )
-          next_steps:
-            - check_stock
-        # Check if any medication is low on stock (< 20 units)
-        - step_id: check_stock
-          step_type: decide
-          decide_config:
-            decision_type: 2way-condition
-            outcomes:
-              - outcome_id: needs_restock
-                next_step_id: restock_medication
-                conditions:
-                  - if: >-
-                      SELECT CASE 
-                        WHEN COUNT(*) > 0 THEN 'true' 
-                        ELSE 'false' 
-                      END 
-                      FROM Medication WHERE stock_level < 20
-                    is: ==
-                    value: true
-              - outcome_id: stock_ok
-                next_step_id: create_entities_2
-                conditions: []
-        # Restock all low-stock medications by adding 50 units
-        - step_id: restock_medication
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Medication 
-                  SET stock_level = stock_level + 50 
-                  WHERE stock_level < 20
-          next_steps:
-            - create_entities_2
-        - step_id: create_entities_2
-          step_type: create
-          create_config:
-            entity_table: Invoice
-            interarrival_time: null
-            max_entities: n/a
-          next_steps:
-            - calculate_invoice_total
-        # Calculate TotalAmount from prescription drugs (quantity × price)
-        - step_id: calculate_invoice_total
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Invoice
-                  SET TotalAmount = (
-                      SELECT ROUND(SUM(CAST(m.PricePerUnit AS REAL) * pd.quantity), 2)
-                      FROM Prescription_Drug pd
-                      JOIN Medication m ON pd.medication_id = m.DrugID
-                      JOIN Prescription p ON pd.prescription_id = p.PrescriptionID
-                      WHERE p.PrescriptionID = Entity.prescription_id
-                  )
-                  WHERE Invoice.InvoiceID = Entity.InvoiceID
-          next_steps:
-            - release_1
-        - step_id: release_1
-          step_type: release
-    - flow_id: flow_2_create_entities_1
-      event_flow: flow_1_patient_arrives
-      steps:
-        - step_id: create_entities_1
-          step_type: create
-          create_config:
-            entity_table: Prescription
-            interarrival_time: null
-            max_entities: n/a
-          next_steps:
-            - Deliver Drugs
-        - step_id: Deliver Drugs
-          step_type: event
-          event_config:
-            duration:
-              formula: UNIF(1,3)
-              time_unit: hours
-            resource_requirements: []
-          next_steps:
-            - select_medications
-        - step_id: select_medications
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: >-
-                  INSERT INTO Prescription_Drug (prescription_id, medication_id, quantity)
-                  WITH num_drugs AS (
-                    SELECT CASE
-                      WHEN (ABS(RANDOM()) % 100) < 50 THEN 1
-                      WHEN (ABS(RANDOM()) % 100) < 85 THEN 2
-                      ELSE 3
-                    END as drug_count
-                  )
-                  SELECT
-                    Entity.PrescriptionID as prescription_id,
-                    m.DrugID as medication_id,
-                    CASE
-                      WHEN (ABS(RANDOM()) % 100) < 70 THEN 1
-                      WHEN (ABS(RANDOM()) % 100) < 90 THEN 2
-                      ELSE 3
-                    END as quantity
-                  FROM Medication m, num_drugs n
-                  ORDER BY RANDOM()
-                  LIMIT (SELECT drug_count FROM num_drugs)
-          next_steps:
-            - update_stock
-        - step_id: update_stock
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Medication
-                  SET stock_level = stock_level - (
-                      SELECT pd.quantity
-                      FROM Prescription_Drug pd
-                      WHERE pd.prescription_id = Entity.PrescriptionID
-                      AND pd.medication_id = Medication.DrugID
-                  )
-                  WHERE Medication.DrugID IN (
-                      SELECT medication_id
-                      FROM Prescription_Drug
-                      WHERE prescription_id = Entity.PrescriptionID
-                  )
-          next_steps:
-            - check_stock
-        - step_id: check_stock
-          step_type: decide
-          decide_config:
-            decision_type: 2way-condition
-            outcomes:
-              - outcome_id: needs_restock
-                next_step_id: restock_medication
-                conditions:
-                  - if: >-
-                      SELECT CASE 
-                        WHEN COUNT(*) > 0 THEN 'true' 
-                        ELSE 'false' 
-                      END 
-                      FROM Medication WHERE stock_level < 20
-                    is: ==
-                    value: true
-              - outcome_id: stock_ok
-                next_step_id: create_entities_2
-                conditions: []
-        - step_id: restock_medication
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Medication 
-                  SET stock_level = stock_level + 50 
-                  WHERE stock_level < 20
-          next_steps:
-            - create_entities_2
-        - step_id: create_entities_2
-          step_type: create
-          create_config:
-            entity_table: Invoice
-            interarrival_time: null
-            max_entities: n/a
-          next_steps:
-            - calculate_invoice_total
-        - step_id: calculate_invoice_total
-          step_type: assign
-          assign_config:
-            assignments:
-              - assignment_type: sql
-                expression: |-
-                  UPDATE Invoice
-                  SET TotalAmount = (
-                      SELECT ROUND(SUM(CAST(m.PricePerUnit AS REAL) * pd.quantity), 2)
-                      FROM Prescription_Drug pd
-                      JOIN Medication m ON pd.medication_id = m.DrugID
-                      JOIN Prescription p ON pd.prescription_id = p.PrescriptionID
-                      WHERE p.PrescriptionID = Entity.prescription_id
-                  )
-                  WHERE Invoice.InvoiceID = Entity.InvoiceID
-          next_steps:
-            - release_1
-        - step_id: release_1
-          step_type: release
-    - flow_id: flow_3_create_entities_2
-      event_flow: flow_1_patient_arrives
-      steps:
-        - step_id: create_entities_2
-          step_type: create
-          create_config:
-            entity_table: Invoice
-            interarrival_time: null
-            max_entities: n/a
-          next_steps:
-            - release_1
-        - step_id: release_1
-          step_type: release
+            - Review
+          group_id: group_1
+  queues: *a1

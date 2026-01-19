@@ -82,6 +82,10 @@ class ResourceManager:
         # Track current allocations by event
         self.event_allocations = {}  # event_id -> List[Resource]
         
+        # Track group allocations: (entity_id, group_id) -> List[Resource]
+        # Resources in a group are retained across steps with the same group_id
+        self.group_allocations = {}
+        
         # Track all resources by ID for type lookup
         self.all_resources = {}  # resource_key -> Resource
         
@@ -482,3 +486,74 @@ class ResourceManager:
         if event_id is not None:
             return [h for h in self.allocation_history if h['event_id'] == event_id]
         return self.allocation_history.copy()
+    
+    def get_group_resources(self, entity_id: int, group_id: str) -> List[Resource]:
+        """
+        Get resources allocated to a group for a specific entity.
+        
+        Args:
+            entity_id: Entity ID
+            group_id: Group identifier
+            
+        Returns:
+            List of resources in the group, or empty list if no group exists
+        """
+        group_key = (entity_id, group_id)
+        return self.group_allocations.get(group_key, [])
+    
+    def add_to_group(self, entity_id: int, group_id: str, resources: List[Resource]):
+        """
+        Add resources to a group allocation for an entity.
+        
+        Args:
+            entity_id: Entity ID
+            group_id: Group identifier
+            resources: Resources to add to the group
+        """
+        group_key = (entity_id, group_id)
+        if group_key not in self.group_allocations:
+            self.group_allocations[group_key] = []
+        self.group_allocations[group_key].extend(resources)
+        logger.debug(f"Added {len(resources)} resources to group {group_id} for entity {entity_id}")
+    
+    def release_group_resources(self, entity_id: int, group_id: str):
+        """
+        Release all resources in a group for an entity.
+        
+        Args:
+            entity_id: Entity ID
+            group_id: Group identifier
+        """
+        group_key = (entity_id, group_id)
+        if group_key not in self.group_allocations:
+            logger.debug(f"No group resources to release for entity {entity_id}, group {group_id}")
+            return
+        
+        resources = self.group_allocations[group_key]
+        release_time = self.env.now
+        
+        for resource in resources:
+            # Update utilization tracking
+            resource_key = f"{resource.table}_{resource.id}"
+            util = self.resource_utilization.get(resource_key)
+            
+            if util and util['last_allocated'] is not None:
+                busy_duration = release_time - util['last_allocated']
+                util['total_busy_time'] += busy_duration
+                util['last_released'] = release_time
+            
+            # Return resource to the store
+            self.resource_store.put(resource)
+            logger.debug(f"Released group resource {resource_key} for entity {entity_id}")
+        
+        # Record release in history
+        self.allocation_history.append({
+            'event_id': f"group_{entity_id}_{group_id}",
+            'timestamp': release_time,
+            'resources': [(r.table, r.id, r.type) for r in resources],
+            'action': 'release_group'
+        })
+        
+        # Remove from group allocations
+        del self.group_allocations[group_key]
+        logger.debug(f"Released {len(resources)} group resources for entity {entity_id}, group {group_id}")

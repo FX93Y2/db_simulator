@@ -30,33 +30,16 @@ entities:
         generator:
           type: faker
           method: phone.number()
+      - name: priority
+        type: string
+        generator:
+          type: distribution
+          formula: DISC(3, 0.1, 2, 0.4, 1, 0.5)
       - name: created_at
         type: datetime
-  - name: Medication
-    rows: 100
-    attributes:
-      - name: DrugID
-        type: pk
-      - name: stock_level
-        type: integer
-        generator:
-          type: distribution
-          formula: UNIF(50, 200)
-      - name: PricePerUnit
-        type: string
-        generator:
-          type: faker
-          method: commerce.price()
-      - name: MedicationCategory
-        type: string
-        generator:
-          type: distribution
-          formula: DISC(Antibiotics, 0.10, Cardiovascular, 0.20, Respiratory, 0.10,
-            Digestive, 0.15, PainInflammation, 0.20, MentalHealthNeuro, 0.10,
-            VitaminsPreventive, 0.15)
   - name: Doctor
     type: resource
-    rows: 100
+    rows: 50
     attributes:
       - name: DoctorID
         type: pk
@@ -84,7 +67,8 @@ entities:
         type: resource_type
         generator:
           type: distribution
-          formula: DISC(0.4, Consulting Physician, 0.3, Primary Care, 0.3, Assistant)
+          formula: DISC(0.4, Attending Physician, 0.35, Resident Physician, 0.15, Nurse
+            Practitioner, 0.1, Pathologist)
   - name: Appointment
     type: bridge
     rows: n/a
@@ -95,64 +79,108 @@ entities:
         type: resource_id
         generator:
           type: foreign_key
-          subtype: one_to_many
+          subtype: many_to_one
         ref: Doctor.DoctorID
       - name: patient_id
         type: entity_id
         generator:
           type: foreign_key
-          subtype: one_to_many
+          subtype: many_to_one
         ref: Patient.PatientID
-      - name: start_date
-        type: datetime
       - name: end_date
         type: datetime
-  - name: Prescription
-    type: entity
-    rows: n/a
-    attributes:
-      - name: PrescriptionID
-        type: pk
-      - name: patient_id
-        type: entity_id
-        ref: Patient.PatientID
-        generator:
-          type: foreign_key
-          subtype: one_to_many
-      - name: created_at
+      - name: start_date
         type: datetime
+      - name: event_type
+        type: string
   - name: Invoice
     type: entity
     rows: n/a
     attributes:
       - name: InvoiceID
         type: pk
-      - name: prescription_id
+      - name: patient_id
         type: entity_id
-        ref: Prescription.PrescriptionID
+        ref: Patient.PatientID
         generator:
           type: foreign_key
-          subtype: one_to_many
+          subtype: many_to_one
       - name: created_at
         type: datetime
       - name: TotalAmount
         type: decimal(10,2)
-  - name: Prescription_Drug
+  - name: ClinicalEvent
+    type: bridge
     rows: n/a
     attributes:
       - name: id
         type: pk
+      - name: doctor_id
+        type: resource_id
+        generator:
+          type: foreign_key
+          subtype: many_to_one
+        ref: Doctor.DoctorID
+      - name: patient_id
+        type: entity_id
+        generator:
+          type: foreign_key
+          subtype: many_to_one
+        ref: Patient.PatientID
+      - name: start_date
+        type: datetime
+      - name: end_date
+        type: datetime
+      - name: event_type
+        type: string
+  - name: Medication
+    rows: 100
+    attributes:
+      - name: DrugID
+        type: pk
+      - name: unit_price
+        type: string
+        generator:
+          type: faker
+          method: "commerce.price({ min: 100, max: 200, dec: 0, symbol: '$' })"
+      - name: categroy
+        type: string
+        generator:
+          type: distribution
+          formula: DISC(Antibiotics, 0.10, Cardiovascular, 0.20, Respiratory, 0.10,
+            Digestive, 0.15, PainInflammation, 0.20, MentalHealthNeuro, 0.10,
+            VitaminsPreventive, 0.15)
+  - name: Medication_Order
+    type: bridge
+    rows: n/a
+    attributes:
+      - name: id
+        type: pk
+      - name: clinicalevent_id
+        type: fk
+        generator:
+          type: foreign_key
+          subtype: many_to_one
+        ref: ClinicalEvent.id
+      - name: doctor_id
+        type: resource_id
+        generator:
+          type: foreign_key
+          subtype: many_to_one
+        ref: Doctor.DoctorID
       - name: medication_id
         type: fk
         generator:
           type: foreign_key
-          subtype: one_to_many
+          subtype: many_to_one
+          formula: UNIF(1,100)
         ref: Medication.DrugID
-      - name: prescription_id
-        type: entity_id
+      - name: end_date
+        type: datetime
+      - name: start_date
+        type: datetime
+      - name: dose
+        type: decimal(10,2)
         generator:
-          type: foreign_key
-          subtype: one_to_many
-        ref: Prescription.PrescriptionID
-      - name: quantity
-        type: integer
+          type: distribution
+          formula: UNIF(1,10)

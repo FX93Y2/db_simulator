@@ -6,6 +6,7 @@ duration processing, and event creation in the database.
 """
 
 import logging
+import random
 from datetime import timedelta
 from typing import Any, Generator, Optional
 from sqlalchemy import create_engine, insert
@@ -111,6 +112,9 @@ class EventStepProcessor(StepProcessor):
             session.close()
             session = None
 
+            # Determine if this step is part of a resource group
+            current_group_id = step.group_id
+            
             # Allocate resources if required
             if event_config.resource_requirements:
                 requirements_list = self._convert_resource_requirements(
@@ -118,25 +122,91 @@ class EventStepProcessor(StepProcessor):
                 )
 
                 try:
-                    # Check if any requirement uses a queue
-                    uses_queue = any(req.get('queue') for req in requirements_list)
-
-                    if uses_queue and self.queue_manager:
-                        # Queue-aware resource allocation
-                        yield self.env.process(
-                            self.resource_manager.allocate_resources(
-                                event_id, requirements_list, event_flow_label,
-                                entity_id=entity_id,
-                                entity_table=entity_table,
-                                entity_attributes=entity_attributes,
-                                queue_manager=self.queue_manager
+                    # Check if we can reuse group resources
+                    group_resources = []
+                    needs_new_allocation = True
+                    
+                    if current_group_id:
+                        group_resources = self.resource_manager.get_group_resources(entity_id, current_group_id)
+                        self.logger.info(
+                            f"[GROUP DEBUG] Entity {entity_id}, Step {step.step_id}, Group {current_group_id}: "
+                            f"Found {len(group_resources)} resources in group: {[(r.id, r.type) for r in group_resources]}"
+                        )
+                        if group_resources:
+                            # Filter group resources by step's requirements
+                            self.logger.info(
+                                f"[GROUP DEBUG] Requirements: {[(r.get('value'), r.get('count')) for r in requirements_list]}"
                             )
-                        )
-                    else:
-                        # Standard resource allocation (backward compatible)
-                        yield self.env.process(
-                            self.resource_manager.allocate_resources(event_id, requirements_list, event_flow_label)
-                        )
+                            matched_resources, unmet_requirements = self._filter_group_resources_by_requirements(
+                                group_resources, requirements_list
+                            )
+                            self.logger.info(
+                                f"[GROUP DEBUG] Matched: {[(r.id, r.type) for r in matched_resources]}, "
+                                f"Unmet: {[(r.get('value'), r.get('count')) for r in unmet_requirements]}"
+                            )
+                            
+                            allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
+                            
+                            if unmet_requirements:
+                                # Partial match - allocate only what's missing
+                                uses_queue = any(req.get('queue') for req in unmet_requirements)
+                                if uses_queue and self.queue_manager:
+                                    yield self.env.process(
+                                        self.resource_manager.allocate_resources(
+                                            event_id, unmet_requirements, event_flow_label,
+                                            entity_id=entity_id,
+                                            entity_table=entity_table,
+                                            entity_attributes=entity_attributes,
+                                            queue_manager=self.queue_manager
+                                        )
+                                    )
+                                else:
+                                    yield self.env.process(
+                                        self.resource_manager.allocate_resources(event_id, unmet_requirements, event_flow_label)
+                                    )
+                                # Combine matched from group + newly allocated
+                                newly_allocated = self.resource_manager.event_allocations.get(allocation_key, [])
+                                combined = matched_resources + newly_allocated
+                                self.resource_manager.event_allocations[allocation_key] = combined
+                                # Add only NEW resources to group
+                                if newly_allocated:
+                                    self.resource_manager.add_to_group(entity_id, current_group_id, newly_allocated)
+                                self.logger.info(
+                                    f"[GROUP DEBUG] Partial reuse: {len(matched_resources)} from group + {len(newly_allocated)} new"
+                                )
+                            else:
+                                # Full match from group - just use matched resources
+                                self.resource_manager.event_allocations[allocation_key] = matched_resources
+                                self.logger.info(
+                                    f"[GROUP DEBUG] Full reuse: {len(matched_resources)} resources from group"
+                                )
+                            needs_new_allocation = False
+                    
+                    if needs_new_allocation:
+                        # No group or empty group - full allocation needed
+                        uses_queue = any(req.get('queue') for req in requirements_list)
+
+                        if uses_queue and self.queue_manager:
+                            yield self.env.process(
+                                self.resource_manager.allocate_resources(
+                                    event_id, requirements_list, event_flow_label,
+                                    entity_id=entity_id,
+                                    entity_table=entity_table,
+                                    entity_attributes=entity_attributes,
+                                    queue_manager=self.queue_manager
+                                )
+                            )
+                        else:
+                            yield self.env.process(
+                                self.resource_manager.allocate_resources(event_id, requirements_list, event_flow_label)
+                            )
+                        
+                        # Add newly allocated resources to group if group_id is set
+                        if current_group_id:
+                            allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
+                            allocated = self.resource_manager.event_allocations.get(allocation_key, [])
+                            if allocated:
+                                self.resource_manager.add_to_group(entity_id, current_group_id, allocated)
 
                     self.logger.debug(f"Resources allocated for event {event_id}")
                 except Exception as e:
@@ -175,9 +245,35 @@ class EventStepProcessor(StepProcessor):
                 start_time, end_time, duration_minutes, active_event_tracker,
                 entity_table=entity_table
             )
+            
+            # Determine next step and its group_id
+            next_step_id = step.next_steps[0] if step.next_steps else None
+            next_group_id = self._get_step_group_id(next_step_id, flow) if next_step_id else None
+            self.logger.info(
+                f"[GROUP DEBUG] Entity {entity_id}, Step {step.step_id} finished. "
+                f"current_group={current_group_id}, next_step={next_step_id}, next_group={next_group_id}"
+            )
                 
-            # Release resources
-            self.resource_manager.release_resources(event_id, event_flow_label)
+            # Release resources - but skip if next step has same group_id
+            if current_group_id and next_group_id == current_group_id:
+                # Keep resources for next step in the same group
+                self.logger.info(
+                    f"[GROUP DEBUG] RETAINING resources for entity {entity_id} (group {current_group_id})"
+                )
+                # Clear event allocation without releasing resources
+                allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
+                if allocation_key in self.resource_manager.event_allocations:
+                    del self.resource_manager.event_allocations[allocation_key]
+            elif current_group_id and next_group_id != current_group_id:
+                # Exiting group - release all group resources
+                self.resource_manager.release_group_resources(entity_id, current_group_id)
+                # Clear event allocation as well
+                allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
+                if allocation_key in self.resource_manager.event_allocations:
+                    del self.resource_manager.event_allocations[allocation_key]
+            else:
+                # No group - standard release
+                self.resource_manager.release_resources(event_id, event_flow_label)
             
             self.logger.debug(
                 f"Processed event {event_id} (step {step.step_id}) for entity {entity_id} "
@@ -217,6 +313,76 @@ class EventStepProcessor(StepProcessor):
             f"Using synthetic event id {synthetic_id} for step {step.step_id} (flow={event_flow})"
         )
         return synthetic_id
+    
+    def _get_step_group_id(self, step_id: str, flow) -> Optional[str]:
+        """
+        Look up a step's group_id from the flow.
+        
+        Args:
+            step_id: Step ID to look up
+            flow: Event flow containing the steps
+            
+        Returns:
+            group_id if found, else None
+        """
+        if not flow or not hasattr(flow, 'steps'):
+            return None
+        for step in flow.steps:
+            if step.step_id == step_id:
+                return step.group_id
+        return None
+    
+    def _filter_group_resources_by_requirements(self, group_resources: list, requirements: list) -> tuple:
+        """
+        Filter group resources to match step requirements.
+        
+        For each requirement, find matching resources from the group by type
+        and randomly select the required count. Returns both matched resources
+        and any requirements that couldn't be met from the group.
+        
+        Args:
+            group_resources: List of Resource objects in the group
+            requirements: List of requirement dicts with 'value' (type) and 'count'
+            
+        Returns:
+            Tuple of (matched_resources, unmet_requirements):
+            - matched_resources: List of Resource objects from group
+            - unmet_requirements: List of requirement dicts that need new allocation
+        """
+        matched = []
+        unmet = []
+        available = list(group_resources)  # Copy to avoid modifying original
+        
+        for req in requirements:
+            required_type = req.get('value', '')
+            required_count = req.get('count', 1)
+            
+            # Find resources matching this type
+            matching = [r for r in available if r.type == required_type]
+            
+            if len(matching) >= required_count:
+                # Fully satisfied from group - randomly select required count
+                selected = random.sample(matching, required_count)
+                matched.extend(selected)
+                # Remove selected from available pool
+                for r in selected:
+                    available.remove(r)
+                self.logger.debug(f"Matched {required_count} '{required_type}' from group")
+            elif len(matching) > 0:
+                # Partially satisfied - take what we have, need more
+                matched.extend(matching)
+                for r in matching:
+                    available.remove(r)
+                # Need to allocate the remainder
+                remaining_count = required_count - len(matching)
+                unmet.append({**req, 'count': remaining_count})
+                self.logger.debug(f"Partial match: got {len(matching)} '{required_type}' from group, need {remaining_count} more")
+            else:
+                # Not satisfied at all from group - need full allocation
+                unmet.append(req)
+                self.logger.debug(f"No '{required_type}' in group, need to allocate {required_count}")
+        
+        return matched, unmet
 
     def _convert_resource_requirements(self, requirements) -> list:
         """Convert resource requirements to the format expected by resource manager."""
