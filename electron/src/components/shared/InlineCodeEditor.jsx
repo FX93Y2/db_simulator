@@ -64,14 +64,23 @@ const InlineCodeEditor = ({
         monaco.editor.defineTheme(themeName, {
             base: dark ? 'vs-dark' : 'vs',
             inherit: true,
-            rules: [
+            rules: dark ? [
                 { token: 'comment.pgsql', foreground: '6A9955', fontStyle: 'italic' },
                 { token: 'keyword.pgsql', foreground: '569CD6', fontStyle: 'bold' },
                 { token: 'type.pgsql', foreground: '4EC9B0' },
-                { token: 'function.pgsql', foreground: 'DCDCAA' },
+                { token: 'function.pgsql', foreground: 'DCDCAA' }, // Pastel yellow
                 { token: 'number.pgsql', foreground: 'B5CEA8' },
                 { token: 'string.pgsql', foreground: 'CE9178' },
                 { token: 'variable.pgsql', foreground: '9CDCFE' }
+            ] : [
+                // VS Code Light Theme inspired high-contrast colors
+                { token: 'comment.pgsql', foreground: '008000', fontStyle: 'italic' },
+                { token: 'keyword.pgsql', foreground: '0000FF', fontStyle: 'bold' },
+                { token: 'type.pgsql', foreground: '267F99' },
+                { token: 'function.pgsql', foreground: '795E26' }, // Darker yellow/brown
+                { token: 'number.pgsql', foreground: '098658' },
+                { token: 'string.pgsql', foreground: 'A31515' },
+                { token: 'variable.pgsql', foreground: '001080' }
             ],
             colors: {
                 'editor.background': dark ? '#252526' : '#ffffff', // Match standard input bg

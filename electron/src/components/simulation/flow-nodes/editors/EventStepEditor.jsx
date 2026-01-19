@@ -93,7 +93,7 @@ const EventStepEditor = ({
       </div>
       <div className="step-editor-section">
         <div className="section-header">
-          <h6>Resource Requirements</h6>
+          <h6 className="text-uppercase text-muted small fw-bold mb-3">Resource Requirements</h6>
         </div>
 
         <div className="step-editor-grid-container">

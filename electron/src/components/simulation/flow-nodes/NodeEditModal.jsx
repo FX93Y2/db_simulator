@@ -845,11 +845,11 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     switch (stepType) {
       case 'release':
         return undefined; // Default modal size for single input field
-      case 'create':
       case 'trigger':
-        return 'md'; // Medium size for create and trigger steps
+        return 'md'; // Medium size for trigger steps
+      case 'create':
       case 'assign':
-        return 'lg'; // Large size for assign step to accommodate attribute table
+        return 'lg'; // Large size for complex steps
       case 'event':
       case 'decide':
         return 'lg'; // Keep large for complex editors with tables

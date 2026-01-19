@@ -124,24 +124,7 @@ const TriggerStepEditor = ({
         </Row>
       </div>
 
-      {/* Next Steps Selection */}
-      <Form.Group className="mb-3">
-        <Form.Label>Next Step</Form.Label>
-        <Form.Select
-          value={formData.next_step || ''}
-          onChange={(e) => onFormDataChange({ next_step: e.target.value })}
-        >
-          <option value="">
-            {availableSteps.length > 0 ? 'Select next step...' : 'No steps available (add other steps first)'}
-          </option>
-          {availableSteps.map((stepName) => (
-            <option key={stepName} value={stepName}>{stepName}</option>
-          ))}
-        </Form.Select>
-        <Form.Text className="text-muted">
-          {availableSteps.length === 0 ? 'Trigger module can be saved without next step when no other steps exist' : 'Select the next step in the flow'}
-        </Form.Text>
-      </Form.Group>
+      {/* Next Step selection hidden in editor as requested */}
     </div>
   );
 };

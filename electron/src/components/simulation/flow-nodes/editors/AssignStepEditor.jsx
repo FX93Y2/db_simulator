@@ -4,8 +4,8 @@ import { FiTrash2, FiCode, FiCheck } from 'react-icons/fi';
 import ValidatedNameInput from '../components/ValidatedNameInput';
 import SQLEditorModal from '../../../shared/SQLEditorModal';
 
-const AssignStepEditor = ({ 
-  formData, 
+const AssignStepEditor = ({
+  formData,
   onFormDataChange,
   assignments,
   onAssignmentChange,
@@ -67,7 +67,7 @@ const AssignStepEditor = ({
       </div>
       <div className="step-editor-section">
         <div className="section-header">
-          <h6>Attribute Assignments</h6>
+          <h6 className="text-uppercase text-muted small fw-bold mb-3">Attribute Assignments</h6>
         </div>
 
         <div className="step-editor-grid-container">
@@ -78,7 +78,7 @@ const AssignStepEditor = ({
             <div className="grid-header-cell">Value</div>
             <div className="grid-header-cell"></div>
           </div>
-          
+
           {/* Data Rows */}
           {assignments.map((assignment, index) => (
             <div key={index} className="step-editor-grid-row assign-attributes">
@@ -95,7 +95,7 @@ const AssignStepEditor = ({
                   </Form.Select>
                 </div>
               </div>
-              
+
               <div className="grid-cell">
                 <InputGroup size="sm" style={{ width: '100%' }}>
                   <Form.Control
@@ -116,7 +116,7 @@ const AssignStepEditor = ({
                       container={typeof document !== 'undefined' ? document.body : undefined}
                     >
                       {availableAttributes.map(attr => (
-                        <Dropdown.Item 
+                        <Dropdown.Item
                           key={attr}
                           onClick={() => onAssignmentChange(index, 'attribute_name', attr)}
                         >
@@ -156,11 +156,11 @@ const AssignStepEditor = ({
                   </>
                 )}
               </div>
-              
+
               <div className="grid-cell cell-center">
-                <Button 
-                  variant="outline-danger" 
-                  size="sm" 
+                <Button
+                  variant="outline-danger"
+                  size="sm"
                   onClick={() => onRemoveAssignment(index)}
                   disabled={assignments.length <= 1}
                 >
@@ -172,9 +172,9 @@ const AssignStepEditor = ({
         </div>
 
         <div className="mt-3">
-          <Button 
+          <Button
             variant="outline-primary"
-            size="sm" 
+            size="sm"
             onClick={onAddAssignment}
             className="add-step-item-btn"
           >
