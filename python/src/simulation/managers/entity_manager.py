@@ -230,13 +230,11 @@ class EntityManager:
                 logger.error(f"Database configuration not found for entity: {entity_table}")
                 return None
 
-            # Get the next ID using resolved primary key column
             pk_column = self.column_resolver.get_primary_key(entity_table)
-            sql_query = text(f'SELECT MAX("{pk_column}") FROM "{entity_table}"')
-            result = session.execute(sql_query).fetchone()
-            next_id = (result[0] or 0) + 1
             
-            row_data = {pk_column: next_id}
+            # Don't pre-generate PK - let the database handle it
+            # This allows for auto-increment, UUID triggers, or other PK generation strategies
+            row_data = {}
             
             # Apply initial data if provided
             if initial_data:
@@ -246,7 +244,7 @@ class EntityManager:
             # Generate values for other attributes
             for attr in entity_config.attributes:
                 if attr.is_primary_key:
-                    continue # Skip primary key
+                    continue  # Skip primary key - let database generate
                 
                 # Skip if already populated by initial_data
                 if attr.name in row_data:
@@ -288,21 +286,22 @@ class EntityManager:
                             else:
                                 # Uniform random assignment if no distribution is provided
                                 row_data[attr.name] = random.choice(parent_ids)
-                # Handle other generator types
                 elif attr.generator:
                     # If this attribute is assigned later in flows for this entity,
                     # leave it NULL at creation time (no placeholder default).
                     assigned_for_entity = self._assigned_attrs_by_entity.get(entity_table, set())
                     if attr.name in assigned_for_entity:
                         continue
-                     # Convert generator dataclass to dict for the utility function
+                    # Convert generator dataclass to dict for the utility function
                     gen_dict = dataclasses.asdict(attr.generator) if attr.generator else None
                     attr_config_dict = {
                         'name': attr.name,
                         'generator': gen_dict
                     }
-                    # Use next_id - 1 for 0-based row_index context for generators
-                    generated_value = generate_attribute_value(attr_config_dict, next_id - 1)
+                    # Pass 0 as row_index placeholder - most generators (faker, distribution) 
+                    # don't use it. Template generators needing sequential IDs should be avoided
+                    # for simulation-created entities or use the actual PK post-INSERT.
+                    generated_value = generate_attribute_value(attr_config_dict, 0)
                     # Apply type-aware processing
                     row_data[attr.name] = process_value_for_type(generated_value, attr.type)
                 else:
@@ -311,9 +310,7 @@ class EntityManager:
                     pass
             
             # Check if the table has a datetime column and populate it automatically
-            # Note: This assumes datetime columns are properly typed in the db_config
             try:
-                entity_config = self.get_entity_config(entity_table)
                 if entity_config:
                     for attr in entity_config.attributes:
                         if attr.type in ['datetime', 'timestamp'] and attr.name not in row_data:
@@ -324,15 +321,32 @@ class EntityManager:
             except Exception as e:
                 logger.warning(f"Error setting datetime columns for {entity_table}: {e}")
             
-            # Build INSERT statement dynamically
-            columns = ", ".join([f'"{col}"' for col in row_data.keys()])
-            placeholders = ", ".join([f":{col}" for col in row_data.keys()])
-            sql_query = text(f'INSERT INTO "{entity_table}" ({columns}) VALUES ({placeholders})')
+            # Build INSERT statement dynamically (without PK - let database generate it)
+            if row_data:
+                columns = ", ".join([f'"{col}"' for col in row_data.keys()])
+                placeholders = ", ".join([f":{col}" for col in row_data.keys()])
+                sql_query = text(f'INSERT INTO "{entity_table}" ({columns}) VALUES ({placeholders})')
+            else:
+                # No data to insert - use default values
+                sql_query = text(f'INSERT INTO "{entity_table}" DEFAULT VALUES')
             
             logger.debug(f"Creating entity in {entity_table} with data: {row_data}")
-            session.execute(sql_query, row_data)
+            result = session.execute(sql_query, row_data)
             
-            return next_id
+            # Get the generated primary key using lastrowid
+            # This works for SQLite auto-increment and is more portable
+            generated_id = result.lastrowid
+            
+            if generated_id is None:
+                logger.warning(
+                    f"lastrowid returned None after INSERT into '{entity_table}'. "
+                    f"This may indicate the table lacks an auto-increment primary key, "
+                    f"or the database backend doesn't support lastrowid. "
+                    f"Consider adding AUTOINCREMENT to the PK or implementing custom PK generation."
+                )
+            
+            return generated_id
         except Exception as e:
             logger.error(f"Error creating entity in {entity_table}: {str(e)}", exc_info=True)
             return None
+

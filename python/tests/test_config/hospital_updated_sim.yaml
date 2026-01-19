@@ -86,7 +86,7 @@ event_simulation:
               - resource_table: Doctor
                 value: Attending Physician
                 count: 1
-            bridge_table: Medication_Order
+            bridge_table: MedicationOrder
           next_steps:
             - Discharge_1
           group_id: group_1
@@ -103,7 +103,7 @@ event_simulation:
               - resource_table: Doctor
                 value: Nurse Practitioner
                 count: 1
-            bridge_table: Event
+            bridge_table: MedicationOrder
           next_steps:
             - assign discharge_1
           group_id: group_1
@@ -114,10 +114,7 @@ event_simulation:
               - assignment_type: attribute
                 attribute_name: status
                 value: discharged
-          next_steps:
-            - release_1
-        - step_id: release_1
-          step_type: release
+          next_steps: []
         - step_id: Tests
           step_type: event
           event_config:
@@ -168,13 +165,13 @@ event_simulation:
                 conditions:
                   - if: Probability
                     is: ==
-                    value: 0.5
+                    value: 0.8
               - outcome_id: outcome_2
                 next_step_id: Admitting
                 conditions:
                   - if: Probability
                     is: ==
-                    value: 0.5
+                    value: 0.19999999999999996
           group_id: group_1
         - step_id: Discharge_2
           step_type: event
@@ -200,8 +197,7 @@ event_simulation:
               - assignment_type: attribute
                 attribute_name: status
                 value: discharged
-          next_steps:
-            - release_1
+          next_steps: []
         - step_id: Admitting
           step_type: event
           event_config:

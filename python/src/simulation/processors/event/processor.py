@@ -524,6 +524,9 @@ class EventStepProcessor(StepProcessor):
                                     }
                                     # Use a dummy index 0 or event_id as seed proxy
                                     val = generate_attribute_value(attr_dict, event_id)
+                                    # Apply type processing to respect integer/decimal constraints
+                                    from ....generator.data.type_processor import process_value_for_type
+                                    val = process_value_for_type(val, attr.type)
                                     extra_attributes[attr.name] = val
                                 except Exception as e:
                                     self.logger.warning(f"Error generating attribute {attr.name} for bridge {bridge_table}: {e}")

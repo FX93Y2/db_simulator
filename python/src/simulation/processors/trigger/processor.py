@@ -439,6 +439,9 @@ class TriggerStepProcessor(StepProcessor):
                                 }
                             }
                             value = generate_attribute_value(attr_dict, i)
+                            # Apply type processing to respect integer/decimal constraints
+                            from ....generator.data.type_processor import process_value_for_type
+                            value = process_value_for_type(value, attr.type)
                             row_data[attr.name] = value
                         except Exception as e:
                             self.logger.warning(f"Error generating value for {attr.name}: {e}")
