@@ -128,22 +128,16 @@ class EventStepProcessor(StepProcessor):
                     
                     if current_group_id:
                         group_resources = self.resource_manager.get_group_resources(entity_id, current_group_id)
-                        self.logger.info(
-                            f"[GROUP DEBUG] Entity {entity_id}, Step {step.step_id}, Group {current_group_id}: "
-                            f"Found {len(group_resources)} resources in group: {[(r.id, r.type) for r in group_resources]}"
-                        )
+
+
                         if group_resources:
                             # Filter group resources by step's requirements
-                            self.logger.info(
-                                f"[GROUP DEBUG] Requirements: {[(r.get('value'), r.get('count')) for r in requirements_list]}"
-                            )
+
+
                             matched_resources, unmet_requirements = self._filter_group_resources_by_requirements(
                                 group_resources, requirements_list
                             )
-                            self.logger.info(
-                                f"[GROUP DEBUG] Matched: {[(r.id, r.type) for r in matched_resources]}, "
-                                f"Unmet: {[(r.get('value'), r.get('count')) for r in unmet_requirements]}"
-                            )
+
                             
                             allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
                             
@@ -171,15 +165,13 @@ class EventStepProcessor(StepProcessor):
                                 # Add only NEW resources to group
                                 if newly_allocated:
                                     self.resource_manager.add_to_group(entity_id, current_group_id, newly_allocated)
-                                self.logger.info(
-                                    f"[GROUP DEBUG] Partial reuse: {len(matched_resources)} from group + {len(newly_allocated)} new"
-                                )
+
+
                             else:
                                 # Full match from group - just use matched resources
                                 self.resource_manager.event_allocations[allocation_key] = matched_resources
-                                self.logger.info(
-                                    f"[GROUP DEBUG] Full reuse: {len(matched_resources)} resources from group"
-                                )
+
+
                             needs_new_allocation = False
                     
                     if needs_new_allocation:
@@ -249,17 +241,14 @@ class EventStepProcessor(StepProcessor):
             # Determine next step and its group_id
             next_step_id = step.next_steps[0] if step.next_steps else None
             next_group_id = self._get_step_group_id(next_step_id, flow) if next_step_id else None
-            self.logger.info(
-                f"[GROUP DEBUG] Entity {entity_id}, Step {step.step_id} finished. "
-                f"current_group={current_group_id}, next_step={next_step_id}, next_group={next_group_id}"
-            )
+
                 
+
             # Release resources - but skip if next step has same group_id
             if current_group_id and next_group_id == current_group_id:
                 # Keep resources for next step in the same group
-                self.logger.info(
-                    f"[GROUP DEBUG] RETAINING resources for entity {entity_id} (group {current_group_id})"
-                )
+
+
                 # Clear event allocation without releasing resources
                 allocation_key = f"{event_flow_label}_{event_id}" if event_flow_label else str(event_id)
                 if allocation_key in self.resource_manager.event_allocations:
@@ -496,13 +485,28 @@ class EventStepProcessor(StepProcessor):
                                 # Only skip FKs that don't have a formula - those are handled elsewhere
                                 if not attr.generator.formula:
                                     continue
-                                # FK with formula: generate value from distribution
+                                # FK with formula: look up actual parent PKs and select by position
                                 try:
-                                    from ....distributions import generate_from_distribution
-                                    from ..utils import extract_distribution_config
-                                    dist_config = extract_distribution_config(attr.generator.formula)
-                                    val = int(generate_from_distribution(dist_config))
-                                    extra_attributes[attr.name] = val
+                                    if attr.ref:
+                                        ref_table, ref_column = attr.ref.split('.')
+                                        # Query the parent table for actual PK values
+                                        from sqlalchemy import text
+                                        from sqlalchemy.orm import sessionmaker
+                                        Session = sessionmaker(bind=self.engine)
+                                        with Session() as session:
+                                            result = session.execute(text(f'SELECT "{ref_column}" FROM "{ref_table}"'))
+                                            parent_ids = [row[0] for row in result.fetchall()]
+                                        
+                                        if parent_ids:
+                                            # Use ForeignKeyResolver to select by position
+                                            from ....generator.data.foreign_key import ForeignKeyResolver
+                                            fk_resolver = ForeignKeyResolver()
+                                            val = fk_resolver.select_parent_id(parent_ids, attr.generator.formula)
+                                            extra_attributes[attr.name] = val
+                                        else:
+                                            self.logger.warning(f"No parent records found in {ref_table} for FK {attr.name}")
+                                    else:
+                                        self.logger.warning(f"FK {attr.name} has formula but no ref defined")
                                 except Exception as e:
                                     self.logger.warning(f"Error generating FK {attr.name} from formula {attr.generator.formula}: {e}")
                                 continue

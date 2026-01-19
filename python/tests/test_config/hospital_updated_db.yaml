@@ -5,6 +5,9 @@ entities:
     attributes:
       - name: PatientID
         type: pk
+        generator:
+          type: template
+          template: P{id}
       - name: Address
         type: string
         generator:
@@ -43,6 +46,9 @@ entities:
     attributes:
       - name: DoctorID
         type: pk
+        generator:
+          type: template
+          template: D{id}
       - name: FirstName
         type: string
         generator:
@@ -99,12 +105,15 @@ entities:
     attributes:
       - name: InvoiceID
         type: pk
+        generator:
+          type: template
+          template: INV{id}
       - name: patient_id
         type: entity_id
-        ref: Patient.PatientID
         generator:
           type: foreign_key
           subtype: many_to_one
+        ref: Patient.PatientID
       - name: created_at
         type: datetime
       - name: TotalAmount
@@ -115,6 +124,9 @@ entities:
     attributes:
       - name: id
         type: pk
+        generator:
+          type: template
+          template: E{id}
       - name: doctor_id
         type: resource_id
         generator:
@@ -136,8 +148,11 @@ entities:
   - name: Medication
     rows: 100
     attributes:
-      - name: DrugID
+      - name: MedicationID
         type: pk
+        generator:
+          type: template
+          template: MED{id}
       - name: unit_price
         type: string
         generator:
@@ -150,12 +165,15 @@ entities:
           formula: DISC(Antibiotics, 0.10, Cardiovascular, 0.20, Respiratory, 0.10,
             Digestive, 0.15, PainInflammation, 0.20, MentalHealthNeuro, 0.10,
             VitaminsPreventive, 0.15)
-  - name: Medication_Order
+  - name: MedicationOrder
     type: bridge
     rows: n/a
     attributes:
       - name: id
         type: pk
+        generator:
+          type: template
+          template: MEDO{id}
       - name: clinicalevent_id
         type: fk
         generator:
@@ -174,13 +192,18 @@ entities:
           type: foreign_key
           subtype: many_to_one
           formula: UNIF(1,100)
-        ref: Medication.DrugID
+        ref: Medication.MedicationID
+      - name: dose
+        type: integer
+        generator:
+          type: distribution
+          formula: UNIF(200, 1000)
       - name: end_date
         type: datetime
       - name: start_date
         type: datetime
-      - name: dose
-        type: decimal(10,2)
+      - name: unit
+        type: string
         generator:
           type: distribution
-          formula: UNIF(1,10)
+          formula: DISC(0.3, mg, 0.6, g, 0.1, cc)

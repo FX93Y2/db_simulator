@@ -323,6 +323,14 @@ class EventTracker:
                             if key in bridge_columns:
                                 bridge_data[key] = value
 
+                    # Generate PK if the bridge table has a custom PK generator
+                    bridge_pk = self._generate_bridge_pk(conn, target_bridge.name)
+                    if bridge_pk is not None:
+                        # Find the PK column name
+                        pk_col_name = self._get_pk_column_name(target_bridge.name)
+                        if pk_col_name:
+                            bridge_data[pk_col_name] = bridge_pk
+
                     stmt = insert(target_bridge).values(**bridge_data)
                     conn.execute(stmt)
                 
@@ -339,6 +347,74 @@ class EventTracker:
             if entity.name == table_name and entity.type == 'bridge':
                 return True
         return False
+    
+    def _get_pk_column_name(self, table_name: str) -> Optional[str]:
+        """Get the primary key column name for a table."""
+        if not self.db_config:
+            return None
+        for entity in self.db_config.entities:
+            if entity.name == table_name:
+                for attr in entity.attributes:
+                    if attr.is_primary_key:
+                        return attr.name
+        return None
+    
+    def _generate_bridge_pk(self, conn, table_name: str) -> Optional[Any]:
+        """
+        Generate a PK value for a bridge table if it has a custom generator.
+        
+        Returns:
+            Generated PK value, or None if using auto-increment
+        """
+        if not self.db_config:
+            return None
+        
+        # Find the entity config
+        entity_config = None
+        for entity in self.db_config.entities:
+            if entity.name == table_name:
+                entity_config = entity
+                break
+        
+        if not entity_config:
+            return None
+        
+        # Find PK attribute with generator
+        pk_attr = None
+        for attr in entity_config.attributes:
+            if attr.is_primary_key:
+                pk_attr = attr
+                break
+        
+        if not pk_attr or not pk_attr.generator:
+            # No custom generator - use auto-increment
+            return None
+        
+        # Import generator utilities
+        import dataclasses
+        from ...generator.data.attribute_generator import generate_attribute_value
+        from ...generator.data.type_processor import process_value_for_type
+        
+        gen_dict = dataclasses.asdict(pk_attr.generator) if pk_attr.generator else None
+        attr_config_dict = {
+            'name': pk_attr.name,
+            'generator': gen_dict
+        }
+        
+        # For template generators, get row count for {id}
+        row_index = 0
+        if getattr(pk_attr.generator, 'type', None) == 'template':
+            try:
+                count_result = conn.execute(text(f'SELECT COUNT(*) FROM "{table_name}"')).scalar()
+                row_index = int(count_result) if count_result is not None else 0
+            except Exception as e:
+                logger.warning(f"Could not determine row count for {table_name}: {e}")
+        
+        generated_pk = generate_attribute_value(attr_config_dict, row_index)
+        generated_pk = process_value_for_type(generated_pk, pk_attr.type)
+        logger.debug(f"Generated bridge PK for {table_name}: {generated_pk}")
+        
+        return generated_pk
     
     def _get_bridge_fk_column(self, entity_config) -> Optional[tuple]:
         """
@@ -423,7 +499,7 @@ class EventTracker:
                 bridge_fk_info = None
                 break
             
-            # Pattern 2: Resource-Bridge (new - e.g., Medication_Order with doctor_id + event_id->Event)
+            # Pattern 2: Resource-Bridge (child bridge referencing parent bridge)
             if r_fk and not e_fk:
                 # Check for a bridge FK
                 b_fk_result = self._get_bridge_fk_column(entity)
@@ -435,7 +511,7 @@ class EventTracker:
                     bridge_fk_info = b_fk_result  # (column_name, parent_bridge_table)
                     break
             
-            # Pattern 3: Entity-Bridge (future - e.g., FollowUp with patient_id + appointment_id->Appointment)
+            # Pattern 3: Entity-Bridge (future pattern)
             if e_fk and not r_fk:
                 b_fk_result = self._get_bridge_fk_column(entity)
                 if b_fk_result:
@@ -550,11 +626,19 @@ class EventTracker:
                 if event_type:
                     parent_data['event_type'] = event_type
             
+            # Generate PK if the parent bridge table has a custom PK generator
+            bridge_pk = self._generate_bridge_pk(conn, parent_bridge_table_name)
+            if bridge_pk is not None:
+                pk_col_name = self._get_pk_column_name(parent_bridge_table_name)
+                if pk_col_name:
+                    parent_data[pk_col_name] = bridge_pk
+            
             stmt = insert(parent_table).values(**parent_data)
             result = conn.execute(stmt)
             
             # Get the inserted row's primary key
-            inserted_pk = result.lastrowid
+            # Use the generated PK if available, otherwise use lastrowid
+            inserted_pk = bridge_pk if bridge_pk is not None else result.lastrowid
             
             logger.debug(f"Created parent bridge record in {parent_bridge_table_name}: "
                         f"entity_id={entity_id}, resource_id={resource_id}, event_type={event_type}, pk={inserted_pk}")

@@ -42,7 +42,7 @@ class DataPopulator:
         # Map of entity_table -> set(attribute_names) that will be assigned in flows
         self.flow_assigned_attributes = flow_assigned_attributes
         
-        # Sort entities to handle dependencies (this will be moved to dependency_sorter)
+        # Sort entities to handle dependencies
         from ..schema import DependencySorter
         dependency_sorter = DependencySorter()
         sorted_entities = dependency_sorter.sort_entities_by_dependencies(config)
@@ -108,8 +108,13 @@ class DataPopulator:
             
             # Generate data for each attribute
             for attr in entity.attributes:
-                # Skip primary key for auto-increment
+                # Handle primary key - use generator if present, otherwise skip for auto-increment
                 if attr.is_primary_key:
+                    if attr.generator:
+                        # PK has a custom generator (e.g., faker uuid)
+                        row_data[attr.name] = self._generate_attribute_value(attr, i)
+                        logger.debug(f"Generated PK value for {attr.name} using {attr.generator.type} generator")
+                    # else: skip - let database handle auto-increment
                     continue
 
                 # Check for formula type generators - skip during initial population

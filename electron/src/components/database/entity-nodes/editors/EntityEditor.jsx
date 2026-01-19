@@ -246,8 +246,8 @@ const EntityEditor = ({ show, onHide, entity, onEntityUpdate, onEntityDelete, th
             type: attr.type
           };
 
-          // Add generator for non-primary key attributes
-          if (attr.type !== 'pk' && attr.generator) {
+          // Add generator if present (now enabled for PKs too)
+          if (attr.generator) {
             cleanedAttr.generator = { ...attr.generator };
           }
 

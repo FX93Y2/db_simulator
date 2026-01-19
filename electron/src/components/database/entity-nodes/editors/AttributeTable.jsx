@@ -165,7 +165,7 @@ const AttributeTable = ({
   // Helper function to check if a type should have a generator
   const shouldHaveGenerator = (type) => {
     // Only exclude system-managed fields that are auto-generated
-    const typesWithoutGenerators = ['pk', 'entity_id', 'resource_id', 'event_type'];
+    const typesWithoutGenerators = ['entity_id', 'resource_id', 'event_type'];
     return !typesWithoutGenerators.includes(type);
   };
 
@@ -247,7 +247,7 @@ const AttributeTable = ({
     onAttributesChange(updatedAttributes);
   };
 
-  // Note: Legacy distribution handler functions removed - now using formula-based distribution
+
 
   // Render generator configuration fields in modal
   const renderGeneratorFields = () => {

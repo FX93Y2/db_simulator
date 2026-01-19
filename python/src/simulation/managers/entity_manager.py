@@ -232,9 +232,38 @@ class EntityManager:
 
             pk_column = self.column_resolver.get_primary_key(entity_table)
             
-            # Don't pre-generate PK - let the database handle it
-            # This allows for auto-increment, UUID triggers, or other PK generation strategies
+            # Check if PK has a custom generator
+            pk_attr = next((attr for attr in entity_config.attributes if attr.is_primary_key), None)
+            generated_pk = None
+            
+            if pk_attr and pk_attr.generator:
+                # PK has a custom generator (e.g., faker uuid) - generate value
+                gen_dict = dataclasses.asdict(pk_attr.generator) if pk_attr.generator else None
+                attr_config_dict = {
+                    'name': pk_attr.name,
+                    'generator': gen_dict
+                }
+                
+                # For template generators, we need the next sequence number to support {id}
+                row_index = 0
+                if getattr(pk_attr.generator, 'type', None) == 'template':
+                    try:
+                        # Use count as a proxy for the next row index (0-based)
+                        # The template generator will add 1 to this for the {id} variable
+                        count_result = session.execute(text(f'SELECT COUNT(*) FROM "{entity_table}"')).scalar()
+                        row_index = int(count_result) if count_result is not None else 0
+                    except Exception as e:
+                        logger.warning(f"Could not determine row count for {entity_table}: {e}")
+                
+                generated_pk = generate_attribute_value(attr_config_dict, row_index)
+                generated_pk = process_value_for_type(generated_pk, pk_attr.type)
+                logger.debug(f"Generated custom PK value for {pk_attr.name}: {generated_pk}")
+            
             row_data = {}
+            
+            # Include generated PK if using custom generator
+            if generated_pk is not None:
+                row_data[pk_column] = generated_pk
             
             # Apply initial data if provided
             if initial_data:
@@ -244,7 +273,7 @@ class EntityManager:
             # Generate values for other attributes
             for attr in entity_config.attributes:
                 if attr.is_primary_key:
-                    continue  # Skip primary key - let database generate
+                    continue  # Already handled above
                 
                 # Skip if already populated by initial_data
                 if attr.name in row_data:
@@ -333,8 +362,12 @@ class EntityManager:
             logger.debug(f"Creating entity in {entity_table} with data: {row_data}")
             result = session.execute(sql_query, row_data)
             
-            # Get the generated primary key using lastrowid
-            # This works for SQLite auto-increment and is more portable
+            # Return the appropriate primary key value
+            if generated_pk is not None:
+                # Used custom PK generator - return the generated value
+                return generated_pk
+            
+            # Use lastrowid for auto-increment PKs
             generated_id = result.lastrowid
             
             if generated_id is None:

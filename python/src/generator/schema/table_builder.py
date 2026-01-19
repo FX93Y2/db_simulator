@@ -62,7 +62,16 @@ class TableBuilder:
             
             # Handle primary key
             if attr.is_primary_key:
-                attrs[attr.name] = Column(Integer, primary_key=True)
+                # Check if PK has a custom generator (e.g., faker for UUID)
+                if attr.generator and getattr(attr.generator, 'type', None) == 'faker':
+                    # Faker-generated PKs are typically strings (UUIDs)
+                    attrs[attr.name] = Column(String, primary_key=True)
+                elif attr.generator and getattr(attr.generator, 'type', None) == 'template':
+                    # Template-generated PKs are strings
+                    attrs[attr.name] = Column(String, primary_key=True)
+                else:
+                    # Default: Integer auto-increment
+                    attrs[attr.name] = Column(Integer, primary_key=True)
             
             # Handle foreign key
             elif attr.is_foreign_key and attr.ref:
