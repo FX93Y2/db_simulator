@@ -17,31 +17,9 @@ const EventStepEditor = ({
   nameValidation = { valid: true, error: null },
   bridgeTables = []
 }) => {
-  // Convert old distribution format to formula if needed
+  // Get current formula value
   const getCurrentFormula = () => {
-    if (formData.duration_formula) {
-      return formData.duration_formula;
-    }
-
-    // Convert from old format
-    const oldDistribution = {
-      type: formData.distribution_type === 'choice' ? 'discrete' : formData.distribution_type,
-      mean: formData.duration_mean,
-      stddev: formData.duration_stddev,
-      scale: formData.duration_scale,
-      min: formData.duration_min,
-      max: formData.duration_max
-    };
-
-    // Handle choice format conversion
-    if (formData.distribution_type === 'choice') {
-      const values = formData.duration_values ? formData.duration_values.split(',').map(v => v.trim()) : ['1', '2', '3'];
-      const weights = formData.duration_weights ? formData.duration_weights.split(',').map(w => parseFloat(w.trim())) : [0.5, 0.3, 0.2];
-      oldDistribution.values = values;
-      oldDistribution.weights = weights;
-    }
-
-    return convertDistributionToFormula(oldDistribution) || getDefaultFormula('duration');
+    return formData.duration_formula || '';
   };
 
   const handleFormulaChange = (newFormula) => {
@@ -93,7 +71,6 @@ const EventStepEditor = ({
               value={getCurrentFormula()}
               onChange={handleFormulaChange}
               label="Duration Distribution"
-              placeholder="e.g., NORM(5, 1) or DISC(0.7, 'fast', 0.3, 'slow')"
               singleLine={true}
             />
           </Col>

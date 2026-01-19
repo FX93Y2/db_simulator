@@ -47,7 +47,7 @@ const DbConfigEditor = ({
 }) => {
   const { configId } = useParams();
   const { showSuccess, showError } = useToastContext();
-  
+
   // Store state subscriptions
   const yamlContent = useDatabaseYamlContent(projectId);
   const simYamlContent = useSimulationYamlContent(projectId);
@@ -57,7 +57,7 @@ const DbConfigEditor = ({
   const description = useDatabaseDescription(projectId);
   const config = useDatabaseConfig(projectId);
   const selectionMode = useSelectionMode(projectId);
-  
+
   // Store actions
   const {
     loadDatabaseConfig,
@@ -70,18 +70,18 @@ const DbConfigEditor = ({
     canUndo,
     canRedo
   } = useDatabaseConfigActions(projectId);
-  
+
   const { importEntityYaml } = useEntityYamlActions(projectId);
-  
+
   const { toggleSelectionMode } = useEntityUIActions(projectId);
-  
+
   // Local modal state
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [saveAsNew, setSaveAsNew] = useState(false);
-  
+
   // Refs
   const erDiagramRef = useRef(null);
-  
+
   // Resizable grid hook
   const { handleMouseDown } = useResizableGrid({
     minWidthPercent: 22,
@@ -90,7 +90,7 @@ const DbConfigEditor = ({
     cssVariable: '--yaml-panel-width',
     storageKey: 'unified-yaml-panel-width'
   });
-  
+
   // Custom hooks for shared functionality
   const yamlOperations = useYamlOperations({
     yamlContent,
@@ -109,7 +109,7 @@ const DbConfigEditor = ({
   });
 
   useKeyboardShortcuts({ undo, redo, canUndo, canRedo });
-  
+
   useConfigurationLoader({
     projectId,
     configId,
@@ -132,24 +132,24 @@ const DbConfigEditor = ({
 
     try {
       const currentEntities = erDiagramRef.current.getCanonicalEntities();
-      
+
       const baseTableName = "NewTable";
       let tableName = baseTableName;
       let counter = 1;
-      
+
       while (currentEntities.some(entity => entity.name === tableName)) {
         tableName = `${baseTableName}${counter}`;
         counter++;
       }
-      
+
       const newEntity = {
         name: tableName,
-        rows: 100,
+        rows: 'n/a',
         attributes: [
           { name: "id", type: "pk" }
         ]
       };
-      
+
       erDiagramRef.current.addEntity(newEntity);
     } catch (error) {
       showError('Failed to add table. Please try again.');
@@ -173,7 +173,7 @@ const DbConfigEditor = ({
         showError('Please enter a name for the configuration');
         return;
       }
-      
+
       const configData = {
         name,
         config_type: 'database',
@@ -181,9 +181,9 @@ const DbConfigEditor = ({
         description,
         project_id: projectId
       };
-      
+
       const result = await saveDatabaseConfig(configData);
-      
+
       if (result.success) {
         showSuccess('Database configuration saved successfully');
         if (onSaveSuccess) onSaveSuccess();
@@ -227,8 +227,8 @@ const DbConfigEditor = ({
       }
       yamlContent={yamlContent}
       yamlContentComponent={
-        <YamlEditor 
-          initialValue={yamlContent} 
+        <YamlEditor
+          initialValue={yamlContent}
           onSave={handleSave}
           readOnly={true}
           showImportExport={false}
@@ -238,19 +238,19 @@ const DbConfigEditor = ({
       }
       canvasContent={
         <div className="position-relative" style={{ height: '100%' }}>
-          <ERDiagram 
-            key={projectId} 
+          <ERDiagram
+            key={projectId}
             ref={erDiagramRef}
             theme={theme}
             projectId={projectId}
           />
-          
+
           <FloatingToolbar
             items={toolbarItems}
             position="top-center"
             theme={theme}
           />
-          
+
           {isLoading && (
             <div className="position-absolute top-50 start-50 translate-middle">
               <div className="d-flex flex-column align-items-center bg-white p-3 rounded shadow">
@@ -265,7 +265,7 @@ const DbConfigEditor = ({
       isLoading={isLoading}
     />
   );
-  
+
   // Project tab version (simplified)
   if (isProjectTab) {
     return (
@@ -281,7 +281,7 @@ const DbConfigEditor = ({
       </div>
     );
   }
-  
+
   // Standalone version with modal
   return (
     <div className="db-config-editor">
@@ -292,9 +292,9 @@ const DbConfigEditor = ({
           </h2>
         </div>
       </div>
-      
+
       {renderEditor()}
-      
+
       <input
         ref={yamlOperations.fileInputRef}
         type="file"
@@ -302,7 +302,7 @@ const DbConfigEditor = ({
         style={{ display: 'none' }}
         onChange={yamlOperations.handleFileChange}
       />
-      
+
       {/* Save Configuration Modal */}
       <Modal
         show={showSaveModal}
@@ -317,29 +317,29 @@ const DbConfigEditor = ({
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Configuration Name</Form.Label>
-              <Form.Control 
-                type="text" 
-                value={name} 
-                onChange={(e) => updateConfigMetadata({ name: e.target.value })} 
+              <Form.Control
+                type="text"
+                value={name}
+                onChange={(e) => updateConfigMetadata({ name: e.target.value })}
                 placeholder="Enter a name for this configuration"
                 required
               />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Description</Form.Label>
-              <Form.Control 
-                as="textarea" 
-                rows={3} 
-                value={description} 
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={description}
                 onChange={(e) => updateConfigMetadata({ description: e.target.value })}
                 placeholder="Optional description"
               />
             </Form.Group>
             {config && (
               <Form.Group className="mb-3">
-                <Form.Check 
-                  type="checkbox" 
-                  label="Save as a new configuration" 
+                <Form.Check
+                  type="checkbox"
+                  label="Save as a new configuration"
                   checked={saveAsNew}
                   onChange={(e) => setSaveAsNew(e.target.checked)}
                 />
@@ -351,7 +351,7 @@ const DbConfigEditor = ({
           <Button variant="secondary" onClick={() => setShowSaveModal(false)}>
             Cancel
           </Button>
-          <Button 
+          <Button
             className="btn-custom-toolbar"
             onClick={handleSaveConfig}
             disabled={isLoading}

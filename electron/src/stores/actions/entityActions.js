@@ -248,7 +248,7 @@ export const createEntityActions = (set, get) => ({
         data: {
           label: entity.name,
           tableType: entity.type || '',
-          rows: entity.rows || 100,
+          rows: entity.rows || 'n/a',
           attributes: sortAttributes(entity.attributes || [])
         },
         width: 200,

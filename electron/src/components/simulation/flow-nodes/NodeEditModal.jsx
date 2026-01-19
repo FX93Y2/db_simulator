@@ -169,7 +169,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
     setFormData({
       name: stepName,
       bridge_table: eventConfig.bridge_table || '',
-      duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : 'NORM(5, 1)'),
+      duration_formula: duration.formula || (duration.distribution ? convertOldDistributionToFormula(duration.distribution) : ''),
       duration_time_unit: duration.time_unit || undefined,
       // Keep old format for backward compatibility during migration
       distribution_type: duration.distribution?.type || 'normal',
@@ -571,7 +571,7 @@ const NodeEditModal = ({ show, onHide, node, onNodeUpdate, onNodeDelete, theme, 
   };
 
   const buildEventConfig = () => {
-    const duration = { formula: formData.duration_formula || 'NORM(5, 1)' };
+    const duration = { formula: formData.duration_formula || '' };
     if (formData.duration_time_unit) {
       duration.time_unit = formData.duration_time_unit;
     }

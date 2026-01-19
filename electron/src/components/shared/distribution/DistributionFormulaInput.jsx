@@ -8,7 +8,7 @@ const DistributionFormulaInput = ({
   value = '',
   onChange,
   label = 'Distribution Formula',
-  placeholder = 'e.g., UNIF(3, 10) or NORM(5, 1)',
+  placeholder = '',
   className = '',
   required = false,
   singleLine = false,

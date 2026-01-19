@@ -38,9 +38,6 @@ const FakerGeneratorEditor = ({ generator, onGeneratorChange }) => {
         lineNumbers="off" // Simple input doesn't need line numbers usually
         minimap={false}
       />
-      <Form.Text className="text-muted">
-        Faker.js method name (e.g., name, email, phone, address)
-      </Form.Text>
     </Form.Group>
   );
 };

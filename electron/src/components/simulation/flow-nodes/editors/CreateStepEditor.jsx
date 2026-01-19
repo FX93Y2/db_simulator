@@ -141,7 +141,6 @@ const CreateStepEditor = ({
                 value={getCurrentFormula()}
                 onChange={handleFormulaChange}
                 label="Interarrival Time Distribution"
-                placeholder="e.g., NORM(5, 1) or UNIF(1, 10)"
                 required
                 helpText="Distribution for time between entity arrivals"
               />

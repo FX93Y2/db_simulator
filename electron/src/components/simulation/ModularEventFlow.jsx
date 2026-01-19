@@ -376,7 +376,7 @@ const ModularEventFlowInner = forwardRef(({ theme, dbConfigContent, projectId },
     switch (moduleType) {
       case 'event':
         newStep.event_config = {
-          duration: { distribution: { type: "normal", mean: 5, stddev: 1 } },
+          duration: { formula: '' },
           resource_requirements: []
         };
         newStep.next_steps = [];

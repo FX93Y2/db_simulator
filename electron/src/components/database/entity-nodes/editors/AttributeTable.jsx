@@ -100,10 +100,8 @@ const AttributeTable = ({
             formula: ''
           };
         } else {
-          updatedAttribute.generator = {
-            type: 'faker',
-            method: 'name'
-          };
+          // Default to None - do not auto-create faker generator
+          delete updatedAttribute.generator;
         }
       } else if (existingGenerator) {
         // Helper functions for type checking
@@ -144,25 +142,19 @@ const AttributeTable = ({
               formula: ''
             };
           } else {
-            updatedAttribute.generator = {
-              type: 'faker',
-              method: 'name'
-            };
+            // Default to None - do not auto-create faker generator
+            delete updatedAttribute.generator;
           }
         }
       } else {
-        // No existing generator - create default for new type
+        // No existing generator - leave as None by default
         if (value === 'resource_type') {
           updatedAttribute.generator = {
             type: 'distribution',
             formula: ''
           };
-        } else {
-          updatedAttribute.generator = {
-            type: 'faker',
-            method: 'name'
-          };
         }
+        // Otherwise leave generator undefined (None)
       }
     }
 

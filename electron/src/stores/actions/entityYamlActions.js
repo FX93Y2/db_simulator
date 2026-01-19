@@ -13,18 +13,18 @@ export const createEntityYamlActions = (set, get) => ({
    */
   generateEntityYaml: () => {
     const { canonicalEntities } = get();
-    
+
     const yamlObject = {
       entities: canonicalEntities.map(entity => ({
         name: entity.name,
         ...(entity.type && { type: entity.type }),
-        rows: entity.rows || 100,
+        rows: entity.rows || 'n/a',
         attributes: entity.attributes || []
       }))
     };
-    
+
     const yamlString = yaml.stringify(yamlObject);
-    
+
     return yamlString;
   },
 
@@ -38,20 +38,20 @@ export const createEntityYamlActions = (set, get) => ({
     if (typeof yamlContent !== 'string') {
       throw new Error('Invalid YAML content: expected string');
     }
-    
+
     try {
       const parsedYAML = yaml.parse(yamlContent);
       const newEntities = parsedYAML?.entities || [];
-      
+
       // Validate this is database YAML (not simulation YAML)
       if (parsedYAML?.event_simulation || parsedYAML?.steps) {
         throw new Error('Invalid YAML: This appears to be simulation configuration, not database configuration');
       }
-      
+
       if (!parsedYAML?.entities) {
         throw new Error('Invalid YAML: Database configuration must contain "entities" section');
       }
-      
+
       // Validate entities structure
       for (const entity of newEntities) {
         if (!entity.name) {
@@ -61,7 +61,7 @@ export const createEntityYamlActions = (set, get) => ({
           throw new Error(`Invalid YAML: Entity "${entity.name}" must have an "attributes" array`);
         }
       }
-      
+
       // If validation passes, update canvas
       if (newEntities.length === 0) {
         set((state) => {
@@ -72,26 +72,26 @@ export const createEntityYamlActions = (set, get) => ({
         });
         return { success: true, message: 'Empty database configuration imported' };
       }
-      
+
       // Load positions and integrate with entities
       const { projectId } = get();
       const savedPositionsMap = projectId ? positionService.getAllPositions(projectId, 'database') : new Map();
       const savedPositions = Object.fromEntries(savedPositionsMap);
-      
+
       const updatedEntities = newEntities.map((entity, index) => {
         // Use saved position if available, otherwise generate grid position
         const position = savedPositions[entity.name] || {
           x: 50 + (index % 3) * 300,
           y: 100 + Math.floor(index / 3) * 200
         };
-        
+
         return {
           ...entity,
           position,
           attributes: sortAttributes(entity.attributes || [])
         };
       });
-      
+
       // Update store state
       set((state) => {
         state.canonicalEntities = updatedEntities;
@@ -99,21 +99,21 @@ export const createEntityYamlActions = (set, get) => ({
         state.isLoading = false;
         state.error = null;
       });
-      
+
       // Update visual state
       get().updateEntityVisualState();
-      
+
       // Note: Removed cleanupObsoleteEntityPositions() to prevent removing simulation step positions
-      
+
       return { success: true, message: `Successfully imported ${newEntities.length} entities` };
-      
+
     } catch (error) {
       set((state) => {
         state.currentState = 'idle';
         state.isLoading = false;
         state.error = error.message;
       });
-      
+
       throw new Error(`YAML parsing failed: ${error.message}`);
     }
   },
@@ -126,7 +126,7 @@ export const createEntityYamlActions = (set, get) => ({
   exportEntityYaml: (filename = 'database-config.yaml') => {
     try {
       const yamlContent = get().generateEntityYaml();
-      
+
       if (!yamlContent) {
         return { success: false, message: 'No entities to export' };
       }
@@ -155,23 +155,23 @@ export const createEntityYamlActions = (set, get) => ({
   parseEntityYaml: (yamlContent) => {
     try {
       const doc = yaml.parseDocument(yamlContent);
-      
+
       if (doc.errors && doc.errors.length > 0) {
         return { valid: false, error: doc.errors[0].message };
       }
-      
+
       const parsedObj = doc.toJSON();
-      
+
       // Validate structure
       if (!parsedObj?.entities && parsedObj !== null) {
         return { valid: false, error: 'Invalid YAML: Missing "entities" section' };
       }
-      
+
       // Validate it's not simulation YAML
       if (parsedObj?.event_simulation || parsedObj?.steps) {
         return { valid: false, error: 'Invalid YAML: This appears to be simulation configuration, not database configuration' };
       }
-      
+
       return { valid: true, data: parsedObj };
     } catch (error) {
       return { valid: false, error: error.message };
@@ -196,22 +196,22 @@ export const createEntityYamlActions = (set, get) => ({
   detectEntityChanges: (oldEntities, newEntities) => {
     const oldNames = new Set(oldEntities.map(e => e.name));
     const newNames = new Set(newEntities.map(e => e.name));
-    
+
     const added = newEntities.filter(e => !oldNames.has(e.name));
     const deleted = oldEntities.filter(e => !newNames.has(e.name));
     const modified = newEntities.filter(e => {
       const oldEntity = oldEntities.find(old => old.name === e.name);
       if (!oldEntity) return false;
-      
+
       // Deep comparison of entity properties (excluding position)
       const oldClean = { ...oldEntity };
       delete oldClean.position;
       const newClean = { ...e };
       delete newClean.position;
-      
+
       return JSON.stringify(oldClean) !== JSON.stringify(newClean);
     });
-    
+
     return { added, deleted, modified };
   },
 
@@ -245,13 +245,13 @@ export const createEntityYamlActions = (set, get) => ({
     const { projectId } = get();
     const savedPositionsMap = projectId ? positionService.getAllPositions(projectId, 'database') : new Map();
     const savedPositions = Object.fromEntries(savedPositionsMap);
-    
+
     const entities = parsedObj.entities.map((entity, index) => {
       const position = savedPositions[entity.name] || {
         x: 50 + (index % 3) * 300,
         y: 100 + Math.floor(index / 3) * 200
       };
-      
+
       return {
         ...entity,
         position,
