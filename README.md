@@ -1,4 +1,4 @@
-# DB Simulator
+# RelSim
 
 Generate realistic relational databases and run discrete‑event simulations for teaching, prototyping, and demos.
 
